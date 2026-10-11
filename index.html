@@ -1,0 +1,740 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MINI GT STORE — Siêu Thị Mô Hình Xe 1:64 Die-Cast Chính Hãng</title>
+  <meta name="description" content="Chuyên giới thiệu và bán mô hình xe MINI GT, Pop Race, TSM-Model chính hãng tỉ lệ 1:64. Đặt trước Pre-order bản quyền F1, Liberty Walk LBWK, Secret Chase xe diecast cao cấp.">
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" href="image/logominigt.png">
+
+  <!-- Google Fonts: Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+
+  <!-- Modular CSS -->
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <!-- =====================================================================
+       1. HEADER (ANNOUNCEMENT TICKER + MAIN HEADER)
+       ===================================================================== -->
+  <header class="site-header">
+    <!-- Top Announcement Bar -->
+    <div class="announcement-bar">
+      <div class="container announcement-container">
+        <div class="announcement-ticker">
+          <span class="badge-fire">🔥</span>
+          <span>Đợt mở đặt trước toàn cầu: <strong>Liberty Walk LBWK, F1 Las Vegas & Secret Chase Edition</strong> | Hạn chốt đặt cọc: <strong>30/10/2026</strong></span>
+        </div>
+        <div class="announcement-links">
+          <a href="admin/index.html" style="color:#fbbf24; font-weight:600;">👑 Quản trị Store</a>
+          <a href="javascript:void(0)" onclick="openTrackingModal()">📦 Tra cứu đơn hàng</a>
+          <a href="#catalog" onclick="document.querySelector('[data-filter=chase]').click(); scrollToSection('catalog');">💎 Săn xe Chase 1/24</a>
+          <a href="tel:0848184164" class="hotline-link">📞 Hotline: <strong>0848.184.164</strong></a>
+          <div class="lang-switch"><span class="active">VN</span> / <span>EN</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main Header -->
+    <div class="main-header">
+      <div class="container header-container">
+        <!-- Logo -->
+        <a href="index.html" class="brand-logo" aria-label="Trang chủ MINI GT STORE">
+          <img src="image/logominigt.png" alt="MINI GT Logo" class="brand-logo-img">
+          <span class="brand-scale-badge">1:64 SCALE</span>
+        </a>
+
+        <!-- Search Bar -->
+        <div class="header-search">
+          <div class="search-input-wrapper">
+            <span class="search-icon-btn">🔍</span>
+            <input type="text" id="headerSearchInput" placeholder="Tìm theo MiniGT, LBWK, F1, Sku..." autocomplete="off">
+            <span class="search-kbd-hint" title="Phím tắt: bấm phím / để tìm nhanh"><kbd>/</kbd></span>
+          </div>
+          <div class="search-results-dropdown" id="searchResultsDropdown"></div>
+        </div>
+
+        <!-- Header Actions -->
+        <div class="header-actions">
+          <button class="action-btn" title="Danh sách yêu thích" onclick="showToast('Đã lưu vào danh sách xe yêu thích!', 'info')">
+            ❤
+            <span class="action-badge" id="wishlistBadgeCount">0</span>
+          </button>
+
+          <button class="action-btn" title="Giỏ cọc xe" onclick="openCartDrawer()">
+            🛒
+            <span class="action-badge" id="cartBadgeCount">0</span>
+          </button>
+
+          <!-- User Profile / Login Area -->
+          <div id="userProfileArea">
+            <button class="btn btn-outline btn-sm" onclick="openAuthModal('login')">
+              👤 Đăng nhập Gmail
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- =====================================================================
+         2. NAVIGATION
+         ===================================================================== -->
+    <nav class="main-nav" aria-label="Menu chính">
+      <div class="container nav-container">
+        <button class="nav-mobile-toggle" onclick="toggleMobileNav()" aria-label="Mở menu">☰ Menu</button>
+        <ul class="nav-menu" id="navMenu">
+          <li><a href="index.html" class="nav-link active">Trang chủ</a></li>
+          <li><a href="#preorder-strip" class="nav-link" onclick="scrollToSection('preorder-strip')">Pre-Order 2026 <span class="nav-pill-badge">HOT</span></a></li>
+          <li><a href="#catalog" class="nav-link" onclick="document.querySelector('[data-filter=lbwk]').click(); scrollToSection('catalog');">Liberty Walk LBWK</a></li>
+          <li><a href="#catalog" class="nav-link" onclick="document.querySelector('[data-filter=chase]').click(); scrollToSection('catalog');">Secret Chase</a></li>
+          <li><a href="#f1-racing" class="nav-link" onclick="scrollToSection('f1-racing')">F1 Racing Series</a></li>
+          <li><a href="#box-sets" class="nav-link" onclick="scrollToSection('box-sets')">Box Sets & Combos</a></li>
+          <li><a href="#preorder-workflow" class="nav-link" onclick="scrollToSection('preorder-workflow')">Quy trình cọc</a></li>
+          <li><a href="#benefits" class="nav-link" onclick="scrollToSection('benefits')">Chính sách & Hỏi đáp</a></li>
+          <li><a href="javascript:void(0)" class="nav-link" onclick="openMyOrdersModal()">📦 Đơn của tôi <span class="nav-spx-badge">SPX</span></a></li>
+        </ul>
+      </div>
+    </nav>
+  </header>
+
+  <!-- =====================================================================
+       MAIN CONTENT
+       ===================================================================== -->
+  <main>
+
+    <!-- =====================================================================
+         3. HERO BANNER WITH INTERACTIVE HOTSPOTS
+         ===================================================================== -->
+    <section class="hero-section" aria-label="Banner nổi bật">
+      <div class="container">
+        <div class="hero-slider-wrap">
+          <div class="hero-watermark">MINI GT™</div>
+
+          <div class="hero-image-stage">
+            <img src="image/hero-banner.png" alt="Bộ sưu tập MINI GT Pre-Order 2026" class="hero-img-main" id="heroMainImg">
+
+            <!-- Interactive Hotspot Pins tương tác trên hình ảnh -->
+            <div class="hero-hotspot hotspot-1" onclick="openQuickView(1)">
+              +
+              <span class="hotspot-tooltip">Actros Transporter Truck & Box Set</span>
+            </div>
+            <div class="hero-hotspot hotspot-2" onclick="openQuickView(10)">
+              +
+              <span class="hotspot-tooltip">LB-WORKS Pink Van & S15 Silvia</span>
+            </div>
+            <div class="hero-hotspot hotspot-3" onclick="openQuickView(5)">
+              +
+              <span class="hotspot-tooltip">LB★WORKS Lamborghini Huracán GT</span>
+            </div>
+            <div class="hero-hotspot hotspot-4" onclick="openQuickView(9)">
+              +
+              <span class="hotspot-tooltip">Lamborghini Daytona Blue Edition</span>
+            </div>
+            <div class="hero-hotspot hotspot-5" onclick="openQuickView(2)">
+              +
+              <span class="hotspot-tooltip">Aston Martin AMR24 #18 Stroll</span>
+            </div>
+            <div class="hero-hotspot hotspot-6" onclick="openQuickView(3)">
+              +
+              <span class="hotspot-tooltip">Aston Martin AMR24 #14 Alonso</span>
+            </div>
+            <div class="hero-hotspot hotspot-7" onclick="openQuickView(4)">
+              +
+              <span class="hotspot-tooltip">Red Bull Racing RB18 Verstappen</span>
+            </div>
+          </div>
+
+          <!-- Controls -->
+          <button class="hero-control-btn hero-prev" aria-label="Banner trước" onclick="showToast('Đang hiển thị mẫu đợt mở cọc tháng 10/2026', 'info')">‹</button>
+          <button class="hero-control-btn hero-next" aria-label="Banner kế tiếp" onclick="showToast('Đang hiển thị mẫu đợt mở cọc tháng 10/2026', 'info')">›</button>
+
+          <!-- Indicator dots -->
+          <div class="hero-dots">
+            <span class="hero-dot active"></span>
+            <span class="hero-dot"></span>
+          </div>
+
+          <!-- Footer Bar below Banner -->
+          <div class="hero-footer-bar">
+            <div class="hero-disclaimer">Prototype Sample Shown, Subject to Licensor Approval</div>
+            <div class="hero-preorder-badge">
+              <span>PRE-ORDER</span>
+              September 28th, 2026
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- =====================================================================
+         4. PRE-ORDER LIVE COUNTDOWN STRIP
+         ===================================================================== -->
+    <section class="container" id="preorder-strip" aria-label="Đồng hồ đếm ngược đặt trước">
+      <div class="preorder-strip-container">
+        <div class="preorder-strip-info">
+          <div class="preorder-strip-icon">⏱️</div>
+          <div class="preorder-strip-text">
+            <h4>HỆ THỐNG ĐẶT TRƯỚC TOÀN CẦU TSM-MODEL & POP RACE</h4>
+            <p>Thời hạn đóng cổng cọc đợt này: 30/10/2026</p>
+          </div>
+        </div>
+
+        <!-- Live Clock -->
+        <div class="countdown-clock" id="countdown-clock">
+          <div class="countdown-box">
+            <div class="countdown-val" id="daysVal">24</div>
+            <div class="countdown-label">NGÀY</div>
+          </div>
+          <span class="countdown-separator">:</span>
+          <div class="countdown-box">
+            <div class="countdown-val" id="hoursVal">18</div>
+            <div class="countdown-label">GIỜ</div>
+          </div>
+          <span class="countdown-separator">:</span>
+          <div class="countdown-box">
+            <div class="countdown-val" id="minsVal">45</div>
+            <div class="countdown-label">PHÚT</div>
+          </div>
+          <span class="countdown-separator">:</span>
+          <div class="countdown-box">
+            <div class="countdown-val" id="secsVal">20</div>
+            <div class="countdown-label">GIÂY</div>
+          </div>
+        </div>
+
+        <button class="btn btn-dark" onclick="scrollToSection('catalog'); document.querySelector('[data-filter=pre_order]').click();">
+          🛒 Đặt cọc giữ mẫu ngay
+        </button>
+      </div>
+    </section>
+
+    <!-- =====================================================================
+         5. CATALOGUE & DANH MỤC SẢN PHẨM (THEO GIAO DIỆN ẢNH THAM KHẢO)
+         ===================================================================== -->
+    <section class="section" id="catalog" aria-label="Danh mục và danh sách mô hình">
+      <div class="container">
+        <header class="section-header">
+          <span class="section-eyebrow">CATALOGUE ĐẦY ĐỦ 1:64 DIE-CAST</span>
+          <h2 class="section-title">BỘ SƯU TẬP XE MÔ HÌNH CHÍNH HÃNG 2026</h2>
+          <p class="section-desc">
+            Khám phá 12 siêu phẩm mang tính bản quyền từ MINI GT, Pop Race, TSM-Model và Time Micro.
+          </p>
+        </header>
+
+        <!-- Filter Tags Pills (Giống hình mẫu 100%) -->
+        <div class="filter-tags-wrapper">
+          <button class="filter-pill active" data-filter="all">
+            🔥 Tất cả mô hình <span class="pill-count">(12)</span>
+          </button>
+          <button class="filter-pill" data-filter="pre_order">
+            ⏱️ Pre-Order Đợt Mới <span class="pill-count">(3)</span>
+          </button>
+          <button class="filter-pill" data-filter="lbwk">
+            🏷️ Liberty Walk LBWK <span class="pill-count">(3)</span>
+          </button>
+          <button class="filter-pill" data-filter="chase">
+            💎 Secret Chase Car <span class="pill-count">(3)</span>
+          </button>
+          <button class="filter-pill" data-filter="f1">
+            🏎️ Formula 1 Series <span class="pill-count">(3)</span>
+          </button>
+          <button class="filter-pill" data-filter="ao_racing">
+            🦖 AO Racing GT3 <span class="pill-count">(3)</span>
+          </button>
+          <button class="filter-pill" data-filter="in_stock">
+            📦 Có sẵn giao ngay <span class="pill-count">(7)</span>
+          </button>
+        </div>
+
+        <div style="text-align: center;">
+          <div class="trust-badge-pill">
+            🛡️ 100% Seal Hãng & Bản Quyền Chính Thức
+          </div>
+        </div>
+
+        <!-- Product Cards Grid (Được render động bởi JS, khớp chính xác ảnh tham khảo) -->
+        <div class="product-grid" id="mainProductGrid">
+          <!-- Cards populated via js/app.js -->
+        </div>
+      </div>
+    </section>
+
+    <!-- =====================================================================
+         6. PRE-ORDER WORKFLOW & POLICY
+         ===================================================================== -->
+    <section class="section section-bg-white" id="preorder-workflow" aria-label="Quy trình đặt trước">
+      <div class="container">
+        <header class="section-header">
+          <span class="section-eyebrow">MINH BẠCH & AN TÂM</span>
+          <h2 class="section-title">QUY TRÌNH ĐẶT TRƯỚC (PRE-ORDER)</h2>
+          <p class="section-desc">
+            Quy trình 4 bước chuẩn quốc tế giúp bạn sở hữu các mẫu mô hình hiếm với giá gốc từ nhà máy mà không lo bị đội giá.
+          </p>
+        </header>
+
+        <div class="preorder-steps-grid">
+          <div class="step-card">
+            <div class="step-badge">1</div>
+            <h3 class="step-title">Chọn mẫu & Đặt cọc 30-50%</h3>
+            <p class="step-desc">Khách hàng chọn mã xe yêu thích và đặt cọc qua chuyển khoản VietQR tự động hoặc thanh toán tại quầy.</p>
+          </div>
+          <div class="step-card">
+            <div class="step-badge">2</div>
+            <h3 class="step-title">Nhận Mã Đơn Cọc & Xác nhận</h3>
+            <p class="step-desc">Hệ thống tạo mã vận đơn Pre-Order duy nhất lưu trữ trên CSDL máy chủ SSMS, gửi tin nhắn SMS/Email ngay.</p>
+          </div>
+          <div class="step-card">
+            <div class="step-badge">3</div>
+            <h3 class="step-title">Cập nhật Lộ trình Vận chuyển</h3>
+            <p class="step-desc">Theo dõi tiến độ từ nhà máy TSM-Model tại Trung Quốc/Hồng Kông cập cảng Việt Nam qua tính năng tra cứu.</p>
+          </div>
+          <div class="step-card">
+            <div class="step-badge">4</div>
+            <h3 class="step-title">Thanh toán Phần còn lại & Nhận xe</h3>
+            <p class="step-desc">Khi hàng về kho Biên Hòa, store liên hệ gửi xe kèm seal niêm phong và bảo hiểm chống cấn móp góc hộp.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- =====================================================================
+         7. F1 RACING COLLECTION
+         ===================================================================== -->
+    <section class="section" id="f1-racing" aria-label="Bộ sưu tập F1 Racing">
+      <div class="container">
+        <div class="collection-banner">
+          <div class="collection-banner-content">
+            <span class="collection-banner-tag">OFFICIAL FORMULA 1 LICENSED</span>
+            <h2 class="collection-banner-title">FORMULA 1 RACING 2026 SERIES</h2>
+            <p class="collection-banner-desc">
+              Tái hiện hoàn hảo những cỗ máy tốc độ đỉnh cao: Aston Martin AMR24 Fernando Alonso #14, Lance Stroll #18 chặng Las Vegas GP và Red Bull Racing RB18 Max Verstappen.
+            </p>
+            <button class="btn btn-primary" onclick="scrollToSection('catalog'); document.querySelector('[data-filter=f1]').click();">
+              🏎️ Xem toàn bộ xe đua F1
+            </button>
+          </div>
+          <img src="image/aston-amr24-alonso.png" alt="Aston Martin AMR24 Alonso F1" class="collection-banner-img">
+        </div>
+
+        <div class="product-grid" id="f1ProductGrid">
+          <!-- Populated by JS -->
+        </div>
+      </div>
+    </section>
+
+    <!-- =====================================================================
+         8. BOX SETS & COMBOS
+         ===================================================================== -->
+    <section class="section section-bg-white" id="box-sets" aria-label="Bộ sưu tập Box Sets">
+      <div class="container">
+        <header class="section-header">
+          <span class="section-eyebrow">COLLECTOR SPECIAL EDITION</span>
+          <h2 class="section-title">BOX SETS & COMBO TIẾT KIỆM</h2>
+          <p class="section-desc">
+            Những set mô hình hộp quà đặc biệt, đi kèm hộp trưng bày mica acrylic và bộ tem đặc quyền dành cho nhà sưu tập.
+          </p>
+        </header>
+
+        <div class="product-grid" id="boxSetsProductGrid">
+          <!-- Populated by JS -->
+        </div>
+      </div>
+    </section>
+
+    <!-- =====================================================================
+         9. CHÍNH SÁCH / LỢI ÍCH DÀNH CHO COLLECTOR
+         ===================================================================== -->
+    <section class="section" id="benefits" aria-label="Chính sách và cam kết">
+      <div class="container">
+        <header class="section-header">
+          <span class="section-eyebrow">TIÊU CHUẨN SƯU TẬP CAO CẤP</span>
+          <h2 class="section-title">CAM KẾT TỪ MINI GT STORE BIÊN HÒA</h2>
+          <p class="section-desc">
+            Chúng tôi hiểu rằng đối với người chơi mô hình diecast, tình trạng góc hộp và seal nguyên bản là điều quan trọng nhất.
+          </p>
+        </header>
+
+        <div class="benefits-grid">
+          <div class="benefit-card">
+            <div class="benefit-icon-wrap">🛡️</div>
+            <h3 class="benefit-title">100% Chính Hãng Tem Hãng</h3>
+            <p class="benefit-desc">
+              Phân phối trực tiếp từ TSM-Model & Pop Race. Mỗi xe nguyên seal ni-lông từ nhà máy, có tem bảo chứng chống hàng dựng.
+            </p>
+          </div>
+
+          <div class="benefit-card">
+            <div class="benefit-icon-wrap">📦</div>
+            <h3 class="benefit-title">Bọc Chống Sốc 3 Lớp Chuyên Dụng</h3>
+            <p class="benefit-desc">
+              Đóng gói trong thùng carton 5 lớp cứng, lót túi bóng khí dày 4 mặt, cam kết không móp méo góc hộp (Corner Mint Condition).
+            </p>
+          </div>
+
+          <div class="benefit-card">
+            <div class="benefit-icon-wrap">💎</div>
+            <h3 class="benefit-title">Cơ Chế Săn Xe Chase 1/24</h3>
+            <p class="benefit-desc">
+              Khách đặt trước thùng nguyên seal 24 xe có cơ hội bóc trúng xe Chase hiếm bản giới hạn toàn cầu với tỉ lệ ngẫu nhiên 1:24.
+            </p>
+          </div>
+
+          <div class="benefit-card">
+            <div class="benefit-icon-wrap">💰</div>
+            <h3 class="benefit-title">Hoàn Tiền Cọc 100% Linh Hoạt</h3>
+            <p class="benefit-desc">
+              Nếu hãng hủy lịch sản xuất hoặc trễ hạn vượt quá 45 ngày so với cam kết, store hỗ trợ hoàn cọc 100% lập tức không trừ phí.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- =====================================================================
+         10. NEWSLETTER SUBSCRIPTION
+         ===================================================================== -->
+    <section class="section section-bg-white" aria-label="Đăng ký nhận tin">
+      <div class="container">
+        <div class="newsletter-card">
+          <span class="section-eyebrow">KHÔNG BỎ LỠ MẪU HIẾM</span>
+          <h2 class="section-title" style="font-size: var(--text-2xl); margin-bottom: 8px;">ĐĂNG KÝ NHẬN THÔNG BÁO MỞ CỌC ĐỢT KẾ TIẾP</h2>
+          <p class="section-desc">
+            Nhận thông tin sớm nhất về các đợt phát hành mới của MINI GT, LBWK, Kaido House và Pop Race trực tiếp vào hộp thư của bạn.
+          </p>
+          <form class="newsletter-form" onsubmit="handleNewsletterSubmit(event)">
+            <input type="email" id="newsletterEmail" class="newsletter-input" placeholder="Nhập địa chỉ email của bạn..." required>
+            <button type="submit" class="btn btn-primary">Đăng Ký</button>
+          </form>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- =====================================================================
+       11. ASIDE: CART DRAWER & QUICK CONTACT FAB
+       ===================================================================== -->
+  <aside>
+    <!-- Cart Drawer Overlay & Aside Panel -->
+    <div class="cart-drawer-overlay" id="cartDrawerOverlay">
+      <div class="cart-drawer" role="dialog" aria-modal="true" aria-label="Giỏ hàng và cọc xe">
+        <div class="cart-drawer-header">
+          <h3>Giỏ Đặt Cọc Mô Hình</h3>
+          <button class="close-drawer-btn" onclick="closeCartDrawer()" aria-label="Đóng giỏ hàng">✕</button>
+        </div>
+        <div class="cart-drawer-body" id="cartDrawerItems">
+          <!-- Populated by JS -->
+        </div>
+        <div class="cart-drawer-footer">
+          <div class="cart-summary-row">
+            <span>Tổng tiền hàng:</span>
+            <span id="cartTotalAmount">0đ</span>
+          </div>
+          <div class="cart-summary-row" style="color: var(--color-primary); font-weight: bold;">
+            <span>Tiền cọc giữ mẫu:</span>
+            <span id="cartDepositAmount">0đ</span>
+          </div>
+          <button class="btn btn-primary" style="width: 100%; margin-top: 10px;" onclick="openCheckoutModal()">
+            Tiến Hành Đặt Cọc Ngay ➔
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Quick Floating Action Buttons -->
+    <div class="quick-contact-fab" aria-label="Hỗ trợ nhanh">
+      <a href="https://zalo.me/0848184164" target="_blank" rel="noopener noreferrer" class="fab-btn fab-zalo" title="Chat Zalo tư vấn cọc">💬</a>
+      <a href="tel:0848184164" class="fab-btn fab-hotline" title="Gọi Hotline hỗ trợ">📞</a>
+    </div>
+  </aside>
+
+  <!-- =====================================================================
+       12. FOOTER
+       ===================================================================== -->
+  <footer class="site-footer">
+    <div class="container">
+      <div class="footer-grid">
+        <!-- Col 1: Brand Info -->
+        <div class="footer-col-about">
+          <img src="image/logominigt.png" alt="MINI GT Logo Footer" class="footer-logo">
+          <p class="footer-about-text">
+            <strong>MINI GT STORE BIÊN HÒA</strong> — Đại lý chuyên phân phối mô hình xe die-cast 1:64 bản quyền chính thức từ TrueScale Miniatures (TSM-Model), Pop Race và Kaido House tại Việt Nam.
+          </p>
+          <div class="footer-contact-item">
+            <span>📍</span> Địa chỉ: 38/2 Võ Thị Sáu, P. Quyết Thắng, TP. Biên Hòa, Đồng Nai
+          </div>
+          <div class="footer-contact-item">
+            <span>📞</span> Hotline / Zalo: <strong>0848.184.164</strong>
+          </div>
+          <div class="footer-contact-item">
+            <span>✉</span> Email: contact@minigtstore.vn
+          </div>
+        </div>
+
+        <!-- Col 2: Categories -->
+        <div>
+          <h4 class="footer-heading">Bộ Sưu Tập</h4>
+          <ul class="footer-links">
+            <li><a href="#catalog" onclick="document.querySelector('[data-filter=pre_order]').click(); scrollToSection('catalog');">Pre-Order Đợt Mới</a></li>
+            <li><a href="#catalog" onclick="document.querySelector('[data-filter=lbwk]').click(); scrollToSection('catalog');">Liberty Walk LBWK</a></li>
+            <li><a href="#f1-racing" onclick="scrollToSection('f1-racing')">Formula 1 Series</a></li>
+            <li><a href="#catalog" onclick="document.querySelector('[data-filter=ao_racing]').click(); scrollToSection('catalog');">IMSA AO Racing (Rexy/Roxy)</a></li>
+            <li><a href="#box-sets" onclick="scrollToSection('box-sets')">Box Sets 4 Xe</a></li>
+            <li><a href="#catalog" onclick="document.querySelector('[data-filter=chase]').click(); scrollToSection('catalog');">Pop Race Top Secret</a></li>
+          </ul>
+        </div>
+
+        <!-- Col 3: Customer Care -->
+        <div>
+          <h4 class="footer-heading">Chăm Sóc Khách Hàng</h4>
+          <ul class="footer-links">
+            <li><a href="javascript:void(0)" onclick="openTrackingModal()">Tra cứu tiến độ cọc</a></li>
+            <li><a href="#preorder-workflow" onclick="scrollToSection('preorder-workflow')">Quy trình giữ slot Pre-Order</a></li>
+            <li><a href="#benefits" onclick="scrollToSection('benefits')">Chính sách bảo hành hộp xe</a></li>
+            <li><a href="#benefits" onclick="scrollToSection('benefits')">Cơ chế săn Secret Chase</a></li>
+            <li><a href="javascript:void(0)" onclick="openAuthModal('login')">Tài khoản & Đơn mua</a></li>
+            <li><a href="admin/index.html" style="color:#f59e0b; font-weight:600;">👑 Quản Trị Viên (Admin Portal)</a></li>
+          </ul>
+        </div>
+
+        <!-- Col 4: Payments & Database Connect -->
+        <div>
+          <h4 class="footer-heading">Thanh Toán & Hệ Thống</h4>
+          <p class="footer-about-text">
+            Hệ thống quản lý dữ liệu tự động đồng bộ máy chủ SQL Server <strong>QUOCTHINH\DOQUOCTHINH</strong>. Hỗ trợ quét mã VietQR tự động xác nhận đơn cọc sau 30 giây.
+          </p>
+          <div class="payment-methods-grid">
+            <span class="payment-badge">VietQR</span>
+            <span class="payment-badge">MB Bank</span>
+            <span class="payment-badge">Momo</span>
+            <span class="payment-badge">Visa / Master</span>
+            <span class="payment-badge">COD</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Footer Bottom -->
+      <div class="footer-bottom">
+        <div>
+          © 2026 MINI GT STORE — Bản quyền thiết kế thuộc về Đỗ Quốc Thịnh (Đại Học Lạc Hồng).
+        </div>
+        <div>
+          TSM-Model®, MINI GT® và Pop Race® là các thương hiệu đã được đăng ký bản quyền.
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <!-- =====================================================================
+       13. MODALS (AUTH GMAIL, QUICK VIEW, CHECKOUT, TRACKING, TOASTS)
+       ===================================================================== -->
+
+  <!-- AUTH MODAL: ĐĂNG NHẬP / ĐĂNG KÝ BẰNG GMAIL & TÀI KHOẢN -->
+  <div class="modal-overlay" id="authModal" role="dialog" aria-modal="true" aria-label="Đăng nhập tài khoản">
+    <div class="modal-container">
+      <button class="modal-close-btn" onclick="closeModal('authModal')">✕</button>
+      <div class="modal-body">
+        <div class="auth-tabs">
+          <button class="auth-tab-btn active" id="tabBtnLogin" onclick="switchAuthTab('login')">Đăng Nhập</button>
+          <button class="auth-tab-btn" id="tabBtnRegister" onclick="switchAuthTab('register')">Đăng Ký Mới</button>
+        </div>
+
+        <!-- Quick Fill Buttons tiện ích để test đăng nhập -->
+        <div style="display:flex; gap:8px; margin-bottom:12px;">
+          <button type="button" class="btn btn-sm btn-outline" style="flex:1; font-size:11.5px; padding:6px 4px; border-color:#fca5a5; color:#b91c1c; background:#fff1f1;" onclick="quickFillAuth('admin')">
+            👑 Điền Admin
+          </button>
+          <button type="button" class="btn btn-sm btn-outline" style="flex:1; font-size:11.5px; padding:6px 4px; border-color:#86efac; color:#15803d; background:#f0fdf4;" onclick="quickFillAuth('customer')">
+            👤 Điền Khách Hàng
+          </button>
+        </div>
+
+        <!-- Google / Gmail One-Click Button -->
+        <button class="google-auth-btn" type="button" onclick="handleGoogleLoginClick()">
+          <svg viewBox="0 0 24 24">
+            <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.8-2.4 3.66v3.05h3.88c2.27-2.09 3.66-5.17 3.66-9.15z"/>
+            <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.24v3.15C3.26 21.36 7.33 24 12 24z"/>
+            <path fill="#FBBC05" d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.24C.45 8.15 0 9.99 0 12s.45 3.85 1.24 5.42l4.04-3.15z"/>
+            <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.33 0 3.26 2.64 1.24 6.58l4.04 3.15c.95-2.83 3.6-4.98 6.72-4.98z"/>
+          </svg>
+          Đăng nhập nhanh với Google (Gmail)
+        </button>
+
+        <div class="auth-divider">hoặc sử dụng email cá nhân</div>
+
+        <!-- Form Đăng nhập -->
+        <form id="authFormLogin" onsubmit="handleLocalLogin(event)">
+          <div class="form-group">
+            <label class="form-label" for="loginEmail">Email / Gmail</label>
+            <input type="email" id="loginEmail" class="form-input" placeholder="vidu@gmail.com" required>
+          </div>
+          <div class="form-group">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <label class="form-label" for="loginPassword">Mật khẩu</label>
+              <span style="font-size:11px; color:#64748b; cursor:pointer;" onclick="const el=document.getElementById('loginPassword'); if(el.type==='password'){el.type='text'; this.textContent='🔒 Ẩn';}else{el.type='password'; this.textContent='👁️ Hiện';}">👁️ Hiện</span>
+            </div>
+            <input type="password" id="loginPassword" class="form-input" placeholder="••••••••" required>
+          </div>
+          <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 10px;">
+            Đăng Nhập
+          </button>
+        </form>
+
+        <!-- Form Đăng ký -->
+        <form id="authFormRegister" style="display: none;" onsubmit="handleLocalRegister(event)">
+          <div class="form-group">
+            <label class="form-label" for="regFullName">Họ và Tên</label>
+            <input type="text" id="regFullName" class="form-input" placeholder="Nguyễn Văn A" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="regEmail">Email / Gmail</label>
+            <input type="email" id="regEmail" class="form-input" placeholder="vidu@gmail.com" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="regPhone">Số điện thoại</label>
+            <input type="tel" id="regPhone" class="form-input" placeholder="0912 345 678">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="regPassword">Mật khẩu mới</label>
+            <input type="password" id="regPassword" class="form-input" placeholder="Tối thiểu 6 ký tự" required>
+          </div>
+          <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 10px;">
+            Tạo Tài Khoản
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- QUICK VIEW MODAL -->
+  <div class="modal-overlay" id="quickViewModal" role="dialog" aria-modal="true" aria-label="Xem chi tiết mô hình">
+    <div class="modal-container" style="max-width: 680px;">
+      <button class="modal-close-btn" onclick="closeModal('quickViewModal')">✕</button>
+      <div class="modal-body" id="quickViewModalBody">
+        <!-- Rendered by JS -->
+      </div>
+    </div>
+  </div>
+
+  <!-- CHECKOUT MODAL: HOÀN TẤT ĐẶT CỌC -->
+  <div class="modal-overlay" id="checkoutModal" role="dialog" aria-modal="true" aria-label="Xác nhận đặt cọc">
+    <div class="modal-container">
+      <button class="modal-close-btn" onclick="closeModal('checkoutModal')">✕</button>
+      <div class="modal-body">
+        <h3 style="font-size: var(--text-xl); color: var(--color-navy); margin-bottom: 12px;">Thông Tin Đặt Cọc Mô Hình</h3>
+        
+        <div id="checkoutSummaryBox"></div>
+
+        <form id="checkoutForm" onsubmit="event.preventDefault(); submitOrder();">
+          <div class="form-group">
+            <label class="form-label" for="checkoutName">Họ và tên người nhận *</label>
+            <input type="text" id="checkoutName" class="form-input" placeholder="Đỗ Quốc Thịnh" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="checkoutPhone">Số điện thoại liên hệ *</label>
+            <input type="tel" id="checkoutPhone" class="form-input" placeholder="0848184164" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="checkoutAddress">Địa chỉ nhận hàng (Tỉnh/Thành, Quận/Huyện) *</label>
+            <input type="text" id="checkoutAddress" class="form-input" placeholder="38/2 Võ Thị Sáu, Biên Hòa, Đồng Nai" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="checkoutNote">Ghi chú (Yêu cầu giữ góc hộp, vỉ nguyên seal...)</label>
+            <input type="text" id="checkoutNote" class="form-input" placeholder="Gói bọc xốp kỹ giúp em...">
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Phương thức thanh toán cọc</label>
+            <div style="display:flex; flex-direction:column; gap:8px; margin-top:4px;">
+              <label style="display:flex; align-items:center; gap:8px; font-size:13px; cursor:pointer;">
+                <input type="radio" name="paymentMethod" value="vietqr" checked>
+                <strong>Quét mã VietQR (Tự động xác nhận cọc - Khuyên dùng)</strong>
+              </label>
+              <label style="display:flex; align-items:center; gap:8px; font-size:13px; cursor:pointer;">
+                <input type="radio" name="paymentMethod" value="cod">
+                Thanh toán khi nhận hàng (COD - Chỉ áp dụng mẫu có sẵn)
+              </label>
+            </div>
+          </div>
+
+          <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 14px;">
+            Xác Nhận & Tạo Mã Cọc ➔
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- ORDER SUCCESS & VIETQR MODAL -->
+  <div class="modal-overlay" id="orderSuccessModal" role="dialog" aria-modal="true" aria-label="Hoàn tất đơn hàng">
+    <div class="modal-container">
+      <button class="modal-close-btn" onclick="closeModal('orderSuccessModal')">✕</button>
+      <div class="modal-body" id="orderSuccessDetails">
+        <!-- Rendered by JS -->
+      </div>
+    </div>
+  </div>
+
+  <!-- ORDER TRACKING MODAL -->
+  <div class="modal-overlay" id="trackingModal" role="dialog" aria-modal="true" aria-label="Tra cứu đơn hàng">
+    <div class="modal-container">
+      <button class="modal-close-btn" onclick="closeModal('trackingModal')">✕</button>
+      <div class="modal-body">
+        <h3 style="font-size: var(--text-xl); color: var(--color-navy); margin-bottom: 6px;">Tra Cứu Tiến Độ Đơn Cọc</h3>
+        <p style="font-size: 13px; color: var(--color-gray-500); margin-bottom: 16px;">
+          Nhập mã đơn hàng dạng <code>MGT-2026-XXXXX</code> hoặc Số điện thoại lúc đặt cọc để kiểm tra tình trạng.
+        </p>
+
+        <div style="display: flex; gap: 8px; margin-bottom: 16px;">
+          <input type="text" id="trackingInput" class="form-input" placeholder="Ví dụ: MGT-2026-1413 hoặc 0848184164">
+          <button class="btn btn-primary" onclick="searchOrderTracking()">Tra Cứu</button>
+        </div>
+
+        <div id="trackingResults"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MY ORDERS MODAL: XEM ĐƠN HÀNG ĐÃ ĐẶT (SPX EXPRESS TRACKING) -->
+  <div class="modal-overlay" id="myOrdersModal" role="dialog" aria-modal="true" aria-label="Đơn hàng của tôi">
+    <div class="modal-container" style="max-width: 680px;">
+      <button class="modal-close-btn" onclick="closeModal('myOrdersModal')">✕</button>
+      <div class="modal-body">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; border-bottom:1px solid #e2e8f0; padding-bottom:10px;">
+          <div>
+            <h3 style="font-size: var(--text-xl); color: var(--color-navy); margin-bottom: 2px;">📦 Đơn Hàng Của Tôi</h3>
+            <p style="font-size: 12.5px; color: var(--color-gray-500); margin:0;">
+              Kiểm tra tiến độ đơn cọc & Mã vận đơn giao hàng qua đối tác <strong>SPX Express</strong>
+            </p>
+          </div>
+          <button class="btn btn-sm btn-outline" onclick="loadMyOrdersList()" title="Làm mới">🔄 Cập nhật</button>
+        </div>
+
+        <div id="myOrdersModalContent">
+          <!-- Rendered by JS -->
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- BACK TO TOP FLOATING BUTTON WITH CIRCULAR PROGRESS -->
+  <button class="back-to-top-btn" id="backToTopBtn" aria-label="Lên đầu trang" onclick="scrollToTop()">
+    <svg class="progress-ring" width="46" height="46" viewBox="0 0 46 46">
+      <circle class="progress-ring-bg" cx="23" cy="23" r="20" />
+      <circle class="progress-ring-fill" id="scrollProgressFill" cx="23" cy="23" r="20" />
+    </svg>
+    <span class="back-to-top-arrow">▲</span>
+  </button>
+
+  <!-- TOAST NOTIFICATIONS CONTAINER -->
+  <div class="toast-container" id="toastContainer" aria-live="polite"></div>
+
+  <!-- Client JavaScript -->
+  <script src="js/app.js"></script>
+</body>
+</html>

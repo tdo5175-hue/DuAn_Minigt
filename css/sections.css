@@ -1,0 +1,571 @@
+/* =====================================================================
+   MINI GT STORE - SECTIONS CSS
+   Hero, Hotspots, Pre-order workflow, F1, Box Sets, Benefits, Footer
+   ===================================================================== */
+
+/* --- 1. HERO BANNER SECTION --- */
+.hero-section {
+  position: relative;
+  background: radial-gradient(circle at 50% 30%, #ffffff 0%, #edf2f7 100%);
+  border-bottom: 1px solid var(--color-gray-200);
+  padding: 2.5rem 0 1.5rem 0;
+  overflow: hidden;
+}
+
+.hero-slider-wrap {
+  position: relative;
+  max-width: 1100px;
+  margin: 0 auto;
+  border-radius: var(--radius-xl);
+  background: linear-gradient(180deg, #f1f5f9 0%, #e2e8f0 100%);
+  box-shadow: inset 0 0 40px rgba(0,0,0,0.03), 0 10px 30px rgba(11,19,43,0.06);
+  padding: 2rem 1.5rem 1rem 1.5rem;
+  border: 1px solid rgba(255, 255, 255, 0.8);
+}
+
+.hero-watermark {
+  position: absolute;
+  top: 15%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: clamp(3rem, 9vw, 6.5rem);
+  font-weight: 900;
+  color: rgba(255, 255, 255, 0.85);
+  letter-spacing: 0.1em;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.04);
+  pointer-events: none;
+  z-index: 1;
+  text-transform: uppercase;
+}
+
+.hero-image-stage {
+  position: relative;
+  z-index: 2;
+  width: 100%;
+  max-width: 960px;
+  margin: 0 auto;
+}
+
+.hero-img-main {
+  width: 100%;
+  height: auto;
+  object-fit: contain;
+  filter: drop-shadow(0 20px 25px rgba(11, 19, 43, 0.18));
+}
+
+/* Interactive Hotspot Pins */
+.hero-hotspot {
+  position: absolute;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background-color: var(--color-primary);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+  z-index: 5;
+  box-shadow: 0 0 0 0 rgba(225, 6, 0, 0.75);
+  animation: hotspot-pulse 2.2s infinite;
+  transition: transform 0.22s cubic-bezier(0.175, 0.885, 0.32, 1.275), background-color 0.2s ease;
+}
+
+.hero-hotspot::before {
+  content: '';
+  position: absolute;
+  inset: -3px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(255, 255, 255, 0.85);
+  pointer-events: none;
+}
+
+.hero-hotspot:hover {
+  transform: scale(1.25);
+  background-color: #ff1a1a;
+}
+
+@keyframes hotspot-pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(225, 6, 0, 0.7);
+  }
+  70% {
+    box-shadow: 0 0 0 14px rgba(225, 6, 0, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(225, 6, 0, 0);
+  }
+}
+
+/* Hotspot Tooltip Popup */
+.hotspot-tooltip {
+  position: absolute;
+  bottom: calc(100% + 10px);
+  left: 50%;
+  transform: translateX(-50%) translateY(6px);
+  background: var(--color-navy);
+  color: #fff;
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  font-size: 11px;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  transition: all var(--transition-fast);
+  box-shadow: var(--shadow-lg);
+}
+
+.hotspot-tooltip::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border-width: 5px;
+  border-style: solid;
+  border-color: var(--color-navy) transparent transparent transparent;
+}
+
+.hero-hotspot:hover .hotspot-tooltip {
+  opacity: 1;
+  visibility: visible;
+  transform: translateX(-50%) translateY(0);
+}
+
+/* Hotspot coordinates */
+.hotspot-1 { top: 32%; left: 46%; }  /* Scania Transporter Truck */
+.hotspot-2 { top: 58%; left: 34%; }  /* LBWK Pink Van / S15 */
+.hotspot-3 { top: 62%; left: 40%; }  /* Purple Lambo */
+.hotspot-4 { top: 62%; left: 51%; }  /* Blue Huracan */
+.hotspot-5 { top: 40%; left: 59%; }  /* F1 Car Top */
+.hotspot-6 { top: 50%; left: 65%; }  /* F1 Car Middle */
+.hotspot-7 { top: 62%; left: 71%; }  /* F1 Car Right */
+
+.hero-footer-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 1rem;
+  padding-top: 0.75rem;
+  font-size: var(--text-2xs);
+  color: var(--color-gray-500);
+}
+
+.hero-disclaimer {
+  font-style: italic;
+}
+
+.hero-preorder-badge {
+  text-align: right;
+  font-weight: var(--font-weight-extrabold);
+  color: var(--color-navy);
+}
+.hero-preorder-badge span {
+  display: block;
+  font-size: 10px;
+  color: var(--color-primary);
+  letter-spacing: 0.1em;
+}
+
+/* Hero Controls */
+.hero-control-btn {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-full);
+  background-color: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(4px);
+  border: 1px solid var(--color-gray-200);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-navy);
+  font-size: 16px;
+  box-shadow: var(--shadow-md);
+  z-index: 10;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.hero-control-btn:hover {
+  background-color: var(--color-white);
+  color: var(--color-primary);
+}
+
+.hero-prev { left: -15px; }
+.hero-next { right: -15px; }
+
+.hero-dots {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.hero-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-full);
+  background-color: var(--color-gray-300);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.hero-dot.active {
+  width: 22px;
+  background-color: var(--color-primary);
+}
+
+/* --- 2. SECTIONS GLOBAL PADDING --- */
+.section {
+  padding: var(--space-12) 0;
+}
+
+.section-bg-white {
+  background-color: var(--color-white);
+  border-top: 1px solid var(--color-gray-100);
+  border-bottom: 1px solid var(--color-gray-100);
+}
+
+/* --- 3. PRE-ORDER WORKFLOW STEPS --- */
+.preorder-steps-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: var(--space-4);
+  margin-bottom: var(--space-8);
+}
+
+.step-card {
+  background-color: var(--color-white);
+  border: 1px solid var(--color-gray-200);
+  border-radius: var(--radius-lg);
+  padding: 1.5rem;
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  position: relative;
+  transition: all var(--transition-fast);
+}
+
+.step-card:hover {
+  border-color: var(--color-primary);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+.step-badge {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-full);
+  background-color: var(--color-primary);
+  color: #fff;
+  font-size: var(--text-xs);
+  font-weight: var(--font-weight-extrabold);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: var(--space-2);
+}
+
+.step-title {
+  font-size: var(--text-sm);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-navy);
+}
+
+.step-desc {
+  font-size: var(--text-xs);
+  color: var(--color-gray-500);
+}
+
+/* --- 4. F1 & BOXSETS FEATURE BANNERS --- */
+.collection-banner {
+  background: linear-gradient(135deg, #0b132b 0%, #1e293b 100%);
+  border-radius: var(--radius-xl);
+  padding: 2.5rem;
+  color: var(--color-white);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-8);
+  margin-bottom: var(--space-8);
+  overflow: hidden;
+  position: relative;
+}
+
+.collection-banner::after {
+  content: '';
+  position: absolute;
+  top: -50px;
+  right: -50px;
+  width: 250px;
+  height: 250px;
+  background: radial-gradient(circle, rgba(225, 6, 0, 0.3) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+.collection-banner-content {
+  max-width: 560px;
+  z-index: 2;
+}
+
+.collection-banner-tag {
+  color: var(--color-primary);
+  font-size: var(--text-xs);
+  font-weight: var(--font-weight-bold);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin-bottom: var(--space-2);
+  display: block;
+}
+
+.collection-banner-title {
+  font-size: var(--text-3xl);
+  color: var(--color-white);
+  margin-bottom: var(--space-3);
+  font-weight: var(--font-weight-extrabold);
+}
+
+.collection-banner-desc {
+  color: var(--color-gray-300);
+  font-size: var(--text-sm);
+  margin-bottom: var(--space-5);
+}
+
+.collection-banner-img {
+  max-width: 380px;
+  height: auto;
+  z-index: 2;
+  filter: drop-shadow(0 15px 20px rgba(0,0,0,0.4));
+  transition: transform var(--transition-normal);
+}
+
+.collection-banner:hover .collection-banner-img {
+  transform: scale(1.05) rotate(-2deg);
+}
+
+/* --- 5. COLLECTOR BENEFITS SECTION --- */
+.benefits-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: var(--space-6);
+}
+
+.benefit-card {
+  background-color: var(--color-white);
+  border: 1px solid var(--color-gray-200);
+  border-radius: var(--radius-lg);
+  padding: 1.75rem 1.5rem;
+  box-shadow: var(--shadow-card);
+  transition: all var(--transition-normal);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.benefit-card:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-card-hover);
+  border-color: #fed7aa;
+}
+
+.benefit-icon-wrap {
+  width: 52px;
+  height: 52px;
+  border-radius: var(--radius-md);
+  background-color: var(--color-primary-light);
+  color: var(--color-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+}
+
+.benefit-title {
+  font-size: var(--text-base);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-navy);
+}
+
+.benefit-desc {
+  font-size: var(--text-xs);
+  color: var(--color-gray-600);
+  line-height: var(--line-height-relaxed);
+}
+
+/* --- 6. NEWSLETTER SECTION --- */
+.newsletter-card {
+  background: linear-gradient(135deg, #ffffff 0%, #f1f5f9 100%);
+  border: 1px solid var(--color-gray-200);
+  border-radius: var(--radius-2xl);
+  padding: 3rem 2rem;
+  box-shadow: var(--shadow-md);
+  text-align: center;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.newsletter-form {
+  display: flex;
+  max-width: 500px;
+  margin: var(--space-6) auto 0 auto;
+  gap: var(--space-2);
+}
+
+.newsletter-input {
+  flex: 1;
+  padding: 0.85rem 1.25rem;
+  border: 1px solid var(--color-gray-300);
+  border-radius: var(--radius-full);
+  background-color: var(--color-white);
+  font-size: var(--text-sm);
+}
+
+/* --- 7. FOOTER --- */
+.site-footer {
+  background-color: #0b132b;
+  color: var(--color-gray-300);
+  padding: var(--space-16) 0 var(--space-6) 0;
+  margin-top: auto;
+  border-top: 3px solid var(--color-primary);
+}
+
+.footer-grid {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr 1.5fr;
+  gap: var(--space-8);
+  margin-bottom: var(--space-12);
+}
+
+.footer-col-about {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.footer-logo {
+  height: 38px;
+  width: auto;
+  object-fit: contain;
+  filter: brightness(0) invert(1);
+}
+
+.footer-about-text {
+  font-size: var(--text-xs);
+  color: var(--color-gray-400);
+  line-height: var(--line-height-relaxed);
+}
+
+.footer-contact-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  font-size: var(--text-xs);
+  color: var(--color-gray-300);
+}
+
+.footer-heading {
+  font-size: var(--text-sm);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-white);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: var(--space-4);
+  position: relative;
+  padding-bottom: 8px;
+}
+
+.footer-heading::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 28px;
+  height: 2px;
+  background-color: var(--color-primary);
+}
+
+.footer-links {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.footer-links a {
+  font-size: var(--text-xs);
+  color: var(--color-gray-400);
+  transition: all var(--transition-fast);
+}
+
+.footer-links a:hover {
+  color: var(--color-primary);
+  transform: translateX(4px);
+}
+
+.payment-methods-grid {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  margin-top: var(--space-3);
+}
+
+.payment-badge {
+  background-color: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  padding: 4px 10px;
+  border-radius: var(--radius-xs);
+  font-size: 11px;
+  font-weight: var(--font-weight-semibold);
+  color: #fff;
+}
+
+.footer-bottom {
+  padding-top: var(--space-6);
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: var(--text-2xs);
+  color: var(--color-gray-500);
+  flex-wrap: wrap;
+  gap: var(--space-4);
+}
+
+.quick-contact-fab {
+  position: fixed;
+  bottom: 24px;
+  left: 24px;
+  z-index: 990;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.fab-btn {
+  width: 48px;
+  height: 48px;
+  border-radius: var(--radius-full);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: var(--shadow-lg);
+  color: #fff;
+  font-size: 20px;
+  cursor: pointer;
+  transition: transform var(--transition-fast);
+}
+
+.fab-btn:hover {
+  transform: scale(1.1);
+}
+
+.fab-zalo { background-color: #0068ff; }
+.fab-hotline { background-color: var(--color-primary); }
+
