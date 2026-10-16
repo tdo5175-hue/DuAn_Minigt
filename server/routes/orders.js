@@ -1,255 +1,256 @@
 /**
- * ORDERS & PRE-ORDER MANAGEMENT ROUTES
+ * ORDERS CLIENT API ROUTES
+ * Hỗ trợ: Tạo đơn, Tra cứu đa năng (Mã đơn / SĐT / Mã SPX / Email),
+ * Đồng bộ đơn hàng theo cả Tài khoản & Thiết bị (Guest + Logged-in),
+ * Kiểm tra trạng thái thời gian thực (Approval + SPX Tracking),
+ * Khách tự hủy đơn, Cập nhật địa chỉ nhận, Xác nhận đã nhận hàng
  */
 const express = require('express');
 const router = express.Router();
 const db = require('../config/db');
-const { optionalToken, verifyToken } = require('../middleware/auth');
+const orderService = require('../services/orderService');
+const settingsService = require('../services/settingsService');
+const { optionalAuth } = require('../middleware/auth');
+const { ok, created, notFound, badRequest } = require('../utils/http');
+const v = require('../utils/validators');
 
-// 1. TẠO ĐƠN HÀNG HOẶC ĐẶT CỌC PRE-ORDER
-router.post('/', optionalToken, async (req, res) => {
+// 1. TẠO ĐƠN HÀNG MỚI (HỖ TRỢ COD / ĐẶT CỌC PRE-ORDER / CHUYỂN KHOẢN 100%)
+router.post('/', optionalAuth, async (req, res, next) => {
   try {
-    const { fullName, phone, address, note, paymentMethod, items } = req.body;
-
-    if (!fullName || !phone || !address) {
-      return res.status(400).json({ success: false, message: 'Vui lòng cung cấp Họ tên, Số điện thoại và Địa chỉ nhận hàng' });
-    }
-
-    if (!items || !Array.isArray(items) || items.length === 0) {
-      return res.status(400).json({ success: false, message: 'Giỏ hàng đang trống' });
-    }
-
     const userId = req.user ? req.user.userId : null;
+    const order = await orderService.createOrder(req.body, userId);
+    return created(res, order, 'Đặt đơn hàng thành công!', { order });
+  } catch (error) {
+    next(error);
+  }
+});
 
-    // Tính tổng tiền
-    let subtotal = 0;
-    const validatedItems = [];
+// 2. TẢI LÊN BIÊN LAI CHUYỂN KHOẢN / BÁO ĐÃ CHUYỂN KHOẢN (RECEIPT)
+router.post('/upload-receipt', optionalAuth, async (req, res, next) => {
+  try {
+    const orderCode = v.str(req.body.orderCode, 30);
+    const receiptImage = v.str(req.body.receiptImage || 'Khách báo đã chuyển khoản VietQR MB Bank', 500);
 
-    for (const item of items) {
-      const pRes = await db.query(
-        'SELECT ProductId, Name, Price, DepositAmount, Status FROM Products WHERE ProductId = @id',
-        { id: item.productId }
-      );
-      if (pRes.recordset.length > 0) {
-        const prod = pRes.recordset[0];
-        const qty = Math.max(1, parseInt(item.quantity) || 1);
-        const unitPrice = prod.Price;
-        subtotal += unitPrice * qty;
+    if (!orderCode) {
+      throw badRequest('Vui lòng cung cấp mã đơn hàng');
+    }
 
-        validatedItems.push({
-          productId: prod.ProductId,
-          productName: prod.Name,
-          unitPrice: unitPrice,
-          quantity: qty,
-          depositAmount: prod.DepositAmount || (unitPrice * 0.3)
-        });
+    const orderCheck = await db.query('SELECT OrderId, Status FROM Orders WHERE OrderCode = @code', { code: orderCode });
+    if (orderCheck.recordset.length === 0) {
+      throw notFound('Không tìm thấy đơn hàng tương ứng');
+    }
+    const ord = orderCheck.recordset[0];
+
+    await db.query(
+      `UPDATE Orders 
+       SET ReceiptImage = @receipt, UpdatedAt = SYSDATETIME() 
+       WHERE OrderCode = @code`,
+      {
+        code: orderCode,
+        receipt: receiptImage
+      }
+    );
+
+    await db.query(
+      `INSERT INTO OrderStatusHistory (OrderId, FromStatus, ToStatus, Note, ChangedBy)
+       VALUES (@id, @st, @st, @note, @uid)`,
+      {
+        id: ord.OrderId,
+        st: ord.Status,
+        note: `Khách hàng xác nhận đã chuyển khoản / gửi biên lai: ${receiptImage}`,
+        uid: req.user ? req.user.userId : null
+      }
+    );
+
+    return ok(res, { orderCode, receiptImage }, 'Đã gửi thông báo & biên lai chuyển khoản thành công! Admin sẽ kiểm tra và duyệt đơn ngay.');
+  } catch (error) {
+    next(error);
+  }
+});
+
+// 3. TRA CỨU ĐƠN HÀNG (THEO MÃ ĐƠN, SỐ ĐIỆN THOẠI, MÃ VẬN ĐƠN SPX HOẶC EMAIL)
+router.get('/track/:query', async (req, res, next) => {
+  try {
+    const q = v.str(req.params.query, 80).replace(/^#/, '');
+    if (!q) throw badRequest('Vui lòng nhập mã đơn hàng, số điện thoại hoặc mã vận đơn SPX');
+
+    const cleanPhone = v.normalizePhone(q);
+
+    const ordersRes = await db.query(
+      `SELECT o.*, u.Email AS CustomerEmail 
+       FROM Orders o
+       LEFT JOIN Users u ON u.UserId = o.UserId
+       WHERE o.OrderCode = @q 
+          OR o.Phone = @q 
+          OR o.Phone = @cleanPhone 
+          OR o.TrackingCode = @q 
+          OR o.Email = @q
+       ORDER BY o.CreatedAt DESC`,
+      { q, cleanPhone }
+    );
+
+    if (ordersRes.recordset.length === 0) {
+      throw notFound('Không tìm thấy đơn hàng nào khớp với thông tin đã nhập');
+    }
+
+    const ids = ordersRes.recordset.map(o => Number(o.OrderId));
+    const itemsMap = await orderService.getItems(ids);
+    const settings = await settingsService.getAll();
+    const mapped = [];
+
+    for (const ord of ordersRes.recordset) {
+      const id = Number(ord.OrderId);
+      const items = itemsMap[id] || [];
+      const history = await orderService.getHistory(id);
+      const m = orderService.mapOrder(ord, { items, history });
+      if (m.transferAmount > 0 && m.paymentStatus === 'UNPAID') {
+        m.payment = settingsService.buildVietQr(settings, m.transferAmount, m.code);
+      }
+      mapped.push(m);
+    }
+
+    return ok(res, mapped, 'Tra cứu đơn hàng thành công', { count: mapped.length });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// 4. DANH SÁCH ĐƠN HÀNG CỦA KHÁCH HÀNG (ĐỒNG BỘ TÀI KHOẢN + MÃ ĐƠN TRÊN TRÌNH DUYỆT + SĐT/EMAIL)
+router.get('/my-orders', optionalAuth, async (req, res, next) => {
+  try {
+    const userId = req.user ? Number(req.user.userId) : null;
+    const rawCodes = String(req.query.codes || '')
+      .split(',')
+      .map(s => v.str(s, 30).replace(/^#/, ''))
+      .filter(Boolean)
+      .slice(0, 40);
+    const queryPhone = v.normalizePhone(req.query.phone || '');
+    const queryEmail = v.str(req.query.email || '', 150).toLowerCase();
+
+    let userEmail = queryEmail;
+    let userPhone = queryPhone;
+    let isAdminToken = false;
+
+    if (userId) {
+      const uRes = await db.query('SELECT Email, Phone, Role FROM Users WHERE UserId = @uid', { uid: userId });
+      if (uRes.recordset.length > 0) {
+        const uRow = uRes.recordset[0];
+        isAdminToken = uRow.Role === 'admin';
+        if (!userEmail && uRow.Email && !isAdminToken) userEmail = String(uRow.Email).toLowerCase();
+        if (!userPhone && uRow.Phone && !isAdminToken) userPhone = v.normalizePhone(uRow.Phone);
       }
     }
 
-    if (validatedItems.length === 0) {
-      return res.status(400).json({ success: false, message: 'Không tìm thấy sản phẩm hợp lệ trong giỏ hàng' });
+    const conditions = [];
+    const params = {};
+
+    // Nếu token hiện tại là khách hàng (hoặc nếu không có mã đơn nào truyền lên thì mới lấy theo userId)
+    if (userId && !isAdminToken) {
+      conditions.push('o.UserId = @userId');
+      params.userId = userId;
     }
 
-    const shippingFee = subtotal > 1000000 ? 0 : 35000;
-    const total = subtotal + shippingFee;
+    if (userEmail) {
+      conditions.push('LOWER(o.Email) = @userEmail');
+      params.userEmail = userEmail;
+    }
 
-    // Chuẩn hóa phương thức thanh toán: COD hoặc BANK_TRANSFER
-    const rawMethod = (paymentMethod || 'BANK_TRANSFER').toUpperCase();
-    const standardizedMethod = rawMethod.includes('COD') ? 'COD' : 'BANK_TRANSFER';
+    if (userPhone && userPhone.length >= 8) {
+      conditions.push('o.Phone = @userPhone');
+      params.userPhone = userPhone;
+    }
 
-    // Sinh mã đơn hàng dạng MGT-2026-XXXXX
-    const randomSuffix = Math.floor(10000 + Math.random() * 90000);
-    const orderCode = `MGT-2026-${randomSuffix}`;
-
-    // Lưu vào bảng Orders
-    const insertOrder = await db.query(`
-      INSERT INTO Orders (OrderCode, UserId, FullName, Phone, Address, Note, PaymentMethod, PaymentStatus, Subtotal, ShippingFee, Total, Status, CreatedAt)
-      OUTPUT INSERTED.OrderId, INSERTED.OrderCode, INSERTED.Total, INSERTED.Status, INSERTED.PaymentStatus, INSERTED.PaymentMethod
-      VALUES (@orderCode, @userId, @fullName, @phone, @address, @note, @paymentMethod, 'UNPAID', @subtotal, @shippingFee, @total, 'PENDING', SYSDATETIME())
-    `, {
-      orderCode,
-      userId,
-      fullName: fullName.trim(),
-      phone: phone.trim(),
-      address: address.trim(),
-      note: note || '',
-      paymentMethod: standardizedMethod,
-      subtotal,
-      shippingFee,
-      total
-    });
-
-    const newOrder = insertOrder.recordset[0];
-
-    // Lưu từng món vào OrderItems
-    for (const it of validatedItems) {
-      await db.query(`
-        INSERT INTO OrderItems (OrderId, ProductId, ProductName, UnitPrice, Quantity)
-        VALUES (@orderId, @productId, @productName, @unitPrice, @quantity)
-      `, {
-        orderId: newOrder.OrderId,
-        productId: it.productId,
-        productName: it.productName,
-        unitPrice: it.unitPrice,
-        quantity: it.quantity
+    if (rawCodes.length > 0) {
+      const codePlaceholders = rawCodes.map((c, idx) => {
+        const key = `code_${idx}`;
+        params[key] = c;
+        return `@${key}`;
       });
+      conditions.push(`o.OrderCode IN (${codePlaceholders.join(',')})`);
     }
 
-    // Tính tổng tiền cọc cần chuyển trước (nếu đơn có sản phẩm Pre-Order)
-    const totalDeposit = validatedItems.reduce((acc, curr) => acc + (curr.depositAmount * curr.quantity), 0);
+    // Nếu không có điều kiện nào (khách chưa đặt đơn & chưa đăng nhập) -> trả về mảng rỗng
+    if (conditions.length === 0) {
+      return ok(res, [], 'Chưa có đơn hàng nào', { count: 0 });
+    }
 
-    // URL VietQR tạo mã thanh toán tự động với tài khoản MB Bank của ĐỖ QUỐC THỊNH
-    const bankId = 'MB'; // Ngân hàng Quân Đội MBBank
-    const accountNo = '87654321082007'; // Số tài khoản MB Bank chính xác của bạn
-    const accountName = 'DO QUOC THINH';
-    const transferAmount = totalDeposit > 0 ? totalDeposit : total;
-    const transferDesc = `MINI GT ${orderCode}`;
-    const qrUrl = `https://img.vietqr.io/image/${bankId}-${accountNo}-compact2.png?amount=${transferAmount}&addInfo=${encodeURIComponent(transferDesc)}&accountName=${encodeURIComponent(accountName)}`;
-    const originalQrImg = 'image/qr-mb-doquocthinh.png';
+    const ordersRes = await db.query(
+      `SELECT o.*, u.Email AS CustomerEmail
+       FROM Orders o
+       LEFT JOIN Users u ON u.UserId = o.UserId
+       WHERE ${conditions.join(' OR ')}
+       ORDER BY o.CreatedAt DESC`,
+      params
+    );
 
-    const orderData = {
-      orderId: newOrder.OrderId,
-      orderCode: newOrder.OrderCode,
-      fullName,
-      phone,
-      total,
-      totalDeposit,
-      status: newOrder.Status,
-      paymentMethod: newOrder.PaymentMethod,
-      paymentStatus: newOrder.PaymentStatus,
-      qrUrl,
-      originalQrImg,
-      bankInfo: {
-        bankName: 'MBBank (Ngân Hàng Quân Đội)',
-        accountNo: accountNo,
-        accountName: accountName,
-        transferAmount: transferAmount,
-        content: transferDesc
-      },
-      items: validatedItems
-    };
+    const ids = ordersRes.recordset.map(o => Number(o.OrderId));
+    const itemsMap = await orderService.getItems(ids);
+    const settings = await settingsService.getAll();
 
-    return res.status(201).json({
-      success: true,
-      message: 'Đặt đơn hàng / cọc mô hình thành công!',
-      data: orderData,
-      order: orderData
-    });
+    const mapped = [];
+    for (const ord of ordersRes.recordset) {
+      const id = Number(ord.OrderId);
+      const items = itemsMap[id] || [];
+      const history = await orderService.getHistory(id);
+      const m = orderService.mapOrder(ord, { items, history });
+      if (m.transferAmount > 0 && m.paymentStatus === 'UNPAID') {
+        m.payment = settingsService.buildVietQr(settings, m.transferAmount, m.code);
+      }
+      mapped.push(m);
+    }
+
+    return ok(res, mapped, 'Lấy danh sách đơn hàng thành công', { count: mapped.length });
   } catch (error) {
-    console.error('[ORDER CREATE ERROR]:', error);
-    return res.status(500).json({ success: false, message: error.message, data: null });
+    next(error);
   }
 });
 
-// CẬP NHẬT ẢNH BIÊN LAI CHUYỂN KHOẢN (RECEIPT)
-router.post('/upload-receipt', async (req, res) => {
+// 5. KIỂM TRA TRẠNG THÁI ĐƠN HÀNG THỜI GIAN THỰC (POLLING STEP 4 & BACKGROUND WATCHER)
+router.get('/check-status/:orderCode', async (req, res, next) => {
   try {
-    const { orderCode, receiptImage } = req.body;
-    if (!orderCode || !receiptImage) {
-      return res.status(400).json({ success: false, message: 'Vui lòng cung cấp mã đơn và hình ảnh biên lai', data: null });
-    }
+    const code = v.str(req.params.orderCode, 30).replace(/^#/, '');
+    const row = await orderService.loadOrderRow('o.OrderCode = @code', { code });
 
-    const orderCheck = await db.query('SELECT OrderId FROM Orders WHERE OrderCode = @code', { code: orderCode.trim() });
-    if (orderCheck.recordset.length === 0) {
-      return res.status(404).json({ success: false, message: 'Không tìm thấy đơn hàng tương ứng', data: null });
-    }
+    if (!row) throw notFound('Không tìm thấy đơn hàng');
 
-    await db.query('UPDATE Orders SET ReceiptImage = @receipt WHERE OrderCode = @code', {
-      code: orderCode.trim(),
-      receipt: receiptImage.trim()
-    });
-
-    return res.json({
-      success: true,
-      message: 'Đã tải lên biên lai chuyển khoản thành công! Cửa hàng sẽ xác nhận sớm nhất.',
-      data: { orderCode, receiptImage }
-    });
-  } catch (error) {
-    return res.status(500).json({ success: false, message: error.message, data: null });
-  }
-});
-
-// 2. TRA CỨU ĐƠN HÀNG THEO MÃ ĐƠN HOẶC SỐ ĐIỆN THOẠI
-router.get('/track/:query', async (req, res) => {
-  try {
-    const q = req.params.query.trim();
-
-    const orderRes = await db.query(`
-      SELECT o.*, u.Email 
-      FROM Orders o
-      LEFT JOIN Users u ON u.UserId = o.UserId
-      WHERE o.OrderCode = @q OR o.Phone = @q
-      ORDER BY o.CreatedAt DESC
-    `, { q });
-
-    if (orderRes.recordset.length === 0) {
-      return res.status(404).json({ success: false, message: 'Không tìm thấy đơn hàng với thông tin đã nhập' });
-    }
-
-    const orders = orderRes.recordset;
-
-    // Lấy items cho từng đơn
-    for (const ord of orders) {
-      const itemsRes = await db.query(`
-        SELECT oi.*, p.ImageUrl, p.Sku
-        FROM OrderItems oi
-        LEFT JOIN Products p ON p.ProductId = oi.ProductId
-        WHERE oi.OrderId = @orderId
-      `, { orderId: ord.OrderId });
-      ord.items = itemsRes.recordset;
-    }
-
-    return res.json({ success: true, count: orders.length, data: orders });
-  } catch (error) {
-    console.error('[ORDER TRACK ERROR]:', error);
-    return res.status(500).json({ success: false, message: error.message });
-  }
-});
-
-// 3. DANH SÁCH ĐƠN HÀNG CỦA TÔI
-router.get('/my-orders', verifyToken, async (req, res) => {
-  try {
-    const orderRes = await db.query(`
-      SELECT * FROM Orders WHERE UserId = @userId ORDER BY CreatedAt DESC
-    `, { userId: req.user.userId });
-
-    const orders = orderRes.recordset;
-
-    for (const ord of orders) {
-      const itemsRes = await db.query(`
-        SELECT oi.*, p.ImageUrl, p.Sku
-        FROM OrderItems oi
-        LEFT JOIN Products p ON p.ProductId = oi.ProductId
-        WHERE oi.OrderId = @orderId
-      `, { orderId: ord.OrderId });
-      ord.items = itemsRes.recordset;
-    }
-
-    return res.json({ success: true, data: orders });
-  } catch (error) {
-    console.error('[MY ORDERS ERROR]:', error);
-    return res.status(500).json({ success: false, message: error.message });
-  }
-});
-
-// 4. KIỂM TRA TRẠNG THÁI ĐƠN HÀNG THỜI GIAN THỰC (REAL-TIME POLLING)
-router.get('/check-status/:orderCode', async (req, res) => {
-  try {
-    const code = (req.params.orderCode || '').trim();
-    const orderRes = await db.query(`
-      SELECT OrderId, OrderCode, Status, PaymentStatus, PaymentMethod, Total, TrackingCode, TrackingCarrier, CreatedAt
-      FROM Orders
-      WHERE OrderCode = @code
-    `, { code });
-
-    if (orderRes.recordset.length === 0) {
-      return res.status(404).json({ success: false, message: 'Không tìm thấy đơn hàng' });
-    }
-
-    return res.json({ success: true, data: orderRes.recordset[0] });
+    const fullOrder = await orderService.getFullOrder(row);
+    return ok(res, fullOrder, 'Trạng thái đơn hàng thời gian thực');
   } catch (err) {
-    console.error('[CHECK STATUS ERROR]:', err);
-    return res.status(500).json({ success: false, message: err.message });
+    next(err);
+  }
+});
+
+// 6. KHÁCH HÀNG TỰ HỦY ĐƠN (CHỈ ÁP DỤNG KHI ĐƠN ĐANG PENDING)
+router.put('/:orderCode/cancel', optionalAuth, async (req, res, next) => {
+  try {
+    const code = v.str(req.params.orderCode, 30).replace(/^#/, '');
+    const reason = v.str(req.body.reason, 255) || 'Khách hàng tự hủy đơn';
+    const updated = await orderService.customerCancel(code, req.user ? req.user.userId : null, reason);
+    return ok(res, updated, 'Đã hủy đơn hàng thành công');
+  } catch (err) {
+    next(err);
+  }
+});
+
+// 7. KHÁCH HÀNG XÁC NHẬN ĐÃ NHẬN ĐƯỢC HÀNG TỪ SPX EXPRESS
+router.put('/:orderCode/confirm-received', optionalAuth, async (req, res, next) => {
+  try {
+    const code = v.str(req.params.orderCode, 30).replace(/^#/, '');
+    const updated = await orderService.customerConfirmReceived(code, req.user ? req.user.userId : null);
+    return ok(res, updated, 'Cảm ơn bạn đã xác nhận nhận hàng thành công!');
+  } catch (err) {
+    next(err);
+  }
+});
+
+// 8. KHÁCH HÀNG CẬP NHẬT ĐỊA CHỈ / SĐT NHẬN HÀNG KHI ĐƠN CHƯA GIAO SPX
+router.put('/:orderCode/shipping-info', optionalAuth, async (req, res, next) => {
+  try {
+    const code = v.str(req.params.orderCode, 30).replace(/^#/, '');
+    const updated = await orderService.customerUpdateShipping(code, req.body, req.user ? req.user.userId : null);
+    return ok(res, updated, 'Đã cập nhật thông tin người nhận & địa chỉ giao hàng thành công!');
+  } catch (err) {
+    next(err);
   }
 });
 

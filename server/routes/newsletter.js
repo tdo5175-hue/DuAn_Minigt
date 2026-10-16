@@ -1,39 +1,34 @@
 /**
- * NEWSLETTER API ROUTE
+ * NEWSLETTER PUBLIC API ROUTE
  */
 const express = require('express');
 const router = express.Router();
 const db = require('../config/db');
+const { badRequest, ok, created } = require('../utils/http');
+const v = require('../utils/validators');
 
-router.post('/', async (req, res) => {
+router.post('/', async (req, res, next) => {
   try {
-    const { email } = req.body;
-    if (!email || !email.includes('@')) {
-      return res.status(400).json({ success: false, message: 'Vui lòng cung cấp email hợp lệ' });
+    const email = v.str(req.body.email, 150).toLowerCase();
+    if (!v.isEmail(email)) {
+      throw badRequest('Vui lòng cung cấp địa chỉ email hợp lệ');
     }
 
-    const trimmed = email.trim().toLowerCase();
-
     // Kiểm tra xem đã đăng ký chưa
-    const check = await db.query('SELECT * FROM Newsletter WHERE Email = @email', { email: trimmed });
+    const check = await db.query('SELECT SubscriberId FROM Newsletter WHERE Email = @email', { email });
     if (check.recordset.length > 0) {
-      return res.json({ success: true, message: 'Email của bạn đã nằm trong danh sách ưu tiên nhận thông báo!' });
+      return ok(res, { email }, 'Email của bạn đã nằm trong danh sách ưu tiên nhận thông báo!');
     }
 
     await db.query(
       'INSERT INTO Newsletter (Email, CreatedAt) VALUES (@email, SYSDATETIME())',
-      { email: trimmed }
+      { email }
     );
 
-    return res.status(201).json({
-      success: true,
-      message: 'Đăng ký nhận lịch mở Pre-order thành công! Bạn sẽ nhận được thông báo sớm nhất.'
-    });
+    return created(res, { email }, 'Đăng ký nhận lịch mở Pre-order thành công! Bạn sẽ nhận được thông báo sớm nhất.');
   } catch (error) {
-    console.error('[NEWSLETTER ERROR]:', error);
-    return res.status(500).json({ success: false, message: error.message });
+    next(error);
   }
 });
 
 module.exports = router;
-

@@ -7,22 +7,27 @@
 const express = require('express');
 const path = require('path');
 const cors = require('cors');
-require('dotenv').config();
+require('dotenv').config({ quiet: true });
 
 const db = require('./config/db');
+const { securityHeaders, corsOptions } = require('./middleware/security');
+const { errorHandler } = require('./utils/http');
+
 const authRoutes = require('./routes/auth');
 const productRoutes = require('./routes/products');
 const orderRoutes = require('./routes/orders');
 const newsletterRoutes = require('./routes/newsletter');
+const settingsRoutes = require('./routes/settings');
 const adminRoutes = require('./routes/admin');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// Middlewares
-app.use(cors());
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+// Security & Parsing Middlewares
+app.use(securityHeaders);
+app.use(cors(corsOptions()));
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Phục vụ Static Files (CSS, JS, Images, HTML) từ thư mục gốc của dự án
 const rootDir = path.join(__dirname, '..');
@@ -38,6 +43,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/newsletter', newsletterRoutes);
+app.use('/api/settings', settingsRoutes);
 app.use('/api/admin', adminRoutes);
 
 // Health check endpoint
@@ -60,25 +66,22 @@ app.use('/api', (req, res) => {
   res.status(404).json({
     success: false,
     message: `API endpoint không tồn tại: ${req.method} ${req.originalUrl}`,
+    code: 'NOT_FOUND',
     data: null
   });
 });
 
-// Fallback: Nếu truy cập các route trang web khác, trả về index.html
-app.use((req, res) => {
-  res.sendFile(path.join(rootDir, 'index.html'));
+// Fallback: Nếu truy cập các route trang web khác ngoài API, phục vụ index.html
+app.use((req, res, next) => {
+  if (req.method === 'GET') {
+    res.sendFile(path.join(rootDir, 'index.html'));
+  } else {
+    next();
+  }
 });
 
-// Global Express Error Handler - Đảm bảo mọi lỗi đều trả về JSON chuẩn
-app.use((err, req, res, next) => {
-  console.error('[SERVER GLOBAL ERROR]:', err);
-  if (res.headersSent) return next(err);
-  res.status(err.status || 500).json({
-    success: false,
-    message: err.message || 'Lỗi xử lý nội bộ máy chủ',
-    data: null
-  });
-});
+// Global Error Handler
+app.use(errorHandler);
 
 // Khởi chạy server
 async function startServer() {
@@ -98,4 +101,8 @@ async function startServer() {
   }
 }
 
-startServer();
+if (require.main === module) {
+  startServer();
+}
+
+module.exports = app;

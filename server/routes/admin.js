@@ -1,124 +1,251 @@
 /**
- * ADMIN API ROUTES - QUẢN LÝ TOÀN DIỆN CỬA HÀNG MINI GT
- * Yêu cầu: Xác thực JWT token và quyền Role === 'admin'
- * Chuẩn hóa phản hồi API: { success: boolean, message: string, data: any }
+ * ADMIN API ROUTES - QUẢN TRỊ TOÀN DIỆN MINI GT STORE
+ * Bảo mật: Token JWT hợp lệ + Quyền Role === 'admin' (Xác thực trực tiếp từ CSDL SQL Server)
  */
-
 const express = require('express');
 const router = express.Router();
 const db = require('../config/db');
-const { verifyToken } = require('../middleware/auth');
+const productService = require('../services/productService');
+const orderService = require('../services/orderService');
+const settingsService = require('../services/settingsService');
+const { authenticate, requireAdmin } = require('../middleware/auth');
+const { ok, created, badRequest, notFound, conflict } = require('../utils/http');
+const v = require('../utils/validators');
 
-// Middleware kiểm tra quyền Quản trị viên
-function requireAdmin(req, res, next) {
-  if (!req.user || req.user.role !== 'admin') {
-    return res.status(403).json({
-      success: false,
-      message: 'Từ chối truy cập: Bạn không có quyền Quản trị viên',
-      data: null
-    });
-  }
-  next();
-}
-
-// Áp dụng middleware cho tất cả các route admin
-router.use(verifyToken, requireAdmin);
+// Tất cả route admin đều yêu cầu đăng nhập & quyền admin thực tế trong DB
+router.use(authenticate, requireAdmin);
 
 // =====================================================================
-// 1. THỐNG KÊ TỔNG QUAN (DASHBOARD STATS)
+// 1. DASHBOARD & THỐNG KÊ (REAL-TIME METRICS)
 // =====================================================================
-async function getDashboardStatsHandler(req, res) {
+router.get(['/stats', '/dashboard'], async (req, res, next) => {
   try {
-    const productsCountRes = await db.query('SELECT COUNT(*) AS total FROM Products');
-    const ordersStatsRes = await db.query(`
+    const settings = await settingsService.getAll();
+    const lowStockThreshold = Number(settings.low_stock_threshold) || 5;
+
+    // 1. Đếm sản phẩm
+    const productsRes = await db.query(`
+      SELECT 
+        COUNT(*) AS totalProducts,
+        SUM(CASE WHEN Stock <= @lowStock AND Stock > 0 THEN 1 ELSE 0 END) AS lowStockCount,
+        SUM(CASE WHEN Stock = 0 OR Status = 'sold_out' THEN 1 ELSE 0 END) AS outOfStockCount
+      FROM Products WHERE IsActive = 1`,
+      { lowStock: lowStockThreshold }
+    );
+
+    // 2. Thống kê đơn hàng và doanh thu thực
+    const ordersRes = await db.query(`
       SELECT 
         COUNT(*) AS totalOrders,
-        ISNULL(SUM(CASE WHEN PaymentStatus = 'PAID' THEN Total ELSE 0 END), 0) AS totalRevenue,
-        ISNULL(SUM(CASE WHEN Status IN ('CONFIRMED', 'SHIPPING', 'DELIVERED') THEN Total * 0.35 ELSE 0 END), 0) AS totalDeposits,
+        ISNULL(SUM(CASE WHEN PaymentStatus = 'PAID' THEN Total 
+                        WHEN PaymentStatus = 'PARTIALLY_PAID' THEN DepositAmount 
+                        ELSE 0 END), 0) AS totalRevenue,
+        ISNULL(SUM(CASE WHEN PaymentStatus = 'PARTIALLY_PAID' THEN DepositAmount ELSE 0 END), 0) AS totalDeposits,
         SUM(CASE WHEN Status = 'PENDING' THEN 1 ELSE 0 END) AS pendingOrders,
         SUM(CASE WHEN Status = 'CONFIRMED' THEN 1 ELSE 0 END) AS confirmedOrders,
+        SUM(CASE WHEN Status = 'PREPARING' THEN 1 ELSE 0 END) AS preparingOrders,
         SUM(CASE WHEN Status = 'SHIPPING' THEN 1 ELSE 0 END) AS shippingOrders,
         SUM(CASE WHEN Status = 'DELIVERED' THEN 1 ELSE 0 END) AS deliveredOrders,
         SUM(CASE WHEN Status = 'CANCELLED' THEN 1 ELSE 0 END) AS cancelledOrders
       FROM Orders
     `);
+
+    // 3. Khách hàng & Bản tin
     const usersCountRes = await db.query("SELECT COUNT(*) AS total FROM Users WHERE Role != 'admin'");
     const subscribersCountRes = await db.query('SELECT COUNT(*) AS total FROM Newsletter');
 
+    // 4. Đơn hàng gần đây nhất (TOP 8)
     const recentOrdersRes = await db.query(`
-      SELECT TOP 8 OrderId, OrderCode, FullName, Phone, Total, Status, PaymentStatus, PaymentMethod, CreatedAt
-      FROM Orders
-      ORDER BY CreatedAt DESC
+      SELECT TOP 8 o.OrderId, o.OrderCode, o.FullName, o.Phone, o.Total, o.DepositAmount, o.Status, o.PaymentStatus, o.PaymentMethod, o.CreatedAt,
+             (SELECT COUNT(*) FROM OrderItems oi WHERE oi.OrderId = o.OrderId) AS ItemCount
+      FROM Orders o
+      ORDER BY o.CreatedAt DESC
     `);
 
-    const s = ordersStatsRes.recordset[0] || {};
+    // 5. Mô hình bán chạy nhất (TOP 5)
+    const bestSellersRes = await db.query(`
+      SELECT TOP 5 p.ProductId, p.Sku, p.Name, p.ImageUrl, p.Price, p.Stock, ISNULL(SUM(oi.Quantity), 0) AS UnitsSold
+      FROM OrderItems oi
+      JOIN Orders o ON o.OrderId = oi.OrderId AND o.Status <> 'CANCELLED'
+      JOIN Products p ON p.ProductId = oi.ProductId
+      GROUP BY p.ProductId, p.Sku, p.Name, p.ImageUrl, p.Price, p.Stock
+      ORDER BY UnitsSold DESC
+    `);
 
-    return res.json({
-      success: true,
-      message: 'Lấy dữ liệu thống kê thành công',
-      data: {
-        stats: {
-          totalProducts: productsCountRes.recordset[0].total || 0,
-          totalOrders: s.totalOrders || 0,
-          totalRevenue: s.totalRevenue || 0,
-          totalDeposits: s.totalDeposits || 0,
-          totalCustomers: usersCountRes.recordset[0].total || 0,
-          totalSubscribers: subscribersCountRes.recordset[0].total || 0,
-          pendingOrders: s.pendingOrders || 0,
-          confirmedOrders: s.confirmedOrders || 0,
-          shippingOrders: s.shippingOrders || 0,
-          deliveredOrders: s.deliveredOrders || 0,
-          cancelledOrders: s.cancelledOrders || 0
-        },
-        recentOrders: recentOrdersRes.recordset
+    const p = productsRes.recordset[0] || {};
+    const o = ordersRes.recordset[0] || {};
+
+    const kpis = {
+      revenue: {
+        total: Number(o.totalRevenue) || 0,
+        totalFormatted: new Intl.NumberFormat('vi-VN').format(Math.round(Number(o.totalRevenue) || 0)) + 'đ'
+      },
+      orders: {
+        total: Number(o.totalOrders) || 0
+      },
+      products: {
+        total: Number(p.totalProducts) || 0,
+        lowStock: Number(p.lowStockCount) || 0
+      },
+      customers: {
+        total: Number(usersCountRes.recordset[0].total) || 0
       }
-    });
+    };
+
+    return ok(res, {
+      stats: {
+        totalRevenue: Number(o.totalRevenue) || 0,
+        totalDeposits: Number(o.totalDeposits) || 0,
+        totalOrders: Number(o.totalOrders) || 0,
+        totalProducts: Number(p.totalProducts) || 0,
+        lowStockProducts: Number(p.lowStockCount) || 0,
+        outOfStockProducts: Number(p.outOfStockCount) || 0,
+        totalCustomers: Number(usersCountRes.recordset[0].total) || 0,
+        totalSubscribers: Number(subscribersCountRes.recordset[0].total) || 0,
+        pendingOrders: Number(o.pendingOrders) || 0,
+        confirmedOrders: Number(o.confirmedOrders) || 0,
+        preparingOrders: Number(o.preparingOrders) || 0,
+        shippingOrders: Number(o.shippingOrders) || 0,
+        deliveredOrders: Number(o.deliveredOrders) || 0,
+        cancelledOrders: Number(o.cancelledOrders) || 0
+      },
+      kpis,
+      recentOrders: recentOrdersRes.recordset.map(row => orderService.mapOrder(row)),
+      bestSellers: bestSellersRes.recordset.map(b => ({
+        id: Number(b.ProductId),
+        sku: b.Sku,
+        name: b.Name,
+        image: b.ImageUrl,
+        price: Number(b.Price) || 0,
+        stock: Number(b.Stock) || 0,
+        unitsSold: Number(b.UnitsSold) || 0
+      }))
+    }, 'Lấy dữ liệu thống kê thành công');
   } catch (err) {
-    console.error('[ADMIN STATS ERROR]:', err);
-    return res.status(500).json({
-      success: false,
-      message: 'Lỗi máy chủ khi lấy dữ liệu thống kê: ' + err.message,
-      data: null
-    });
+    next(err);
   }
-}
-
-router.get('/stats', getDashboardStatsHandler);
-router.get('/dashboard', getDashboardStatsHandler);
-
+});
 
 // =====================================================================
 // 2. QUẢN LÝ SẢN PHẨM (PRODUCTS CRUD)
 // =====================================================================
-router.get('/products', async (req, res) => {
+
+// Danh sách sản phẩm kèm lọc, tìm kiếm, phân trang
+router.get('/products', async (req, res, next) => {
   try {
-    const result = await db.query('SELECT * FROM vw_ProductList ORDER BY ProductId DESC');
-    return res.json({
-      success: true,
-      message: 'Lấy danh sách sản phẩm thành công',
-      count: result.recordset.length,
-      data: result.recordset
+    const { category, status, stock, search, sort, page = 1, limit = 20 } = req.query;
+
+    let queryStr = productService.BASE_SELECT + ' WHERE p.IsActive = 1';
+    const params = {};
+
+    if (category && category !== 'all') {
+      queryStr += ' AND (c.Slug = @category OR c.CategoryId = TRY_CAST(@category AS INT))';
+      params.category = category;
+    }
+
+    if (status && status !== 'all') {
+      queryStr += ' AND p.Status = @status';
+      params.status = status;
+    }
+
+    if (stock) {
+      if (stock === 'out_of_stock') {
+        queryStr += ' AND (p.Stock <= 0 OR p.Status = \'sold_out\')';
+      } else if (stock === 'low_stock') {
+        queryStr += ' AND p.Stock > 0 AND p.Stock <= 5';
+      } else if (stock === 'in_stock') {
+        queryStr += ' AND p.Stock > 5';
+      }
+    }
+
+    if (search && search.trim()) {
+      queryStr += ' AND (p.Name LIKE @search OR p.Sku LIKE @search OR p.Brand LIKE @search OR c.Name LIKE @search)';
+      params.search = v.likeParam(search.trim());
+    }
+
+    // Sort
+    switch (sort) {
+      case 'price_asc': queryStr += ' ORDER BY p.Price ASC'; break;
+      case 'price_desc': queryStr += ' ORDER BY p.Price DESC'; break;
+      case 'stock_asc': queryStr += ' ORDER BY p.Stock ASC'; break;
+      case 'stock_desc': queryStr += ' ORDER BY p.Stock DESC'; break;
+      case 'name_asc': queryStr += ' ORDER BY p.Name ASC'; break;
+      case 'best_selling': queryStr += ' ORDER BY SoldCount DESC'; break;
+      default: queryStr += ' ORDER BY p.ProductId DESC'; break;
+    }
+
+    const result = await db.query(queryStr, params);
+    const all = result.recordset.map(productService.mapProduct);
+
+    // Pagination
+    const pageNum = Math.max(1, parseInt(page) || 1);
+    const pageSize = Math.max(1, Math.min(100, parseInt(limit) || 20));
+    const total = all.length;
+    const paginated = all.slice((pageNum - 1) * pageSize, pageNum * pageSize);
+
+    return ok(res, paginated, 'Lấy danh sách sản phẩm thành công', {
+      pagination: {
+        page: pageNum,
+        limit: pageSize,
+        total,
+        totalPages: Math.ceil(total / pageSize)
+      }
     });
   } catch (error) {
-    return res.status(500).json({ success: false, message: error.message, data: null });
+    next(error);
   }
 });
 
-router.post('/products', async (req, res) => {
+// Chi tiết sản phẩm
+router.get('/products/:id', async (req, res, next) => {
   try {
-    const { sku, name, categoryId, brand, scale, price, oldPrice, depositAmount, quotaPercent, editionNote, preOrderDeadline, stock, imageUrl, description, status } = req.body;
+    const id = v.int(req.params.id, { min: 1 });
+    if (!id) throw badRequest('Mã sản phẩm không hợp lệ');
 
-    if (!sku || !name || !categoryId || !price) {
-      return res.status(400).json({ success: false, message: 'Vui lòng cung cấp đầy đủ SKU, Tên, Danh mục và Giá bán', data: null });
-    }
+    const product = await productService.findById(id);
+    if (!product) throw notFound('Không tìm thấy sản phẩm');
 
-    const cleanSku = sku.trim();
-    const skuCheck = await db.query('SELECT ProductId FROM Products WHERE Sku = @sku', { sku: cleanSku });
+    return ok(res, product, 'Chi tiết sản phẩm');
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Thêm sản phẩm mới
+router.post('/products', async (req, res, next) => {
+  try {
+    const sku = v.str(req.body.sku, 30);
+    const name = v.str(req.body.name, 200);
+    const categoryId = v.int(req.body.categoryId, { min: 1 });
+    const brand = v.str(req.body.brand || 'MINI GT', 100);
+    const scale = v.str(req.body.scale || '1:64', 20);
+    const price = v.num(req.body.price);
+    const oldPrice = v.num(req.body.oldPrice, null);
+    const depositAmount = v.num(req.body.depositAmount, null);
+    const quotaPercent = v.int(req.body.quotaPercent, { min: 0, max: 100, def: 0 });
+    const editionNote = v.optStr(req.body.editionNote, 150);
+    const preOrderDeadline = req.body.preOrderDeadline ? String(req.body.preOrderDeadline).slice(0, 10) : null;
+    const stock = v.int(req.body.stock, { min: 0, def: 0 });
+    const imageUrl = v.str(req.body.imageUrl || 'image/hero-banner.jpg', 255);
+    const description = v.str(req.body.description, 5000);
+    const status = ['in_stock', 'pre_order', 'sold_out'].includes(req.body.status) ? req.body.status : 'in_stock';
+    const isFeatured = req.body.isFeatured ? 1 : 0;
+    const isNew = req.body.isNew ? 1 : 0;
+
+    if (!sku) throw badRequest('Vui lòng nhập mã SKU sản phẩm');
+    if (name.length < 3) throw badRequest('Tên sản phẩm tối thiểu 3 ký tự');
+    if (!categoryId) throw badRequest('Vui lòng chọn danh mục sản phẩm');
+    if (!price || price <= 0) throw badRequest('Giá bán phải lớn hơn 0');
+    if (oldPrice != null && oldPrice <= price) throw badRequest('Giá gốc (cũ) phải lớn hơn giá bán');
+
+    // Kiểm tra SKU trùng
+    const skuCheck = await db.query('SELECT ProductId FROM Products WHERE Sku = @sku', { sku });
     if (skuCheck.recordset.length > 0) {
-      return res.status(400).json({ success: false, message: `Mã SKU "${cleanSku}" đã tồn tại trên hệ thống, vui lòng chọn mã khác!`, data: null });
+      throw conflict(`Mã SKU "${sku}" đã tồn tại. Vui lòng chọn mã khác.`);
     }
 
-    let baseSlug = name.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '') || 'mini-gt';
+    // Tạo slug duy nhất
+    let baseSlug = v.slugify(name);
     let slug = baseSlug;
     const slugCheck = await db.query('SELECT ProductId FROM Products WHERE Slug = @slug', { slug });
     if (slugCheck.recordset.length > 0) {
@@ -126,179 +253,234 @@ router.post('/products', async (req, res) => {
     }
 
     const insertRes = await db.query(`
-      INSERT INTO Products (Sku, Name, Slug, CategoryId, Brand, Scale, Price, OldPrice, DepositAmount, QuotaPercent, EditionNote, PreOrderDeadline, Stock, ImageUrl, Description, Status, IsFeatured, IsNew, CreatedAt)
+      INSERT INTO Products (Sku, Name, Slug, CategoryId, Brand, Scale, Price, OldPrice, DepositAmount, QuotaPercent, EditionNote, PreOrderDeadline, Stock, ImageUrl, Description, Status, IsFeatured, IsNew, IsActive, CreatedAt, UpdatedAt)
       OUTPUT INSERTED.ProductId
-      VALUES (@sku, @name, @slug, @categoryId, @brand, @scale, @price, @oldPrice, @depositAmount, @quotaPercent, @editionNote, @preOrderDeadline, @stock, @imageUrl, @description, @status, 1, 1, SYSDATETIME())
+      VALUES (@sku, @name, @slug, @categoryId, @brand, @scale, @price, @oldPrice, @depositAmount, @quotaPercent, @editionNote, @preOrderDeadline, @stock, @imageUrl, @description, @status, @isFeatured, @isNew, 1, SYSDATETIME(), SYSDATETIME())
     `, {
-      sku: cleanSku,
-      name: name.trim(),
-      slug: slug,
-      categoryId: parseInt(categoryId),
-      brand: brand || 'MINI GT',
-      scale: scale || '1:64',
-      price: parseFloat(price),
-      oldPrice: oldPrice ? parseFloat(oldPrice) : null,
-      depositAmount: depositAmount ? parseFloat(depositAmount) : null,
-      quotaPercent: quotaPercent ? parseInt(quotaPercent) : 0,
-      editionNote: editionNote || null,
-      preOrderDeadline: preOrderDeadline || null,
-      stock: parseInt(stock) || 0,
-      imageUrl: imageUrl || 'image/hero-banner.png',
-      description: description || '',
-      status: status || 'in_stock'
+      sku, name, slug, categoryId, brand, scale, price, oldPrice, depositAmount,
+      quotaPercent, editionNote, preOrderDeadline, stock, imageUrl, description,
+      status, isFeatured, isNew
     });
 
-    return res.status(201).json({
-      success: true,
-      message: 'Thêm mô hình mới thành công!',
-      data: { productId: insertRes.recordset[0].ProductId }
-    });
+    const newId = Number(insertRes.recordset[0].ProductId);
+
+    // Lưu gallery ảnh nếu có
+    if (Array.isArray(req.body.gallery) && req.body.gallery.length > 0) {
+      let order = 1;
+      for (const img of req.body.gallery) {
+        if (img && typeof img === 'string') {
+          await db.query(
+            'INSERT INTO ProductImages (ProductId, ImageUrl, SortOrder) VALUES (@id, @url, @ord)',
+            { id: newId, url: img.trim(), ord: order++ }
+          );
+        }
+      }
+    }
+
+    const product = await productService.findById(newId);
+    return created(res, product, 'Thêm mô hình xe thành công!');
   } catch (error) {
-    console.error('[ADMIN CREATE PRODUCT ERROR]:', error);
-    return res.status(500).json({ success: false, message: error.message, data: null });
+    next(error);
   }
 });
 
-router.put('/products/:id', async (req, res) => {
+// Cập nhật sản phẩm
+router.put('/products/:id', async (req, res, next) => {
   try {
-    const productId = parseInt(req.params.id);
-    const { name, categoryId, brand, scale, price, oldPrice, depositAmount, quotaPercent, editionNote, preOrderDeadline, stock, imageUrl, description, status } = req.body;
+    const productId = v.int(req.params.id, { min: 1 });
+    if (!productId) throw badRequest('Mã sản phẩm không hợp lệ');
+
+    const existingRes = await db.query('SELECT * FROM Products WHERE ProductId = @id', { id: productId });
+    if (existingRes.recordset.length === 0) throw notFound('Không tìm thấy sản phẩm');
+    const existing = existingRes.recordset[0];
+
+    const sku = req.body.sku !== undefined ? v.str(req.body.sku, 30) : existing.Sku;
+    const name = req.body.name !== undefined ? v.str(req.body.name, 200) : existing.Name;
+    const categoryId = req.body.categoryId !== undefined ? v.int(req.body.categoryId, { min: 1 }) : existing.CategoryId;
+    const brand = req.body.brand !== undefined ? v.str(req.body.brand, 100) : existing.Brand;
+    const scale = req.body.scale !== undefined ? v.str(req.body.scale, 20) : existing.Scale;
+    const price = req.body.price !== undefined ? v.num(req.body.price) : Number(existing.Price);
+    const oldPrice = req.body.oldPrice !== undefined ? v.num(req.body.oldPrice, null) : existing.OldPrice;
+    const depositAmount = req.body.depositAmount !== undefined ? v.num(req.body.depositAmount, null) : existing.DepositAmount;
+    const quotaPercent = req.body.quotaPercent !== undefined ? v.int(req.body.quotaPercent, { min: 0, max: 100, def: 0 }) : existing.QuotaPercent;
+    const editionNote = req.body.editionNote !== undefined ? v.optStr(req.body.editionNote, 150) : existing.EditionNote;
+    const preOrderDeadline = req.body.preOrderDeadline !== undefined ? (req.body.preOrderDeadline ? String(req.body.preOrderDeadline).slice(0, 10) : null) : existing.PreOrderDeadline;
+    const stock = req.body.stock !== undefined ? v.int(req.body.stock, { min: 0, def: 0 }) : existing.Stock;
+    const imageUrl = req.body.imageUrl !== undefined ? v.str(req.body.imageUrl, 255) : existing.ImageUrl;
+    const description = req.body.description !== undefined ? v.str(req.body.description, 5000) : existing.Description;
+    const status = req.body.status !== undefined ? (['in_stock', 'pre_order', 'sold_out'].includes(req.body.status) ? req.body.status : existing.Status) : existing.Status;
+    const isFeatured = req.body.isFeatured !== undefined ? (req.body.isFeatured ? 1 : 0) : existing.IsFeatured;
+    const isNew = req.body.isNew !== undefined ? (req.body.isNew ? 1 : 0) : existing.IsNew;
+
+    if (!sku) throw badRequest('Mã SKU không được để trống');
+    if (!name || name.length < 3) throw badRequest('Tên sản phẩm tối thiểu 3 ký tự');
+    if (!price || price <= 0) throw badRequest('Giá bán phải lớn hơn 0');
+    if (oldPrice != null && oldPrice <= price) throw badRequest('Giá gốc (cũ) phải lớn hơn giá bán');
+
+    // Kiểm tra SKU nếu thay đổi
+    if (sku !== existing.Sku) {
+      const skuCheck = await db.query('SELECT ProductId FROM Products WHERE Sku = @sku AND ProductId <> @id', { sku, id: productId });
+      if (skuCheck.recordset.length > 0) throw conflict(`Mã SKU "${sku}" đã được sử dụng bởi sản phẩm khác`);
+    }
 
     await db.query(`
       UPDATE Products SET
-        Name = COALESCE(@name, Name),
-        CategoryId = COALESCE(@categoryId, CategoryId),
-        Brand = COALESCE(@brand, Brand),
-        Scale = COALESCE(@scale, Scale),
-        Price = COALESCE(@price, Price),
+        Sku = @sku,
+        Name = @name,
+        CategoryId = @categoryId,
+        Brand = @brand,
+        Scale = @scale,
+        Price = @price,
         OldPrice = @oldPrice,
         DepositAmount = @depositAmount,
-        QuotaPercent = COALESCE(@quotaPercent, QuotaPercent),
+        QuotaPercent = @quotaPercent,
         EditionNote = @editionNote,
         PreOrderDeadline = @preOrderDeadline,
-        Stock = COALESCE(@stock, Stock),
-        ImageUrl = COALESCE(@imageUrl, ImageUrl),
-        Description = COALESCE(@description, Description),
-        Status = COALESCE(@status, Status)
+        Stock = @stock,
+        ImageUrl = @imageUrl,
+        Description = @description,
+        Status = @status,
+        IsFeatured = @isFeatured,
+        IsNew = @isNew,
+        UpdatedAt = SYSDATETIME()
       WHERE ProductId = @productId
     `, {
-      productId,
-      name: name ? name.trim() : null,
-      categoryId: categoryId ? parseInt(categoryId) : null,
-      brand: brand || null,
-      scale: scale || null,
-      price: price ? parseFloat(price) : null,
-      oldPrice: oldPrice !== undefined ? (oldPrice ? parseFloat(oldPrice) : null) : null,
-      depositAmount: depositAmount !== undefined ? (depositAmount ? parseFloat(depositAmount) : null) : null,
-      quotaPercent: quotaPercent !== undefined ? parseInt(quotaPercent) : null,
-      editionNote: editionNote !== undefined ? editionNote : null,
-      preOrderDeadline: preOrderDeadline !== undefined ? preOrderDeadline : null,
-      stock: stock !== undefined ? parseInt(stock) : null,
-      imageUrl: imageUrl || null,
-      description: description || null,
-      status: status || null
+      productId, sku, name, categoryId, brand, scale, price, oldPrice, depositAmount,
+      quotaPercent, editionNote, preOrderDeadline, stock, imageUrl, description,
+      status, isFeatured, isNew
     });
 
-    return res.json({ success: true, message: 'Cập nhật sản phẩm thành công!', data: { productId } });
-  } catch (error) {
-    console.error('[ADMIN UPDATE PRODUCT ERROR]:', error);
-    return res.status(500).json({ success: false, message: error.message, data: null });
-  }
-});
-
-router.delete('/products/:id', async (req, res) => {
-  try {
-    const productId = parseInt(req.params.id);
-    await db.query('DELETE FROM Products WHERE ProductId = @productId', { productId });
-    return res.json({ success: true, message: 'Đã xóa sản phẩm thành công', data: { productId } });
-  } catch (error) {
-    return res.status(500).json({ success: false, message: error.message, data: null });
-  }
-});
-
-// NHÂN BẢN SẢN PHẨM (CLONE / DUPLICATE PRODUCT)
-router.post('/products/:id/clone', async (req, res) => {
-  try {
-    const productId = parseInt(req.params.id);
-    const originRes = await db.query('SELECT * FROM Products WHERE ProductId = @productId', { productId });
-    if (originRes.recordset.length === 0) {
-      return res.status(404).json({ success: false, message: 'Không tìm thấy sản phẩm nguồn để nhân bản', data: null });
+    // Cập nhật gallery ảnh nếu có gửi lên
+    if (Array.isArray(req.body.gallery)) {
+      await db.query('DELETE FROM ProductImages WHERE ProductId = @id', { id: productId });
+      let order = 1;
+      for (const img of req.body.gallery) {
+        if (img && typeof img === 'string') {
+          await db.query(
+            'INSERT INTO ProductImages (ProductId, ImageUrl, SortOrder) VALUES (@id, @url, @ord)',
+            { id: productId, url: img.trim(), ord: order++ }
+          );
+        }
+      }
     }
-    const orig = originRes.recordset[0];
-    const newSku = orig.Sku + '-C' + Math.floor(10 + Math.random() * 90);
-    const newName = orig.Name + ' (Bản Sao)';
-    const newSlug = newName.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-');
+
+    const updated = await productService.findById(productId);
+    return ok(res, updated, 'Cập nhật sản phẩm thành công!');
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Xóa sản phẩm (Soft delete an toàn)
+router.delete('/products/:id', async (req, res, next) => {
+  try {
+    const productId = v.int(req.params.id, { min: 1 });
+    if (!productId) throw badRequest('Mã sản phẩm không hợp lệ');
+
+    // Kiểm tra xem sản phẩm có nằm trong đơn hàng nào không
+    const orderCheck = await db.query('SELECT TOP 1 OrderId FROM OrderItems WHERE ProductId = @id', { id: productId });
+
+    if (orderCheck.recordset.length > 0) {
+      // Ẩn sản phẩm (Soft delete) để bảo toàn lịch sử đơn hàng
+      await db.query('UPDATE Products SET IsActive = 0, UpdatedAt = SYSDATETIME() WHERE ProductId = @id', { id: productId });
+      return ok(res, { productId, softDeleted: true }, 'Sản phẩm đã có trong đơn hàng nên được chuyển sang trạng thái "Ẩn khỏi cửa hàng" để bảo toàn dữ liệu');
+    } else {
+      // Xóa hoàn toàn
+      await db.query('DELETE FROM Products WHERE ProductId = @id', { id: productId });
+      return ok(res, { productId, hardDeleted: true }, 'Đã xóa hoàn toàn sản phẩm khỏi hệ thống');
+    }
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Nhân bản sản phẩm (Clone)
+router.post('/products/:id/clone', async (req, res, next) => {
+  try {
+    const productId = v.int(req.params.id, { min: 1 });
+    const orig = await productService.findById(productId);
+    if (!orig) throw notFound('Không tìm thấy sản phẩm nguồn để nhân bản');
+
+    const newSku = orig.sku + '-C' + Math.floor(10 + Math.random() * 90);
+    const newName = orig.name + ' (Bản Sao)';
+    const newSlug = v.slugify(newName) + '-' + Date.now().toString().slice(-4);
 
     const insertRes = await db.query(`
-      INSERT INTO Products (Sku, Name, Slug, CategoryId, Brand, Scale, Price, OldPrice, DepositAmount, QuotaPercent, EditionNote, PreOrderDeadline, Stock, ImageUrl, Description, Status, IsFeatured, IsNew, CreatedAt)
+      INSERT INTO Products (Sku, Name, Slug, CategoryId, Brand, Scale, Price, OldPrice, DepositAmount, QuotaPercent, EditionNote, PreOrderDeadline, Stock, ImageUrl, Description, Status, IsFeatured, IsNew, IsActive, CreatedAt, UpdatedAt)
       OUTPUT INSERTED.ProductId
-      VALUES (@sku, @name, @slug, @categoryId, @brand, @scale, @price, @oldPrice, @depositAmount, @quotaPercent, @editionNote, @preOrderDeadline, @stock, @imageUrl, @description, @status, 1, 1, SYSDATETIME())
+      VALUES (@sku, @name, @slug, @categoryId, @brand, @scale, @price, @oldPrice, @depositAmount, @quotaPercent, @editionNote, @preOrderDeadline, @stock, @imageUrl, @description, @status, 0, 1, 1, SYSDATETIME(), SYSDATETIME())
     `, {
       sku: newSku,
       name: newName,
       slug: newSlug,
-      categoryId: orig.CategoryId,
-      brand: orig.Brand,
-      scale: orig.Scale,
-      price: orig.Price,
-      oldPrice: orig.OldPrice,
-      depositAmount: orig.DepositAmount,
-      quotaPercent: orig.QuotaPercent,
-      editionNote: orig.EditionNote,
-      preOrderDeadline: orig.PreOrderDeadline,
-      stock: orig.Stock,
-      imageUrl: orig.ImageUrl,
-      description: orig.Description,
-      status: orig.Status
+      categoryId: orig.category.id,
+      brand: orig.brand,
+      scale: orig.scale,
+      price: orig.price,
+      oldPrice: orig.oldPrice,
+      depositAmount: orig.depositAmount,
+      quotaPercent: orig.quotaPercent,
+      editionNote: orig.editionNote,
+      preOrderDeadline: orig.preOrderDeadline,
+      stock: orig.stock,
+      imageUrl: orig.image,
+      description: orig.description,
+      status: orig.status
     });
 
-    return res.status(201).json({
-      success: true,
-      message: `Đã nhân bản mô hình thành công với mã SKU mới: #${newSku}!`,
-      data: { productId: insertRes.recordset[0].ProductId }
-    });
+    const newId = Number(insertRes.recordset[0].ProductId);
+    const cloned = await productService.findById(newId);
+    return created(res, cloned, `Đã nhân bản sản phẩm thành công với mã SKU mới: #${newSku}`);
   } catch (error) {
-    return res.status(500).json({ success: false, message: error.message, data: null });
+    next(error);
   }
 });
 
-// CẬP NHẬT NHANH TRẠNG THÁI HOẶC TỒN KHO TRỰC TIẾP
-router.patch('/products/:id/quick-update', async (req, res) => {
+// Cập nhật nhanh trạng thái hoặc tồn kho
+router.patch('/products/:id/quick-update', async (req, res, next) => {
   try {
-    const productId = parseInt(req.params.id);
-    const { status, stock } = req.body;
+    const productId = v.int(req.params.id, { min: 1 });
+    const { status, stock, isFeatured, isNew } = req.body;
 
-    if (status !== undefined) {
-      await db.query('UPDATE Products SET Status = @status WHERE ProductId = @productId', { productId, status });
+    const sets = ['UpdatedAt = SYSDATETIME()'];
+    const params = { productId };
+
+    if (status !== undefined && ['in_stock', 'pre_order', 'sold_out'].includes(status)) {
+      sets.push('Status = @status');
+      params.status = status;
     }
     if (stock !== undefined) {
-      await db.query('UPDATE Products SET Stock = @stock WHERE ProductId = @productId', { productId, stock: parseInt(stock) || 0 });
+      sets.push('Stock = @stock');
+      params.stock = Math.max(0, parseInt(stock) || 0);
+    }
+    if (isFeatured !== undefined) {
+      sets.push('IsFeatured = @isFeatured');
+      params.isFeatured = isFeatured ? 1 : 0;
+    }
+    if (isNew !== undefined) {
+      sets.push('IsNew = @isNew');
+      params.isNew = isNew ? 1 : 0;
     }
 
-    return res.json({
-      success: true,
-      message: 'Cập nhật nhanh thông tin sản phẩm thành công',
-      data: { productId, status, stock }
-    });
+    await db.query(`UPDATE Products SET ${sets.join(', ')} WHERE ProductId = @productId`, params);
+    const updated = await productService.findById(productId);
+    return ok(res, updated, 'Cập nhật nhanh thành công');
   } catch (error) {
-    return res.status(500).json({ success: false, message: error.message, data: null });
+    next(error);
   }
 });
 
 // =====================================================================
-// 3. QUẢN LÝ ĐƠN HÀNG TOÀN DIỆN (ADMIN ORDER FLOW & STATE MACHINE)
+// 3. QUẢN LÝ ĐƠN HÀNG TOÀN DIỆN (ADMIN ORDERS)
 // =====================================================================
 
-/**
- * GET /api/admin/orders
- * Hỗ trợ bộ lọc: status, paymentStatus, paymentMethod, search (OrderCode, FullName, Phone)
- */
-router.get('/orders', async (req, res) => {
+// Danh sách đơn hàng kèm lọc, đếm theo tab
+router.get('/orders', async (req, res, next) => {
   try {
-    const { status, paymentStatus, paymentMethod, search } = req.query;
+    const { status, paymentStatus, paymentMethod, search, page = 1, limit = 20 } = req.query;
 
     let whereClauses = [];
-    let params = {};
+    const params = {};
 
     if (status && status !== 'ALL') {
       whereClauses.push('o.Status = @status');
@@ -316,486 +498,299 @@ router.get('/orders', async (req, res) => {
     }
 
     if (search && search.trim()) {
-      whereClauses.push('(o.OrderCode LIKE @search OR o.FullName LIKE @search OR o.Phone LIKE @search)');
-      params.search = `%${search.trim()}%`;
+      whereClauses.push('(o.OrderCode LIKE @search OR o.FullName LIKE @search OR o.Phone LIKE @search OR o.Email LIKE @search)');
+      params.search = v.likeParam(search.trim());
     }
 
     const whereSql = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';
 
-    const queryStr = `
-      SELECT o.*, u.Email AS CustomerEmail
+    const ordersRes = await db.query(`
+      SELECT o.*, u.Email AS CustomerEmail,
+             (SELECT COUNT(*) FROM OrderItems oi WHERE oi.OrderId = o.OrderId) AS ItemCount
       FROM Orders o
       LEFT JOIN Users u ON u.UserId = o.UserId
       ${whereSql}
       ORDER BY o.CreatedAt DESC
-    `;
+    `, params);
 
-    const ordersRes = await db.query(queryStr, params);
-    const orders = ordersRes.recordset;
-
-    // Lấy items cho từng đơn
-    for (const ord of orders) {
-      const itemsRes = await db.query(`
-        SELECT oi.*, p.Sku, p.ImageUrl, p.Scale
-        FROM OrderItems oi
-        LEFT JOIN Products p ON p.ProductId = oi.ProductId
-        WHERE oi.OrderId = @orderId
-      `, { orderId: ord.OrderId });
-      ord.items = itemsRes.recordset;
-    }
-
-    // Lấy số lượng theo từng trạng thái để hiển thị badge số đếm trên tab và KPI
     const countsRes = await db.query(`
       SELECT 
         COUNT(*) AS totalAll,
         SUM(CASE WHEN Status = 'PENDING' THEN 1 ELSE 0 END) AS countPending,
         SUM(CASE WHEN Status = 'CONFIRMED' THEN 1 ELSE 0 END) AS countConfirmed,
+        SUM(CASE WHEN Status = 'PREPARING' THEN 1 ELSE 0 END) AS countPreparing,
         SUM(CASE WHEN Status = 'SHIPPING' THEN 1 ELSE 0 END) AS countShipping,
         SUM(CASE WHEN Status = 'DELIVERED' THEN 1 ELSE 0 END) AS countDelivered,
-        SUM(CASE WHEN Status = 'CANCELLED' THEN 1 ELSE 0 END) AS countCancelled,
-        SUM(CASE WHEN PaymentMethod LIKE '%COD%' AND PaymentStatus = 'UNPAID' AND Status != 'CANCELLED' THEN Total ELSE 0 END) AS pendingCodTotal
+        SUM(CASE WHEN Status = 'CANCELLED' THEN 1 ELSE 0 END) AS countCancelled
       FROM Orders
     `);
 
     const c = countsRes.recordset[0] || {};
+    const all = ordersRes.recordset.map(row => orderService.mapOrder(row, { admin: true }));
 
-    return res.json({
-      success: true,
-      message: 'Lấy danh sách đơn hàng thành công',
-      count: orders.length,
-      data: orders,
+    // Phân trang
+    const pageNum = Math.max(1, parseInt(page) || 1);
+    const pageSize = Math.max(1, Math.min(100, parseInt(limit) || 20));
+    const total = all.length;
+    const paginated = all.slice((pageNum - 1) * pageSize, pageNum * pageSize);
+
+    return ok(res, paginated, 'Lấy danh sách đơn hàng thành công', {
       counts: {
-        all: c.totalAll || 0,
-        pending: c.countPending || 0,
-        confirmed: c.countConfirmed || 0,
-        shipping: c.countShipping || 0,
-        delivered: c.countDelivered || 0,
-        cancelled: c.countCancelled || 0,
-        pendingCodTotal: c.pendingCodTotal || 0
+        all: Number(c.totalAll) || 0,
+        pending: Number(c.countPending) || 0,
+        confirmed: Number(c.countConfirmed) || 0,
+        preparing: Number(c.countPreparing) || 0,
+        shipping: Number(c.countShipping) || 0,
+        delivered: Number(c.countDelivered) || 0,
+        cancelled: Number(c.countCancelled) || 0
+      },
+      pagination: {
+        page: pageNum,
+        limit: pageSize,
+        total,
+        totalPages: Math.ceil(total / pageSize)
       }
     });
   } catch (error) {
-    console.error('[ADMIN ORDERS GET ERROR]:', error);
-    return res.status(500).json({ success: false, message: error.message, data: null });
+    next(error);
   }
 });
 
-/**
- * GET /api/admin/orders/:id
- * Chi tiết đơn hàng đầy đủ
- */
-router.get('/orders/:id', async (req, res) => {
+// Chi tiết đơn hàng
+router.get('/orders/:id', async (req, res, next) => {
   try {
-    const orderId = parseInt(req.params.id);
-    const orderRes = await db.query(`
-      SELECT o.*, u.Email AS CustomerEmail
-      FROM Orders o
-      LEFT JOIN Users u ON u.UserId = o.UserId
-      WHERE o.OrderId = @orderId
-    `, { orderId });
+    const orderId = v.int(req.params.id, { min: 1 });
+    if (!orderId) throw badRequest('Mã đơn hàng không hợp lệ');
 
-    if (orderRes.recordset.length === 0) {
-      return res.status(404).json({ success: false, message: 'Không tìm thấy đơn hàng này', data: null });
-    }
+    const row = await orderService.loadOrderRow('o.OrderId = @id', { id: orderId });
+    if (!row) throw notFound('Không tìm thấy đơn hàng');
 
-    const order = orderRes.recordset[0];
-
-    const itemsRes = await db.query(`
-      SELECT oi.*, p.Sku, p.ImageUrl, p.Scale
-      FROM OrderItems oi
-      LEFT JOIN Products p ON p.ProductId = oi.ProductId
-      WHERE oi.OrderId = @orderId
-    `, { orderId });
-
-    order.items = itemsRes.recordset;
-
-    return res.json({
-      success: true,
-      message: 'Lấy chi tiết đơn hàng thành công',
-      data: order
-    });
+    const order = await orderService.getFullOrder(row, { admin: true });
+    return ok(res, order, 'Chi tiết đơn hàng');
   } catch (error) {
-    return res.status(500).json({ success: false, message: error.message, data: null });
+    next(error);
   }
 });
 
-/**
- * PUT /api/admin/orders/:id/confirm-payment
- * Xác nhận đã nhận tiền (Confirm Paid) cho đơn chuyển khoản
- */
-router.put('/orders/:id/confirm-payment', async (req, res) => {
+// Chuyển trạng thái đơn hàng (Tuân thủ nghiêm ngặt State Machine)
+router.put('/orders/:id/status', async (req, res, next) => {
   try {
-    const orderId = parseInt(req.params.id);
-    const orderRes = await db.query('SELECT OrderId, PaymentMethod, Status, PaymentStatus FROM Orders WHERE OrderId = @orderId', { orderId });
+    const orderId = v.int(req.params.id, { min: 1 });
+    const { status, note, trackingCode, carrier, cancelReason } = req.body;
+    if (!orderId) throw badRequest('Mã đơn hàng không hợp lệ');
 
-    if (orderRes.recordset.length === 0) {
-      return res.status(404).json({ success: false, message: 'Không tìm thấy đơn hàng', data: null });
-    }
+    const updated = await orderService.changeStatus(orderId, status, {
+      note, trackingCode, carrier, cancelReason
+    }, req.user.userId);
 
-    const order = orderRes.recordset[0];
-
-    if (order.Status === 'CANCELLED') {
-      return res.status(400).json({ success: false, message: 'Đơn hàng đã bị hủy, không thể xác nhận thanh toán', data: null });
-    }
-
-    await db.query(`
-      UPDATE Orders 
-      SET PaymentStatus = 'PAID'
-      WHERE OrderId = @orderId
-    `, { orderId });
-
-    return res.json({
-      success: true,
-      message: `Đã xác nhận nhận tiền thành công cho đơn #${orderId}! Giờ đây bạn có thể duyệt đơn.`,
-      data: { orderId, paymentStatus: 'PAID' }
-    });
+    return ok(res, updated, `Đã cập nhật trạng thái đơn hàng sang "${updated.statusLabel}"`);
   } catch (error) {
-    console.error('[CONFIRM PAYMENT ERROR]:', error);
-    return res.status(500).json({ success: false, message: error.message, data: null });
+    next(error);
   }
 });
 
-/**
- * PUT /api/admin/orders/:id/approve
- * Duyệt đơn hàng (Approve)
- * Điều kiện:
- * - COD: Duyệt bình thường -> Status = 'CONFIRMED'
- * - BANK_TRANSFER: BẮT BUỘC PaymentStatus == 'PAID' mới được duyệt
- */
-router.put('/orders/:id/approve', async (req, res) => {
+// Xác nhận thanh toán (Xác nhận cọc hoặc Thanh toán đủ 100%)
+router.put(['/orders/:id/confirm-payment', '/orders/:id/payment'], async (req, res, next) => {
   try {
-    const orderId = parseInt(req.params.id);
-    const orderRes = await db.query('SELECT OrderId, PaymentMethod, Status, PaymentStatus FROM Orders WHERE OrderId = @orderId', { orderId });
+    const orderId = v.int(req.params.id, { min: 1 });
+    const { kind = 'full' } = req.body; // 'deposit' hoặc 'full'
+    if (!orderId) throw badRequest('Mã đơn hàng không hợp lệ');
 
-    if (orderRes.recordset.length === 0) {
-      return res.status(404).json({ success: false, message: 'Không tìm thấy đơn hàng', data: null });
-    }
-
-    const order = orderRes.recordset[0];
-
-    if (order.Status !== 'PENDING' && order.Status !== 'pending') {
-      return res.status(400).json({
-        success: false,
-        message: `Đơn hàng đang ở trạng thái "${order.Status}", chỉ đơn "Chờ duyệt" (PENDING) mới có thể duyệt!`,
-        data: null
-      });
-    }
-
-    // Kiểm tra điều kiện phương thức thanh toán
-    const isBank = (order.PaymentMethod || '').toUpperCase().includes('BANK');
-    const isPaid = (order.PaymentStatus || '').toUpperCase() === 'PAID';
-
-    if (isBank && !isPaid) {
-      return res.status(400).json({
-        success: false,
-        message: 'Đơn hàng Chuyển khoản ngân hàng cần được "Xác nhận đã nhận tiền" trước khi duyệt đơn!',
-        data: null
-      });
-    }
-
-    await db.query(`
-      UPDATE Orders 
-      SET Status = 'CONFIRMED'
-      WHERE OrderId = @orderId
-    `, { orderId });
-
-    return res.json({
-      success: true,
-      message: `Đã duyệt đơn hàng #${orderId} thành công (Trạng thái: ĐÃ DUYỆT / CONFIRMED)`,
-      data: { orderId, status: 'CONFIRMED' }
-    });
+    const updated = await orderService.confirmPayment(orderId, kind, req.user.userId);
+    return ok(res, updated, `Đã xác nhận thanh toán thành công cho đơn #${updated.code}`);
   } catch (error) {
-    console.error('[APPROVE ORDER ERROR]:', error);
-    return res.status(500).json({ success: false, message: error.message, data: null });
+    next(error);
   }
 });
 
-/**
- * PUT /api/admin/orders/:id/ship
- * Bắt đầu giao hàng (qua SPX Express hoặc đối tác vận chuyển)
- * Điều kiện: Status phải là 'CONFIRMED'
- */
-router.put('/orders/:id/ship', async (req, res) => {
+// Cập nhật mã vận đơn giao hàng (SPX Express)
+router.put('/orders/:id/tracking', async (req, res, next) => {
   try {
-    const orderId = parseInt(req.params.id);
-    const { trackingCode, carrier } = req.body || {};
-    const orderRes = await db.query('SELECT OrderId, Status, PaymentMethod, PaymentStatus, TrackingCode FROM Orders WHERE OrderId = @orderId', { orderId });
+    const orderId = v.int(req.params.id, { min: 1 });
+    const { trackingCode, carrier, autoShip } = req.body;
+    if (!orderId) throw badRequest('Mã đơn hàng không hợp lệ');
 
-    if (orderRes.recordset.length === 0) {
-      return res.status(404).json({ success: false, message: 'Không tìm thấy đơn hàng', data: null });
-    }
-
-    const order = orderRes.recordset[0];
-    const ordStatus = (order.Status || '').toUpperCase();
-    const isBank = (order.PaymentMethod || '').toUpperCase().includes('BANK');
-    const isPaid = (order.PaymentStatus || '').toUpperCase() === 'PAID';
-
-    if (ordStatus === 'CANCELLED') {
-      return res.status(400).json({ success: false, message: 'Đơn hàng đã bị hủy, không thể giao hàng!', data: null });
-    }
-
-    if (isBank && !isPaid) {
-      return res.status(400).json({
-        success: false,
-        message: 'Đơn chuyển khoản ngân hàng cần được "Xác nhận đã nhận tiền" trước khi giao hàng!',
-        data: null
-      });
-    }
-
-    const finalTracking = trackingCode ? trackingCode.trim() : (order.TrackingCode || null);
-    const finalCarrier = carrier ? carrier.trim() : 'SPX';
-
-    await db.query(`
-      UPDATE Orders 
-      SET Status = 'SHIPPING',
-          TrackingCode = @trackingCode,
-          TrackingCarrier = @carrier
-      WHERE OrderId = @orderId
-    `, {
-      orderId,
-      trackingCode: finalTracking,
-      carrier: finalCarrier
+    const updated = await orderService.updateTracking(orderId, trackingCode, carrier, req.user.userId, {
+      autoShip: Boolean(autoShip)
     });
-
-    return res.json({
-      success: true,
-      message: `Đơn hàng #${orderId} đã chuyển sang trạng thái "Đang giao hàng" qua ${finalCarrier} Express${finalTracking ? ` (Mã vận đơn: ${finalTracking})` : ''}`,
-      data: { orderId, status: 'SHIPPING', trackingCode: finalTracking, carrier: finalCarrier }
-    });
+    return ok(res, updated, `Đã duyệt đơn & lưu mã vận đơn ${updated.trackingCarrier}: ${updated.trackingCode}`);
   } catch (error) {
-    console.error('[SHIP ORDER ERROR]:', error);
-    return res.status(500).json({ success: false, message: error.message, data: null });
+    next(error);
   }
 });
 
-/**
- * PUT /api/admin/orders/:id/tracking
- * Cập nhật hoặc bổ sung mã vận đơn SPX Express
- */
-router.put('/orders/:id/tracking', async (req, res) => {
+// Hủy đơn hàng kèm lý do
+router.put('/orders/:id/cancel', async (req, res, next) => {
   try {
-    const orderId = parseInt(req.params.id);
-    const { trackingCode, carrier } = req.body || {};
-
-    if (!trackingCode || !trackingCode.trim()) {
-      return res.status(400).json({ success: false, message: 'Vui lòng cung cấp mã vận đơn từ app SPX Express', data: null });
-    }
-
-    const cleanCode = trackingCode.trim();
-    const finalCarrier = (carrier && carrier.trim()) || 'SPX';
-
-    await db.query(`
-      UPDATE Orders 
-      SET TrackingCode = @trackingCode,
-          TrackingCarrier = @carrier
-      WHERE OrderId = @orderId
-    `, {
-      orderId,
-      trackingCode: cleanCode,
-      carrier: finalCarrier
-    });
-
-    return res.json({
-      success: true,
-      message: `Đã cập nhật mã vận đơn ${finalCarrier} Express: ${cleanCode} cho đơn #${orderId}!`,
-      data: { orderId, trackingCode: cleanCode, carrier: finalCarrier }
-    });
-  } catch (error) {
-    console.error('[UPDATE TRACKING ERROR]:', error);
-    return res.status(500).json({ success: false, message: error.message, data: null });
-  }
-});
-
-/**
- * PUT /api/admin/orders/:id/complete
- * Đã giao hàng thành công & thu tiền (nếu COD)
- * Tự động cập nhật:
- * - Status = 'DELIVERED'
- * - PaymentStatus = 'PAID' (đặc biệt đối với đơn COD)
- */
-router.put('/orders/:id/complete', async (req, res) => {
-  try {
-    const orderId = parseInt(req.params.id);
-    const orderRes = await db.query('SELECT OrderId, Status, PaymentMethod FROM Orders WHERE OrderId = @orderId', { orderId });
-
-    if (orderRes.recordset.length === 0) {
-      return res.status(404).json({ success: false, message: 'Không tìm thấy đơn hàng', data: null });
-    }
-
-    const order = orderRes.recordset[0];
-
-    if (order.Status !== 'SHIPPING' && order.Status !== 'shipping' && order.Status !== 'CONFIRMED') {
-      return res.status(400).json({
-        success: false,
-        message: `Đơn hàng cần đang ở trạng thái giao hàng (SHIPPING) để hoàn tất!`,
-        data: null
-      });
-    }
-
-    await db.query(`
-      UPDATE Orders 
-      SET Status = 'DELIVERED', PaymentStatus = 'PAID'
-      WHERE OrderId = @orderId
-    `, { orderId });
-
-    return res.json({
-      success: true,
-      message: `Đơn hàng #${orderId} đã hoàn tất giao hàng & thu tiền thành công (Trạng thái: ĐÃ GIAO / DELIVERED, Thanh toán: ĐÃ THANH TOÁN / PAID)`,
-      data: { orderId, status: 'DELIVERED', paymentStatus: 'PAID' }
-    });
-  } catch (error) {
-    console.error('[COMPLETE ORDER ERROR]:', error);
-    return res.status(500).json({ success: false, message: error.message, data: null });
-  }
-});
-
-/**
- * PUT /api/admin/orders/:id/cancel
- * Hủy đơn hàng kèm lý do
- * Điều kiện: Chỉ cho phép hủy khi Status là 'PENDING' hoặc 'CONFIRMED'
- * Nếu đơn đã thanh toán (PAID), tự động chuyển PaymentStatus thành 'REFUNDED'
- */
-router.put('/orders/:id/cancel', async (req, res) => {
-  try {
-    const orderId = parseInt(req.params.id);
+    const orderId = v.int(req.params.id, { min: 1 });
     const { cancelReason } = req.body;
+    if (!orderId) throw badRequest('Mã đơn hàng không hợp lệ');
 
-    if (!cancelReason || !cancelReason.trim()) {
-      return res.status(400).json({
-        success: false,
-        message: 'Vui lòng cung cấp lý do hủy đơn hàng',
-        data: null
-      });
-    }
+    const updated = await orderService.changeStatus(orderId, 'CANCELLED', {
+      cancelReason
+    }, req.user.userId);
 
-    const orderRes = await db.query('SELECT OrderId, Status, PaymentStatus FROM Orders WHERE OrderId = @orderId', { orderId });
+    const msg = updated.paymentStatus === 'REFUND_PENDING'
+      ? `Đã hủy đơn hàng #${updated.code}. Đơn đã chuyển sang trạng thái "Chờ hoàn tiền" do đã thu tiền trước đó.`
+      : `Đã hủy đơn hàng #${updated.code} thành công.`;
 
-    if (orderRes.recordset.length === 0) {
-      return res.status(404).json({ success: false, message: 'Không tìm thấy đơn hàng', data: null });
-    }
-
-    const order = orderRes.recordset[0];
-
-    const currentStatus = (order.Status || '').toUpperCase();
-    if (currentStatus !== 'PENDING' && currentStatus !== 'CONFIRMED') {
-      return res.status(400).json({
-        success: false,
-        message: `Không thể hủy đơn hàng đang giao (SHIPPING) hoặc đã hoàn tất (DELIVERED)!`,
-        data: null
-      });
-    }
-
-    const isPaid = (order.PaymentStatus || '').toUpperCase() === 'PAID';
-    const newPaymentStatus = isPaid ? 'REFUNDED' : (order.PaymentStatus || 'UNPAID');
-
-    await db.query(`
-      UPDATE Orders 
-      SET Status = 'CANCELLED',
-          CancelReason = @reason,
-          PaymentStatus = @paymentStatus
-      WHERE OrderId = @orderId
-    `, {
-      orderId,
-      reason: cancelReason.trim(),
-      paymentStatus: newPaymentStatus
-    });
-
-    const refundMsg = isPaid ? ' (Đơn đã thanh toán trước đó nên trạng thái thanh toán được chuyển sang CẦN HOÀN TIỀN / REFUNDED)' : '';
-
-    return res.json({
-      success: true,
-      message: `Đã hủy đơn hàng #${orderId} thành công.${refundMsg}`,
-      data: {
-        orderId,
-        status: 'CANCELLED',
-        paymentStatus: newPaymentStatus,
-        cancelReason: cancelReason.trim()
-      }
-    });
+    return ok(res, updated, msg);
   } catch (error) {
-    console.error('[CANCEL ORDER ERROR]:', error);
-    return res.status(500).json({ success: false, message: error.message, data: null });
+    next(error);
   }
 });
 
-// Fallback cập nhật nhanh trạng thái
-router.put('/orders/:id/status', async (req, res) => {
+// Hoàn tất hoàn tiền cho đơn đã hủy
+router.put('/orders/:id/mark-refunded', async (req, res, next) => {
   try {
-    const orderId = parseInt(req.params.id);
-    let { status } = req.body;
+    const orderId = v.int(req.params.id, { min: 1 });
+    const { note } = req.body;
+    if (!orderId) throw badRequest('Mã đơn hàng không hợp lệ');
 
-    if (!status) {
-      return res.status(400).json({ success: false, message: 'Thiếu tham số status', data: null });
-    }
-
-    status = status.toUpperCase();
-    const allowed = ['PENDING', 'CONFIRMED', 'SHIPPING', 'DELIVERED', 'CANCELLED'];
-    if (!allowed.includes(status)) {
-      return res.status(400).json({ success: false, message: 'Trạng thái đơn hàng không hợp lệ', data: null });
-    }
-
-    await db.query('UPDATE Orders SET Status = @status WHERE OrderId = @orderId', { orderId, status });
-    return res.json({ success: true, message: `Đã cập nhật trạng thái đơn sang "${status}"`, data: { orderId, status } });
+    const updated = await orderService.markRefunded(orderId, note, req.user.userId);
+    return ok(res, updated, `Đã xác nhận hoàn tiền cho đơn hàng #${updated.code}`);
   } catch (error) {
-    return res.status(500).json({ success: false, message: error.message, data: null });
+    next(error);
   }
 });
 
 // =====================================================================
-// 4. DANH SÁCH KHÁCH HÀNG & BẢN TIN
+// 4. QUẢN LÝ KHÁCH HÀNG (CUSTOMERS)
 // =====================================================================
-router.get('/users', async (req, res) => {
+
+// Danh sách khách hàng kèm tổng đơn và chi tiêu
+router.get('/users', async (req, res, next) => {
   try {
+    const { search } = req.query;
+    let where = '';
+    const params = {};
+
+    if (search && search.trim()) {
+      where = 'WHERE u.FullName LIKE @search OR u.Email LIKE @search OR u.Phone LIKE @search';
+      params.search = v.likeParam(search.trim());
+    }
+
     const result = await db.query(`
-      SELECT UserId, FullName, Email, Role, AuthProvider, Phone, Address, CreatedAt, LastLoginAt
-      FROM Users
-      ORDER BY CreatedAt DESC
-    `);
-    return res.json({
-      success: true,
-      message: 'Lấy danh sách người dùng thành công',
-      data: result.recordset
-    });
+      SELECT u.UserId, u.FullName, u.Email, u.Role, u.AuthProvider, u.Phone, u.Address, u.IsActive, u.CreatedAt, u.LastLoginAt,
+             ISNULL(COUNT(o.OrderId), 0) AS TotalOrders,
+             ISNULL(SUM(CASE WHEN o.Status <> 'CANCELLED' THEN o.Total ELSE 0 END), 0) AS TotalSpent
+      FROM Users u
+      LEFT JOIN Orders o ON o.UserId = u.UserId
+      ${where}
+      GROUP BY u.UserId, u.FullName, u.Email, u.Role, u.AuthProvider, u.Phone, u.Address, u.IsActive, u.CreatedAt, u.LastLoginAt
+      ORDER BY u.CreatedAt DESC
+    `, params);
+
+    const users = result.recordset.map(u => ({
+      userId: Number(u.UserId),
+      fullName: u.FullName,
+      email: u.Email,
+      role: u.Role,
+      authProvider: u.AuthProvider,
+      phone: u.Phone,
+      address: u.Address,
+      isActive: !!u.IsActive,
+      totalOrders: Number(u.TotalOrders) || 0,
+      totalSpent: Number(u.TotalSpent) || 0,
+      createdAt: u.CreatedAt,
+      lastLoginAt: u.LastLoginAt
+    }));
+
+    return ok(res, users, 'Lấy danh sách người dùng thành công', { count: users.length });
   } catch (error) {
-    return res.status(500).json({ success: false, message: error.message, data: null });
+    next(error);
   }
 });
 
-router.put('/users/:id/role', async (req, res) => {
+// Cập nhật vai trò (Role: admin / customer)
+router.put('/users/:id/role', async (req, res, next) => {
   try {
-    const userId = parseInt(req.params.id);
+    const userId = v.int(req.params.id, { min: 1 });
     const { role } = req.body;
 
     if (!role || !['admin', 'customer'].includes(role)) {
-      return res.status(400).json({ success: false, message: 'Vai trò không hợp lệ (chỉ chấp nhận admin hoặc customer)', data: null });
+      throw badRequest('Vai trò không hợp lệ (chỉ chấp nhận admin hoặc customer)');
     }
 
     if (userId === req.user.userId && role !== 'admin') {
-      return res.status(400).json({ success: false, message: 'Không thể tự hạ quyền Quản trị viên của chính tài khoản đang đăng nhập', data: null });
+      throw badRequest('Không thể tự hạ quyền Quản trị viên của chính tài khoản đang đăng nhập');
     }
 
     await db.query('UPDATE Users SET Role = @role WHERE UserId = @userId', { userId, role });
 
-    return res.json({
-      success: true,
-      message: `Đã cập nhật vai trò người dùng thành "${role.toUpperCase()}"`,
-      data: { userId, role }
-    });
+    return ok(res, { userId, role }, `Đã cập nhật vai trò người dùng thành "${role.toUpperCase()}"`);
   } catch (error) {
-    return res.status(500).json({ success: false, message: error.message, data: null });
+    next(error);
   }
 });
 
-router.get('/subscribers', async (req, res) => {
+// Khóa hoặc Mở khóa tài khoản người dùng
+router.put('/users/:id/status', async (req, res, next) => {
   try {
-    const result = await db.query('SELECT * FROM Newsletter ORDER BY CreatedAt DESC');
-    return res.json({
-      success: true,
-      message: 'Lấy danh sách bản tin thành công',
-      data: result.recordset
-    });
+    const userId = v.int(req.params.id, { min: 1 });
+    const { isActive } = req.body;
+
+    if (userId === req.user.userId) {
+      throw badRequest('Không thể tự khóa tài khoản của chính mình');
+    }
+
+    const activeVal = isActive ? 1 : 0;
+    await db.query('UPDATE Users SET IsActive = @active WHERE UserId = @userId', { userId, active: activeVal });
+
+    return ok(res, { userId, isActive: !!activeVal }, `Đã ${activeVal ? 'mở khóa' : 'khóa'} tài khoản người dùng thành công`);
   } catch (error) {
-    return res.status(500).json({ success: false, message: error.message, data: null });
+    next(error);
+  }
+});
+
+// =====================================================================
+// 5. QUẢN LÝ BẢN TIN (NEWSLETTER SUBSCRIBERS)
+// =====================================================================
+router.get('/subscribers', async (req, res, next) => {
+  try {
+    const { search } = req.query;
+    let where = '';
+    const params = {};
+    if (search && search.trim()) {
+      where = 'WHERE Email LIKE @search';
+      params.search = v.likeParam(search.trim());
+    }
+
+    const result = await db.query(`SELECT * FROM Newsletter ${where} ORDER BY CreatedAt DESC`, params);
+    return ok(res, result.recordset, 'Lấy danh sách bản tin thành công', { count: result.recordset.length });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.delete('/subscribers/:id', async (req, res, next) => {
+  try {
+    const id = v.int(req.params.id, { min: 1 });
+    await db.query('DELETE FROM Newsletter WHERE SubscriberId = @id', { id });
+    return ok(res, { subscriberId: id }, 'Đã xóa email khỏi danh sách đăng ký nhận tin');
+  } catch (error) {
+    next(error);
+  }
+});
+
+// =====================================================================
+// 6. THIẾT LẬP CỬA HÀNG (STORE SETTINGS)
+// =====================================================================
+router.get('/settings', async (req, res, next) => {
+  try {
+    const settings = await settingsService.getAll();
+    return ok(res, settings, 'Lấy thiết lập hệ thống thành công');
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.put('/settings', async (req, res, next) => {
+  try {
+    const updated = await settingsService.update(req.body);
+    return ok(res, updated, 'Đã cập nhật thiết lập cửa hàng thành công!');
+  } catch (error) {
+    next(error);
   }
 });
 

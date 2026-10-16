@@ -5,6 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>MINI GT Admin Portal — Quản Trị Cửa Hàng Mô Hình</title>
   <link rel="icon" type="image/png" href="../image/logominigt.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
   <link rel="stylesheet" href="css/admin.css">
 </head>
 <body>
@@ -12,7 +16,7 @@
   <!-- =====================================================================
        1. SIDEBAR NAVIGATION
        ===================================================================== -->
-  <aside class="admin-sidebar">
+  <aside class="admin-sidebar" id="adminSidebar">
     <div class="sidebar-header">
       <img src="../image/logominigt.png" alt="MINI GT" class="sidebar-logo">
       <span class="sidebar-badge">ADMIN</span>
@@ -20,36 +24,40 @@
 
     <nav class="sidebar-nav">
       <button class="nav-item active" id="nav-dashboard" onclick="switchTab('dashboard')">
-        <span>📊</span> Tổng quan
+        <i class="fa-solid fa-chart-pie"></i> Tổng quan
       </button>
       <button class="nav-item" id="nav-products" onclick="switchTab('products')">
-        <span>🏎️</span> Quản lý Mô hình
+        <i class="fa-solid fa-car-side"></i> Quản lý Mô hình
       </button>
       <button class="nav-item" id="nav-orders" onclick="switchTab('orders')">
-        <span>📦</span> Quản lý Đơn cọc
+        <i class="fa-solid fa-box-archive"></i> Quản lý Đơn cọc
+        <span class="badge-count" id="sidebarPendingCount" style="display:none; margin-left:auto; background:#ef4444; color:#fff; font-size:10px; padding:1px 6px; border-radius:10px; font-weight:700;">0</span>
       </button>
       <button class="nav-item" id="nav-users" onclick="switchTab('users')">
-        <span>👥</span> Khách hàng
+        <i class="fa-solid fa-users"></i> Khách hàng
       </button>
       <button class="nav-item" id="nav-subscribers" onclick="switchTab('subscribers')">
-        <span>✉️</span> Đăng ký bản tin
+        <i class="fa-solid fa-envelope-open-text"></i> Đăng ký bản tin
+      </button>
+      <button class="nav-item" id="nav-settings" onclick="switchTab('settings')">
+        <i class="fa-solid fa-sliders"></i> Thiết lập Store
       </button>
     </nav>
 
     <div class="sidebar-footer">
       <div class="admin-user-info">
-        <img src="../image/DoQuocThinh_anhthe.jpg" alt="Admin" class="admin-avatar">
-        <div>
+        <img src="../image/DoQuocThinh_anhthe.jpg" alt="Admin" class="admin-avatar" id="sidebarAdminAvatar">
+        <div style="overflow:hidden;">
           <div class="admin-name" id="sidebarAdminName">Admin</div>
-          <div class="admin-role">Quản Trị Viên Hệ Thống</div>
+          <div class="admin-role" id="sidebarAdminEmail">admin@gmail.com</div>
         </div>
       </div>
       <div style="display: flex; gap: 6px;">
-        <a href="../index.html" class="btn-admin btn-admin-outline" style="flex: 1; font-size: 11px; justify-content: center;">
-          👁 Xem Cửa Hàng
+        <a href="../index.html" class="btn-admin btn-admin-outline" style="flex: 1; font-size: 11px; justify-content: center; text-decoration:none;">
+          <i class="fa-solid fa-eye"></i> Xem Store
         </a>
-        <button class="btn-admin btn-admin-outline" style="color: #dc2626; padding: 4px 8px;" onclick="adminLogout()" title="Đăng xuất">
-          🚪
+        <button class="btn-admin btn-admin-outline" style="color: #dc2626; padding: 4px 10px;" onclick="adminLogout()" title="Đăng xuất">
+          <i class="fa-solid fa-arrow-right-from-bracket"></i>
         </button>
       </div>
     </div>
@@ -61,16 +69,22 @@
   <main class="admin-main">
     <!-- Topbar -->
     <header class="admin-topbar">
-      <h1 class="topbar-title" id="pageTitle">Hệ Thống Quản Trị MINI GT STORE</h1>
+      <div style="display:flex; align-items:center; gap:12px;">
+        <button class="btn-admin btn-admin-outline" id="sidebarToggleBtn" onclick="toggleSidebar()" style="display:none; padding:6px 10px;" aria-label="Toggle menu">
+          <i class="fa-solid fa-bars"></i>
+        </button>
+        <h1 class="topbar-title" id="pageTitle">Tổng Quan Quản Trị Store</h1>
+      </div>
+
       <div class="topbar-actions">
         <a href="../index.html" class="btn-admin btn-admin-outline" style="text-decoration:none; display:inline-flex; align-items:center; gap:6px;">
-          🛒 Xem Cửa Hàng
+          <i class="fa-solid fa-store"></i> Xem Cửa Hàng
         </a>
-        <div class="server-status-pill">
+        <div class="server-status-pill" id="serverStatusPill">
           <span class="dot"></span>
-          <span>QUOCTHINH\DOQUOCTHINH (SSMS)</span>
+          <span id="serverStatusText">QUOCTHINH\DOQUOCTHINH</span>
         </div>
-        <div style="font-size: 12px; font-weight: 600; color: #475569;" id="topbarAdminName">
+        <div style="font-size: 13px; font-weight: 700; color: #1e293b;" id="topbarAdminName">
           Admin
         </div>
       </div>
@@ -79,57 +93,238 @@
     <div class="admin-content">
 
       <!-- PANE 1: TỔNG QUAN (DASHBOARD) -->
-      <section class="tab-pane" id="pane-dashboard">
+      <section class="tab-pane active" id="pane-dashboard">
+        <!-- 6 KPI CARDS -->
         <div class="stats-grid">
           <div class="stat-card">
             <div class="stat-info">
-              <div class="stat-label">Tổng Doanh Thu Đơn</div>
+              <div class="stat-label">Tổng Doanh Thu Thực Tế</div>
               <div class="stat-val" id="statRevenue">0đ</div>
             </div>
-            <div class="stat-icon">💰</div>
+            <div class="stat-icon" style="background:#ecfdf5; color:#059669;"><i class="fa-solid fa-sack-dollar"></i></div>
           </div>
           <div class="stat-card">
             <div class="stat-info">
-              <div class="stat-label">Tiền Cọc Đã Thu</div>
+              <div class="stat-label">Tiền Cọc Đã Thu (Pre-Order)</div>
               <div class="stat-val" id="statDeposits">0đ</div>
             </div>
-            <div class="stat-icon">🏦</div>
+            <div class="stat-icon" style="background:#eff6ff; color:#2563eb;"><i class="fa-solid fa-money-bill-transfer"></i></div>
           </div>
           <div class="stat-card">
             <div class="stat-info">
-              <div class="stat-label">Đơn Hàng / Đặt Cọc</div>
+              <div class="stat-label">Tổng Số Đơn Hàng</div>
               <div class="stat-val" id="statOrders">0</div>
             </div>
-            <div class="stat-icon">📦</div>
+            <div class="stat-icon" style="background:#fef2f2; color:#dc2626;"><i class="fa-solid fa-boxes-packing"></i></div>
           </div>
           <div class="stat-card">
             <div class="stat-info">
-              <div class="stat-label">Tổng Số Mô Hình</div>
+              <div class="stat-label">Tổng Mô Hình Đang Bán</div>
               <div class="stat-val" id="statProducts">0</div>
+              <div style="font-size:11px; color:#d97706; margin-top:2px;" id="statLowStockNotice">0 mẫu sắp hết hàng</div>
             </div>
-            <div class="stat-icon">🏎️</div>
+            <div class="stat-icon" style="background:#fffbeb; color:#d97706;"><i class="fa-solid fa-car"></i></div>
           </div>
           <div class="stat-card">
             <div class="stat-info">
-              <div class="stat-label">Thành Viên (Gmail/Local)</div>
+              <div class="stat-label">Khách Hàng Đăng Ký</div>
               <div class="stat-val" id="statCustomers">0</div>
             </div>
-            <div class="stat-icon">👥</div>
+            <div class="stat-icon" style="background:#f3e8ff; color:#7e22ce;"><i class="fa-solid fa-users"></i></div>
           </div>
           <div class="stat-card">
             <div class="stat-info">
-              <div class="stat-label">Đăng Ký Nhận Tin</div>
+              <div class="stat-label">Đăng Ký Nhận Bản Tin</div>
               <div class="stat-val" id="statSubscribers">0</div>
             </div>
-            <div class="stat-icon">✉️</div>
+            <div class="stat-icon" style="background:#e0e7ff; color:#4338ca;"><i class="fa-solid fa-envelope-open-text"></i></div>
           </div>
         </div>
 
-        <div class="admin-card">
-          <div class="admin-card-header">
-            <h2 class="admin-card-title">Đơn Cọc & Mua Hàng Gần Đây</h2>
-            <button class="btn-admin btn-admin-outline" onclick="switchTab('orders')">Xem tất cả ➔</button>
+        <!-- ORDER STATUS COUNTERS ROW -->
+        <div class="admin-card" style="margin-bottom: 1.5rem; padding: 1rem 1.25rem;">
+          <div style="font-size:13px; font-weight:700; color:#475569; margin-bottom:10px; text-transform:uppercase; letter-spacing:0.5px;">
+            <i class="fa-solid fa-filter" style="margin-right:4px;"></i> Trạng thái luồng đơn hàng hiện tại
           </div>
+          <div class="order-status-pills-row" id="dashboardStatusPills">
+            <!-- Rendered by JS -->
+          </div>
+        </div>
+
+        <div style="display:grid; grid-template-columns: 2fr 1fr; gap: 1.5rem;" class="dashboard-split-grid">
+          <!-- Recent Orders -->
+          <div class="admin-card">
+            <div class="admin-card-header">
+              <h2 class="admin-card-title"><i class="fa-solid fa-clock-rotate-left"></i> Đơn Hàng Mới Nhất</h2>
+              <button class="btn-admin btn-admin-outline" onclick="switchTab('orders')">Xem tất cả đơn ➔</button>
+            </div>
+            <div class="table-responsive">
+              <table class="admin-table">
+                <thead>
+                  <tr>
+                    <th>Mã đơn</th>
+                    <th>Khách hàng</th>
+                    <th>Tổng tiền</th>
+                    <th>Thanh toán</th>
+                    <th>Trạng thái</th>
+                    <th>Thời gian</th>
+                    <th>Chi tiết</th>
+                  </tr>
+                </thead>
+                <tbody id="recentOrdersTbody"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Best Sellers -->
+          <div class="admin-card">
+            <div class="admin-card-header">
+              <h2 class="admin-card-title"><i class="fa-solid fa-fire" style="color:#ef4444;"></i> Bán Chạy Nhất</h2>
+            </div>
+            <div id="bestSellersContainer" class="best-sellers-list">
+              <!-- Rendered by JS -->
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- PANE 2: QUẢN LÝ SẢN PHẨM (PRODUCTS CRUD) -->
+      <section class="tab-pane" id="pane-products" style="display: none;">
+        <div class="admin-card">
+          <div class="admin-card-header" style="flex-wrap:wrap; gap:12px;">
+            <h2 class="admin-card-title"><i class="fa-solid fa-car-side"></i> Danh Sách Mô Hình Xe Die-Cast</h2>
+            <div style="display:flex; gap:8px;">
+              <button class="btn-admin btn-admin-outline" onclick="loadProducts()">
+                <i class="fa-solid fa-rotate-right"></i> Làm mới
+              </button>
+              <button class="btn-admin btn-admin-primary" onclick="openAddProductModal()">
+                <i class="fa-solid fa-plus"></i> Thêm Mô Hình Mới
+              </button>
+            </div>
+          </div>
+
+          <!-- Product Filters Toolbar -->
+          <div class="admin-filters-bar" style="background:#f8fafc; padding:12px; border-radius:8px; border:1px solid #e2e8f0; margin-bottom:1rem; display:flex; flex-wrap:wrap; gap:10px; align-items:center;">
+            <div style="flex:1; min-width:200px; position:relative;">
+              <input type="text" id="prodSearchInput" class="form-control" placeholder="Tìm theo tên xe, SKU, hãng..." oninput="handleProductSearchDebounced(this.value)">
+            </div>
+            <select id="prodCategoryFilter" class="form-control" style="max-width:180px;" onchange="handleProductFilterChange()">
+              <option value="all">-- Tất cả danh mục --</option>
+              <option value="liberty-walk">Liberty Walk LBWK</option>
+              <option value="f1-racing">Formula 1 Racing</option>
+              <option value="gt-racing">IMSA & GT3 Racing</option>
+              <option value="box-sets">Box Sets & Combo</option>
+              <option value="partner">Pop Race & Collab</option>
+            </select>
+            <select id="prodStatusFilter" class="form-control" style="max-width:160px;" onchange="handleProductFilterChange()">
+              <option value="all">-- Tất cả tình trạng --</option>
+              <option value="in_stock">Có sẵn</option>
+              <option value="pre_order">Pre-Order</option>
+              <option value="sold_out">Hết hàng</option>
+            </select>
+            <select id="prodStockFilter" class="form-control" style="max-width:150px;" onchange="handleProductFilterChange()">
+              <option value="all">-- Tồn kho --</option>
+              <option value="in_stock">Còn nhiều (>5)</option>
+              <option value="low_stock">Sắp hết (≤5)</option>
+              <option value="out_of_stock">Hết hàng (0)</option>
+            </select>
+            <select id="prodSortFilter" class="form-control" style="max-width:160px;" onchange="handleProductFilterChange()">
+              <option value="newest">Mới nhất</option>
+              <option value="best_selling">Bán chạy nhất</option>
+              <option value="price_asc">Giá tăng dần</option>
+              <option value="price_desc">Giá giảm dần</option>
+              <option value="stock_asc">Tồn kho ít nhất</option>
+            </select>
+          </div>
+
+          <div class="table-responsive">
+            <table class="admin-table">
+              <thead>
+                <tr>
+                  <th style="width:70px;">Ảnh</th>
+                  <th>Mã SKU</th>
+                  <th>Tên mô hình</th>
+                  <th>Danh mục / Hãng</th>
+                  <th>Giá bán</th>
+                  <th>Tồn kho</th>
+                  <th>Tình trạng</th>
+                  <th>Đặc biệt</th>
+                  <th style="text-align:right;">Thao tác</th>
+                </tr>
+              </thead>
+              <tbody id="productsTbody"></tbody>
+            </table>
+          </div>
+
+          <!-- Product Pagination -->
+          <div class="admin-pagination-bar" id="productsPagination"></div>
+        </div>
+      </section>
+
+      <!-- PANE 3: QUẢN LÝ ĐƠN HÀNG (ADMIN ORDERS) -->
+      <section class="tab-pane" id="pane-orders" style="display: none;">
+        <div class="admin-card">
+          <div class="admin-card-header" style="flex-wrap:wrap; gap:10px;">
+            <div>
+              <h2 class="admin-card-title"><i class="fa-solid fa-box-archive"></i> Quản Lý Đơn Cọc & Giao Hàng</h2>
+              <p style="font-size:12px; color:#64748b; margin:2px 0 0 0;">Xử lý quy trình cọc, duyệt đơn, tạo vận đơn SPX Express và cập nhật lộ trình</p>
+            </div>
+            <div style="display:flex; gap:8px;">
+              <button class="btn-admin btn-admin-outline" onclick="loadOrders()">
+                <i class="fa-solid fa-rotate-right"></i> Làm mới
+              </button>
+              <button class="btn-admin btn-admin-outline" onclick="exportOrdersToCSV()">
+                <i class="fa-solid fa-file-csv"></i> Xuất CSV
+              </button>
+            </div>
+          </div>
+
+          <!-- Order Tabs -->
+          <div class="order-status-tabs" id="orderStatusTabsBar">
+            <button class="order-tab-btn active" data-status="ALL" onclick="setOrderTab('ALL')">
+              Tất cả <span class="tab-pill-count" id="tabCountAll">0</span>
+            </button>
+            <button class="order-tab-btn" data-status="PENDING" onclick="setOrderTab('PENDING')">
+              Chờ duyệt <span class="tab-pill-count" id="tabCountPending">0</span>
+            </button>
+            <button class="order-tab-btn" data-status="CONFIRMED" onclick="setOrderTab('CONFIRMED')">
+              Đã duyệt <span class="tab-pill-count" id="tabCountConfirmed">0</span>
+            </button>
+            <button class="order-tab-btn" data-status="PREPARING" onclick="setOrderTab('PREPARING')">
+              Đang đóng gói <span class="tab-pill-count" id="tabCountPreparing">0</span>
+            </button>
+            <button class="order-tab-btn" data-status="SHIPPING" onclick="setOrderTab('SHIPPING')">
+              Đang giao SPX <span class="tab-pill-count" id="tabCountShipping">0</span>
+            </button>
+            <button class="order-tab-btn" data-status="DELIVERED" onclick="setOrderTab('DELIVERED')">
+              Đã giao <span class="tab-pill-count" id="tabCountDelivered">0</span>
+            </button>
+            <button class="order-tab-btn" data-status="CANCELLED" onclick="setOrderTab('CANCELLED')">
+              Đã hủy <span class="tab-pill-count" id="tabCountCancelled">0</span>
+            </button>
+          </div>
+
+          <!-- Order Search & Filters -->
+          <div class="admin-filters-bar" style="background:#f8fafc; padding:10px 12px; border-radius:8px; border:1px solid #e2e8f0; margin-bottom:1rem; display:flex; flex-wrap:wrap; gap:8px; align-items:center;">
+            <div style="flex:1; min-width:220px;">
+              <input type="text" id="orderSearchInput" class="form-control" placeholder="Tìm theo mã đơn (MGT-...), Tên, SĐT khách..." oninput="handleOrderSearchDebounced(this.value)">
+            </div>
+            <select id="orderPayStatusFilter" class="form-control" style="max-width:180px;" onchange="handleOrderFilterChange()">
+              <option value="ALL">-- Tất cả thanh toán --</option>
+              <option value="UNPAID">Chưa thanh toán</option>
+              <option value="PARTIALLY_PAID">Đã nhận tiền cọc</option>
+              <option value="PAID">Đã thanh toán đủ</option>
+              <option value="REFUND_PENDING">Chờ hoàn tiền</option>
+              <option value="REFUNDED">Đã hoàn tiền</option>
+            </select>
+            <select id="orderPayMethodFilter" class="form-control" style="max-width:180px;" onchange="handleOrderFilterChange()">
+              <option value="ALL">-- Tất cả phương thức --</option>
+              <option value="COD">Ship COD</option>
+              <option value="DEPOSIT">Đặt cọc MB Bank</option>
+              <option value="BANK_TRANSFER">Chuyển khoản Full</option>
+            </select>
+          </div>
+
           <div class="table-responsive">
             <table class="admin-table">
               <thead>
@@ -138,197 +333,45 @@
                   <th>Khách hàng</th>
                   <th>Số điện thoại</th>
                   <th>Tổng tiền</th>
+                  <th>Phương thức</th>
+                  <th>Thanh toán</th>
                   <th>Trạng thái</th>
-                  <th>Ngày tạo</th>
-                </tr>
-              </thead>
-              <tbody id="recentOrdersTbody"></tbody>
-            </table>
-          </div>
-        </div>
-      </section>
-
-      <!-- PANE 2: QUẢN LÝ SẢN PHẨM -->
-      <section class="tab-pane" id="pane-products" style="display: none;">
-        <div class="admin-card">
-          <div class="admin-card-header">
-            <h2 class="admin-card-title">Danh Sách Mô Hình Xe Die-Cast</h2>
-            <button class="btn-admin btn-admin-primary" onclick="openAddProductModal()">
-              ➕ Thêm Mô Hình Mới
-            </button>
-          </div>
-
-          <div style="display: flex; gap: 12px; margin-bottom: 1.25rem;">
-            <input type="text" id="searchProductInput" class="form-control" placeholder="Tìm theo tên mô hình, mã SKU..." style="max-width: 320px;" oninput="filterProducts()">
-            <select id="filterProductCategory" class="form-control" style="max-width: 200px;" onchange="filterProducts()">
-              <option value="">Tất cả danh mục</option>
-              <option value="1">Liberty Walk LBWK</option>
-              <option value="2">Formula 1 Racing</option>
-              <option value="3">IMSA & GT3 Racing</option>
-              <option value="4">Box Sets & Combo</option>
-              <option value="5">Pop Race & Collab</option>
-            </select>
-          </div>
-
-          <div class="table-responsive">
-            <table class="admin-table">
-              <thead>
-                <tr>
-                  <th>Hình ảnh</th>
-                  <th>SKU</th>
-                  <th>Tên mô hình & Phiên bản</th>
-                  <th>Danh mục</th>
-                  <th>Giá bán / Cọc</th>
-                  <th>% Quota</th>
-                  <th>Tình trạng</th>
-                  <th>Thao tác</th>
-                </tr>
-              </thead>
-              <tbody id="productsTbody"></tbody>
-            </table>
-          </div>
-        </div>
-      </section>
-
-      <!-- PANE 3: QUẢN LÝ ĐƠN HÀNG TOÀN DIỆN -->
-      <section class="tab-pane" id="pane-orders" style="display: none;">
-        <div class="admin-card">
-          <div class="admin-card-header">
-            <div>
-              <h2 class="admin-card-title">Quản Lý Đơn Hàng & Xử Lý Đặt Cọc</h2>
-              <p style="font-size: 12px; color: var(--admin-text-muted); margin-top: 2px;">
-                Quản trị máy trạng thái xử lý đơn hàng, duyệt đơn COD / Chuyển khoản và đối soát thanh toán
-              </p>
-            </div>
-            <div style="display:flex; gap:8px;">
-              <button class="btn-admin btn-admin-outline" onclick="exportOrdersToCSV()">📥 Xuất Excel/CSV</button>
-              <button class="btn-admin btn-admin-outline" onclick="loadOrders()">🔄 Làm mới</button>
-            </div>
-          </div>
-
-          <!-- Thống Kê Nhanh Logistics & Đơn Hàng -->
-          <div class="logistics-kpi-grid">
-            <div class="kpi-mini-card kpi-pending" onclick="setOrderTab('PENDING')" title="Lọc đơn chờ duyệt">
-              <div class="kpi-icon">⏳</div>
-              <div class="kpi-info">
-                <div class="kpi-label">Chờ Duyệt & Xử Lý</div>
-                <div class="kpi-value" id="kpiPendingCount">0</div>
-              </div>
-            </div>
-            <div class="kpi-mini-card kpi-confirmed" onclick="setOrderTab('CONFIRMED')" title="Lọc đơn chờ đóng gói xuất kho">
-              <div class="kpi-icon">📦</div>
-              <div class="kpi-info">
-                <div class="kpi-label">Chờ Đóng Gói / Đã Duyệt</div>
-                <div class="kpi-value" id="kpiConfirmedCount">0</div>
-              </div>
-            </div>
-            <div class="kpi-mini-card kpi-shipping" onclick="setOrderTab('SHIPPING')" title="Lọc đơn đang vận chuyển SPX">
-              <div class="kpi-icon">🚚</div>
-              <div class="kpi-info">
-                <div class="kpi-label">Đang Giao SPX Express</div>
-                <div class="kpi-value" id="kpiShippingCount">0</div>
-              </div>
-            </div>
-            <div class="kpi-mini-card kpi-delivered" onclick="setOrderTab('DELIVERED')" title="Lọc đơn đã giao thành công">
-              <div class="kpi-icon">✅</div>
-              <div class="kpi-info">
-                <div class="kpi-label">Giao Hàng Thành Công</div>
-                <div class="kpi-value" id="kpiDeliveredCount">0</div>
-              </div>
-            </div>
-            <div class="kpi-mini-card kpi-cod" title="Tổng tiền COD các đơn chưa thu">
-              <div class="kpi-icon">💵</div>
-              <div class="kpi-info">
-                <div class="kpi-label">Tiền COD Đang Chờ Thu</div>
-                <div class="kpi-value" id="kpiCodAmount">0đ</div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Tabs Lọc Theo Trạng Thái Đơn Hàng -->
-          <div class="order-tabs">
-            <button class="order-tab-btn active" data-status="ALL" onclick="setOrderTab('ALL')">
-              Tất cả <span class="tab-count" id="countTabAll">0</span>
-            </button>
-            <button class="order-tab-btn" data-status="PENDING" onclick="setOrderTab('PENDING')">
-              Chờ duyệt <span class="tab-count" id="countTabPending">0</span>
-            </button>
-            <button class="order-tab-btn" data-status="CONFIRMED" onclick="setOrderTab('CONFIRMED')">
-              Đã duyệt <span class="tab-count" id="countTabConfirmed">0</span>
-            </button>
-            <button class="order-tab-btn" data-status="SHIPPING" onclick="setOrderTab('SHIPPING')">
-              Đang giao <span class="tab-count" id="countTabShipping">0</span>
-            </button>
-            <button class="order-tab-btn" data-status="DELIVERED" onclick="setOrderTab('DELIVERED')">
-              Đã giao <span class="tab-count" id="countTabDelivered">0</span>
-            </button>
-            <button class="order-tab-btn" data-status="CANCELLED" onclick="setOrderTab('CANCELLED')">
-              Đã hủy <span class="tab-count" id="countTabCancelled">0</span>
-            </button>
-          </div>
-
-          <!-- Bộ Lọc Chi Tiết & Ô Tìm Kiếm -->
-          <div class="order-filter-bar">
-            <div class="search-box">
-              <span class="search-icon">🔍</span>
-              <input type="text" id="searchOrderInput" class="form-control" placeholder="Tìm theo Mã đơn, Tên khách, SĐT..." oninput="handleOrderFilterChange()">
-            </div>
-            <div class="filter-select-group">
-              <select id="filterPaymentStatus" class="form-control" onchange="handleOrderFilterChange()">
-                <option value="ALL">Tất cả thanh toán</option>
-                <option value="UNPAID">Chưa thanh toán (UNPAID)</option>
-                <option value="PAID">Đã thanh toán (PAID)</option>
-                <option value="REFUNDED">Cần hoàn tiền (REFUNDED)</option>
-              </select>
-              <select id="filterPaymentMethod" class="form-control" onchange="handleOrderFilterChange()">
-                <option value="ALL">Tất cả hình thức</option>
-                <option value="COD">Thanh toán khi nhận (COD)</option>
-                <option value="BANK_TRANSFER">Chuyển khoản (BANK_TRANSFER)</option>
-              </select>
-            </div>
-          </div>
-
-          <!-- Bảng Danh Sách Đơn Hàng -->
-          <div class="table-responsive">
-            <table class="admin-table">
-              <thead>
-                <tr>
-                  <th>Mã đơn</th>
-                  <th>Ngày tạo</th>
-                  <th>Khách hàng</th>
-                  <th>Sản phẩm đặt</th>
-                  <th>Tổng tiền</th>
-                  <th>Hình thức TT</th>
-                  <th>Trạng thái TT</th>
-                  <th>Trạng thái đơn</th>
                   <th>Vận đơn SPX</th>
-                  <th>Thao tác xử lý</th>
+                  <th style="text-align:right;">Thao tác xử lý</th>
                 </tr>
               </thead>
               <tbody id="ordersTbody"></tbody>
             </table>
           </div>
+
+          <div class="admin-pagination-bar" id="ordersPagination"></div>
         </div>
       </section>
 
-      <!-- PANE 4: QUẢN LÝ KHÁCH HÀNG -->
+      <!-- PANE 4: QUẢN LÝ KHÁCH HÀNG (CUSTOMERS) -->
       <section class="tab-pane" id="pane-users" style="display: none;">
         <div class="admin-card">
-          <div class="admin-card-header">
-            <h2 class="admin-card-title">Danh Sách Tài Khoản Khách Hàng</h2>
-            <button class="btn-admin btn-admin-outline" onclick="loadUsers()">🔄 Làm mới</button>
+          <div class="admin-card-header" style="flex-wrap:wrap; gap:10px;">
+            <h2 class="admin-card-title"><i class="fa-solid fa-users"></i> Danh Sách Thành Viên & Khách Hàng</h2>
+            <div style="display:flex; gap:8px;">
+              <input type="text" id="userSearchInput" class="form-control" placeholder="Tìm theo tên, email, SĐT..." style="width:240px;" oninput="handleUserSearchDebounced(this.value)">
+              <button class="btn-admin btn-admin-outline" onclick="loadUsers()"><i class="fa-solid fa-rotate-right"></i> Làm mới</button>
+            </div>
           </div>
           <div class="table-responsive">
             <table class="admin-table">
               <thead>
                 <tr>
                   <th>ID</th>
-                  <th>Họ và tên</th>
+                  <th>Khách hàng</th>
                   <th>Email (Gmail)</th>
-                  <th>Loại xác thực</th>
                   <th>Điện thoại</th>
+                  <th>Địa chỉ</th>
+                  <th>Tổng đơn</th>
+                  <th>Tổng chi tiêu</th>
                   <th>Vai trò</th>
-                  <th>Ngày tham gia</th>
+                  <th>Trạng thái</th>
+                  <th style="text-align:right;">Thao tác</th>
                 </tr>
               </thead>
               <tbody id="usersTbody"></tbody>
@@ -337,20 +380,24 @@
         </div>
       </section>
 
-      <!-- PANE 5: BẢN TIN -->
+      <!-- PANE 5: BẢN TIN (NEWSLETTER) -->
       <section class="tab-pane" id="pane-subscribers" style="display: none;">
         <div class="admin-card">
-          <div class="admin-card-header">
-            <h2 class="admin-card-title">Khách Hàng Đăng Ký Nhận Lịch Mở Cọc</h2>
-            <button class="btn-admin btn-admin-outline" onclick="loadSubscribers()">🔄 Làm mới</button>
+          <div class="admin-card-header" style="flex-wrap:wrap; gap:10px;">
+            <h2 class="admin-card-title"><i class="fa-solid fa-envelope-open-text"></i> Danh Sách Đăng Ký Nhận Lịch Mở Cọc</h2>
+            <div style="display:flex; gap:8px;">
+              <input type="text" id="subscriberSearchInput" class="form-control" placeholder="Tìm địa chỉ email..." style="width:240px;" oninput="handleSubscriberSearchDebounced(this.value)">
+              <button class="btn-admin btn-admin-outline" onclick="loadSubscribers()"><i class="fa-solid fa-rotate-right"></i> Làm mới</button>
+            </div>
           </div>
           <div class="table-responsive">
             <table class="admin-table">
               <thead>
                 <tr>
-                  <th>ID</th>
+                  <th style="width:80px;">ID</th>
                   <th>Địa chỉ Email</th>
                   <th>Thời gian đăng ký</th>
+                  <th style="text-align:right;">Thao tác</th>
                 </tr>
               </thead>
               <tbody id="subscribersTbody"></tbody>
@@ -359,14 +406,100 @@
         </div>
       </section>
 
+      <!-- PANE 6: CẤU HÌNH CỬA HÀNG (SETTINGS) -->
+      <section class="tab-pane" id="pane-settings" style="display: none;">
+        <div class="admin-card">
+          <div class="admin-card-header">
+            <h2 class="admin-card-title"><i class="fa-solid fa-sliders"></i> Cấu Hình Cửa Hàng & Thanh Toán VietQR</h2>
+            <button class="btn-admin btn-admin-primary" onclick="saveStoreSettings(event)">
+              <i class="fa-solid fa-floppy-disk"></i> Lưu Tất Cả Thiết Lập
+            </button>
+          </div>
+
+          <form id="storeSettingsForm" onsubmit="saveStoreSettings(event)">
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:1.5rem;" class="settings-form-grid">
+              
+              <!-- Cột 1: Thông tin liên hệ & Vận chuyển -->
+              <div>
+                <h3 style="font-size:14px; font-weight:800; color:#1e293b; margin-bottom:12px; border-bottom:1px solid #e2e8f0; padding-bottom:6px;">
+                  🏢 Thông Tin Cửa Hàng & Giao Hàng
+                </h3>
+                <div class="form-group">
+                  <label class="form-label">Tên cửa hàng</label>
+                  <input type="text" id="set_store_name" class="form-control" placeholder="MINI GT STORE Biên Hòa">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Hotline / Zalo tư vấn</label>
+                  <input type="text" id="set_store_hotline" class="form-control" placeholder="0988164164">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Email liên hệ</label>
+                  <input type="email" id="set_store_email" class="form-control" placeholder="contact@minigtstore.vn">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Địa chỉ kho hàng</label>
+                  <input type="text" id="set_store_address" class="form-control" placeholder="38/2 Võ Thị Sáu, P. Quyết Thắng, TP. Biên Hòa, Đồng Nai">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Phí ship đồng giá SPX Express (VNĐ)</label>
+                  <input type="number" id="set_shipping_fee" class="form-control" placeholder="11000">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Ngưỡng cảnh báo tồn kho thấp (Low stock)</label>
+                  <input type="number" id="set_low_stock_threshold" class="form-control" placeholder="5">
+                </div>
+              </div>
+
+              <!-- Cột 2: Cấu hình VietQR & Pre-order -->
+              <div>
+                <h3 style="font-size:14px; font-weight:800; color:#1e293b; margin-bottom:12px; border-bottom:1px solid #e2e8f0; padding-bottom:6px;">
+                  💳 Tài Khoản Ngân Hàng Nhận Tiền VietQR MB Bank
+                </h3>
+                <div class="form-group">
+                  <label class="form-label">Ngân hàng (Mã VietQR)</label>
+                  <input type="text" id="set_bank_id" class="form-control" placeholder="MB">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Tên đầy đủ ngân hàng</label>
+                  <input type="text" id="set_bank_name" class="form-control" placeholder="MBBank (Ngân Hàng Quân Đội)">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Số tài khoản MB Bank</label>
+                  <input type="text" id="set_bank_account_no" class="form-control" placeholder="87654321082007">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Tên chủ tài khoản (In hoa không dấu)</label>
+                  <input type="text" id="set_bank_account_name" class="form-control" placeholder="DO QUOC THINH">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Hạn chốt cọc đợt này (Pre-order Deadline)</label>
+                  <input type="date" id="set_preorder_deadline" class="form-control">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Thông báo chạy trên đầu trang (Announcement)</label>
+                  <textarea id="set_announcement" class="form-control" rows="2" placeholder="Đợt mở đặt trước: Liberty Walk LBWK, F1 Las Vegas..."></textarea>
+                </div>
+              </div>
+
+            </div>
+
+            <div style="margin-top:1.5rem; text-align:right;">
+              <button type="submit" class="btn-admin btn-admin-primary">
+                <i class="fa-solid fa-floppy-disk"></i> Lưu Tất Cả Thiết Lập
+              </button>
+            </div>
+          </form>
+        </div>
+      </section>
+
     </div>
   </main>
 
   <!-- =====================================================================
-       3. MODALS (PRODUCT ADD/EDIT, ORDER DETAIL, ADMIN LOGIN)
+       3. MODALS
        ===================================================================== -->
 
-  <!-- PRODUCT MODAL -->
+  <!-- PRODUCT MODAL (ADD / EDIT) -->
   <div class="modal-overlay" id="productModal">
     <div class="modal-card">
       <button class="modal-close" onclick="closeAdminModal('productModal')">✕</button>
@@ -413,7 +546,7 @@
           </div>
 
           <div class="form-group">
-            <label class="form-label">Giá gạch cũ niêm yết (nếu có)</label>
+            <label class="form-label">Giá cũ niêm yết (nếu giảm giá)</label>
             <input type="number" id="prodOldPrice" class="form-control" placeholder="500000">
           </div>
 
@@ -428,63 +561,74 @@
           </div>
 
           <div class="form-group">
-            <label class="form-label">Ghi chú phiên bản (Dưới tên xe)</label>
+            <label class="form-label">Ghi chú phiên bản (Badge/Note)</label>
             <input type="text" id="prodEdition" class="form-control" placeholder="+ LHD Edition">
           </div>
 
           <div class="form-group">
-            <label class="form-label">Hạn chốt cọc (YYYY-MM-DD)</label>
+            <label class="form-label">Hạn chốt cọc</label>
             <input type="date" id="prodDeadline" class="form-control">
           </div>
 
           <div class="form-group">
-            <label class="form-label">Tình trạng</label>
+            <label class="form-label">Tình trạng mở bán</label>
             <select id="prodStatus" class="form-control">
-              <option value="pre_order">Pre-Order (Đang mở cọc)</option>
               <option value="in_stock">Có sẵn giao ngay</option>
+              <option value="pre_order">Pre-Order (Đang mở cọc)</option>
               <option value="sold_out">Hết hàng</option>
             </select>
           </div>
 
           <div class="form-group">
-            <label class="form-label">Số lượng tồn kho / Suất cọc</label>
-            <input type="number" id="prodStock" class="form-control" value="20">
+            <label class="form-label">Số lượng tồn kho / Suất cọc *</label>
+            <input type="number" id="prodStock" class="form-control" value="20" min="0" required>
           </div>
 
           <div class="form-group form-full">
-            <label class="form-label">Đường dẫn hình ảnh (URL trong thư mục image/)</label>
+            <label class="form-label">Đường dẫn hình ảnh chính (URL)</label>
             <div style="display:flex; gap:8px;">
               <input type="text" id="prodImage" class="form-control" placeholder="image/aston-amr24-stroll.png" oninput="updateProductImagePreview(this.value)" required>
               <select class="form-control" style="max-width:180px;" onchange="document.getElementById('prodImage').value = this.value; updateProductImagePreview(this.value);">
-                <option value="">-- Chọn ảnh mẫu --</option>
-                <option value="image/hero-banner.png">Banner chính</option>
+                <option value="">-- Chọn ảnh sẵn có --</option>
+                <option value="image/hero-banner.jpg">Banner chính</option>
                 <option value="image/aston-amr24-stroll.png">AMR24 Stroll</option>
                 <option value="image/aston-amr24-alonso.png">AMR24 Alonso</option>
                 <option value="image/f1_redbull.jpg">Red Bull RB18</option>
                 <option value="image/lambo-sterrato-set.png">Lambo Sterrato Set</option>
                 <option value="image/mgt01055.webp">Huracán Gravity #5</option>
-                <option value="image/mgt01056.webp">Huracán Day Dream</option>
-                <option value="image/mgt01099.webp">Lambo Daytona Blue</option>
-                <option value="image/mgt00927.webp">LB-Works S15 Silvia</option>
-                <option value="image/mgt00928.webp">LB-Works Pink Van</option>
-                <option value="image/mgt00936.webp">Lambo White/Gold</option>
-                <option value="image/mgt00937.webp">Lambo Rosso Mars</option>
-                <option value="image/mgt00878.webp">Nissan GT-R R35</option>
-                <option value="image/mgt00879.webp">GT-R Carbon Wing</option>
-                <option value="image/mgt00810.webp">BMW M4 GT3</option>
-                <option value="image/mgt00811.webp">BMW M4 Valentino</option>
-                <option value="image/mgt00782.webp">Porsche 911 GT3</option>
+                <option value="image/ske.webp">Porsche Skeleton</option>
+                <option value="image/Roxy.webp">Porsche Roxy</option>
+                <option value="image/rexy.jpg">Porsche Rexy</option>
+                <option value="image/minigt_lambogt3.jpg">Huracán GT3 EVO2</option>
+                <option value="image/Minigt_s15chop_lbwk.jpg">S15 Silvia LBWK</option>
+                <option value="image/Minigt_S15_LBWK.jpg">S15 Goodwood</option>
+                <option value="image/Poprace_Supra_Secret.webp">Top Secret Supra Chrome</option>
+                <option value="image/Poprace_Lambo_Secret.webp">Huracán STO Blu Laufey</option>
+                <option value="image/TH_LamboUltraman.jpg">Ultraman Tiga Huracán</option>
               </select>
             </div>
             <div id="prodImagePreviewWrap" style="margin-top:8px; display:flex; align-items:center; gap:10px; background:#f8fafc; padding:8px 12px; border-radius:8px; border:1px solid #e2e8f0;">
-              <img id="prodImagePreview" src="../image/hero-banner.png" alt="Preview" style="width:54px; height:54px; object-fit:contain; background:#fff; border-radius:6px; border:1px solid #cbd5e1;">
-              <span style="font-size:12px; color:#64748b;" id="prodImagePreviewText">Xem trước hình ảnh sản phẩm</span>
+              <img id="prodImagePreview" src="../image/hero-banner.jpg" alt="Preview" style="width:54px; height:54px; object-fit:contain; background:#fff; border-radius:6px; border:1px solid #cbd5e1;">
+              <span style="font-size:12px; color:#64748b;" id="prodImagePreviewText">Xem trước hình ảnh mô hình</span>
             </div>
           </div>
 
           <div class="form-group form-full">
-            <label class="form-label">Mô tả sản phẩm</label>
-            <textarea id="prodDesc" class="form-control" rows="3" placeholder="Chi tiết mô hình diecast..."></textarea>
+            <div style="display:flex; gap:20px; align-items:center; margin-top:4px;">
+              <label style="display:flex; align-items:center; gap:6px; font-size:13px; font-weight:600; cursor:pointer;">
+                <input type="checkbox" id="prodIsFeatured" style="width:16px; height:16px;">
+                ⭐ Đánh dấu Mô hình Nổi Bật (Featured)
+              </label>
+              <label style="display:flex; align-items:center; gap:6px; font-size:13px; font-weight:600; cursor:pointer;">
+                <input type="checkbox" id="prodIsNew" style="width:16px; height:16px;">
+                ✨ Đánh dấu Hàng Mới Về (New Release)
+              </label>
+            </div>
+          </div>
+
+          <div class="form-group form-full">
+            <label class="form-label">Mô tả chi tiết sản phẩm</label>
+            <textarea id="prodDesc" class="form-control" rows="3" placeholder="Chi tiết xe, bản quyền hãng, quy cách đóng gói..."></textarea>
           </div>
         </div>
 
@@ -498,7 +642,7 @@
 
   <!-- ORDER DETAIL MODAL -->
   <div class="modal-overlay" id="orderDetailModal">
-    <div class="modal-card modal-order-card">
+    <div class="modal-card modal-order-card" style="max-width:760px;">
       <button class="modal-close" onclick="closeAdminModal('orderDetailModal')">✕</button>
       <div id="orderDetailBody"></div>
     </div>
@@ -509,15 +653,15 @@
     <div class="modal-card" style="max-width: 480px;">
       <button class="modal-close" onclick="closeAdminModal('cancelOrderModal')">✕</button>
       <div style="display:flex; align-items:center; gap:12px; margin-bottom:12px;">
-        <div style="font-size:28px;">⚠️</div>
+        <div style="font-size:28px; color:#dc2626;"><i class="fa-solid fa-triangle-exclamation"></i></div>
         <div>
-          <h3 style="font-size:16px; font-weight:700; color:#dc2626;">Xác Nhận Hủy Đơn Hàng</h3>
+          <h3 style="font-size:16px; font-weight:700; color:#dc2626; margin:0;">Xác Nhận Hủy Đơn Hàng</h3>
           <div style="font-size:12px; color:#64748b;" id="cancelOrderCodeText">Mã đơn: ...</div>
         </div>
       </div>
       
       <div id="cancelOrderNotice" style="background:#fee2e2; border-left:4px solid #ef4444; padding:10px 12px; border-radius:6px; font-size:12px; color:#991b1b; margin-bottom:14px; display:none;">
-        <strong>Lưu ý:</strong> Đơn hàng này đã thanh toán tiền. Sau khi bạn xác nhận hủy, hệ thống sẽ tự động chuyển trạng thái thanh toán sang <strong>CẦN HOÀN TIỀN (REFUNDED)</strong> để bộ phận kế toán tiến hành hoàn tiền cho khách.
+        <strong>Lưu ý:</strong> Đơn hàng này đã thu tiền trước đó. Sau khi xác nhận hủy, hệ thống sẽ tự động chuyển trạng thái thanh toán sang <strong>CHỜ HOÀN TIỀN (REFUND_PENDING)</strong> để kế toán hoàn trả cho khách.
       </div>
 
       <div class="form-group">
@@ -527,176 +671,136 @@
 
       <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:1rem;">
         <button type="button" class="btn-admin btn-admin-outline" onclick="closeAdminModal('cancelOrderModal')">Đóng</button>
-        <button type="button" class="btn-admin btn-admin-primary" style="background:#dc2626;" onclick="confirmCancelOrderSubmit()">Xác Nhận Hủy Đơn</button>
+        <button type="button" class="btn-admin btn-admin-primary" style="background:#dc2626; border-color:#dc2626;" onclick="confirmCancelOrderSubmit()">Xác Nhận Hủy Đơn</button>
       </div>
     </div>
   </div>
 
-  <!-- SPX EXPRESS SHIPPING MODAL (HOÀN THIỆN VẬN ĐƠN & DÁN MÃ 1-CHẠM) -->
+  <!-- SPX EXPRESS SHIPPING MODAL -->
   <div class="modal-overlay" id="shipSpxModal">
     <div class="modal-card" style="max-width: 540px;">
       <button class="modal-close" onclick="closeAdminModal('shipSpxModal')">✕</button>
       <div style="display:flex; align-items:center; gap:12px; margin-bottom:12px;">
-        <div style="font-size:32px;">🚚</div>
+        <div style="font-size:32px; color:#ea580c;"><i class="fa-solid fa-truck-fast"></i></div>
         <div>
-          <h3 style="font-size:17px; font-weight:800; color:#ea580c; display:flex; align-items:center; gap:6px;">
+          <h3 style="font-size:17px; font-weight:800; color:#ea580c; display:flex; align-items:center; gap:6px; margin:0;">
             <span class="spx-badge">SPX</span> Quản Lý Vận Đơn SPX Express
           </h3>
           <div style="font-size:12px; color:#64748b;" id="shipSpxOrderCodeText">Đang tải thông tin đơn...</div>
         </div>
       </div>
 
-      <!-- Thẻ tóm tắt thông tin người nhận để copy sang app SPX -->
+      <!-- Copy Dispatch Info -->
       <div style="background:#fff7ed; border:1px solid #fdba74; padding:10px 12px; border-radius:8px; font-size:12px; color:#9a3412; margin-bottom:12px;">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
-          <strong style="color:#c2410c;">📦 Thông tin gửi hàng cho Shipper SPX:</strong>
+          <strong style="color:#c2410c;">📦 Thông tin gửi kiện cho Shipper SPX:</strong>
           <button type="button" class="btn-admin btn-admin-outline" style="background:#fff; color:#ea580c; border-color:#fdba74; padding:2px 8px; font-size:11px;" onclick="copyShipSpxDispatchInfo()" title="Sao chép toàn bộ tên, SĐT, địa chỉ, COD">
-            📋 Sao chép thông tin gửi hàng
+            <i class="fa-regular fa-copy"></i> Sao chép thông tin
           </button>
         </div>
         <div id="shipSpxCustomerDispatchInfo" style="font-size:12px; line-height:1.5;"></div>
       </div>
 
-      <!-- Hướng dẫn và link SPX -->
-      <div style="background:#f8fafc; border:1px solid #e2e8f0; padding:8px 12px; border-radius:8px; font-size:11.5px; color:#475569; margin-bottom:12px; display:flex; justify-content:space-between; align-items:center;">
-        <span>Mở cổng đối tác SPX để tạo vận đơn:</span>
-        <a href="https://spx.vn/vi" target="_blank" class="btn-admin btn-admin-outline" style="background:#fff; color:#ea580c; font-size:11px; padding:3px 8px; text-decoration:none;">
-          🚀 Mở SPX.VN/VI ↗
-        </a>
+      <!-- 3 bước tạo đơn SPX -->
+      <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:10px 12px; margin-bottom:12px; font-size:12px;">
+        <div style="font-weight:700; color:#334155; margin-bottom:6px;">Các bước tạo đơn nhanh trên SPX Express:</div>
+        <div style="display:flex; flex-direction:column; gap:5px; color:#475569;">
+          <div><strong style="color:#ea580c;">Bước 1:</strong> Bấm <strong style="color:#c2410c;">"Sao chép thông tin"</strong> ở trên để lấy tên, SĐT, địa chỉ & tiền COD.</div>
+          <div><strong style="color:#ea580c;">Bước 2:</strong> Bấm <a href="https://spx.vn/vi" target="_blank" style="color:#ea580c; font-weight:700; text-decoration:underline;">Mở trang SPX Express (spx.vn/vi) ↗</a> hoặc mở App SPX trên điện thoại để dán thông tin tạo vận đơn.</div>
+          <div><strong style="color:#ea580c;">Bước 3:</strong> Sao chép mã vận đơn từ SPX (VD: SPXVN...), dán vào ô bên dưới và bấm <strong style="color:#ea580c;">"Bắt Đầu Giao Hàng"</strong>.</div>
+        </div>
       </div>
 
-      <!-- Khối Nhập / Dán Mã Vận Đơn SPX -->
-      <div class="form-group">
+      <div class="form-group" style="margin-bottom:12px;">
         <label class="form-label" style="color:#c2410c; font-weight:700; display:flex; justify-content:space-between; align-items:center;">
           <span>Mã vận đơn SPX Express (Tracking Code) <span style="color:#dc2626;">*</span></span>
-          <span style="font-size:11px; color:#64748b; font-weight:normal;">(Ví dụ: SPXVN0192837465)</span>
+          <span style="font-size:11px; color:#64748b; font-weight:normal;">(VD: SPXVN0192837465)</span>
         </label>
         <div style="display:flex; gap:8px; align-items:center;">
           <input type="text" id="shipSpxTrackingCodeInput" class="form-control" placeholder="Dán mã SPXVN... vào đây" style="font-size:14px; font-weight:700; color:#c2410c; font-family:monospace; text-transform:uppercase;" oninput="this.value = this.value.toUpperCase().trim()" required>
           <button type="button" class="btn-admin btn-admin-outline" style="background:#fff7ed; border-color:#fdba74; color:#ea580c; font-weight:700; font-size:12px; white-space:nowrap; padding:0.65rem 0.85rem;" onclick="pasteTrackingToInput('shipSpxTrackingCodeInput')">
-            📋 Dán từ Clipboard
+            <i class="fa-regular fa-paste"></i> Dán mã
           </button>
         </div>
-        <div style="font-size:11px; color:#64748b; margin-top:4px;">
-          💡 Sau khi lưu, khách hàng sẽ lập tức thấy mã này trong mục "📦 Đơn của tôi" và tra cứu lộ trình trực tiếp trên <strong>spx.vn/vi</strong>.
+      </div>
+
+      <!-- Điều khoản chuyển giao trách nhiệm -->
+      <div style="background:#fffbeb; border:1px solid #fde68a; border-radius:6px; padding:8px 10px; font-size:11.5px; color:#92400e; display:flex; gap:8px; align-items:flex-start;">
+        <i class="fa-solid fa-shield-halved" style="color:#d97706; margin-top:2px;"></i>
+        <div style="line-height:1.45;">
+          <strong>Lưu ý chuyển giao trách nhiệm:</strong> Khi bưu tá (shipper) SPX tới lấy kiện hàng từ shop, mã vận đơn đã gửi tới khách, trách nhiệm bảo quản đơn hàng và tiến độ giao phát thuộc về đơn vị SPX Express.
         </div>
       </div>
 
       <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:1.25rem; flex-wrap:wrap;">
         <button type="button" class="btn-admin btn-admin-outline" onclick="closeAdminModal('shipSpxModal')">Đóng</button>
         <button type="button" class="btn-admin btn-admin-outline" style="color:#ea580c; border-color:#fdba74;" onclick="saveSpxTrackingOnly()">
-          💾 Chỉ Lưu Mã SPX
+          Lưu Mã Vận Đơn
         </button>
         <button type="button" class="btn-admin btn-admin-primary" style="background:#ea580c; border-color:#ea580c;" onclick="confirmShipSpxSubmit()">
-          🚀 Bắt Đầu Giao Hàng (SPX)
+          Bắt Đầu Giao Hàng (SPX) ➔
         </button>
       </div>
     </div>
   </div>
 
-  <!-- UNIFIED AUTH MODAL: ĐĂNG NHẬP / ĐĂNG KÝ HỆ THỐNG DÙNG CHUNG -->
+  <!-- ADMIN AUTH MODAL: SECURE LOGIN (NO HARDCODED PASSWORDS) -->
   <div class="modal-overlay" id="adminLoginModal">
-    <div class="modal-card" style="max-width: 440px;">
-      <div style="text-align: center; margin-bottom: 1rem;">
-        <img src="../image/logominigt.png" alt="MINI GT" style="max-height: 38px; margin: 0 auto 8px auto;">
-        <h3 style="font-size: 18px; font-weight: 800; color: var(--admin-text-main); margin-bottom: 4px;">
-          Xác Thực Tài Khoản Hệ Thống
+    <div class="modal-card" style="max-width: 420px;">
+      <div style="text-align: center; margin-bottom: 1.25rem;">
+        <img src="../image/logominigt.png" alt="MINI GT" style="max-height: 40px; margin: 0 auto 8px auto;">
+        <div style="display:inline-block; font-size:11px; font-weight:800; background:#dc2626; color:#fff; padding:2px 8px; border-radius:4px; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:6px;">
+          ADMIN PORTAL ACCESS
+        </div>
+        <h3 style="font-size: 19px; font-weight: 800; color: var(--admin-text-main); margin-bottom: 4px;">
+          Xác Thực Quyền Quản Trị
         </h3>
         <p style="font-size: 12px; color: #64748b;">
-          Đăng nhập bằng tài khoản hệ thống (Admin & Khách hàng dùng chung)
+          Vui lòng đăng nhập bằng tài khoản Quản Trị Viên để tiếp tục
         </p>
       </div>
 
-      <!-- Auth Tabs: Đăng nhập vs Đăng ký -->
-      <div style="display:flex; border-bottom:2px solid #e2e8f0; margin-bottom:14px;">
-        <button type="button" id="tabAuthLogin" class="btn-admin" style="flex:1; border-radius:0; border-bottom:2px solid var(--admin-primary); font-weight:700; color:var(--admin-primary); background:transparent;" onclick="switchUnifiedAuthTab('login')">
-          Đăng Nhập
-        </button>
-        <button type="button" id="tabAuthRegister" class="btn-admin" style="flex:1; border-radius:0; border-bottom:2px solid transparent; font-weight:600; color:#64748b; background:transparent;" onclick="switchUnifiedAuthTab('register')">
-          Đăng Ký Mới
-        </button>
-      </div>
-
-      <!-- Quick Fill Buttons để test nhanh -->
-      <div style="display:flex; gap:8px; margin-bottom:12px;">
-        <button type="button" class="btn-admin btn-admin-outline" style="flex:1; font-size:11.5px; padding:6px 4px; background:#fff1f1; border-color:#fca5a5; color:#b91c1c;" onclick="quickFillAccount('admin')">
-          👑 Điền Admin
-        </button>
-        <button type="button" class="btn-admin btn-admin-outline" style="flex:1; font-size:11.5px; padding:6px 4px; background:#f0fdf4; border-color:#86efac; color:#15803d;" onclick="quickFillAccount('customer')">
-          👤 Điền Khách Hàng
-        </button>
-      </div>
-
-      <!-- Cảnh báo vai trò (nếu đăng nhập bằng tài khoản không có quyền Admin) -->
-      <div id="authRoleWarning" style="display:none; background:#fef3c7; border:1px solid #fde68a; border-radius:8px; padding:10px 12px; font-size:12px; color:#92400e; margin-bottom:12px;">
-        <div style="font-weight:700; margin-bottom:4px;">⚠️ Tài khoản không có quyền Quản trị!</div>
-        <div id="authRoleWarningText">Tài khoản này là tài khoản Khách hàng. Bạn có thể quay lại trang chủ mua sắm hoặc đăng nhập tài khoản Quản trị viên khác.</div>
-        <div style="margin-top:8px;">
-          <a href="../index.html" class="btn-admin btn-admin-primary" style="padding:4px 10px; font-size:11.5px; text-decoration:none; display:inline-block;">
-            🛒 Đến Trang Chủ Mua Sắm
+      <div id="authRoleWarning" style="display:none; background:#fef2f2; border:1px solid #fecaca; border-radius:8px; padding:12px; font-size:12px; color:#991b1b; margin-bottom:14px;">
+        <div style="font-weight:700; margin-bottom:4px;"><i class="fa-solid fa-ban"></i> TỪ CHỐI TRUY CẬP: Không có quyền Quản trị!</div>
+        <div id="authRoleWarningText">Tài khoản này không có quyền Quản trị viên.</div>
+        <div style="margin-top:10px;">
+          <a href="../index.html" class="btn-admin btn-admin-primary" style="padding:6px 12px; font-size:12px; text-decoration:none; display:inline-block;">
+            Quay Về Trang Mua Sắm
           </a>
         </div>
       </div>
 
-      <!-- FORM 1: ĐĂNG NHẬP -->
-      <form id="formUnifiedLogin" onsubmit="handleUnifiedLogin(event)">
+      <form id="formAdminLogin" onsubmit="handleAdminLogin(event)">
         <div class="form-group" style="text-align: left;">
-          <label class="form-label">Email / Gmail</label>
-          <input type="email" id="loginEmailInput" class="form-control" placeholder="admin@gmail.com" value="admin@gmail.com" required>
+          <label class="form-label" style="font-weight:700;" for="adminLoginEmail">Email Quản Trị Viên</label>
+          <input type="email" id="adminLoginEmail" class="form-control" placeholder="admin@gmail.com" required autocomplete="email">
         </div>
 
         <div class="form-group" style="text-align: left;">
           <div style="display:flex; justify-content:space-between; align-items:center;">
-            <label class="form-label">Mật khẩu</label>
-            <span style="font-size:11px; color:#64748b; cursor:pointer;" onclick="togglePasswordVisibility('loginPasswordInput', this)">👁️ Hiện</span>
+            <label class="form-label" style="font-weight:700;" for="adminLoginPassword">Mật khẩu</label>
+            <span style="font-size:11px; color:#64748b; cursor:pointer;" onclick="togglePasswordVisibility('adminLoginPassword', this)">
+              <i class="fa-solid fa-eye"></i> Hiện
+            </span>
           </div>
-          <input type="password" id="loginPasswordInput" class="form-control" placeholder="••••••••" value="Admin@2026!" required>
+          <input type="password" id="adminLoginPassword" class="form-control" placeholder="••••••••" required autocomplete="current-password">
         </div>
 
-        <button type="submit" class="btn-admin btn-admin-primary" style="width: 100%; margin-top: 10px; padding: 0.75rem; font-size:13.5px; font-weight:700;">
-          Đăng Nhập Vào Hệ Thống ➔
+        <button type="submit" id="btnAdminLoginSubmit" class="btn-admin btn-admin-primary" style="width: 100%; margin-top: 10px; padding: 0.8rem; font-size:14px; font-weight:800; letter-spacing:0.3px;">
+          Đăng Nhập Quản Trị ➔
         </button>
       </form>
 
-      <!-- FORM 2: ĐĂNG KÝ -->
-      <form id="formUnifiedRegister" style="display:none;" onsubmit="handleUnifiedRegister(event)">
-        <div class="form-group" style="text-align: left;">
-          <label class="form-label">Họ và Tên</label>
-          <input type="text" id="regFullNameInput" class="form-control" placeholder="Nguyễn Văn A" required>
-        </div>
-
-        <div class="form-group" style="text-align: left;">
-          <label class="form-label">Email / Gmail</label>
-          <input type="email" id="regEmailInput" class="form-control" placeholder="vidu@gmail.com" required>
-        </div>
-
-        <div class="form-group" style="text-align: left;">
-          <label class="form-label">Số điện thoại</label>
-          <input type="tel" id="regPhoneInput" class="form-control" placeholder="0912 345 678">
-        </div>
-
-        <div class="form-group" style="text-align: left;">
-          <div style="display:flex; justify-content:space-between; align-items:center;">
-            <label class="form-label">Mật khẩu mới</label>
-            <span style="font-size:11px; color:#64748b; cursor:pointer;" onclick="togglePasswordVisibility('regPasswordInput', this)">👁️ Hiện</span>
-          </div>
-          <input type="password" id="regPasswordInput" class="form-control" placeholder="Tối thiểu 6 ký tự" required>
-        </div>
-
-        <button type="submit" class="btn-admin btn-admin-primary" style="width: 100%; margin-top: 10px; padding: 0.75rem; font-size:13.5px; font-weight:700;">
-          Tạo Tài Khoản Mới ➔
-        </button>
-      </form>
-
-      <div style="margin-top:14px; text-align:center;">
-        <a href="../index.html" style="font-size:12px; color:#64748b; text-decoration:none;">
-          ← Quay về Trang chủ mua sắm MINI GT
+      <div style="margin-top:16px; text-align:center; border-top:1px solid #f1f5f9; padding-top:12px;">
+        <a href="../index.html" style="font-size:12px; color:#64748b; text-decoration:none; display:inline-flex; align-items:center; gap:4px;">
+          ← Quay về Cửa hàng mua sắm MINI GT
         </a>
       </div>
     </div>
   </div>
 
+  <!-- Shared API Client & Admin Application Script -->
+  <script src="../js/api.js"></script>
   <script src="js/admin.js"></script>
 </body>
 </html>
-

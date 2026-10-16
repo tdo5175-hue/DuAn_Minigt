@@ -1,50 +1,44 @@
 /**
- * AUTH ROUTES: Local Registration & Login + Gmail / Google Sign-In
+ * AUTH ROUTES: Local Registration & Login + Gmail / Google OAuth
  */
 const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken');
 const { OAuth2Client } = require('google-auth-library');
 const db = require('../config/db');
-const { verifyToken, JWT_SECRET } = require('../middleware/auth');
+const { signToken, authenticate, loadActiveUser } = require('../middleware/auth');
+const { rateLimit } = require('../middleware/security');
+const { badRequest, unauthorized, conflict, ok, created } = require('../utils/http');
+const v = require('../utils/validators');
 
-const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '1088463836173-fake-placeholder.apps.googleusercontent.com';
-const googleClient = new OAuth2Client(GOOGLE_CLIENT_ID);
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
+const googleClient = GOOGLE_CLIENT_ID ? new OAuth2Client(GOOGLE_CLIENT_ID) : null;
 
-function generateToken(user) {
-  return jwt.sign(
-    {
-      userId: user.UserId,
-      email: user.Email,
-      fullName: user.FullName,
-      role: user.Role,
-      avatarUrl: user.AvatarUrl
-    },
-    JWT_SECRET,
-    { expiresIn: '7d' }
-  );
-}
+// Rate limit: tối đa 15 lần đăng nhập/đăng ký trong 15 phút trên mỗi IP
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 15,
+  message: 'Bạn đã thử đăng nhập quá nhiều lần. Vui lòng đợi 15 phút.'
+});
 
 // 1. ĐĂNG KÝ TÀI KHOẢN MỚI
-router.post('/register', async (req, res) => {
+router.post('/register', authLimiter, async (req, res, next) => {
   try {
-    const { fullName, email, password, phone, address } = req.body;
+    const fullName = v.str(req.body.fullName, 100);
+    const email = v.str(req.body.email, 150).toLowerCase();
+    const password = String(req.body.password || '');
+    const phone = v.normalizePhone(req.body.phone);
+    const address = v.optStr(req.body.address, 255);
 
-    if (!fullName || !email || !password) {
-      return res.status(400).json({ success: false, message: 'Vui lòng cung cấp Họ tên, Email và Mật khẩu' });
-    }
+    if (fullName.length < 2) throw badRequest('Họ và tên tối thiểu 2 ký tự');
+    if (!v.isGmail(email)) throw badRequest('Hệ thống hiện yêu cầu địa chỉ Gmail (@gmail.com) hợp lệ');
+    if (password.length < 6) throw badRequest('Mật khẩu phải có tối thiểu 6 ký tự');
+    if (phone && !v.isPhone(phone)) throw badRequest('Số điện thoại Việt Nam không hợp lệ');
 
-    const trimmedEmail = email.trim().toLowerCase();
-
-    // Kiểm tra xem email đã tồn tại trong SQL Server chưa
-    const existing = await db.query(
-      'SELECT UserId, Email FROM Users WHERE Email = @email',
-      { email: trimmedEmail }
-    );
-
+    // Kiểm tra trùng email
+    const existing = await db.query('SELECT UserId FROM Users WHERE Email = @email', { email });
     if (existing.recordset.length > 0) {
-      return res.status(400).json({ success: false, message: 'Email này đã được sử dụng. Vui lòng đăng nhập hoặc dùng email khác.' });
+      throw conflict('Email này đã được đăng ký. Vui lòng đăng nhập hoặc dùng email khác.');
     }
 
     const salt = await bcrypt.genSalt(10);
@@ -55,145 +49,139 @@ router.post('/register', async (req, res) => {
        OUTPUT INSERTED.UserId, INSERTED.FullName, INSERTED.Email, INSERTED.Role, INSERTED.AvatarUrl
        VALUES (@fullName, @email, @passwordHash, @phone, @address, 'local', 'customer', 1, SYSDATETIME(), SYSDATETIME())`,
       {
-        fullName: fullName.trim(),
-        email: trimmedEmail,
-        passwordHash: passwordHash,
+        fullName,
+        email,
+        passwordHash,
         phone: phone || null,
         address: address || null
       }
     );
 
     const newUser = insertResult.recordset[0];
-    const token = generateToken(newUser);
+    const token = signToken(newUser);
+    const userData = {
+      userId: Number(newUser.UserId),
+      fullName: newUser.FullName,
+      email: newUser.Email,
+      role: newUser.Role,
+      avatarUrl: newUser.AvatarUrl
+    };
 
-    return res.status(201).json({
-      success: true,
-      message: 'Đăng ký tài khoản thành công!',
+    return created(res, {
       token,
-      user: {
-        userId: newUser.UserId,
-        fullName: newUser.FullName,
-        email: newUser.Email,
-        role: newUser.Role,
-        avatarUrl: newUser.AvatarUrl
-      }
-    });
-  } catch (error) {
-    console.error('[AUTH REGISTER ERROR]:', error);
-    return res.status(500).json({ success: false, message: 'Lỗi máy chủ khi đăng ký: ' + error.message });
+      user: userData
+    }, 'Đăng ký tài khoản thành công!', { token, user: userData });
+  } catch (err) {
+    next(err);
   }
 });
 
 // 2. ĐĂNG NHẬP BẰNG EMAIL & MẬT KHẨU
-router.post('/login', async (req, res) => {
+router.post('/login', authLimiter, async (req, res, next) => {
   try {
-    const { email, password } = req.body;
-    if (!email || !password) {
-      return res.status(400).json({ success: false, message: 'Vui lòng nhập đầy đủ Email và Mật khẩu' });
-    }
+    const email = v.str(req.body.email, 150).toLowerCase();
+    const password = String(req.body.password || '');
 
-    const trimmedEmail = email.trim().toLowerCase();
-    const result = await db.query(
-      'SELECT * FROM Users WHERE Email = @email',
-      { email: trimmedEmail }
-    );
+    if (!email || !password) throw badRequest('Vui lòng nhập đầy đủ Email và Mật khẩu');
 
+    const result = await db.query('SELECT * FROM Users WHERE Email = @email', { email });
     if (result.recordset.length === 0) {
-      return res.status(401).json({ success: false, message: 'Email hoặc mật khẩu không chính xác' });
+      throw unauthorized('Email hoặc mật khẩu không chính xác');
     }
 
     const user = result.recordset[0];
 
-    if (!user.PasswordHash && user.AuthProvider === 'google') {
-      return res.status(400).json({
-        success: false,
-        message: 'Tài khoản này được đăng ký qua Google. Vui lòng chọn "Đăng nhập với Google".'
-      });
+    if (!user.IsActive) {
+      throw unauthorized('Tài khoản của bạn đã bị khóa. Vui lòng liên hệ quản trị viên.');
     }
 
-    const isMatch = await bcrypt.compare(password, user.PasswordHash);
+    if (!user.PasswordHash && user.AuthProvider === 'google') {
+      throw badRequest('Tài khoản này được đăng ký qua Google. Vui lòng chọn "Đăng nhập với Google".');
+    }
+
+    const isMatch = await bcrypt.compare(password, user.PasswordHash || '');
     if (!isMatch) {
-      return res.status(401).json({ success: false, message: 'Email hoặc mật khẩu không chính xác' });
+      throw unauthorized('Email hoặc mật khẩu không chính xác');
     }
 
     // Cập nhật LastLoginAt
-    await db.query(
-      'UPDATE Users SET LastLoginAt = SYSDATETIME() WHERE UserId = @userId',
-      { userId: user.UserId }
-    );
-
-    const token = generateToken(user);
-
-    return res.json({
-      success: true,
-      message: 'Đăng nhập thành công!',
-      token,
-      user: {
-        userId: user.UserId,
-        fullName: user.FullName,
-        email: user.Email,
-        role: user.Role,
-        avatarUrl: user.AvatarUrl
-      }
+    await db.query('UPDATE Users SET LastLoginAt = SYSDATETIME() WHERE UserId = @userId', {
+      userId: user.UserId
     });
-  } catch (error) {
-    console.error('[AUTH LOGIN ERROR]:', error);
-    return res.status(500).json({ success: false, message: 'Lỗi máy chủ khi đăng nhập: ' + error.message });
+
+    const token = signToken(user);
+    const userData = {
+      userId: Number(user.UserId),
+      fullName: user.FullName,
+      email: user.Email,
+      role: user.Role,
+      avatarUrl: user.AvatarUrl
+    };
+
+    return ok(res, {
+      token,
+      user: userData
+    }, 'Đăng nhập thành công!', { token, user: userData });
+  } catch (err) {
+    next(err);
   }
 });
 
 // 3. ĐĂNG NHẬP / ĐĂNG KÝ BẰNG GMAIL (GOOGLE IDENTITY SERVICES)
-router.post('/google', async (req, res) => {
+router.post('/google', authLimiter, async (req, res, next) => {
   try {
     const { credential, userInfo } = req.body;
     let email, name, picture, googleId;
 
     if (credential) {
-      // Xác thực hoặc parse token từ Google
-      try {
-        const ticket = await googleClient.verifyIdToken({
-          idToken: credential,
-          audience: GOOGLE_CLIENT_ID
-        });
-        const payload = ticket.getPayload();
-        email = payload.email;
-        name = payload.name;
-        picture = payload.picture;
-        googleId = payload.sub;
-      } catch (tokenErr) {
-        // Fallback parse JWT payload an toàn nếu không configure Client ID trước
-        const decoded = jwt.decode(credential);
-        if (decoded && decoded.email) {
-          email = decoded.email;
-          name = decoded.name || 'Người dùng Google';
-          picture = decoded.picture || null;
-          googleId = decoded.sub || null;
+      if (googleClient && GOOGLE_CLIENT_ID && !GOOGLE_CLIENT_ID.includes('placeholder')) {
+        try {
+          const ticket = await googleClient.verifyIdToken({
+            idToken: credential,
+            audience: GOOGLE_CLIENT_ID
+          });
+          const payload = ticket.getPayload();
+          email = payload.email;
+          name = payload.name;
+          picture = payload.picture;
+          googleId = payload.sub;
+        } catch (tokenErr) {
+          throw badRequest('Xác thực mã Google Credential thất bại');
+        }
+      } else {
+        // Fallback giải mã payload JWT client an toàn
+        const parts = credential.split('.');
+        if (parts.length === 3) {
+          const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString('utf8'));
+          email = payload.email;
+          name = payload.name;
+          picture = payload.picture;
+          googleId = payload.sub;
         } else {
-          throw new Error('Không thể giải mã Google Credential');
+          throw badRequest('Mã xác thực Google không đúng định dạng');
         }
       }
     } else if (userInfo && userInfo.email) {
-      // Trường hợp frontend demo simulation
       email = userInfo.email;
-      name = userInfo.name || 'Người dùng Gmail';
+      name = userInfo.name || 'Người dùng Google';
       picture = userInfo.picture || null;
       googleId = userInfo.googleId || ('g_' + Date.now());
     } else {
-      return res.status(400).json({ success: false, message: 'Dữ liệu Google xác thực không hợp lệ' });
+      throw badRequest('Dữ liệu xác thực Google không hợp lệ');
     }
 
-    const trimmedEmail = email.trim().toLowerCase();
+    const trimmedEmail = String(email || '').trim().toLowerCase();
+    if (!v.isGmail(trimmedEmail)) {
+      throw badRequest('Địa chỉ Gmail không hợp lệ (@gmail.com)');
+    }
 
-    // Tìm user trong database SQL Server
-    const checkUser = await db.query(
-      'SELECT * FROM Users WHERE Email = @email',
-      { email: trimmedEmail }
-    );
-
+    const checkUser = await db.query('SELECT * FROM Users WHERE Email = @email', { email: trimmedEmail });
     let user;
+
     if (checkUser.recordset.length > 0) {
       user = checkUser.recordset[0];
-      // Cập nhật thông tin Google & LastLoginAt
+      if (!user.IsActive) throw unauthorized('Tài khoản này đã bị khóa');
+
       await db.query(
         `UPDATE Users 
          SET GoogleId = COALESCE(@googleId, GoogleId),
@@ -201,63 +189,139 @@ router.post('/google', async (req, res) => {
              LastLoginAt = SYSDATETIME()
          WHERE UserId = @userId`,
         {
-          googleId: googleId,
-          picture: picture,
+          googleId: googleId || null,
+          picture: picture || null,
           userId: user.UserId
         }
       );
       if (picture) user.AvatarUrl = picture;
     } else {
-      // Người dùng mới -> Thêm vào SQL Server
+      // Đăng ký tự động qua Google
       const insertResult = await db.query(
         `INSERT INTO Users (FullName, Email, GoogleId, AvatarUrl, AuthProvider, Role, IsActive, CreatedAt, LastLoginAt)
          OUTPUT INSERTED.UserId, INSERTED.FullName, INSERTED.Email, INSERTED.Role, INSERTED.AvatarUrl
          VALUES (@name, @email, @googleId, @picture, 'google', 'customer', 1, SYSDATETIME(), SYSDATETIME())`,
         {
-          name: name,
+          name: name || 'Khách Hàng Google',
           email: trimmedEmail,
-          googleId: googleId,
-          picture: picture
+          googleId: googleId || null,
+          picture: picture || null
         }
       );
       user = insertResult.recordset[0];
     }
 
-    const token = generateToken(user);
+    const token = signToken(user);
 
-    return res.json({
-      success: true,
-      message: 'Đăng nhập Google thành công!',
+    const userData = {
+      userId: Number(user.UserId),
+      fullName: user.FullName,
+      email: user.Email,
+      role: user.Role,
+      avatarUrl: user.AvatarUrl
+    };
+
+    return ok(res, {
       token,
-      user: {
-        userId: user.UserId,
-        fullName: user.FullName,
-        email: user.Email,
-        role: user.Role,
-        avatarUrl: user.AvatarUrl
-      }
-    });
-  } catch (error) {
-    console.error('[AUTH GOOGLE ERROR]:', error);
-    return res.status(500).json({ success: false, message: 'Xác thực Google thất bại: ' + error.message });
+      user: userData
+    }, 'Đăng nhập Google thành công!', { token, user: userData });
+  } catch (err) {
+    next(err);
   }
 });
 
-// 4. LẤY THÔNG TIN PROFILE HIỆN TẠI
-router.get('/me', verifyToken, async (req, res) => {
+// 4. LẤY PROFILE HIỆN TẠI
+router.get('/me', authenticate, async (req, res, next) => {
   try {
-    const result = await db.query(
-      'SELECT UserId, FullName, Email, Role, AvatarUrl, Phone, Address, AuthProvider, CreatedAt FROM Users WHERE UserId = @userId',
-      { userId: req.user.userId }
+    const user = await loadActiveUser(req.user.userId);
+    if (!user) throw unauthorized('Tài khoản không tồn tại hoặc đã bị xóa');
+
+    return ok(res, {
+      userId: Number(user.UserId),
+      fullName: user.FullName,
+      email: user.Email,
+      role: user.Role,
+      avatarUrl: user.AvatarUrl,
+      phone: user.Phone,
+      address: user.Address,
+      authProvider: user.AuthProvider,
+      createdAt: user.CreatedAt
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// 5. CẬP NHẬT PROFILE
+router.put('/me', authenticate, async (req, res, next) => {
+  try {
+    const fullName = v.str(req.body.fullName, 100);
+    const phone = v.normalizePhone(req.body.phone);
+    const address = v.optStr(req.body.address, 255);
+
+    if (fullName.length < 2) throw badRequest('Họ và tên tối thiểu 2 ký tự');
+    if (phone && !v.isPhone(phone)) throw badRequest('Số điện thoại không hợp lệ');
+
+    await db.query(
+      `UPDATE Users
+       SET FullName = @fullName,
+           Phone = @phone,
+           Address = @address
+       WHERE UserId = @userId`,
+      {
+        fullName,
+        phone: phone || null,
+        address: address || null,
+        userId: req.user.userId
+      }
     );
 
-    if (result.recordset.length === 0) {
-      return res.status(404).json({ success: false, message: 'Không tìm thấy người dùng' });
+    const updated = await loadActiveUser(req.user.userId);
+    return ok(res, {
+      userId: Number(updated.UserId),
+      fullName: updated.FullName,
+      email: updated.Email,
+      role: updated.Role,
+      avatarUrl: updated.AvatarUrl,
+      phone: updated.Phone,
+      address: updated.Address
+    }, 'Cập nhật thông tin thành công!');
+  } catch (err) {
+    next(err);
+  }
+});
+
+// 6. ĐỔI MẬT KHẨU
+router.put('/change-password', authenticate, async (req, res, next) => {
+  try {
+    const { oldPassword, newPassword } = req.body;
+    if (!oldPassword || !newPassword) throw badRequest('Vui lòng nhập mật khẩu hiện tại và mật khẩu mới');
+    if (newPassword.length < 6) throw badRequest('Mật khẩu mới tối thiểu 6 ký tự');
+
+    const result = await db.query('SELECT PasswordHash, AuthProvider FROM Users WHERE UserId = @userId', {
+      userId: req.user.userId
+    });
+    const user = result.recordset[0];
+    if (!user) throw unauthorized('Tài khoản không tồn tại');
+
+    if (user.AuthProvider === 'google' && !user.PasswordHash) {
+      throw badRequest('Tài khoản đăng nhập qua Google không thể đổi mật khẩu tại đây');
     }
 
-    return res.json({ success: true, user: result.recordset[0] });
-  } catch (error) {
-    return res.status(500).json({ success: false, message: error.message });
+    const isMatch = await bcrypt.compare(oldPassword, user.PasswordHash || '');
+    if (!isMatch) throw badRequest('Mật khẩu hiện tại không chính xác');
+
+    const salt = await bcrypt.genSalt(10);
+    const hash = await bcrypt.hash(newPassword, salt);
+
+    await db.query('UPDATE Users SET PasswordHash = @hash WHERE UserId = @userId', {
+      hash,
+      userId: req.user.userId
+    });
+
+    return ok(res, null, 'Đổi mật khẩu thành công!');
+  } catch (err) {
+    next(err);
   }
 });
 
