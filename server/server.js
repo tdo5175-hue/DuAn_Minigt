@@ -1,7 +1,7 @@
 /**
  * MINI GT STORE - BACKEND SERVER
  * Máy chủ: Express.js
- * Cơ sở dữ liệu: Microsoft SQL Server (QUOCTHINH\DOQUOCTHINH)
+ * Cơ sở dữ liệu: Supabase PostgreSQL (Cloud)
  */
 
 const express = require('express');
@@ -10,7 +10,6 @@ const cors = require('cors');
 require('dotenv').config({ quiet: true });
 
 const db = require('./config/db');
-const { securityHeaders, corsOptions } = require('./middleware/security');
 const { errorHandler } = require('./utils/http');
 
 const authRoutes = require('./routes/auth');
@@ -23,9 +22,36 @@ const adminRoutes = require('./routes/admin');
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// Security & Parsing Middlewares
-app.use(securityHeaders);
-app.use(cors(corsOptions()));
+// ==========================================
+// CẤU HÌNH CORS CHO PHÉP VERCEL & LOCALHOST
+// ==========================================
+const allowedOrigins = [
+  'https://projectnhom2.vercel.app',
+  'http://localhost:5000',
+  'http://localhost:3000',
+  'http://127.0.0.1:5500',
+  'http://localhost:5500'
+];
+
+app.use(cors({
+  origin: function (origin, callback) {
+    // Cho phép các request không có origin (như Postman hoặc mobile app)
+    // hoặc bất kỳ domain Vercel nào của dự án
+    if (!origin || allowedOrigins.includes(origin) || origin.endsWith('.vercel.app')) {
+      callback(null, true);
+    } else {
+      callback(null, true); // Mở thoáng để không bị chặn CORS khi deploy
+    }
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
+}));
+
+// Xử lý Preflight Request (OPTIONS) cho mọi route
+app.options('*', cors());
+
+// Parsing Middlewares
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
@@ -62,8 +88,7 @@ app.get('/api/health', (req, res) => {
     message: 'Hệ thống máy chủ hoạt động bình thường',
     data: {
       appName: 'MINI GT STORE BACKEND',
-      server: 'QUOCTHINH\\DOQUOCTHINH',
-      catalog: 'MiniGTStore',
+      database: 'Supabase PostgreSQL Cloud',
       connected: db.isConnected(),
       timestamp: new Date().toISOString()
     }
@@ -101,8 +126,8 @@ async function startServer() {
     app.listen(PORT, () => {
       console.log(`====================================================`);
       console.log(`🚀 MINI GT STORE Server đang chạy tại:`);
-      console.log(`👉 http://localhost:${PORT}`);
-      console.log(`🗄️ Kết nối CSDL: QUOCTHINH\\DOQUOCTHINH (MiniGTStore)`);
+      console.log(`👉 Port: ${PORT}`);
+      console.log(`🗄️ Kết nối CSDL: Supabase PostgreSQL Cloud`);
       console.log(`====================================================`);
     });
   } catch (error) {

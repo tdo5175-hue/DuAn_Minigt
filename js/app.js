@@ -1401,7 +1401,7 @@ function flyToCart(productId, event) {
 }
 
 function addToCart(productId, quantity = 1, explicitPackType = null) {
-  const prod = (allProducts && allProducts.length ? allProducts : FALLBACK_PRODUCTS).find(p => (p.ProductId || p.id) == productId);
+  const prod = (allProducts && allProducts.length ? allProducts : FALLBACK_PRODUCTS).find(p => (p.ProductId || p.id || p.productid) == productId);
   if (!prod) return;
 
   const isEn = typeof currentSiteLang !== 'undefined' && currentSiteLang === 'en';
@@ -1417,8 +1417,19 @@ function addToCart(productId, quantity = 1, explicitPackType = null) {
   if (pricing.packagingType === 'box_only') chosenPack = 'box';
   if (pricing.packagingType === 'card_only') chosenPack = 'card';
 
-  const existing = cart.find(it => it.productId == productId && (it.packType || 'box') === chosenPack);
-  const totalInCartForProd = cart.filter(it => it.productId == productId).reduce((s, i) => s + i.quantity, 0);
+  // ========================================================
+  // KHAI BÁO & TÍNH TOÁN GIÁ (KHẮC PHỤC LỖI unitFinalPrice)
+  // ========================================================
+  const unitFinalPrice = chosenPack === 'card' 
+    ? (pricing.finalPriceCard || pricing.priceCard || prod.PriceCard || prod.Price || prod.price || 0)
+    : (pricing.finalPriceBox || pricing.priceBox || prod.PriceBox || prod.Price || prod.price || 0);
+
+  const unitOriginalPrice = chosenPack === 'card'
+    ? (pricing.priceCard || prod.PriceCard || prod.OldPrice || prod.oldPrice || unitFinalPrice)
+    : (pricing.priceBox || prod.PriceBox || prod.OldPrice || prod.oldPrice || unitFinalPrice);
+
+  const existing = cart.find(it => (it.productId == productId || it.id == productId) && (it.packType || 'box') === chosenPack);
+  const totalInCartForProd = cart.filter(it => (it.productId == productId || it.id == productId)).reduce((s, i) => s + i.quantity, 0);
 
   if (totalInCartForProd + quantity > stock) {
     showToast(`Rất tiếc! Mẫu này chỉ còn ${stock} xe trong kho (bạn đã có ${totalInCartForProd} trong giỏ).`, 'error');
@@ -1445,7 +1456,7 @@ function addToCart(productId, quantity = 1, explicitPackType = null) {
     existing.expectedDelivery = expDelivery;
   } else {
     cart.push({
-      productId: prod.ProductId || prod.id,
+      productId: prod.ProductId || prod.id || prod.productid,
       packType: chosenPack,
       packagingType: pricing.packagingType,
       name: pName,
@@ -1460,7 +1471,7 @@ function addToCart(productId, quantity = 1, explicitPackType = null) {
       depositAmount: pDeposit,
       depositPercent: depPct,
       expectedDelivery: expDelivery,
-      imageUrl: prod.ImageUrl || prod.image,
+      imageUrl: prod.ImageUrl || prod.image || prod.imageurl,
       isPreOrder: isPreOrder,
       quantity: quantity
     });
