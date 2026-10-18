@@ -1,103 +1,121 @@
 /**
- * CẤU HÌNH KẾT NỐI CƠ SỞ DỮ LIỆU SQL SERVER
- * Driver: ODBC (msnodesqlv8, Windows Authentication)
- * Chuỗi kết nối đọc từ biến môi trường DB_CONNECTION_STRING (.env)
+ * CẤU HÌNH KẾT NỐI CƠ SỞ DỮ LIỆU POSTGRESQL (SUPABASE CLOUD)
+ * Tương thích ngược toàn diện với cú pháp SQL Server cũ:
+ * - Hỗ trợ tham số @param tự động đổi thành $1, $2...
+ * - Hỗ trợ .recordset, .rowsAffected
+ * - Hỗ trợ transaction withTransaction()
  */
-const sql = require('mssql/msnodesqlv8');
+const { Pool } = require('pg');
 require('dotenv').config({ quiet: true });
 
-const PRIMARY_CONN = process.env.DB_CONNECTION_STRING ||
-  'Driver={ODBC Driver 17 for SQL Server};Server=QUOCTHINH\\DOQUOCTHINH;Database=MiniGTStore;Trusted_Connection=yes;';
-// Fallback sang ODBC Driver 18 với cùng Server/Database
-const FALLBACK_CONN = PRIMARY_CONN
-  .replace(/ODBC Driver 17 for SQL Server/i, 'ODBC Driver 18 for SQL Server')
-  .replace(/;?$/, ';TrustServerCertificate=yes;');
+const CONNECTION_STRING = process.env.DATABASE_URL || process.env.DB_CONNECTION_STRING;
 
 let pool = null;
-let connecting = null;
 let isConnected = false;
 
-async function connect(connectionString) {
-  const p = new sql.ConnectionPool({ connectionString });
-  p.on('error', (err) => {
-    console.error('[DB] Pool error:', err.message);
-    isConnected = false;
-  });
-  await p.connect();
-  return p;
-}
-
-async function getPool() {
-  if (pool && isConnected) return pool;
-  if (connecting) return connecting;
-
-  connecting = (async () => {
-    try {
-      pool = await connect(PRIMARY_CONN);
-      isConnected = true;
-      console.log('[DB] Kết nối SQL Server thành công.');
-    } catch (err) {
-      console.warn('[DB] Driver 17 lỗi:', err.message, '→ thử ODBC Driver 18');
-      try {
-        pool = await connect(FALLBACK_CONN);
-        isConnected = true;
-        console.log('[DB] Kết nối thành công qua ODBC Driver 18.');
-      } catch (err2) {
-        console.error('[DB] Không thể kết nối SQL Server:', err2.message);
-        pool = null;
-        isConnected = false;
+function getPool() {
+  if (!pool) {
+    pool = new Pool({
+      connectionString: CONNECTION_STRING,
+      ssl: {
+        rejectUnauthorized: false // Bắt buộc cho kết nối Supabase Cloud
       }
-    } finally {
-      connecting = null;
+    });
+
+    pool.on('connect', () => {
+      isConnected = true;
+      console.log('✅ [DB] Đã kết nối thành công tới Database Supabase (PostgreSQL)!');
+    });
+
+    pool.on('error', (err) => {
+      console.error('❌ [DB] Lỗi kết nối Supabase:', err.message);
+      isConnected = false;
+    });
+  }
+  return pool;
+}
+
+// Khởi tạo pool ngay khi nạp module
+getPool();
+
+/**
+ * Xử lý câu lệnh query: tự động chuyển cú pháp T-SQL cũ sang PostgreSQL
+ */
+function transformQuery(queryString, params = {}) {
+  let text = queryString;
+  const values = [];
+
+  // 1. Chuyển đổi hàm thời gian & Boolean đặc thù của T-SQL
+  text = text.replace(/SYSDATETIME\(\)/gi, 'NOW()');
+  text = text.replace(/GETDATE\(\)/gi, 'NOW()');
+  text = text.replace(/IsActive\s*=\s*1/gi, 'IsActive = TRUE');
+  text = text.replace(/IsActive\s*=\s*0/gi, 'IsActive = FALSE');
+
+  // 2. Chuyển đổi tham số @param thành $1, $2, $3...
+  if (params && typeof params === 'object' && !Array.isArray(params)) {
+    let index = 1;
+    for (const [key, val] of Object.entries(params)) {
+      const regex = new RegExp(`@${key}\\b`, 'g');
+      if (regex.test(text)) {
+        text = text.replace(regex, `$${index}`);
+        values.push(val === undefined ? null : val);
+        index++;
+      }
     }
-    return pool;
-  })();
-  return connecting;
-}
-
-function bind(request, params) {
-  for (const [key, val] of Object.entries(params || {})) {
-    request.input(key, val === undefined ? null : val);
+  } else if (Array.isArray(params)) {
+    values.push(...params);
   }
-  return request;
-}
 
-async function query(queryString, params = {}) {
-  const p = await getPool();
-  if (!p) {
-    const e = new Error('Cơ sở dữ liệu hiện không khả dụng');
-    e.status = 503;
-    throw e;
-  }
-  return bind(p.request(), params).query(queryString);
+  return { text, values };
 }
 
 /**
- * Chạy nhiều câu lệnh trong 1 transaction.
- * usage: await db.withTransaction(async (q) => { await q('UPDATE ...', {...}); })
+ * Hàm truy vấn chính (dùng lại được nguyên bản cho tất cả routes)
+ */
+async function query(queryString, params = {}) {
+  const p = getPool();
+  const { text, values } = transformQuery(queryString, params);
+
+  const res = await p.query(text, values);
+
+  // Đảm bảo tương thích với toàn bộ code cũ đang dùng result.recordset
+  res.recordset = res.rows;
+  res.recordsets = [res.rows];
+  res.rowsAffected = [res.rowCount];
+
+  return res;
+}
+
+/**
+ * Chạy nhiều câu lệnh trong 1 transaction cho PostgreSQL
  */
 async function withTransaction(work) {
-  const p = await getPool();
-  if (!p) {
-    const e = new Error('Cơ sở dữ liệu hiện không khả dụng');
-    e.status = 503;
-    throw e;
-  }
-  const tx = new sql.Transaction(p);
-  await tx.begin();
-  const q = (text, params) => bind(new sql.Request(tx), params).query(text);
+  const p = getPool();
+  const client = await p.connect();
   try {
+    await client.query('BEGIN');
+
+    const q = async (text, params) => {
+      const { text: transformedText, values } = transformQuery(text, params);
+      const res = await client.query(transformedText, values);
+      res.recordset = res.rows;
+      res.recordsets = [res.rows];
+      res.rowsAffected = [res.rowCount];
+      return res;
+    };
+
     const result = await work(q);
-    await tx.commit();
+    await client.query('COMMIT');
     return result;
   } catch (err) {
-    try { await tx.rollback(); } catch (_) { /* ignore */ }
+    await client.query('ROLLBACK');
     throw err;
+  } finally {
+    client.release();
   }
 }
 
 module.exports = {
-  sql,
   getPool,
   query,
   withTransaction,
