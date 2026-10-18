@@ -32,25 +32,20 @@ const allowedOrigins = [
   'http://127.0.0.1:5500',
   'http://localhost:5500'
 ];
-
+// Cho phép tất cả các domain (kể cả Vercel, localhost) truy cập API
 app.use(cors({
-  origin: function (origin, callback) {
-    // Cho phép các request không có origin (như Postman hoặc mobile app)
-    // hoặc bất kỳ domain Vercel nào của dự án
-    if (!origin || allowedOrigins.includes(origin) || origin.endsWith('.vercel.app')) {
-      callback(null, true);
-    } else {
-      callback(null, true); // Mở thoáng để không bị chặn CORS khi deploy
-    }
-  },
-  credentials: true,
+  origin: '*',
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
 }));
 
-// Xử lý Preflight Request (OPTIONS) cho mọi route
-app.options('*', cors());
-
+// Xử lý trực tiếp và trả về ngay mã 200 cho toàn bộ Preflight OPTIONS
+app.options('*', (req, res) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+  res.sendStatus(200);
+});
 // Parsing Middlewares
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
