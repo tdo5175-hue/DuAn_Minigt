@@ -18,7 +18,7 @@
        ===================================================================== -->
   <aside class="admin-sidebar" id="adminSidebar">
     <div class="sidebar-header">
-      <img src="../image/logominigt.png" alt="MINI GT" class="sidebar-logo">
+      <img src="../image/logo-minigt.webp" alt="MINI GT" class="sidebar-logo">
       <span class="sidebar-badge">ADMIN</span>
     </div>
 
@@ -358,6 +358,9 @@
             <button class="order-tab-btn" data-status="CANCELLED" onclick="setOrderTab('CANCELLED')">
               Đã hủy <span class="tab-pill-count" id="tabCountCancelled">0</span>
             </button>
+            <button class="order-tab-btn pre-order-tab-highlight" data-status="PRE_ORDER" onclick="setOrderTab('PRE_ORDER')">
+              ⚡ Đơn Pre-Order <span class="tab-pill-count" id="tabCountPreOrder">0</span>
+            </button>
           </div>
 
           <!-- Order Search & Filters -->
@@ -367,7 +370,7 @@
             </div>
             <select id="orderPayStatusFilter" class="form-control" style="max-width:180px;" onchange="handleOrderFilterChange()">
               <option value="ALL">-- Tất cả thanh toán --</option>
-              <option value="UNPAID">Chưa thanh toán</option>
+              <option value="UNPAID">Chưa thanh toán / Check MB</option>
               <option value="PARTIALLY_PAID">Đã nhận tiền cọc</option>
               <option value="PAID">Đã thanh toán đủ</option>
               <option value="REFUND_PENDING">Chờ hoàn tiền</option>
@@ -382,18 +385,16 @@
           </div>
 
           <div class="table-responsive">
-            <table class="admin-table">
+            <table class="admin-table admin-orders-table">
               <thead>
                 <tr>
-                  <th>Mã đơn</th>
-                  <th>Khách hàng</th>
-                  <th>Số điện thoại</th>
-                  <th>Tổng tiền</th>
-                  <th>Phương thức</th>
-                  <th>Thanh toán</th>
-                  <th>Trạng thái</th>
-                  <th>Vận đơn SPX</th>
-                  <th style="text-align:right;">Thao tác xử lý</th>
+                  <th style="min-width:145px; white-space:nowrap;">Mã Đơn &amp; Thời Gian</th>
+                  <th style="min-width:175px;">Khách Hàng &amp; SĐT</th>
+                  <th style="min-width:230px;">Mô Hình &amp; Quy Cách</th>
+                  <th style="min-width:135px; white-space:nowrap;">Tổng Tiền / Cọc</th>
+                  <th style="min-width:130px;">Thanh Toán</th>
+                  <th style="min-width:145px;">Trạng Thái &amp; SPX</th>
+                  <th style="min-width:165px; text-align:right;">Thao Tác Xử Lý</th>
                 </tr>
               </thead>
               <tbody id="ordersTbody"></tbody>
@@ -693,6 +694,11 @@
           </div>
 
           <div class="form-group">
+            <label class="form-label">Số xe (Car # / Serial)</label>
+            <input type="text" id="prodCarNumber" class="form-control" placeholder="1413 / S026">
+          </div>
+
+          <div class="form-group form-full">
             <label class="form-label">Danh mục *</label>
             <select id="prodCategory" class="form-control" required>
               <option value="1">Liberty Walk LBWK</option>
@@ -709,15 +715,23 @@
           </div>
 
           <div class="form-group">
-            <label class="form-label">Thương hiệu</label>
-            <input type="text" id="prodBrand" class="form-control" value="MINI GT" list="brandSuggestions">
-            <datalist id="brandSuggestions">
-              <option value="MINI GT"></option>
-              <option value="Pop Race"></option>
-              <option value="Kaido House"></option>
-              <option value="Trends Hobby"></option>
-              <option value="Tarmac Works"></option>
-            </datalist>
+            <label class="form-label">Thương hiệu *</label>
+            <select id="prodBrand" class="form-control" onchange="handleBrandChange()" required>
+              <option value="MINI GT">MINI GT (TSM-Model)</option>
+              <option value="Pop Race">Pop Race</option>
+              <option value="Kaido House">Kaido House (Jun Imai)</option>
+              <option value="TSM-Model">TSM-Model (TrueScale)</option>
+              <option value="Inno64">Inno64</option>
+              <option value="Tarmac Works">Tarmac Works</option>
+              <option value="Hobby Japan">Hobby Japan</option>
+              <option value="Sparky">Sparky / Spark 1:64</option>
+              <option value="Trends Hobby">Trends Hobby</option>
+              <option value="Hot Wheels Premium">Hot Wheels Premium</option>
+              <option value="custom">-- Thương hiệu khác (Nhập tay) --</option>
+            </select>
+            <div id="brandCustomWrapper" style="display:none; margin-top:6px;">
+              <input type="text" id="prodBrandCustom" class="form-control" placeholder="Nhập tên thương hiệu khác (ví dụ: GCD, CM Model, Schuco...)">
+            </div>
           </div>
 
           <div class="form-group">
@@ -733,7 +747,7 @@
                   <i class="fa-solid fa-boxes-stacked" style="color:#e10600; margin-right:5px;"></i> Cấu hình Giá Bản Box &amp; Bản Card (Blister) + Khuyến mãi %
                 </label>
                 <div style="font-size:11px; color:#64748b; margin-top:2px;">
-                  Chuẩn MINI GT: Bản <strong>Box (Hộp giấy)</strong> rẻ hơn bản <strong>Card (Vỉ nhựa Blister)</strong> từ 40.000đ – 100.000đ
+                  Chuẩn MINI GT: Bản <strong>Box (Hộp giấy)</strong> thường rẻ hơn bản <strong>Card (Vỉ nhựa Blister)</strong> từ 40.000đ – 100.000đ
                 </div>
               </div>
               <div class="discount-mode-switch" style="display:inline-flex; gap:6px; background:#e2e8f0; padding:3px; border-radius:8px;">
@@ -772,28 +786,46 @@
                 </div>
               </div>
 
-              <div class="form-group" style="margin-bottom:0;">
-                <label class="form-label">📦 Giá gốc Bản BOX - Hộp giấy (VNĐ) *</label>
+              <div class="form-group" id="prodBoxPriceGroup" style="margin-bottom:0;">
+                <label class="form-label" id="lblPriceBox">📦 Giá gốc Bản BOX - Hộp giấy (VNĐ) *</label>
                 <input type="number" id="prodPriceBox" class="form-control" placeholder="320000" value="320000" oninput="handleProductPriceInput()" required>
-                <div style="display:flex; gap:4px; flex-wrap:wrap; margin-top:5px;">
+                <div id="boxPresetsWrap" style="display:flex; gap:4px; flex-wrap:wrap; margin-top:5px;">
                   <span style="font-size:10.5px; color:#64748b;">Mẫu:</span>
                   <button type="button" class="mini-preset-chip" onclick="setBoxPricePreset(320000)">320k</button>
                   <button type="button" class="mini-preset-chip" onclick="setBoxPricePreset(350000)">350k</button>
                   <button type="button" class="mini-preset-chip" onclick="setBoxPricePreset(380000)">380k</button>
                   <button type="button" class="mini-preset-chip" onclick="setBoxPricePreset(420000)">420k</button>
+                  <button type="button" class="mini-preset-chip" onclick="setBoxPricePreset(450000)">450k</button>
+                  <button type="button" class="mini-preset-chip" onclick="setBoxPricePreset(500000)">500k</button>
+                </div>
+                <div id="boxDisabledNotice" style="display:none; font-size:11px; color:#dc2626; font-style:italic; margin-top:4px; font-weight:600;">
+                  <i class="fa-solid fa-ban"></i> Mẫu này chỉ bán Bản Card (Tự động đồng bộ bằng giá Card)
                 </div>
               </div>
 
-              <div class="form-group" style="margin-bottom:0;">
-                <label class="form-label">🛡️ Giá gốc Bản CARD - Vỉ Blister (VNĐ) *</label>
+              <div class="form-group" id="prodCardPriceGroup" style="margin-bottom:0;">
+                <label class="form-label" id="lblPriceCard">🛡️ Giá gốc Bản CARD - Vỉ Blister (VNĐ) *</label>
                 <input type="number" id="prodPriceCard" class="form-control" placeholder="380000" value="380000" oninput="handleProductPriceInput()" required>
-                <div style="display:flex; gap:4px; flex-wrap:wrap; margin-top:5px;">
+                <!-- Helper khi bán cả Box & Card: Cộng chênh lệch từ Box -->
+                <div id="cardDiffPresetsWrap" style="display:flex; gap:4px; flex-wrap:wrap; margin-top:5px;">
                   <span style="font-size:10.5px; color:#64748b;">Cộng từ Box:</span>
                   <button type="button" class="mini-preset-chip" onclick="addCardDiffFromBox(40000)">+40k</button>
                   <button type="button" class="mini-preset-chip" onclick="addCardDiffFromBox(50000)">+50k</button>
                   <button type="button" class="mini-preset-chip" onclick="addCardDiffFromBox(60000)">+60k</button>
                   <button type="button" class="mini-preset-chip" onclick="addCardDiffFromBox(80000)">+80k</button>
                   <button type="button" class="mini-preset-chip" onclick="addCardDiffFromBox(100000)">+100k</button>
+                </div>
+                <!-- Helper khi chỉ bán bản Card: Mẫu giá Card chuẩn -->
+                <div id="cardDirectPresetsWrap" style="display:none; gap:4px; flex-wrap:wrap; margin-top:5px;">
+                  <span style="font-size:10.5px; color:#64748b;">Mẫu Card:</span>
+                  <button type="button" class="mini-preset-chip" onclick="setCardPricePreset(380000)">380k</button>
+                  <button type="button" class="mini-preset-chip" onclick="setCardPricePreset(420000)">420k</button>
+                  <button type="button" class="mini-preset-chip" onclick="setCardPricePreset(450000)">450k</button>
+                  <button type="button" class="mini-preset-chip" onclick="setCardPricePreset(480000)">480k</button>
+                  <button type="button" class="mini-preset-chip" onclick="setCardPricePreset(520000)">520k</button>
+                </div>
+                <div id="cardDisabledNotice" style="display:none; font-size:11px; color:#dc2626; font-style:italic; margin-top:4px; font-weight:600;">
+                  <i class="fa-solid fa-ban"></i> Mẫu này chỉ bán Bản Box (Không áp dụng Bản Card)
                 </div>
               </div>
             </div>
@@ -803,9 +835,8 @@
             <input type="hidden" id="prodOldPrice" value="">
 
             <!-- Bảng tính trực tiếp giá sau giảm cho Box và Card -->
-            <div id="prodLivePriceSummary" style="background:#ffffff; border:1px solid #e2e8f0; border-radius:8px; padding:10px 12px; font-size:12px; display:grid; grid-template-columns:1fr 1fr; gap:10px;">
-              <div>📦 <strong>Giá Box thực thu:</strong> <span style="color:#e10600; font-weight:800;">320.000đ</span></div>
-              <div>🛡️ <strong>Giá Card thực thu:</strong> <span style="color:#2563eb; font-weight:800;">380.000đ</span></div>
+            <div id="prodLivePriceSummary" style="background:#ffffff; border:1px solid #e2e8f0; border-radius:10px; padding:10px; font-size:12px; margin-top:10px;">
+              <!-- Được render chuẩn xác bởi handleProductPriceInput() -->
             </div>
           </div>
 
@@ -818,11 +849,6 @@
               </span>
             </label>
             <input type="number" id="prodDeposit" class="form-control" placeholder="120000">
-          </div>
-
-          <div class="form-group">
-            <label class="form-label">Tiến độ cọc (% Quota)</label>
-            <input type="number" id="prodQuota" class="form-control" placeholder="75" min="0" max="100">
           </div>
 
           <div class="form-group">
@@ -843,16 +869,97 @@
 
           <div class="form-group">
             <label class="form-label">Tình trạng mở bán</label>
-            <select id="prodStatus" class="form-control">
+            <select id="prodStatus" class="form-control" onchange="handleProductStatusChange()">
               <option value="in_stock">Có sẵn giao ngay</option>
               <option value="pre_order">Pre-Order (Đang mở cọc)</option>
-              <option value="sold_out">Hết hàng</option>
+              <option value="sold_out">Hết hàng (Sold Out)</option>
             </select>
           </div>
 
-          <div class="form-group">
-            <label class="form-label">Số lượng tồn kho / Suất cọc *</label>
-            <input type="number" id="prodStock" class="form-control" value="20" min="0" required>
+          <!-- KHỐI CẤU HÌNH DÀNH RIÊNG CHO SẢN PHẨM PRE-ORDER -->
+          <div class="form-group form-full" id="preOrderConfigCard" style="display:none; background:#f5f3ff; border:1.5px solid #c4b5fd; border-radius:10px; padding:12px 14px; margin-bottom:14px;">
+            <div style="font-weight:750; font-size:13px; color:#5b21b6; margin-bottom:8px; display:flex; align-items:center; gap:6px;">
+              <i class="fa-solid fa-calendar-check"></i> Cấu hình Đợt Hàng &amp; Mức Cọc Pre-Order (Chỉ khi mở cọc)
+            </div>
+            <div class="form-grid" style="margin-bottom:0;">
+              <div class="form-group" style="margin-bottom:0;">
+                <label class="form-label" style="font-size:12px; color:#4c1d95;">
+                  📅 Dự kiến hàng về (Tháng / Năm) *
+                </label>
+                <div style="display:flex; gap:6px;">
+                  <select id="prodExpectedMonth" class="form-control" style="flex:1;" onchange="updateExpectedDeliveryString()">
+                    <option value="1">Tháng 01</option>
+                    <option value="2">Tháng 02</option>
+                    <option value="3">Tháng 03</option>
+                    <option value="4">Tháng 04</option>
+                    <option value="5">Tháng 05</option>
+                    <option value="6">Tháng 06</option>
+                    <option value="7">Tháng 07</option>
+                    <option value="8">Tháng 08</option>
+                    <option value="9">Tháng 09</option>
+                    <option value="10">Tháng 10</option>
+                    <option value="11" selected>Tháng 11</option>
+                    <option value="12">Tháng 12</option>
+                  </select>
+                  <select id="prodExpectedYear" class="form-control" style="width:110px;" onchange="updateExpectedDeliveryString()">
+                    <option value="2026" selected>Năm 2026</option>
+                    <option value="2027">Năm 2027</option>
+                    <option value="2028">Năm 2028</option>
+                  </select>
+                </div>
+                <div style="margin-top:4px; font-size:11px; color:#6d28d9; font-weight:600;">
+                  Hiển thị: <span id="lblExpectedDeliveryPreview" style="font-weight:700; color:#4338ca;">Tháng 11/2026 (Có thể trễ hơn dự kiến)</span>
+                </div>
+                <input type="hidden" id="prodExpectedDelivery" value="Tháng 11/2026 (Có thể trễ hơn dự kiến)">
+              </div>
+
+              <div class="form-group" style="margin-bottom:0;">
+                <label class="form-label" style="font-size:12px; color:#4c1d95; display:flex; justify-content:space-between;">
+                  <span>🔒 Mức cọc yêu cầu (% giá xe) *</span>
+                  <span style="display:inline-flex; gap:4px;">
+                    <button type="button" class="mini-preset-chip" onclick="setDepositPercentPreset(30)">30%</button>
+                    <button type="button" class="mini-preset-chip" onclick="setDepositPercentPreset(40)">40%</button>
+                    <button type="button" class="mini-preset-chip" onclick="setDepositPercentPreset(50)">50%</button>
+                  </span>
+                </label>
+                <div style="display:flex; align-items:center; gap:8px;">
+                  <input type="number" id="prodDepositPercent" class="form-control" value="30" min="10" max="100" style="font-weight:700;" oninput="syncDepositPercentToAmount()">
+                  <span style="font-weight:700; color:#5b21b6;">%</span>
+                </div>
+                <div style="margin-top:4px; font-size:11px; color:#6d28d9;">
+                  Khách chỉ được cọc theo mức này. <b>Không mở thanh toán Full 100%</b> khi đặt Pre-Order.
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- QUẢN LÝ TỒN KHO THỰC TẾ THEO BẢN BOX VÀ BẢN CARD (KIỂM KHO ADMIN) -->
+          <div class="form-group form-full" style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:12px; margin-bottom:14px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+              <span style="font-weight:750; font-size:13px; color:#0f172a;">
+                <i class="fa-solid fa-boxes-stacked" style="color:#2563eb; margin-right:4px;"></i> Kiểm Kho Thực Tế (Số Lượng Box &amp; Card Còn Lại) *
+              </span>
+              <span id="prodTotalStockBadge" style="font-size:11.5px; font-weight:800; color:#059669; background:#ecfdf5; border:1px solid #a7f3d0; padding:2px 8px; border-radius:99px;">
+                Tổng tồn: 20 chiếc
+              </span>
+            </div>
+            <div class="form-grid" style="margin-bottom:0;">
+              <div class="form-group" id="stockBoxGroup" style="margin-bottom:0;">
+                <label class="form-label" id="lblStockBox" style="font-size:12px;">📦 Tồn kho thực tế Bản BOX (Hộp giấy)</label>
+                <input type="number" id="prodStockBox" class="form-control" value="12" min="0" oninput="handleStockInputs()" placeholder="12" required>
+                <div id="stockBoxDisabledNotice" style="display:none; font-size:10.5px; color:#dc2626; margin-top:3px; text-decoration:line-through;">
+                  <s>Bản Box: Không áp dụng (0)</s>
+                </div>
+              </div>
+              <div class="form-group" id="stockCardGroup" style="margin-bottom:0;">
+                <label class="form-label" id="lblStockCard" style="font-size:12px;">🛡️ Tồn kho thực tế Bản CARD (Vỉ Blister)</label>
+                <input type="number" id="prodStockCard" class="form-control" value="8" min="0" oninput="handleStockInputs()" placeholder="8" required>
+                <div id="stockCardDisabledNotice" style="display:none; font-size:10.5px; color:#dc2626; margin-top:3px; text-decoration:line-through;">
+                  <s>Bản Card: Không áp dụng (0)</s>
+                </div>
+              </div>
+            </div>
+            <input type="hidden" id="prodStock" value="20">
           </div>
 
           <div class="form-group form-full">
@@ -938,7 +1045,17 @@
 
       <div class="form-group">
         <label class="form-label">Lý do hủy đơn hàng <span style="color:#dc2626;">*</span></label>
-        <textarea id="cancelOrderReasonInput" class="form-control" rows="3" placeholder="Nhập lý do hủy (ví dụ: Khách yêu cầu hủy, hết suất đặt cọc, thông tin liên lạc không chính xác...)" required></textarea>
+        <div class="cancel-preset-chips" style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:8px;">
+          <button type="button" class="cancel-chip-btn" onclick="setCancelReasonPreset('Khách yêu cầu hủy đơn')">Khách yêu cầu hủy</button>
+          <button type="button" class="cancel-chip-btn" onclick="setCancelReasonPreset('Chưa nhận được tiền CK / Cọc qua MB Bank')">Chưa nhận tiền MB Bank</button>
+          <button type="button" class="cancel-chip-btn" onclick="setCancelReasonPreset('Hết hàng từ nhà phân phối Mini GT')">Hết hàng từ NPP</button>
+          <button type="button" class="cancel-chip-btn" onclick="setCancelReasonPreset('Không liên lạc được số điện thoại khách')">Không gọi được SĐT</button>
+          <button type="button" class="cancel-chip-btn" onclick="setCancelReasonPreset('Thông tin địa chỉ nhận hàng không chính xác')">Sai địa chỉ giao</button>
+        </div>
+        <textarea id="cancelOrderReasonInput" class="form-control" rows="3" placeholder="Nhập hoặc chọn nhanh lý do hủy bên trên..." required></textarea>
+        <div style="font-size:11.5px; color:#64748b; margin-top:6px; line-height:1.45;">
+          <i class="fa-solid fa-circle-info" style="color:#2563eb;"></i> <em>Lý do này sẽ hiển thị trực tiếp và rõ ràng cho khách hàng kèm Hotline/Zalo hỗ trợ <strong>0981 400 400</strong>.</em>
+        </div>
       </div>
 
       <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:1rem;">

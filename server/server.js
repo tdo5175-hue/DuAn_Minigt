@@ -46,6 +46,15 @@ app.use('/api/newsletter', newsletterRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/admin', adminRoutes);
 
+// Direct /api/categories alias
+app.get('/api/categories', async (req, res, next) => {
+  try {
+    const productService = require('./services/productService');
+    const categories = await productService.listCategories();
+    return res.status(200).json({ success: true, data: categories });
+  } catch (err) { next(err); }
+});
+
 // Health check endpoint
 app.get('/api/health', (req, res) => {
   res.json({

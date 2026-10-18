@@ -7,400 +7,260 @@
 // =====================================================================
 // 1. DỮ LIỆU MẪU ĐẦY ĐỦ (FALLBACK DATA KHI MỞ TRỰC TIẾP FILE:// HOẶC OFFLINE)
 // =====================================================================
-const FALLBACK_PRODUCTS = [
+const FALLBACK_PRODUCTS = (typeof window !== 'undefined' && window.api && typeof window.api.getSharedProducts === 'function')
+  ? window.api.getSharedProducts()
+  : [
   {
-    ProductId: 1,
-    Sku: "MGTS0026",
-    Name: "Lamborghini Huracán Sterrato All-Terrain Set (Box 4 xe)",
-    Slug: "lamborghini-huracan-sterrato-box-4-xe",
-    CategoryId: 4,
-    CategorySlug: "box-sets",
-    CategoryName: "Box Sets & Combo",
-    Brand: "MINI GT",
-    Scale: "1:64",
-    Price: 1850000,
-    OldPrice: null,
-    DepositAmount: 500000,
-    QuotaPercent: 82,
-    EditionNote: "+ Box Set Camo",
-    PreOrderDeadline: "2026-10-30",
-    Stock: 20,
-    ImageUrl: "image/lambo-sterrato-set.png",
-    Description: "Set 4 xe Lamborghini Huracán Sterrato All-Terrain với hộp trưng bày Collector Box sang trọng, chi tiết lốp off-road và giá nóc safari độc quyền.",
-    Status: "pre_order",
-    IsFeatured: 1,
-    IsNew: 1
+    ProductId: 1, id: 1, Sku: 'MGTS0026', CarNumber: 'S026',
+    Name: 'Lamborghini Huracán Sterrato All-Terrain Set (Box 4 xe)',
+    Slug: 'lamborghini-huracan-sterrato-box-4-xe',
+    CategoryId: 4, CategorySlug: 'undefined', CategoryName: 'undefined',
+    Brand: 'MINI GT', Scale: '1:64',
+    PriceBox: 1850000, PriceCard: 1850000, Price: 1850000, OldPrice: 2100000,
+    DiscountPercent: 0, PackagingType: 'box_only',
+    DepositAmount: 500000, QuotaPercent: 92, EditionNote: 'Box Set Đặc Biệt (Giới hạn 3000 bộ)',
+    PreOrderDeadline: '2026-10-30', Stock: 15,
+    ImageUrl: 'image/lambo-sterrato-set.png',
+    Description: 'Bộ 4 xe Lamborghini Huracán Sterrato địa hình kèm hộp trưng bày Collector Box cao cấp chính hãng TSM-Model.',
+    Status: 'pre_order', IsFeatured: 1, IsNew: 1, soldCount: undefined
   },
   {
-    ProductId: 2,
-    Sku: "MGT01413",
-    Name: "Aston Martin AMR24 #18 Lance Stroll F1 Las Vegas GP",
-    Slug: "aston-martin-amr24-18-lance-stroll-las-vegas-gp",
-    CategoryId: 2,
-    CategorySlug: "f1-racing",
-    CategoryName: "Formula 1 Racing",
-    Brand: "MINI GT",
-    Scale: "1:64",
-    Price: 460000,
-    OldPrice: 500000,
-    DepositAmount: 150000,
-    QuotaPercent: 75,
-    EditionNote: "+ LHD Edition",
-    PreOrderDeadline: "2026-10-30",
-    Stock: 45,
-    ImageUrl: "image/aston-amr24-stroll.png",
-    Description: "Chiến mã F1 AMR24 của tay đua Lance Stroll tại chặng Las Vegas GP 2024. Cánh gió sau khí động học, tem tài trợ Aramco sắc nét.",
-    Status: "pre_order",
-    IsFeatured: 1,
-    IsNew: 1
+    ProductId: 2, id: 2, Sku: 'MGT01413', CarNumber: '1413',
+    Name: 'Aston Martin AMR24 #18 Lance Stroll 2024 F1 Las Vegas GP',
+    Slug: 'aston-martin-amr24-18-lance-stroll-las-vegas-gp',
+    CategoryId: 2, CategorySlug: 'undefined', CategoryName: 'undefined',
+    Brand: 'MINI GT', Scale: '1:64',
+    PriceBox: 420000, PriceCard: 480000, Price: 378000, OldPrice: 420000,
+    DiscountPercent: 10, PackagingType: 'both',
+    DepositAmount: 150000, QuotaPercent: 88, EditionNote: 'Kèm Figure Tay Đua F1 Las Vegas',
+    PreOrderDeadline: '2026-10-30', Stock: 25,
+    ImageUrl: 'image/aston-amr24-stroll.png',
+    Description: 'Mô hình xe đua F1 Aston Martin AMR24 #18 chặng Las Vegas GP 2024, sơn xanh Racing Green ánh kim tuyệt đẹp.',
+    Status: 'pre_order', IsFeatured: 1, IsNew: 1, soldCount: undefined
   },
   {
-    ProductId: 3,
-    Sku: "MGT01396",
-    Name: "Aston Martin AMR24 #14 Fernando Alonso F1 Las Vegas GP",
-    Slug: "aston-martin-amr24-14-fernando-alonso-las-vegas-gp",
-    CategoryId: 2,
-    CategorySlug: "f1-racing",
-    CategoryName: "Formula 1 Racing",
-    Brand: "MINI GT",
-    Scale: "1:64",
-    Price: 450000,
-    OldPrice: null,
-    DepositAmount: 150000,
-    QuotaPercent: 90,
-    EditionNote: "+ 2x World Champ",
-    PreOrderDeadline: "2026-10-30",
-    Stock: 12,
-    ImageUrl: "image/aston-amr24-alonso.png",
-    Description: "Mẫu xe F1 AMR24 của huyền thoại 2 lần vô địch thế giới Fernando Alonso chặng Las Vegas GP. Chi tiết halo buồng lái và bánh xe lốp Pirelli soft viền đỏ.",
-    Status: "pre_order",
-    IsFeatured: 1,
-    IsNew: 1
+    ProductId: 3, id: 3, Sku: 'MGT01396', CarNumber: '1396',
+    Name: 'Aston Martin AMR24 #14 Fernando Alonso 2024 F1 Las Vegas GP',
+    Slug: 'aston-martin-amr24-14-fernando-alonso-las-vegas-gp',
+    CategoryId: 2, CategorySlug: 'undefined', CategoryName: 'undefined',
+    Brand: 'MINI GT', Scale: '1:64',
+    PriceBox: 420000, PriceCard: 480000, Price: 420000, OldPrice: null,
+    DiscountPercent: 0, PackagingType: 'both',
+    DepositAmount: 150000, QuotaPercent: 95, EditionNote: 'Bản Đua Đêm Las Vegas GP',
+    PreOrderDeadline: '2026-10-30', Stock: 18,
+    ImageUrl: 'image/aston-amr24-alonso.png',
+    Description: 'Phiên bản xe đua F1 của huyền thoại Fernando Alonso #14 tại chặng đua đêm Las Vegas 2024.',
+    Status: 'pre_order', IsFeatured: 1, IsNew: 1, soldCount: undefined
   },
   {
-    ProductId: 4,
-    Sku: "MGT00550",
-    Name: "Oracle Red Bull Racing RB18 #1 Max Verstappen 2022 Monaco GP",
-    Slug: "oracle-red-bull-racing-rb18-1-max-verstappen-monaco-gp",
-    CategoryId: 2,
-    CategorySlug: "f1-racing",
-    CategoryName: "Formula 1 Racing",
-    Brand: "MINI GT",
-    Scale: "1:64",
-    Price: 420000,
-    OldPrice: null,
-    DepositAmount: 150000,
-    QuotaPercent: 60,
-    EditionNote: "+ Champion Livery",
-    PreOrderDeadline: null,
-    Stock: 18,
-    ImageUrl: "image/f1_redbull.jpg",
-    Description: "Mô hình Red Bull Racing RB18 số 1 Max Verstappen vô địch chặng đua Monaco GP danh giá. Màu sơn nhám mờ đặc trưng đội đua Áo.",
-    Status: "in_stock",
-    IsFeatured: 1,
-    IsNew: 0
+    ProductId: 4, id: 4, Sku: 'MGT00550', CarNumber: '550',
+    Name: 'Oracle Red Bull Racing RB18 #1 Max Verstappen 2022 Monaco GP',
+    Slug: 'oracle-red-bull-racing-rb18-1-max-verstappen-monaco-gp',
+    CategoryId: 2, CategorySlug: 'undefined', CategoryName: 'undefined',
+    Brand: 'MINI GT', Scale: '1:64',
+    PriceBox: 420000, PriceCard: 480000, Price: 378000, OldPrice: 420000,
+    DiscountPercent: 10, PackagingType: 'both',
+    DepositAmount: 0, QuotaPercent: 100, EditionNote: 'World Champion Edition • Box & Card',
+    PreOrderDeadline: null, Stock: 14,
+    ImageUrl: 'image/f1_redbull.jpg',
+    Description: 'Chiếc xe vô địch thế giới F1 Red Bull RB18 #1 của Max Verstappen với chi tiết khí động học tỉ lệ 1:64 sắc nét.',
+    Status: 'in_stock', IsFeatured: 1, IsNew: 1, soldCount: undefined
   },
   {
-    ProductId: 5,
-    Sku: "MGT01055",
-    Name: "LB★WORKS Lamborghini Huracán GT Gravity Racing #5",
-    Slug: "lb-works-lamborghini-huracan-gt-gravity-racing-5",
-    CategoryId: 1,
-    CategorySlug: "liberty-walk",
-    CategoryName: "Liberty Walk LBWK",
-    Brand: "MINI GT",
-    Scale: "1:64",
-    Price: 350000,
-    OldPrice: null,
-    DepositAmount: null,
-    QuotaPercent: 0,
-    EditionNote: "+ Widebody Aero",
-    PreOrderDeadline: null,
-    Stock: 25,
-    ImageUrl: "image/mgt01055.webp",
-    Description: "Bản độ Liberty Walk Huracán GT phong cách Gravity Racing với body kit vòm bánh rộng tán đinh tán đặc trưng, cánh gió GT to bản.",
-    Status: "in_stock",
-    IsFeatured: 1,
-    IsNew: 0
+    ProductId: 5, id: 5, Sku: 'MGT01055', CarNumber: '1055',
+    Name: 'LB★WORKS Lamborghini Huracán GT Gravity Racing #5',
+    Slug: 'lb-works-lamborghini-huracan-gt-gravity-racing-5',
+    CategoryId: 1, CategorySlug: 'undefined', CategoryName: 'undefined',
+    Brand: 'MINI GT', Scale: '1:64',
+    PriceBox: 350000, PriceCard: 410000, Price: 350000, OldPrice: null,
+    DiscountPercent: 0, PackagingType: 'both',
+    DepositAmount: 0, QuotaPercent: 82, EditionNote: 'Liberty Walk Widebody #5',
+    PreOrderDeadline: null, Stock: 22,
+    ImageUrl: 'image/mgt01055.webp',
+    Description: 'Siêu phẩm độ thân rộng Liberty Walk Lamborghini Huracán GT màu tím xanh Gravity Racing cực kỳ nổi bật.',
+    Status: 'in_stock', IsFeatured: 1, IsNew: 1, soldCount: undefined
   },
   {
-    ProductId: 6,
-    Sku: "MGT01143",
-    Name: "Porsche 911 GT3 R #77 AO Racing \"Skeleton\" 2024 IMSA",
-    Slug: "porsche-911-gt3-r-77-ao-racing-skeleton-2024-imsa",
-    CategoryId: 3,
-    CategorySlug: "gt-racing",
-    CategoryName: "IMSA & GT3 Racing",
-    Brand: "MINI GT",
-    Scale: "1:64",
-    Price: 390000,
-    OldPrice: null,
-    DepositAmount: 150000,
-    QuotaPercent: 70,
-    EditionNote: "+ Halloween Skeleton",
-    PreOrderDeadline: "2026-10-30",
-    Stock: 30,
-    ImageUrl: "image/ske.webp",
-    Description: "Phiên bản đặc biệt Halloween của đội AO Racing với tem khung xương phát quang cực kỳ độc đáo trên nền sơn đen tuyền.",
-    Status: "pre_order",
-    IsFeatured: 1,
-    IsNew: 1
+    ProductId: 6, id: 6, Sku: 'MGT01143', CarNumber: '1143',
+    Name: 'Porsche 911 GT3 R #77 AO Racing "Skeleton" 2024 IMSA Petit Le Mans',
+    Slug: 'porsche-911-gt3-r-77-ao-racing-skeleton-2024-imsa',
+    CategoryId: 3, CategorySlug: 'undefined', CategoryName: 'undefined',
+    Brand: 'MINI GT', Scale: '1:64',
+    PriceBox: 390000, PriceCard: 470000, Price: 390000, OldPrice: null,
+    DiscountPercent: 0, PackagingType: 'both',
+    DepositAmount: 150000, QuotaPercent: 89, EditionNote: 'Bản Giới Hạn Halloween Skeleton #77',
+    PreOrderDeadline: '2026-10-30', Stock: 20,
+    ImageUrl: 'image/ske.webp',
+    Description: 'Phiên bản giới hạn Halloween Petit Le Mans với đồ họa bộ xương khủng long Rexy trên nền đen mờ.',
+    Status: 'pre_order', IsFeatured: 1, IsNew: 1, soldCount: undefined
   },
   {
-    ProductId: 7,
-    Sku: "MGT01093",
-    Name: "Porsche 911 GT3 R #77 AO Racing \"Roxy\" 2024 IMSA Road America",
-    Slug: "porsche-911-gt3-r-77-ao-racing-roxy-2024-imsa",
-    CategoryId: 3,
-    CategorySlug: "gt-racing",
-    CategoryName: "IMSA & GT3 Racing",
-    Brand: "MINI GT",
-    Scale: "1:64",
-    Price: 360000,
-    OldPrice: null,
-    DepositAmount: null,
-    QuotaPercent: 88,
-    EditionNote: "+ Pink Livery IMSA",
-    PreOrderDeadline: null,
-    Stock: 15,
-    ImageUrl: "image/Roxy.webp",
-    Description: "Chiếc Porsche khủng long hồng Roxy nổi tiếng của AO Racing tại giải đua Road America. Cặp răng nanh hầm hố trước đầu xe.",
-    Status: "in_stock",
-    IsFeatured: 1,
-    IsNew: 0
+    ProductId: 7, id: 7, Sku: 'MGT01093', CarNumber: '1093',
+    Name: 'Porsche 911 GT3 R #77 AO Racing "Roxy" 2024 IMSA Road America',
+    Slug: 'porsche-911-gt3-r-77-ao-racing-roxy-2024-imsa',
+    CategoryId: 3, CategorySlug: 'undefined', CategoryName: 'undefined',
+    Brand: 'MINI GT', Scale: '1:64',
+    PriceBox: 360000, PriceCard: 420000, Price: 342000, OldPrice: 360000,
+    DiscountPercent: 5, PackagingType: 'both',
+    DepositAmount: 0, QuotaPercent: 94, EditionNote: 'Khủng Long Hồng Roxy #77',
+    PreOrderDeadline: null, Stock: 12,
+    ImageUrl: 'image/Roxy.webp',
+    Description: 'Mẫu Porsche 911 GT3 R khủng long hồng Roxy #77 siêu hot của đội đua AO Racing tại giải IMSA.',
+    Status: 'in_stock', IsFeatured: 1, IsNew: 1, soldCount: undefined
   },
   {
-    ProductId: 8,
-    Sku: "MGT00782",
-    Name: "Porsche 911 GT3 R #80 AO Racing \"Rexy\" 2024 IMSA",
-    Slug: "porsche-911-gt3-r-80-ao-racing-rexy-2024-imsa",
-    CategoryId: 3,
-    CategorySlug: "gt-racing",
-    CategoryName: "IMSA & GT3 Racing",
-    Brand: "MINI GT",
-    Scale: "1:64",
-    Price: 380000,
-    OldPrice: null,
-    DepositAmount: null,
-    QuotaPercent: 95,
-    EditionNote: "+ IMSA Dino Edition",
-    PreOrderDeadline: null,
-    Stock: 8,
-    ImageUrl: "image/rexy.jpg",
-    Description: "Biểu tượng khủng long xanh Rexy gầm rú khuấy đảo các trường đua IMSA và Le Mans. Mẫu xe diecast được săn lùng nhiều nhất năm.",
-    Status: "in_stock",
-    IsFeatured: 1,
-    IsNew: 0
+    ProductId: 8, id: 8, Sku: 'MGT00782', CarNumber: '782',
+    Name: 'Porsche 911 GT3 R #80 AO Racing "Rexy" 2023 IMSA Sebring 12h',
+    Slug: 'porsche-911-gt3-r-80-ao-racing-rexy-2024-imsa',
+    CategoryId: 3, CategorySlug: 'undefined', CategoryName: 'undefined',
+    Brand: 'MINI GT', Scale: '1:64',
+    PriceBox: 380000, PriceCard: 450000, Price: 380000, OldPrice: 420000,
+    DiscountPercent: 0, PackagingType: 'both',
+    DepositAmount: 0, QuotaPercent: 96, EditionNote: 'Khủng Long Xanh Rexy #80 Best-Seller',
+    PreOrderDeadline: null, Stock: 8,
+    ImageUrl: 'image/rexy.jpg',
+    Description: 'Huyền thoại khủng long xanh Rexy #80 AO Racing được săn đón nhất trong giới sưu tầm MINI GT 1:64.',
+    Status: 'in_stock', IsFeatured: 1, IsNew: 0, soldCount: undefined
   },
   {
-    ProductId: 9,
-    Sku: "MGT00512",
-    CarNumber: "1129",
-    Name: "Lamborghini Huracán GT3 EVO #63 Squadra Corse Official",
-    Slug: "lamborghini-huracan-gt3-evo-63-squadra-corse-official",
-    CategoryId: 3,
-    CategorySlug: "gt-racing",
-    CategoryName: "IMSA & GT3 Racing",
-    Brand: "MINI GT",
-    Scale: "1:64",
-    Price: 460000,
-    OldPrice: null,
-    DepositAmount: null,
-    QuotaPercent: 0,
-    EditionNote: "Factory Racing",
-    PreOrderDeadline: null,
-    Stock: 5,
-    ImageUrl: "image/minigt_lambogt3.jpg",
-    Description: "Mẫu xe đua Lamborghini Huracán GT3 EVO #63 Squadra Corse Official với bộ tem đen mờ khí động học sắc nét.",
-    Status: "in_stock",
-    IsFeatured: 1,
-    IsNew: 0
+    ProductId: 9, id: 9, Sku: 'MGT01129', CarNumber: '1129',
+    Name: 'Lamborghini Huracán GT3 EVO2 #45 DEX Imaging 2024 IMSA Daytona 24h',
+    Slug: 'lamborghini-huracan-gt3-evo2-45-dex-imaging-daytona-24h',
+    CategoryId: 3, CategorySlug: 'undefined', CategoryName: 'undefined',
+    Brand: 'MINI GT', Scale: '1:64',
+    PriceBox: 330000, PriceCard: 390000, Price: 330000, OldPrice: null,
+    DiscountPercent: 0, PackagingType: 'both',
+    DepositAmount: 0, QuotaPercent: 75, EditionNote: 'Đua Sức Bền Daytona 24 Hours',
+    PreOrderDeadline: null, Stock: 19,
+    ImageUrl: 'image/Minigt_Lambo_GT3.jpg',
+    Description: 'Mẫu xe đua Lamborghini Huracán GT3 EVO2 tham chiến giải đua sức bền 24 Giờ Daytona 2024.',
+    Status: 'in_stock', IsFeatured: 0, IsNew: 1, soldCount: undefined
   },
   {
-    ProductId: 10,
-    Sku: "MGT00755",
-    CarNumber: "465",
-    Name: "Nissan Silvia S15 LB-Super Silhouette #23 Formula Drift",
-    Slug: "nissan-silvia-s15-lb-super-silhouette-23-formula-drift",
-    CategoryId: 1,
-    CategorySlug: "liberty-walk",
-    CategoryName: "Liberty Walk LBWK",
-    Brand: "MINI GT",
-    Scale: "1:64",
-    Price: 480000,
-    OldPrice: null,
-    DepositAmount: null,
-    QuotaPercent: 0,
-    EditionNote: "Liberty Walk",
-    PreOrderDeadline: null,
-    Stock: 8,
-    ImageUrl: "image/Minigt_s15chop_lbwk.jpg",
-    Description: "Huyền thoại Nissan S15 phong cách Super Silhouette từ nhà độ Liberty Walk Wataru Kato với cánh gió kép và phối màu vàng óng ánh kim.",
-    Status: "in_stock",
-    IsFeatured: 1,
-    IsNew: 1
+    ProductId: 10, id: 10, Sku: 'MGT00465', CarNumber: '465',
+    Name: 'LB-Super Silhouette Nissan S15 Silvia Presentation',
+    Slug: 'lb-super-silhouette-nissan-s15-silvia-presentation',
+    CategoryId: 1, CategorySlug: 'undefined', CategoryName: 'undefined',
+    Brand: 'MINI GT', Scale: '1:64',
+    PriceBox: 320000, PriceCard: 370000, Price: 320000, OldPrice: 350000,
+    DiscountPercent: 0, PackagingType: 'both',
+    DepositAmount: 0, QuotaPercent: 90, EditionNote: 'Liberty Walk Group 5 Silhouette',
+    PreOrderDeadline: null, Stock: 16,
+    ImageUrl: 'image/Minigt_s15chop_lbwk.jpg',
+    Description: 'Biểu tượng JDM Nissan Silvia S15 độ bodykit Super Silhouette hầm hố từ nhà độ Liberty Walk Nhật Bản.',
+    Status: 'in_stock', IsFeatured: 1, IsNew: 0, soldCount: undefined
   },
   {
-    ProductId: 11,
-    Sku: "MGT00688",
-    CarNumber: "1055",
-    Name: "Lamborghini Aventador LB★WORKS Widebody 2.0 Matte Black",
-    Slug: "lamborghini-aventador-lb-works-widebody-2-matte-black",
-    CategoryId: 1,
-    CategorySlug: "liberty-walk",
-    CategoryName: "Liberty Walk LBWK",
-    Brand: "MINI GT",
-    Scale: "1:64",
-    Price: 520000,
-    OldPrice: null,
-    DepositAmount: null,
-    QuotaPercent: 0,
-    EditionNote: "Zero Fighter Livery",
-    PreOrderDeadline: null,
-    Stock: 4,
-    ImageUrl: "image/Minigt_Lambo_LBWK.jpg",
-    Description: "Siêu bò Aventador độ thân rộng LB★WORKS Widebody 2.0 màu sơn đen nhám Zero Fighter với vòm bánh loe rộng bắt đinh tán hầm hố.",
-    Status: "in_stock",
-    IsFeatured: 1,
-    IsNew: 0
+    ProductId: 11, id: 11, Sku: 'MGT00618', CarNumber: '618',
+    Name: 'LB-Super Silhouette Nissan S15 Silvia #23 2022 Goodwood Festival of Speed',
+    Slug: 'lb-super-silhouette-nissan-s15-silvia-23-goodwood-fos',
+    CategoryId: 1, CategorySlug: 'undefined', CategoryName: 'undefined',
+    Brand: 'MINI GT', Scale: '1:64',
+    PriceBox: 340000, PriceCard: 400000, Price: 340000, OldPrice: 380000,
+    DiscountPercent: 0, PackagingType: 'both',
+    DepositAmount: 0, QuotaPercent: 95, EditionNote: 'Kỷ Niệm Lễ Hội Tốc Độ Goodwood #23',
+    PreOrderDeadline: null, Stock: 9,
+    ImageUrl: 'image/Minigt_S15_LBWK.jpg',
+    Description: 'Phiên bản kỷ niệm màn trình diễn drift của chiếc S15 #23 tại lễ hội tốc độ Goodwood Vương Quốc Anh.',
+    Status: 'in_stock', IsFeatured: 1, IsNew: 0, soldCount: undefined
   },
   {
-    ProductId: 12,
-    Sku: "PR640325",
-    Name: "Pop Race Toyota Supra Top Secret GT300 Silver Chrome",
-    Slug: "pop-race-toyota-supra-top-secret-gt300-silver-chrome",
-    CategoryId: 5,
-    CategorySlug: "partner",
-    CategoryName: "Pop Race & Collab",
-    Brand: "Pop Race",
-    Scale: "1:64",
-    Price: 420000,
-    OldPrice: null,
-    DepositAmount: null,
-    QuotaPercent: 0,
-    EditionNote: "+ Top Secret Chrome",
-    PreOrderDeadline: null,
-    Stock: 19,
-    ImageUrl: "image/Poprace_Supra_Secret.webp",
-    Description: "Siêu phẩm Top Secret Supra màu bạc tráng gương có thể mở nắp capo chi tiết động cơ 2JZ.",
-    Status: "in_stock",
-    IsFeatured: 1,
-    IsNew: 0
+    ProductId: 12, id: 12, Sku: 'PR640325', CarNumber: '325',
+    Name: 'Pop Race Top Secret GT300 Toyota Supra (A80) Silver Chrome',
+    Slug: 'pop-race-toyota-supra-top-secret-gt300-silver-chrome',
+    CategoryId: 5, CategorySlug: 'undefined', CategoryName: 'undefined',
+    Brand: 'Pop Race', Scale: '1:64',
+    PriceBox: 480000, PriceCard: 480000, Price: 480000, OldPrice: 550000,
+    DiscountPercent: 0, PackagingType: 'box_only',
+    DepositAmount: 0, QuotaPercent: 92, EditionNote: 'Secret Chase 1/24 • Mở Nắp Ca-pô Động Cơ 2JZ',
+    PreOrderDeadline: null, Stock: 11,
+    ImageUrl: 'image/Poprace_Supra_Secret.webp',
+    Description: 'Phiên bản mạ Chrome bạc đặc biệt của Top Secret Supra GT300, mở được nắp ca-pô chiêm ngưỡng khối động cơ 2JZ.',
+    Status: 'in_stock', IsFeatured: 1, IsNew: 1, soldCount: undefined
   },
   {
-    ProductId: 13,
-    Sku: "PR640110",
-    Name: "Pop Race Lamborghini Huracán STO Blu Laufey",
-    Slug: "pop-race-lamborghini-huracan-sto-blu-laufey",
-    CategoryId: 5,
-    CategorySlug: "partner",
-    CategoryName: "Pop Race & Collab",
-    Brand: "Pop Race",
-    Scale: "1:64",
-    Price: 450000,
-    OldPrice: null,
-    DepositAmount: null,
-    QuotaPercent: 0,
-    EditionNote: "+ Openable Engine",
-    PreOrderDeadline: null,
-    Stock: 11,
-    ImageUrl: "image/Poprace_Lambo_Secret.webp",
-    Description: "Huracán STO màu xanh Laufey đặc trưng, mở nắp khoang động cơ cực kỳ tinh xảo.",
-    Status: "in_stock",
-    IsFeatured: 0,
-    IsNew: 1
+    ProductId: 13, id: 13, Sku: 'PR640118', CarNumber: '118',
+    Name: 'Pop Race Nissan Skyline GT-R V8 Drift (Hakosuka) Red Metallic',
+    Slug: 'pop-race-nissan-skyline-gt-r-v8-drift-hakosuka-red',
+    CategoryId: 5, CategorySlug: 'undefined', CategoryName: 'undefined',
+    Brand: 'Pop Race', Scale: '1:64',
+    PriceBox: 450000, PriceCard: 450000, Price: 450000, OldPrice: 490000,
+    DiscountPercent: 0, PackagingType: 'box_only',
+    DepositAmount: 0, QuotaPercent: 86, EditionNote: 'Tháo Rời Nắp Máy Động Cơ V8',
+    PreOrderDeadline: null, Stock: 14,
+    ImageUrl: 'image/Poprace_Lambo_Secret.webp',
+    Description: 'Huyền thoại Hakosuka độ Drift động cơ V8 của Pop Race với sơn đỏ Metallic và bánh lốp cao su thật.',
+    Status: 'in_stock', IsFeatured: 0, IsNew: 1, soldCount: undefined
   },
   {
-    ProductId: 14,
-    Sku: "TH-ULTRA63",
-    Name: "Trends Hobby Lamborghini Huracán GT3 EVO2 #63 Ultraman Tiga",
-    Slug: "trends-hobby-lamborghini-huracan-gt3-evo2-63-ultraman-tiga",
-    CategoryId: 5,
-    CategorySlug: "partner",
-    CategoryName: "Pop Race & Collab",
-    Brand: "Trends Hobby",
-    Scale: "1:64",
-    Price: 590000,
-    OldPrice: null,
-    DepositAmount: null,
-    QuotaPercent: 0,
-    EditionNote: "+ Bản quyền Ultraman",
-    PreOrderDeadline: null,
-    Stock: 7,
-    ImageUrl: "image/TH_LamboUltraman.jpg",
-    Description: "Phiên bản giới hạn bản quyền chính thức Ultraman Tiga với hộp acrylic cao cấp và đế da sang trọng.",
-    Status: "in_stock",
-    IsFeatured: 1,
-    IsNew: 1
+    ProductId: 14, id: 14, Sku: 'TH640012', CarNumber: 'KH12',
+    Name: 'Toyota Yaris WRC #18 Katsuta Takamoto Rally Japan Acrylic Case',
+    Slug: 'toyota-yaris-wrc-18-katsuta-takamoto-rally-japan',
+    CategoryId: 5, CategorySlug: 'undefined', CategoryName: 'undefined',
+    Brand: 'Kaido House', Scale: '1:64',
+    PriceBox: 500000, PriceCard: 500000, Price: 450000, OldPrice: 500000,
+    DiscountPercent: 10, PackagingType: 'box_only',
+    DepositAmount: 0, QuotaPercent: 80, EditionNote: 'Kèm Đế Da & Hộp Mica Trưng Bày',
+    PreOrderDeadline: null, Stock: 10,
+    ImageUrl: 'image/TH_LamboUltraman.jpg',
+    Description: 'Mô hình xe đua địa hình WRC Toyota Yaris kèm đế trưng bày và hộp chống bụi Acrylic sang trọng.',
+    Status: 'in_stock', IsFeatured: 0, IsNew: 1, soldCount: undefined
   },
   {
-    ProductId: 15,
-    Sku: "COMBO-AMR24",
-    Name: "Combo Aston Martin AMR24 Las Vegas 2024 (Stroll #18 + Alonso #14)",
-    Slug: "combo-aston-martin-amr24-las-vegas-2024",
-    CategoryId: 4,
-    CategorySlug: "box-sets",
-    CategoryName: "Box Sets & Combo",
-    Brand: "MINI GT",
-    Scale: "1:64",
-    Price: 880000,
-    OldPrice: 950000,
-    DepositAmount: 300000,
-    QuotaPercent: 85,
-    EditionNote: "+ Trọn Bộ 2 Xe F1",
-    PreOrderDeadline: "2026-10-30",
-    Stock: 10,
-    ImageUrl: "image/aston-amr24-stroll.png",
-    Description: "Cặp bài trùng AMR24 Las Vegas của 2 tay đua Lance Stroll và Fernando Alonso, tặng kèm decal bảo vệ.",
-    Status: "pre_order",
-    IsFeatured: 1,
-    IsNew: 1
+    ProductId: 15, id: 15, Sku: 'MGTS0019', CarNumber: 'S019',
+    Name: 'Combo 2 Xe Porsche 911 GT3 R AO Racing Rexy #80 & Roxy #77 Twin Pack',
+    Slug: 'combo-2-xe-porsche-911-gt3-r-ao-racing-rexy-roxy',
+    CategoryId: 4, CategorySlug: 'undefined', CategoryName: 'undefined',
+    Brand: 'MINI GT', Scale: '1:64',
+    PriceBox: 750000, PriceCard: 870000, Price: 713000, OldPrice: 750000,
+    DiscountPercent: 5, PackagingType: 'both',
+    DepositAmount: 0, QuotaPercent: 95, EditionNote: 'Combo Rexy + Roxy Tiết Kiệm',
+    PreOrderDeadline: null, Stock: 6,
+    ImageUrl: 'image/roxy-rexy-2.webp',
+    Description: 'Bộ đôi khủng long đường đua Rexy #80 (Xanh) và Roxy #77 (Hồng) đóng gói Combo 2 xe ưu đãi.',
+    Status: 'in_stock', IsFeatured: 1, IsNew: 1, soldCount: undefined
   },
   {
-    ProductId: 16,
-    Sku: "COMBO-AO3",
-    Name: "Combo AO Racing Porsche 911 GT3 R \"Rexy – Roxy – Skeleton\"",
-    Slug: "combo-ao-racing-porsche-911-gt3-r-rexy-roxy-skeleton",
-    CategoryId: 4,
-    CategorySlug: "box-sets",
-    CategoryName: "Box Sets & Combo",
-    Brand: "MINI GT",
-    Scale: "1:64",
-    Price: 1090000,
-    OldPrice: 1150000,
-    DepositAmount: 400000,
-    QuotaPercent: 92,
-    EditionNote: "+ Bộ 3 Khủng Long IMSA",
-    PreOrderDeadline: "2026-10-30",
-    Stock: 8,
-    ImageUrl: "image/Roxy.webp",
-    Description: "Bộ ba khủng long AO Racing vang danh làng đua xe thể thao IMSA Mỹ.",
-    Status: "pre_order",
-    IsFeatured: 1,
-    IsNew: 1
+    ProductId: 16, id: 16, Sku: 'MGT00642', CarNumber: '642',
+    Name: 'Red Bull RB18 #11 Sergio Perez & RB18 #1 Verstappen Pit Crew Box Set',
+    Slug: 'red-bull-rb18-verstappen-perez-pit-crew-box-set',
+    CategoryId: 4, CategorySlug: 'undefined', CategoryName: 'undefined',
+    Brand: 'TSM-Model', Scale: '1:64',
+    PriceBox: 1150000, PriceCard: 1150000, Price: 1150000, OldPrice: 1290000,
+    DiscountPercent: 0, PackagingType: 'box_only',
+    DepositAmount: 0, QuotaPercent: 88, EditionNote: 'Set 2 Xe F1 + Đội Kỹ Thuật Pit Stop',
+    PreOrderDeadline: null, Stock: 7,
+    ImageUrl: 'image/f1-redbull-live.webp',
+    Description: 'Hộp sa bàn Pit Stop Red Bull Racing gồm 2 xe F1 RB18 và dàn nhân vật kỹ thuật viên thay lốp.',
+    Status: 'in_stock', IsFeatured: 1, IsNew: 0, soldCount: undefined
   },
   {
-    ProductId: 17,
-    Sku: "MGT01055-LW",
-    Name: "LB★WORKS Lamborghini Huracán GT Gravity (Vỉ Blister Card)",
-    Slug: "lb-works-lamborghini-huracan-gt-gravity-blister-card",
-    CategoryId: 1,
-    CategorySlug: "liberty-walk",
-    CategoryName: "Liberty Walk LBWK",
-    Brand: "MINI GT",
-    Scale: "1:64",
-    Price: 370000,
-    OldPrice: null,
-    DepositAmount: null,
-    QuotaPercent: 0,
-    EditionNote: "+ Đóng Gói Vỉ Blister",
-    PreOrderDeadline: null,
-    Stock: 16,
-    ImageUrl: "image/minig_lambo_lbwk.webp",
-    Description: "Quy cách đóng vỉ Blister Card dành cho collector thích giữ nguyên seal treo tường trưng bày.",
-    Status: "in_stock",
-    IsFeatured: 0,
-    IsNew: 0
+    ProductId: 17, id: 17, Sku: 'MGT01055-LW', CarNumber: '1055C',
+    Name: 'LB★WORKS Lamborghini Huracán GT Gravity (Bản Vỉ Blister Card)',
+    Slug: 'lb-works-lamborghini-huracan-gt-gravity-blister-card',
+    CategoryId: 1, CategorySlug: 'undefined', CategoryName: 'undefined',
+    Brand: 'MINI GT', Scale: '1:64',
+    PriceBox: 410000, PriceCard: 410000, Price: 410000, OldPrice: 450000,
+    DiscountPercent: 0, PackagingType: 'card_only',
+    DepositAmount: 0, QuotaPercent: 91, EditionNote: 'Vỉ Nhựa Blister Card Art Nguyên Seal',
+    PreOrderDeadline: null, Stock: 12,
+    ImageUrl: 'image/minig_lambo_lbwk.webp',
+    Description: 'Phiên bản đóng gói Vỉ nhựa cứng Blister Card cao cấp kèm ảnh bìa nghệ thuật Liberty Walk chống cấn góc 100%.',
+    Status: 'in_stock', IsFeatured: 0, IsNew: 1, soldCount: undefined
+  },
+  {
+    ProductId: 18, id: 18, Sku: 'MGT00688', CarNumber: '688',
+    Name: 'LB★WORKS Lamborghini Aventador Limited Edition Matte Black',
+    Slug: 'lb-works-lamborghini-aventador-limited-edition-matte-black',
+    CategoryId: 1, CategorySlug: 'undefined', CategoryName: 'undefined',
+    Brand: 'MINI GT', Scale: '1:64',
+    PriceBox: 380000, PriceCard: 440000, Price: 380000, OldPrice: 420000,
+    DiscountPercent: 0, PackagingType: 'both',
+    DepositAmount: 0, QuotaPercent: 89, EditionNote: 'Siêu Bò Aventador Widebody Đen Nhám',
+    PreOrderDeadline: null, Stock: 10,
+    ImageUrl: 'image/Minigt_Lambo_LBWK.jpg',
+    Description: 'Siêu bò Lamborghini Aventador độ thân rộng LB★WORKS màu đen nhám kết hợp cánh gió GT cỡ lớn.',
+    Status: 'in_stock', IsFeatured: 1, IsNew: 0, soldCount: undefined
   }
 ];
 
@@ -576,10 +436,20 @@ function clearWishlist() {
 // Khởi tạo giỏ hàng (mặc định 3 mẫu để khớp chính xác badge 3 ở header như ảnh chụp)
 let savedCart = localStorage.getItem('minigt_cart');
 let cart = savedCart ? JSON.parse(savedCart) : [
-  { productId: 1, sku: 'MGTS0026', name: 'Lamborghini Huracán Sterrato All-Terrain Set (Box 4 xe)', price: 1850000, depositAmount: 500000, quantity: 1, imageUrl: 'image/lambo-sterrato-set.png', scale: '1:64' },
-  { productId: 2, sku: 'MGT01413', name: 'Aston Martin AMR24 #18 Lance Stroll F1 Las Vegas GP', price: 460000, depositAmount: 150000, quantity: 1, imageUrl: 'image/aston-amr24-stroll.png', scale: '1:64' },
-  { productId: 3, sku: 'MGT01396', name: 'Aston Martin AMR24 #14 Fernando Alonso F1 Las Vegas GP', price: 450000, depositAmount: 150000, quantity: 1, imageUrl: 'image/aston-amr24-alonso.png', scale: '1:64' }
+  { productId: 1, sku: 'MGTS0026', name: 'Lamborghini Huracán Sterrato All-Terrain Set (Box 4 xe)', price: 1850000, priceBox: 1850000, priceCard: 1850000, packType: 'box', depositAmount: 500000, quantity: 1, imageUrl: 'image/lambo-sterrato-set.png', scale: '1:64' },
+  { productId: 2, sku: 'MGT01413', name: 'Aston Martin AMR24 #18 Lance Stroll 2024 F1 Las Vegas GP', price: 378000, priceBox: 420000, priceCard: 480000, discountPercent: 10, packType: 'box', depositAmount: 150000, quantity: 1, imageUrl: 'image/aston-amr24-stroll.png', scale: '1:64' },
+  { productId: 3, sku: 'MGT01396', name: 'Aston Martin AMR24 #14 Fernando Alonso 2024 F1 Las Vegas GP', price: 420000, priceBox: 420000, priceCard: 480000, discountPercent: 0, packType: 'box', depositAmount: 150000, quantity: 1, imageUrl: 'image/aston-amr24-alonso.png', scale: '1:64' }
 ];
+
+// Tự động chuẩn hóa ảnh trong giỏ nếu cache trình duyệt còn lưu URL cũ không tồn tại
+if (Array.isArray(cart)) {
+  cart.forEach(item => {
+    if (!item.imageUrl || item.imageUrl.includes('amr24.webp')) item.imageUrl = 'image/aston-amr24-alonso.png';
+    else if (item.imageUrl.includes('f1.webp')) item.imageUrl = 'image/aston-amr24-stroll.png';
+    else if (item.imageUrl.includes('huracan.webp')) item.imageUrl = 'image/lambo-sterrato-set.png';
+    else if (item.imageUrl.includes('lambo.webp')) item.imageUrl = 'image/Minigt_Lambo_GT3.jpg';
+  });
+}
 let currentUser = JSON.parse(localStorage.getItem('minigt_user')) || null;
 let currentToken = localStorage.getItem('minigt_token') || null;
 
@@ -685,10 +555,21 @@ function getProductBoxCardPricing(p) {
     discountPercent = Math.max(1, Math.round(((pOldLegacy - pPriceLegacy) / pOldLegacy) * 100));
   }
 
-  const baseBox = Number(norm.priceBox ?? norm.PriceBox ?? (discountPercent > 0 && pOldLegacy > pPriceLegacy ? pOldLegacy : pPriceLegacy)) || 350000;
+  let baseBox = Number(norm.priceBox ?? norm.PriceBox ?? 0);
   let baseCard = Number(norm.priceCard ?? norm.PriceCard ?? 0);
-  if (!baseCard || baseCard <= baseBox) {
-    baseCard = baseBox + (baseBox >= 500000 ? 80000 : 60000);
+
+  if (packagingType === 'card_only') {
+    if (!baseCard) baseCard = (discountPercent > 0 && pOldLegacy > pPriceLegacy ? pOldLegacy : pPriceLegacy) || 380000;
+    if (!baseBox) baseBox = baseCard;
+  } else if (packagingType === 'box_only') {
+    if (!baseBox) baseBox = (discountPercent > 0 && pOldLegacy > pPriceLegacy ? pOldLegacy : pPriceLegacy) || 320000;
+    if (!baseCard) baseCard = baseBox;
+  } else {
+    // 'both'
+    if (!baseBox) baseBox = (discountPercent > 0 && pOldLegacy > pPriceLegacy ? pOldLegacy : pPriceLegacy) || 320000;
+    if (!baseCard || baseCard <= baseBox) {
+      baseCard = baseBox + (baseBox >= 500000 ? 80000 : 60000);
+    }
   }
 
   // Trừ trực tiếp % giảm giá vào tiền
@@ -699,7 +580,28 @@ function getProductBoxCardPricing(p) {
 
   const finalPriceBox = Number(norm.finalPriceBox ?? norm.FinalPriceBox ?? calcFinal(baseBox));
   const finalPriceCard = Number(norm.finalPriceCard ?? norm.FinalPriceCard ?? calcFinal(baseCard));
-  const defaultPack = packagingType === 'card_only' ? 'card' : 'box';
+
+  // Tồn kho thực tế của từng bản Box và Card
+  const totalStock = typeof norm.stock === 'number' ? norm.stock : (typeof norm.Stock === 'number' ? norm.Stock : 10);
+  let stockBox = (typeof norm.stockBox === 'number') ? norm.stockBox : (typeof norm.StockBox === 'number' ? norm.StockBox : null);
+  let stockCard = (typeof norm.stockCard === 'number') ? norm.stockCard : (typeof norm.StockCard === 'number' ? norm.StockCard : null);
+
+  if (stockBox === null) {
+    stockBox = packagingType === 'card_only' ? 0 : Math.ceil(totalStock / 2);
+  }
+  if (stockCard === null) {
+    stockCard = packagingType === 'box_only' ? 0 : Math.floor(totalStock / 2);
+  }
+
+  const isBoxAvailable = packagingType !== 'card_only' && stockBox > 0;
+  const isCardAvailable = packagingType !== 'box_only' && stockCard > 0;
+
+  let defaultPack = 'box';
+  if (!isBoxAvailable && isCardAvailable) {
+    defaultPack = 'card';
+  } else if (packagingType === 'card_only') {
+    defaultPack = 'card';
+  }
 
   return {
     packagingType,
@@ -709,6 +611,10 @@ function getProductBoxCardPricing(p) {
     priceCard: baseCard,
     finalPriceBox,
     finalPriceCard,
+    stockBox,
+    stockCard,
+    isBoxAvailable,
+    isCardAvailable,
     defaultPack
   };
 }
@@ -716,9 +622,18 @@ function getProductBoxCardPricing(p) {
 function getSelectedPackForProduct(p) {
   const pId = p.ProductId || p.id;
   const pricing = getProductBoxCardPricing(p);
+
+  // Nếu chỉ có 1 bản khả dụng, bắt buộc chọn bản đó
+  if (!pricing.isBoxAvailable && pricing.isCardAvailable) return 'card';
+  if (!pricing.isCardAvailable && pricing.isBoxAvailable) return 'box';
   if (pricing.packagingType === 'box_only') return 'box';
   if (pricing.packagingType === 'card_only') return 'card';
-  return selectedCardPackaging[pId] || pricing.defaultPack || 'box';
+
+  const userChoice = selectedCardPackaging[pId];
+  if (userChoice === 'box' && !pricing.isBoxAvailable && pricing.isCardAvailable) return 'card';
+  if (userChoice === 'card' && !pricing.isCardAvailable && pricing.isBoxAvailable) return 'box';
+
+  return userChoice || pricing.defaultPack || 'box';
 }
 
 async function loadProducts() {
@@ -766,7 +681,13 @@ function createProductCardHTML(p) {
   const pId = p.ProductId || p.id;
   const pName = p.Name || p.name || 'Mini GT 1:64';
   const pSku = p.Sku || p.sku || 'MGT0000';
-  const pImg = p.ImageUrl || p.imageUrl || p.image || p.Image || 'image/hero-banner.jpg';
+  let pImg = p.ImageUrl || p.imageUrl || p.image || p.Image || 'image/hero-banner.jpg';
+  if (pImg.includes('amr24.webp')) pImg = 'image/aston-amr24-alonso.png';
+  else if (pImg.includes('f1.webp')) pImg = 'image/aston-amr24-stroll.png';
+  else if (pImg.includes('huracan.webp')) pImg = 'image/lambo-sterrato-set.png';
+  else if (pImg.includes('lambo.webp')) pImg = 'image/Minigt_Lambo_GT3.jpg';
+  else if (pImg.includes('Poprace_Skyline.webp')) pImg = 'image/Poprace_Lambo_Secret.webp';
+  else if (pImg.includes('Toyota_Yaris_TrendsHobby.webp')) pImg = 'image/TH_LamboUltraman.jpg';
   const statusVal = String(p.Status || p.status || 'in_stock').toLowerCase();
   const isPreOrder = statusVal === 'pre_order';
   const stockCount = typeof p.Stock === 'number' ? p.Stock : (typeof p.stock === 'number' ? p.stock : 10);
@@ -776,7 +697,9 @@ function createProductCardHTML(p) {
   const activePack = getSelectedPackForProduct(p);
   const currentFinalPrice = activePack === 'card' ? pricing.finalPriceCard : pricing.finalPriceBox;
   const currentBasePrice = activePack === 'card' ? pricing.priceCard : pricing.priceBox;
-  const currentDeposit = Math.round(currentFinalPrice * 0.3);
+  const expDelivery = p.ExpectedDelivery || p.expectedDelivery || (isPreOrder ? 'Tháng 11/2026' : null);
+  const depPct = Number(p.DepositPercent || p.depositPercent || 30);
+  const currentDeposit = Math.round((currentFinalPrice * (depPct / 100)) / 1000) * 1000;
 
   const hasDiscount = !isOutOfStock && pricing.hasDiscount && pricing.discountPercent > 0;
   const discountPct = pricing.discountPercent;
@@ -811,24 +734,38 @@ function createProductCardHTML(p) {
   const carNum = p.CarNumber || (pSku ? pSku.replace(/\D/g, '').replace(/^0+/, '') : '') || '64';
   const isWish = isInWishlist(pId);
 
-  // 3. Thanh chọn Box / Card ngay trên card sản phẩm (nhỏ gọn, tinh tế)
-  const boxDisabled = pricing.packagingType === 'card_only';
-  const cardDisabled = pricing.packagingType === 'box_only';
+  // 3. Thanh chọn Box / Card ngay trên card sản phẩm (nhỏ gọn, tinh tế, gạch nếu không có)
+  const isBoxDisabled = !pricing.isBoxAvailable;
+  const isCardDisabled = !pricing.isCardAvailable;
+  const boxReason = pricing.packagingType === 'card_only'
+    ? (isEn ? 'No Box' : 'Không có Box')
+    : (pricing.stockBox <= 0 ? (isEn ? 'Out of Box' : 'Hết Box') : '');
+  const cardReason = pricing.packagingType === 'box_only'
+    ? (isEn ? 'No Card' : 'Không có Card')
+    : (pricing.stockCard <= 0 ? (isEn ? 'Out of Card' : 'Hết Card') : '');
+
+  const boxLabelHtml = isBoxDisabled
+    ? `<span class="pack-label"><i class="fa-solid fa-cube"></i> <del>Box</del><span class="pack-sub-status">(${boxReason})</span></span>`
+    : `<span class="pack-label"><i class="fa-solid fa-cube"></i> Box</span>`;
+
+  const cardLabelHtml = isCardDisabled
+    ? `<span class="pack-label"><i class="fa-solid fa-shield-halved"></i> <del>Card</del><span class="pack-sub-status">(${cardReason})</span></span>`
+    : `<span class="pack-label"><i class="fa-solid fa-shield-halved"></i> Card</span>`;
 
   const packSwitchHtml = `
     <div class="card-pack-switch" role="group" aria-label="Chọn Box hoặc Card">
       <button type="button"
-        class="card-pack-btn ${activePack === 'box' ? 'active' : ''}"
-        ${boxDisabled ? 'disabled title="Mẫu này chỉ có bản Card Blister"' : ''}
+        class="card-pack-btn ${activePack === 'box' ? 'active' : ''} ${isBoxDisabled ? 'pack-unavailable' : ''}"
+        ${isBoxDisabled ? `disabled title="${boxReason}"` : ''}
         onclick="selectCardPackaging(${pId}, 'box', event)">
-        <span class="pack-label"><i class="fa-solid fa-cube"></i> Box</span>
+        ${boxLabelHtml}
         <span class="pack-price">${formatVND(pricing.finalPriceBox)}</span>
       </button>
       <button type="button"
-        class="card-pack-btn ${activePack === 'card' ? 'active' : ''}"
-        ${cardDisabled ? 'disabled title="Mẫu này chỉ có bản Hộp Box"' : ''}
+        class="card-pack-btn ${activePack === 'card' ? 'active' : ''} ${isCardDisabled ? 'pack-unavailable' : ''}"
+        ${isCardDisabled ? `disabled title="${cardReason}"` : ''}
         onclick="selectCardPackaging(${pId}, 'card', event)">
-        <span class="pack-label"><i class="fa-solid fa-shield-halved"></i> Card</span>
+        ${cardLabelHtml}
         <span class="pack-price">${formatVND(pricing.finalPriceCard)}</span>
       </button>
     </div>
@@ -852,7 +789,7 @@ function createProductCardHTML(p) {
 
     let priceSubHintHtml = '';
     if (isPreOrder) {
-      priceSubHintHtml = `<span class="card-deposit-hint" id="cardSubHint_${pId}">${isEn ? 'Deposit 30%:' : 'Cọc 30%:'} ${formatVND(currentDeposit)}</span>`;
+      priceSubHintHtml = `<span class="card-deposit-hint" id="cardSubHint_${pId}">${isEn ? `Deposit ${depPct}%:` : `Cọc ${depPct}%:`} ${formatVND(currentDeposit)}</span>`;
     } else if (hasDiscount) {
       priceSubHintHtml = `<span class="card-deposit-hint" id="cardSubHint_${pId}">${isEn ? 'Save' : 'Giảm trực tiếp'} ${formatVND(currentBasePrice - currentFinalPrice)} (-${discountPct}%)</span>`;
     } else {
@@ -881,6 +818,8 @@ function createProductCardHTML(p) {
     ? (isEn ? 'Sold Out' : 'Hết hàng')
     : (isPreOrder ? 'Pre-Order' : (isEn ? 'In Stock' : 'Sẵn hàng'));
   const statusPillColor = isOutOfStock ? '#dc2626' : (isPreOrder ? '#d97706' : '#059669');
+  const editionLabel = p.EditionNote || p.editionNote || (isEn ? 'Alloy Body • Rubber Tires' : 'Thân kim loại • Lốp cao su');
+  const scaleLabel = p.Scale || p.scale || '1:64';
 
   return `
     <article class="product-card reveal-on-scroll" data-id="${pId}" data-pack="${activePack}">
@@ -905,6 +844,16 @@ function createProductCardHTML(p) {
           <span style="font-size:10px; font-weight:700; color:${statusPillColor};">${statusPillText}</span>
         </div>
         <h3 class="product-title" onclick="openQuickView(${pId})" title="${escapeHtml(pName)}">${escapeHtml(pName)}</h3>
+        <div class="card-collector-specs">
+          <span class="spec-chip"><i class="fa-solid fa-ruler-combined"></i> ${escapeHtml(scaleLabel)} Diecast</span>
+          <span class="spec-edition" title="${escapeHtml(editionLabel)}">${escapeHtml(editionLabel)}</span>
+        </div>
+        ${isPreOrder && expDelivery ? `
+          <div class="card-preorder-eta" style="font-size:10.5px; color:#6d28d9; background:#f5f3ff; border:1px solid #ddd6fe; border-radius:5px; padding:3px 7px; margin-top:5px; font-weight:700; display:flex; align-items:center; gap:5px;">
+            <i class="fa-regular fa-calendar-check" style="color:#7c3aed;"></i>
+            <span>Dự kiến về: <strong>${escapeHtml(expDelivery)}</strong></span>
+          </div>
+        ` : ''}
         ${packSwitchHtml}
         <div class="card-footer">
           ${priceBlockHtml}
@@ -918,13 +867,18 @@ function createProductCardHTML(p) {
 function selectCardPackaging(productId, packType, event) {
   if (event && event.stopPropagation) event.stopPropagation();
   const normalizedPack = packType === 'card' ? 'card' : 'box';
-  selectedCardPackaging[productId] = normalizedPack;
 
   const prod = (allProducts && allProducts.length ? allProducts : FALLBACK_PRODUCTS).find(p => (p.ProductId || p.id) == productId);
   if (!prod) return;
 
   const isEn = typeof currentSiteLang !== 'undefined' && currentSiteLang === 'en';
   const pricing = getProductBoxCardPricing(prod);
+
+  // Không cho phép chuyển sang quy cách không được mở bán hoặc đã hết hàng
+  if (normalizedPack === 'card' && !pricing.isCardAvailable) return;
+  if (normalizedPack === 'box' && !pricing.isBoxAvailable) return;
+
+  selectedCardPackaging[productId] = normalizedPack;
   const finalPrice = normalizedPack === 'card' ? pricing.finalPriceCard : pricing.finalPriceBox;
   const basePrice = normalizedPack === 'card' ? pricing.priceCard : pricing.priceBox;
   const isPreOrder = String(prod.Status || prod.status || '').toLowerCase() === 'pre_order';
@@ -999,7 +953,7 @@ function renderPreOrderQuickRow() {
 // 6. RENDER CÁC KHU VỰC SẢN PHẨM & PHÂN TRANG CATALOGUE (PAGINATION)
 // =====================================================================
 let catalogCurrentPage = 1;
-const CATALOG_PER_PAGE = 9;
+const CATALOG_PER_PAGE = 8;
 
 function handleCatalogSort(sortVal) {
   currentSort = sortVal;
@@ -1013,6 +967,47 @@ function handleCatalogBrandChange(brandVal) {
   renderProductsGrid();
 }
 
+function matchesProductFilter(p, filterKey) {
+  if (!p) return false;
+  if (!filterKey || filterKey === 'all') return true;
+
+  const stockVal = (typeof p.Stock === 'number') ? p.Stock : (typeof p.stock === 'number' ? p.stock : 10);
+  const st = String(p.Status || p.status || 'in_stock').toLowerCase();
+  const isOutOfStock = stockVal <= 0 || st === 'sold_out' || st === 'out_of_stock' || Boolean(p.isOutOfStock);
+
+  if (filterKey === 'bestseller') {
+    return Boolean(p.IsBestSeller || (p.soldCount && p.soldCount > 20) || p.isHot || [10, 8, 4, 5, 1, 2, 6].includes(Number(p.ProductId || p.id)));
+  }
+  if (filterKey === 'in_stock') {
+    return !isOutOfStock && st !== 'pre_order';
+  }
+  if (filterKey === 'pre_order') {
+    return st === 'pre_order';
+  }
+
+  const catSlug = String(p.CategorySlug || p.categorySlug || '').toLowerCase();
+  const name = String(p.Name || p.name || '').toLowerCase();
+  const sku = String(p.Sku || p.sku || '').toUpperCase();
+  const note = String(p.EditionNote || p.editionNote || '').toLowerCase();
+
+  if (filterKey === 'lbwk') {
+    return catSlug === 'liberty-walk' || name.includes('lb') || note.includes('liberty');
+  }
+  if (filterKey === 'chase') {
+    return catSlug === 'partner' || sku.startsWith('PR') || sku.startsWith('TH') || name.includes('secret') || name.includes('chase');
+  }
+  if (filterKey === 'f1') {
+    return catSlug === 'f1-racing' || name.includes('f1') || name.includes('red bull') || name.includes('amr24');
+  }
+  if (filterKey === 'box_sets') {
+    return catSlug === 'box-sets' || name.includes('box') || name.includes('set') || name.includes('combo');
+  }
+  if (filterKey === 'ao_racing') {
+    return catSlug === 'gt-racing' || name.includes('ao racing') || name.includes('rexy') || name.includes('roxy') || name.includes('ske');
+  }
+  return true;
+}
+
 function renderProductsGrid() {
   const container = document.getElementById('mainProductGrid');
   if (!container) return;
@@ -1020,27 +1015,7 @@ function renderProductsGrid() {
   let filtered = [...allProducts];
 
   // 1. Lọc theo Danh mục Filter Pill
-  if (currentFilter === 'bestseller') {
-    filtered = filtered.filter(p => p.IsBestSeller || (p.soldCount && p.soldCount > 20) || p.isHot || [10, 8, 4, 5, 1, 2, 6].includes(Number(p.ProductId || p.id)));
-  } else if (currentFilter === 'in_stock') {
-    filtered = filtered.filter(p => {
-      const stockVal = (typeof p.Stock === 'number') ? p.Stock : (typeof p.stock === 'number' ? p.stock : 10);
-      const st = String(p.Status || p.status || 'in_stock').toLowerCase();
-      return stockVal > 0 && st !== 'sold_out' && st !== 'out_of_stock' && !p.isOutOfStock;
-    });
-  } else if (currentFilter === 'pre_order') {
-    filtered = filtered.filter(p => (p.Status || p.status) === 'pre_order');
-  } else if (currentFilter === 'lbwk') {
-    filtered = filtered.filter(p => (p.CategorySlug === 'liberty-walk' || (p.Name && p.Name.toLowerCase().includes('lb')) || (p.EditionNote && p.EditionNote.toLowerCase().includes('liberty'))));
-  } else if (currentFilter === 'chase') {
-    filtered = filtered.filter(p => ((p.Sku && (p.Sku.startsWith('PR') || p.Sku.startsWith('TH'))) || (p.Name && (p.Name.toLowerCase().includes('secret') || p.Name.toLowerCase().includes('chase')))));
-  } else if (currentFilter === 'f1') {
-    filtered = filtered.filter(p => (p.CategorySlug === 'f1-racing' || (p.Name && (p.Name.toLowerCase().includes('f1') || p.Name.toLowerCase().includes('red bull') || p.Name.toLowerCase().includes('amr24')))));
-  } else if (currentFilter === 'ao_racing') {
-    filtered = filtered.filter(p => p.Name && (p.Name.toLowerCase().includes('ao racing') || p.Name.toLowerCase().includes('rexy') || p.Name.toLowerCase().includes('roxy') || p.Name.toLowerCase().includes('ske')));
-  } else if (currentFilter === 'box_sets') {
-    filtered = filtered.filter(p => (p.CategorySlug === 'box-sets' || (p.Name && (p.Name.toLowerCase().includes('box') || p.Name.toLowerCase().includes('set') || p.Name.toLowerCase().includes('combo')))));
-  }
+  filtered = filtered.filter(p => matchesProductFilter(p, currentFilter));
 
   // 2. Lọc theo Hãng xe (Brand)
   if (currentBrandFilter && currentBrandFilter !== 'all') {
@@ -1171,21 +1146,11 @@ function renderBoxSetsSection() {
 }
 
 function updateFilterCounts() {
-  const counts = {
-    all: allProducts.length,
-    bestseller: allProducts.filter(p => p.IsBestSeller || (p.soldCount && p.soldCount > 20) || p.isHot || [10, 8, 4, 5, 1, 2, 6].includes(Number(p.ProductId || p.id))).length,
-    in_stock: allProducts.filter(p => {
-      const stockVal = (typeof p.Stock === 'number') ? p.Stock : (typeof p.stock === 'number' ? p.stock : 10);
-      const st = String(p.Status || p.status || 'in_stock').toLowerCase();
-      return stockVal > 0 && st !== 'sold_out' && st !== 'out_of_stock' && !p.isOutOfStock;
-    }).length,
-    pre_order: allProducts.filter(p => (p.Status || p.status) === 'pre_order').length,
-    lbwk: allProducts.filter(p => p.CategorySlug === 'liberty-walk' || (p.Name && p.Name.toLowerCase().includes('lb'))).length,
-    chase: allProducts.filter(p => (p.Sku && (p.Sku.startsWith('PR') || p.Sku.startsWith('TH'))) || (p.Name && p.Name.toLowerCase().includes('secret'))).length,
-    f1: allProducts.filter(p => p.CategorySlug === 'f1-racing' || (p.Name && (p.Name.toLowerCase().includes('f1') || p.Name.toLowerCase().includes('red bull')))).length,
-    box_sets: allProducts.filter(p => p.CategorySlug === 'box-sets' || (p.Name && (p.Name.toLowerCase().includes('box') || p.Name.toLowerCase().includes('combo')))).length,
-    ao_racing: allProducts.filter(p => p.Name && (p.Name.toLowerCase().includes('ao racing') || p.Name.toLowerCase().includes('rexy') || p.Name.toLowerCase().includes('roxy') || p.Name.toLowerCase().includes('ske'))).length
-  };
+  const filterKeys = ['all', 'bestseller', 'in_stock', 'pre_order', 'lbwk', 'chase', 'f1', 'box_sets', 'ao_racing'];
+  const counts = {};
+  filterKeys.forEach(k => {
+    counts[k] = allProducts.filter(p => matchesProductFilter(p, k)).length;
+  });
 
   document.querySelectorAll('.filter-pill').forEach(btn => {
     const filterKey = btn.getAttribute('data-filter');
@@ -1231,8 +1196,13 @@ function goToHeroSlide(index) {
   });
 
   dots.forEach((dot, idx) => {
-    dot.classList.toggle('active', idx === currentHeroSlideIndex);
-    dot.setAttribute('aria-current', idx === currentHeroSlideIndex ? 'true' : 'false');
+    const isAct = idx === currentHeroSlideIndex;
+    dot.classList.remove('active');
+    if (isAct) {
+      void dot.offsetWidth; // Force reflow to cleanly restart 10s progress bar
+      dot.classList.add('active');
+    }
+    dot.setAttribute('aria-current', isAct ? 'true' : 'false');
   });
 }
 
@@ -1455,9 +1425,10 @@ function addToCart(productId, quantity = 1, explicitPackType = null) {
     return;
   }
 
-  const unitFinalPrice = chosenPack === 'card' ? pricing.finalPriceCard : pricing.finalPriceBox;
-  const unitOriginalPrice = chosenPack === 'card' ? pricing.priceCard : pricing.priceBox;
-  const pDeposit = Math.round(unitFinalPrice * (storeSettings.deposit_rate || 0.3));
+  const isPreOrder = String(prod.Status || prod.status || '').toLowerCase() === 'pre_order';
+  const depPct = Number(prod.DepositPercent || prod.depositPercent || 30);
+  const pDeposit = Math.round((unitFinalPrice * (depPct / 100)) / 1000) * 1000;
+  const expDelivery = prod.ExpectedDelivery || prod.expectedDelivery || null;
 
   if (existing) {
     existing.quantity += quantity;
@@ -1470,6 +1441,8 @@ function addToCart(productId, quantity = 1, explicitPackType = null) {
     existing.finalPriceCard = pricing.finalPriceCard;
     existing.packagingType = pricing.packagingType;
     existing.depositAmount = pDeposit;
+    existing.depositPercent = depPct;
+    existing.expectedDelivery = expDelivery;
   } else {
     cart.push({
       productId: prod.ProductId || prod.id,
@@ -1485,8 +1458,10 @@ function addToCart(productId, quantity = 1, explicitPackType = null) {
       finalPriceBox: pricing.finalPriceBox,
       finalPriceCard: pricing.finalPriceCard,
       depositAmount: pDeposit,
+      depositPercent: depPct,
+      expectedDelivery: expDelivery,
       imageUrl: prod.ImageUrl || prod.image,
-      isPreOrder: String(prod.Status || prod.status || '').toLowerCase() === 'pre_order',
+      isPreOrder: isPreOrder,
       quantity: quantity
     });
   }
@@ -1635,20 +1610,25 @@ function renderCartDrawer() {
   const itemsContainer = document.getElementById('cartDrawerItems');
   const totalAmountEl = document.getElementById('cartTotalAmount');
   const depositAmountEl = document.getElementById('cartDepositAmount');
+  const remainingAmountEl = document.getElementById('cartRemainingAmount');
+  const headerCountPill = document.getElementById('cartHeaderCountPill');
   if (!itemsContainer) return;
 
   const isEn = typeof currentSiteLang !== 'undefined' && currentSiteLang === 'en';
+  const totalQty = cart.reduce((acc, it) => acc + (it.quantity || 1), 0);
+  if (headerCountPill) headerCountPill.textContent = totalQty;
 
   if (cart.length === 0) {
     itemsContainer.innerHTML = `
       <div class="cart-empty-state">
-        <p style="font-size: 36px; margin-bottom: 8px; color:#cbd5e1;"><i class="fa-solid fa-cart-shopping"></i></p>
-        <p>${isEn ? 'Your cart is empty' : 'Giỏ hàng của bạn đang trống'}</p>
-        <p style="font-size: 12px; margin-top: 4px;">${isEn ? 'Explore 1:64 Box & Blister Card models now!' : 'Khám phá các mẫu MINI GT 1:64 (Box & Card) ngay!'}</p>
+        <p style="font-size: 38px; margin-bottom: 10px; color:#cbd5e1;"><i class="fa-solid fa-cart-shopping"></i></p>
+        <strong style="font-size:15px; color:#0f172a; display:block; margin-bottom:4px;">${isEn ? 'Your cart is empty' : 'Giỏ hàng của bạn đang trống'}</strong>
+        <p style="font-size: 12px; margin: 0; color:#64748b;">${isEn ? 'Explore 1:64 Box & Blister Card models now!' : 'Khám phá các mẫu MINI GT 1:64 (Box & Card) ngay!'}</p>
       </div>
     `;
     if (totalAmountEl) totalAmountEl.textContent = '0đ';
     if (depositAmountEl) depositAmountEl.textContent = '0đ';
+    if (remainingAmountEl) remainingAmountEl.textContent = '0đ';
     return;
   }
 
@@ -1656,10 +1636,10 @@ function renderCartDrawer() {
   let totalDeposit = 0;
 
   const headerHtml = `
-    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; padding-bottom:6px; border-bottom:1px dashed #e2e8f0;">
-      <span style="font-size:12px; color:#64748b; font-weight:600;">${cart.length} ${isEn ? 'items in cart' : 'mẫu xe trong giỏ'}</span>
-      <button type="button" style="color:#dc2626; border:none; background:none; font-size:11.5px; cursor:pointer; font-weight:700;" onclick="clearCart()">
-        <i class="fa-solid fa-trash"></i> ${isEn ? 'Clear all' : 'Xóa tất cả'}
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px; padding-bottom:8px; border-bottom:1px dashed #e2e8f0;">
+      <span style="font-size:12px; color:#64748b; font-weight:700;"><i class="fa-solid fa-list-check"></i> ${cart.length} ${isEn ? 'selected models' : 'mẫu xe'} (${totalQty} ${isEn ? 'pcs' : 'chiếc'})</span>
+      <button type="button" style="color:#dc2626; border:none; background:none; font-size:11.5px; cursor:pointer; font-weight:700; display:inline-flex; align-items:center; gap:4px;" onclick="clearCart()">
+        <i class="fa-solid fa-trash-can"></i> ${isEn ? 'Clear all' : 'Xóa tất cả'}
       </button>
     </div>
   `;
@@ -1686,31 +1666,52 @@ function renderCartDrawer() {
     const boxDisabled = pricing.packagingType === 'card_only';
     const cardDisabled = pricing.packagingType === 'box_only';
 
+    // Xác định ảnh hợp lệ có fallback onerror
+    let itemImg = it.imageUrl || (prod ? (prod.ImageUrl || prod.image) : 'image/hero-banner.jpg');
+    if (itemImg.includes('amr24.webp')) itemImg = 'image/aston-amr24-alonso.png';
+    else if (itemImg.includes('f1.webp')) itemImg = 'image/aston-amr24-stroll.png';
+    else if (itemImg.includes('huracan.webp')) itemImg = 'image/lambo-sterrato-set.png';
+    else if (itemImg.includes('lambo.webp')) itemImg = 'image/Minigt_Lambo_GT3.jpg';
+
+    const isPreOrder = it.isPreOrder || (prod && String(prod.Status || prod.status || '').toLowerCase() === 'pre_order');
+
     return `
-      <div class="cart-item">
-        <img class="cart-item-thumb" src="${it.imageUrl || 'image/hero-banner.jpg'}" alt="${escapeHtml(it.name)}">
+      <div class="cart-item" data-id="${it.productId}" data-pack="${pack}">
+        <div class="cart-item-thumb-box">
+          <img class="cart-item-thumb" src="${escapeHtml(itemImg)}" alt="${escapeHtml(it.name)}" loading="lazy" onerror="this.onerror=null; this.src='image/hero-banner.jpg';">
+        </div>
         <div class="cart-item-details">
-          <div class="cart-item-title">${escapeHtml(it.name)}</div>
-          <div class="cart-pack-switch">
-            <button type="button" class="cart-pack-chip ${pack === 'box' ? 'active' : ''}" ${boxDisabled ? 'disabled' : ''} onclick="switchCartItemPackaging(${it.productId}, '${pack}', 'box')">
-              📦 Box (${formatVND(pricing.finalPriceBox)})
+          <div class="cart-item-meta-top">
+            <span class="cart-item-sku">#${escapeHtml(it.sku || (prod && prod.Sku) || 'MGT')}</span>
+            <span class="cart-item-tag ${isPreOrder ? 'is-preorder' : 'is-instock'}">
+              ${isPreOrder ? (isEn ? 'Pre-Order' : 'Cọc Trước') : (isEn ? 'In Stock' : 'Sẵn Kho')}
+            </span>
+          </div>
+          <h4 class="cart-item-title" title="${escapeHtml(it.name)}">${escapeHtml(it.name)}</h4>
+          <div class="cart-pack-switch" role="group" aria-label="Đổi Box / Card">
+            <button type="button" class="cart-pack-btn ${pack === 'box' ? 'active' : ''}" ${boxDisabled ? 'disabled title="Chỉ có bản Card"' : ''} onclick="switchCartItemPackaging(${it.productId}, '${pack}', 'box')">
+              <i class="fa-solid fa-cube"></i> Box (${formatVND(pricing.finalPriceBox)})
             </button>
-            <button type="button" class="cart-pack-chip ${pack === 'card' ? 'active' : ''}" ${cardDisabled ? 'disabled' : ''} onclick="switchCartItemPackaging(${it.productId}, '${pack}', 'card')">
-              🛡️ Card (${formatVND(pricing.finalPriceCard)})
+            <button type="button" class="cart-pack-btn ${pack === 'card' ? 'active is-card' : ''}" ${cardDisabled ? 'disabled title="Chỉ có bản Box"' : ''} onclick="switchCartItemPackaging(${it.productId}, '${pack}', 'card')">
+              <i class="fa-solid fa-shield-halved"></i> Card (${formatVND(pricing.finalPriceCard)})
             </button>
           </div>
-          <div class="cart-item-price">
-            ${formatVND(unitPrice)}
-            ${pricing.discountPercent > 0 && origPrice > unitPrice ? `<span style="font-size:10.5px; color:#94a3b8; text-decoration:line-through; margin-left:4px;">${formatVND(origPrice)}</span> <span style="font-size:10px; color:#e11d48; font-weight:800;">(-${pricing.discountPercent}%)</span>` : ''}
-            ${it.isPreOrder ? `<span class="badge badge-preorder" style="font-size:9px; margin-left:4px;">${isEn ? 'Pre-Order' : 'Cọc trước'}</span>` : ''}
+          <div class="cart-item-price-row">
+            <div class="cart-item-price">
+              ${formatVND(unitPrice)}
+              ${pricing.discountPercent > 0 && origPrice > unitPrice ? `<span class="old-p">${formatVND(origPrice)}</span> <span style="font-size:10px; color:#e11d48; font-weight:800;">(-${pricing.discountPercent}%)</span>` : ''}
+            </div>
+            <span class="cart-deposit-hint">${isEn ? 'Deposit 30%:' : 'Cọc 30%:'} ${formatVND(it.depositAmount * it.quantity)}</span>
           </div>
           <div class="cart-item-actions">
-            <div class="quantity-stepper">
-              <button onclick="changeCartQty(${it.productId}, -1, '${pack}')">-</button>
+            <div class="cart-stepper">
+              <button type="button" aria-label="Giảm" onclick="changeCartQty(${it.productId}, -1, '${pack}')">-</button>
               <span>${it.quantity}</span>
-              <button onclick="changeCartQty(${it.productId}, 1, '${pack}')">+</button>
+              <button type="button" aria-label="Tăng" onclick="changeCartQty(${it.productId}, 1, '${pack}')">+</button>
             </div>
-            <button class="remove-cart-item" onclick="removeCartItem(${it.productId}, '${pack}')">${isEn ? 'Remove' : 'Xóa'}</button>
+            <button type="button" class="cart-item-remove-btn" title="Xóa mẫu này" onclick="removeCartItem(${it.productId}, '${pack}')">
+              <i class="fa-regular fa-trash-can"></i> ${isEn ? 'Remove' : 'Xóa'}
+            </button>
           </div>
         </div>
       </div>
@@ -1719,8 +1720,10 @@ function renderCartDrawer() {
 
   itemsContainer.innerHTML = headerHtml + itemsHtml;
 
+  const totalRemaining = Math.max(0, total - totalDeposit);
   if (totalAmountEl) totalAmountEl.textContent = formatVND(total);
   if (depositAmountEl) depositAmountEl.textContent = formatVND(totalDeposit);
+  if (remainingAmountEl) remainingAmountEl.textContent = formatVND(totalRemaining);
 }
 
 function openCartDrawer() {
@@ -1747,7 +1750,13 @@ function openQuickView(productId) {
   const isEn = typeof currentSiteLang !== 'undefined' && currentSiteLang === 'en';
   const pId = prod.ProductId || prod.id;
   const pName = prod.Name || prod.name;
-  const pImg = prod.ImageUrl || prod.image || 'image/hero-banner.jpg';
+  let pImg = prod.ImageUrl || prod.image || 'image/hero-banner.jpg';
+  if (pImg.includes('amr24.webp')) pImg = 'image/aston-amr24-alonso.png';
+  else if (pImg.includes('f1.webp')) pImg = 'image/aston-amr24-stroll.png';
+  else if (pImg.includes('huracan.webp')) pImg = 'image/lambo-sterrato-set.png';
+  else if (pImg.includes('lambo.webp')) pImg = 'image/Minigt_Lambo_GT3.jpg';
+  else if (pImg.includes('Poprace_Skyline.webp')) pImg = 'image/Poprace_Lambo_Secret.webp';
+  else if (pImg.includes('Toyota_Yaris_TrendsHobby.webp')) pImg = 'image/TH_LamboUltraman.jpg';
   const pSku = prod.Sku || prod.sku;
   const pBrand = prod.Brand || prod.brand || 'MINI GT';
   const pScale = prod.Scale || prod.scale || '1:64';
@@ -1762,15 +1771,23 @@ function openQuickView(productId) {
   const currentFinal = activePack === 'card' ? pricing.finalPriceCard : pricing.finalPriceBox;
   const currentOrig = activePack === 'card' ? pricing.priceCard : pricing.priceBox;
   const diffPrice = Math.max(40000, pricing.finalPriceCard - pricing.finalPriceBox);
+  const expectedArrival = prod.ExpectedDelivery || prod.expectedDelivery || (isPreOrder ? 'Tháng 11/2026 (Có thể trễ hơn dự kiến)' : null);
+  const depPct = Number(prod.DepositPercent || prod.depositPercent || 30);
 
-  const boxDisabled = pricing.packagingType === 'card_only';
-  const cardDisabled = pricing.packagingType === 'box_only';
+  const isBoxDisabled = !pricing.isBoxAvailable;
+  const isCardDisabled = !pricing.isCardAvailable;
+  const boxReason = pricing.packagingType === 'card_only'
+    ? (isEn ? 'No Box' : 'Không có Box')
+    : (pricing.stockBox <= 0 ? (isEn ? 'Out of Box' : 'Hết Box') : '');
+  const cardReason = pricing.packagingType === 'box_only'
+    ? (isEn ? 'No Card' : 'Không có Card')
+    : (pricing.stockCard <= 0 ? (isEn ? 'Out of Card' : 'Hết Card') : '');
 
   body.innerHTML = `
     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1.5rem; align-items: start;">
       <div style="background: #f8fafc; border-radius: 14px; padding: 1.5rem; text-align: center; border: 1px solid #e2e8f0; position: relative;">
         ${pricing.hasDiscount && !isSoldOut ? `<span style="position:absolute; top:12px; left:12px; background:#e11d48; color:#fff; font-size:11px; font-weight:800; padding:4px 10px; border-radius:6px;">-${pricing.discountPercent}% TRỰC TIẾP</span>` : ''}
-        <img src="${pImg}" alt="${escapeHtml(pName)}" style="max-height: 240px; margin: 0 auto; object-fit: contain;">
+        <img src="${pImg}" alt="${escapeHtml(pName)}" style="max-height: 240px; margin: 0 auto; object-fit: contain;" onerror="this.onerror=null; this.src='image/hero-banner.jpg';">
       </div>
       <div>
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 8px;">
@@ -1794,19 +1811,39 @@ function openQuickView(productId) {
           </div>
         </div>
 
+        ${isPreOrder && expectedArrival ? `
+          <div style="margin-bottom: 12px; padding: 10px 14px; background: #f5f3ff; border-radius: 10px; border: 1.5px solid #c4b5fd; color: #5b21b6;">
+            <div style="font-weight: 800; font-size: 12.5px; display: flex; align-items: center; gap: 6px;">
+              <i class="fa-solid fa-calendar-check" style="color: #7c3aed;"></i> THÔNG TIN ĐỢT HÀNG PRE-ORDER
+            </div>
+            <div style="margin-top: 5px; font-size: 12.5px; color: #4c1d95;">
+              📅 <strong>Hàng dự kiến về kho:</strong> <span style="font-weight: 800; color: #6d28d9;">${escapeHtml(expectedArrival)}</span>
+            </div>
+            <div style="margin-top: 4px; font-size: 11.5px; color: #6d28d9; line-height: 1.45;">
+              🔒 <strong>Chính sách đặt cọc:</strong> Khách hàng chỉ cọc trước <strong>${depPct}%</strong> giá bán. Khi lô xe cập bến tại cửa hàng Biên Hòa, Admin sẽ chủ động liên hệ gửi thông báo qua Zalo / Email hoặc gọi điện thoại trực tiếp trước khi giao.
+            </div>
+          </div>
+        ` : ''}
+
         <div style="font-size:11.5px; font-weight:800; color:#334155; text-transform:uppercase; letter-spacing:0.04em; margin-bottom:4px;">
           ${isEn ? 'Select Packaging (Box vs Blister Card):' : 'Chọn quy cách đóng gói (Box / Card):'}
         </div>
         <div class="qv-pack-selector" id="qvPackSelector_${pId}">
-          <div class="qv-pack-option ${activePack === 'box' ? 'active' : ''}" ${boxDisabled ? 'style="opacity:0.4; pointer-events:none;"' : ''} onclick="selectQuickViewPack(${pId}, 'box')">
-            <div class="qv-pack-option-title"><i class="fa-solid fa-cube" style="color:#0284c7;"></i> ${isEn ? 'Paper Box' : 'Hộp Giấy (Box)'}</div>
+          <div class="qv-pack-option ${activePack === 'box' ? 'active' : ''} ${isBoxDisabled ? 'disabled' : ''}" ${isBoxDisabled ? `title="${boxReason}"` : `onclick="selectQuickViewPack(${pId}, 'box')"`}>
+            <div class="qv-pack-option-title">
+              <i class="fa-solid fa-cube" style="color:${isBoxDisabled ? '#94a3b8' : '#0284c7'};"></i>
+              ${isBoxDisabled ? `<del>${isEn ? 'Paper Box' : 'Hộp Giấy (Box)'}</del><span class="qv-pack-disabled-badge">${boxReason}</span>` : (isEn ? 'Paper Box' : 'Hộp Giấy (Box)')}
+            </div>
             <div class="qv-pack-option-price">${formatVND(pricing.finalPriceBox)} ${pricing.hasDiscount ? `<span style="font-size:10.5px; color:#94a3b8; text-decoration:line-through; font-weight:500;">${formatVND(pricing.priceBox)}</span>` : ''}</div>
-            <div class="qv-pack-option-sub">${isEn ? `Saves ${formatVND(diffPrice)} vs Card` : `Tiết kiệm ${formatVND(diffPrice)} so với Card`}</div>
+            <div class="qv-pack-option-sub">${isBoxDisabled ? (isEn ? 'Unavailable' : 'Không có sẵn') : (isEn ? `Saves ${formatVND(diffPrice)} vs Card` : `Tiết kiệm ${formatVND(diffPrice)} so với Card`)}</div>
           </div>
-          <div class="qv-pack-option ${activePack === 'card' ? 'active' : ''}" ${cardDisabled ? 'style="opacity:0.4; pointer-events:none;"' : ''} onclick="selectQuickViewPack(${pId}, 'card')">
-            <div class="qv-pack-option-title"><i class="fa-solid fa-shield-halved" style="color:#e11d48;"></i> ${isEn ? 'Blister Card' : 'Vỉ Nhựa (Card)'}</div>
+          <div class="qv-pack-option ${activePack === 'card' ? 'active' : ''} ${isCardDisabled ? 'disabled' : ''}" ${isCardDisabled ? `title="${cardReason}"` : `onclick="selectQuickViewPack(${pId}, 'card')"`}>
+            <div class="qv-pack-option-title">
+              <i class="fa-solid fa-shield-halved" style="color:${isCardDisabled ? '#94a3b8' : '#e11d48'};"></i>
+              ${isCardDisabled ? `<del>${isEn ? 'Blister Card' : 'Vỉ Nhựa (Card)'}</del><span class="qv-pack-disabled-badge">${cardReason}</span>` : (isEn ? 'Blister Card' : 'Vỉ Nhựa (Card)')}
+            </div>
             <div class="qv-pack-option-price">${formatVND(pricing.finalPriceCard)} ${pricing.hasDiscount ? `<span style="font-size:10.5px; color:#94a3b8; text-decoration:line-through; font-weight:500;">${formatVND(pricing.priceCard)}</span>` : ''}</div>
-            <div class="qv-pack-option-sub">${isEn ? 'Collector display blister' : 'Vỉ nhựa trưng bày kèm hộp giấy'}</div>
+            <div class="qv-pack-option-sub">${isCardDisabled ? (isEn ? 'Unavailable' : 'Không có sẵn') : (isEn ? 'Collector display blister' : 'Vỉ nhựa trưng bày kèm hộp giấy')}</div>
           </div>
         </div>
 
@@ -1832,13 +1869,16 @@ function openQuickView(productId) {
 }
 
 function selectQuickViewPack(productId, packType) {
-  selectCardPackaging(productId, packType);
   const prod = (allProducts && allProducts.length ? allProducts : FALLBACK_PRODUCTS).find(p => (p.ProductId || p.id) == productId);
   if (!prod) return;
 
   const isEn = typeof currentSiteLang !== 'undefined' && currentSiteLang === 'en';
   const pricing = getProductBoxCardPricing(prod);
   const chosen = packType === 'card' ? 'card' : 'box';
+  if (chosen === 'box' && !pricing.isBoxAvailable) return;
+  if (chosen === 'card' && !pricing.isCardAvailable) return;
+
+  selectCardPackaging(productId, packType);
   const finalPrice = chosen === 'card' ? pricing.finalPriceCard : pricing.finalPriceBox;
   const origPrice = chosen === 'card' ? pricing.priceCard : pricing.priceBox;
   const diffPrice = Math.max(40000, pricing.finalPriceCard - pricing.finalPriceBox);
@@ -2027,9 +2067,11 @@ function loadCheckoutFormState() {
     const nameInput = document.getElementById('checkoutName');
     const emailInput = document.getElementById('checkoutEmail');
     const phoneInput = document.getElementById('checkoutPhone');
+    const addressInput = document.getElementById('checkoutAddress');
     if (nameInput && !nameInput.value) nameInput.value = currentUser.fullName || '';
     if (emailInput && !emailInput.value) emailInput.value = currentUser.email || '';
     if (phoneInput && !phoneInput.value && currentUser.phone) phoneInput.value = currentUser.phone;
+    if (addressInput && !addressInput.value && currentUser.address) addressInput.value = currentUser.address;
   }
 }
 
@@ -2216,7 +2258,17 @@ function validateStep2AndProceed() {
 }
 
 function handlePaymentMethodChange(val) {
-  selectedCheckoutPaymentMethod = (val === 'FULL_TRANSFER') ? 'BANK_TRANSFER' : val;
+  const hasPreOrder = cart.some(it => it.isPreOrder);
+  if (hasPreOrder && val !== 'DEPOSIT') {
+    showToast('Đơn hàng có mô hình Pre-Order chỉ áp dụng phương thức Đặt cọc giữ mẫu qua MB Bank!', 'warning');
+    selectedCheckoutPaymentMethod = 'DEPOSIT';
+    val = 'DEPOSIT';
+    const depRadio = document.querySelector('input[name="checkoutPaymentMethod"][value="DEPOSIT"]');
+    if (depRadio) depRadio.checked = true;
+  } else {
+    selectedCheckoutPaymentMethod = (val === 'FULL_TRANSFER') ? 'BANK_TRANSFER' : val;
+  }
+
   const optCod = document.getElementById('payOptCod');
   const optDeposit = document.getElementById('payOptDeposit');
   const optFull = document.getElementById('payOptFull');
@@ -2245,6 +2297,38 @@ function handlePaymentMethodChange(val) {
 function renderCheckoutStep3() {
   const summaryEl = document.getElementById('checkoutStep3SummaryBox');
   if (!summaryEl) return;
+
+  const hasPreOrder = cart.some(it => it.isPreOrder);
+  const optCod = document.getElementById('payOptCod');
+  const optDeposit = document.getElementById('payOptDeposit');
+  const optFull = document.getElementById('payOptFull');
+
+  let preNotice = document.getElementById('preOrderPaymentNoticeInStep3');
+  if (hasPreOrder) {
+    selectedCheckoutPaymentMethod = 'DEPOSIT';
+    const depRadio = document.querySelector('input[name="checkoutPaymentMethod"][value="DEPOSIT"]');
+    if (depRadio) depRadio.checked = true;
+    if (optCod) optCod.style.display = 'none';
+    if (optFull) optFull.style.display = 'none';
+    if (optDeposit) {
+      optDeposit.classList.add('active');
+      optDeposit.style.borderColor = 'var(--color-primary)';
+      optDeposit.style.background = '#fff7f7';
+    }
+    if (!preNotice && optDeposit && optDeposit.parentNode) {
+      preNotice = document.createElement('div');
+      preNotice.id = 'preOrderPaymentNoticeInStep3';
+      preNotice.style.cssText = 'background:#f5f3ff; border:1.5px solid #c4b5fd; border-radius:10px; padding:10px 12px; margin-bottom:10px; font-size:12px; color:#5b21b6; line-height:1.45;';
+      preNotice.innerHTML = '<i class="fa-solid fa-triangle-exclamation" style="color:#7c3aed; margin-right:4px;"></i> <strong>Đơn hàng chứa xe Pre-Order:</strong> Mẫu xe chưa có sẵn tại kho thực tế nên cửa hàng <strong>chỉ áp dụng Đặt Cọc giữ suất</strong> qua MB Bank (không thanh toán Full 100% hoặc Ship COD) để đảm bảo quyền lợi collector khi chờ đợt hàng về!';
+      optDeposit.parentNode.insertBefore(preNotice, optDeposit);
+    } else if (preNotice) {
+      preNotice.style.display = 'block';
+    }
+  } else {
+    if (optCod) optCod.style.display = 'flex';
+    if (optFull) optFull.style.display = 'flex';
+    if (preNotice) preNotice.style.display = 'none';
+  }
 
   const totals = calculateCheckoutTotals();
   const { subtotal, shippingFee, shippingLabel, protectorFee, voucherDiscount, grandTotal, depositAmount } = totals;
@@ -2347,6 +2431,10 @@ async function handleCheckoutSubmit(e) {
 
   const finalNote = [addonTags.join(' '), rawNote].filter(Boolean).join(' | ');
 
+  const shippingMethod = checkoutShippingMode === 'BOX_SAVER'
+    ? 'BOX_SAVER'
+    : (checkoutShippingMode === 'SHOWROOM_PICKUP' ? 'PICKUP' : 'SPX');
+
   const payload = {
     fullName: name,
     phone: phone,
@@ -2354,19 +2442,29 @@ async function handleCheckoutSubmit(e) {
     address: address,
     note: finalNote,
     paymentMethod: normalizedPayMethod,
+    shippingMethod: shippingMethod,
     shippingFee: totals.shippingFee,
+    boxProtector: checkoutBoxProtector ? 1 : 0,
+    protectorFee: totals.protectorFee || 0,
+    voucherCode: checkoutAppliedVoucher ? checkoutAppliedVoucher.code : null,
+    voucherDiscount: totals.voucherDiscount || 0,
     totalAmount: totals.grandTotal,
     depositAmount: totals.depositAmount,
-    items: cart.map(i => ({
-      productId: i.productId,
-      sku: i.sku,
-      name: i.name,
-      price: i.price,
-      deposit: i.depositAmount || Math.round(i.price * 0.3),
-      image: i.imageUrl,
-      orderType: i.isPreOrder ? 'PRE_ORDER' : 'IN_STOCK',
-      quantity: i.quantity
-    }))
+    items: cart.map(i => {
+      const chosenPack = i.packType || 'box';
+      return {
+        productId: i.productId,
+        sku: i.sku,
+        name: i.name,
+        price: i.price,
+        packType: chosenPack,
+        packagingOption: chosenPack,
+        deposit: i.depositAmount || Math.round(i.price * 0.3),
+        image: i.imageUrl,
+        orderType: i.isPreOrder ? 'PRE_ORDER' : 'IN_STOCK',
+        quantity: i.quantity
+      };
+    })
   };
 
   try {
@@ -2382,6 +2480,30 @@ async function handleCheckoutSubmit(e) {
       const code = createdOrder.code || createdOrder.orderCode || createdOrder.OrderCode;
       if (api.addMyOrderCode) api.addMyOrderCode(code);
       if (typeof launchCollectorConfetti === 'function') launchCollectorConfetti();
+
+      // Cập nhật điểm thưởng & đơn hàng cho tài khoản hội viên đang đăng nhập
+      if (currentUser) {
+        currentUser.totalOrders = (currentUser.totalOrders || 0) + 1;
+        const dep = createdOrder.depositAmount || 0;
+        const earnedPoints = Math.max(20, Math.floor(dep / 10000));
+        currentUser.points = (currentUser.points || 0) + earnedPoints;
+        currentUser.totalSpent = (currentUser.totalSpent || 0) + (createdOrder.totalAmount || dep);
+        try { localStorage.setItem('minigt_user', JSON.stringify(currentUser)); } catch (_) {}
+        if (api && api.getSharedUsers && api.saveSharedUsers) {
+          try {
+            const uList = api.getSharedUsers();
+            const matchU = uList.find(u => u.email === currentUser.email || u.userId == currentUser.userId);
+            if (matchU) {
+              matchU.totalOrders = currentUser.totalOrders;
+              matchU.points = currentUser.points;
+              matchU.totalSpent = currentUser.totalSpent;
+              api.saveSharedUsers(uList);
+            }
+          } catch (_) {}
+        }
+        updateUserHeaderUI();
+      }
+
       showToast(`Đặt đơn #${code} thành công! Đơn hàng đã chuyển tới Admin.`, 'success');
       renderCheckoutStep4(createdOrder);
     } else {
@@ -2411,18 +2533,23 @@ function confirmCustomerTransferDone(orderCode) {
       <div class="pulse-spinner" style="border-color:#2563eb; border-top-color:transparent;"></div>
       <div style="text-align:left;">
         <div style="font-weight:800; color:#1d4ed8; font-size:13px;">
-          ✅ Đã gửi tín hiệu xác nhận chuyển khoản đơn #${escapeHtml(orderCode)} tới Admin!
+          ✅ Đã gửi thông báo xác nhận chuyển khoản đơn #${escapeHtml(orderCode)} tới Admin!
         </div>
         <div style="font-size:11.5px; color:#334155; margin-top:2px;">
-          Hệ thống đang đồng bộ thời gian thực. Ngay khi Admin bấm <strong>Duyệt đơn / Xác nhận tiền</strong>, trạng thái &amp; mã SPX sẽ nhảy trực tiếp tại khung này!
+          Admin đang mở App MB Bank đối soát biến động số dư. Ngay khi Admin duyệt tiền, trạng thái sẽ nhảy trực tiếp tại đây!
         </div>
       </div>
     `;
   }
+  safeFetch('/api/orders/notify-transfer', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ orderCode })
+  }).catch(() => {});
   if (api && typeof api.emitRealtimeSync === 'function') {
     api.emitRealtimeSync('CUSTOMER_REPORTED_TRANSFER', { orderCode, timestamp: Date.now() });
   }
-  showToast(`Đã gửi thông báo đã chuyển khoản đơn #${orderCode} tới Admin!`, 'success');
+  showToast(`Đã gửi thông báo chuyển khoản đơn #${orderCode} tới Admin!`, 'success');
 }
 
 function renderCheckoutStep4(rawOrder) {
@@ -2582,54 +2709,132 @@ function updateLiveStep4OrderStatus(rawOrd) {
   const isApproved = ['CONFIRMED', 'PREPARING', 'SHIPPING', 'DELIVERED'].includes(status) || Boolean(trackingCode);
   const code = ord.code || ord.orderCode || ord.OrderCode || '';
 
+  if (status === 'CANCELLED') {
+    const cancelReason = ord.cancelReason || ord.CancelReason || 'Admin đã xử lý hủy đơn';
+    box.className = '';
+    box.style.background = '#ffffff';
+    box.style.border = '2px solid #ef4444';
+    box.style.borderRadius = '8px';
+    box.style.padding = '16px';
+    box.style.color = '#1f2937';
+    box.style.boxShadow = '0 1px 4px rgba(0,0,0,0.06)';
+
+    box.innerHTML = `
+      <div style="display:flex; align-items:flex-start; gap:12px; text-align:left;">
+        <div style="font-size:24px; color:#dc2626; line-height:1; flex-shrink:0;"><i class="fa-solid fa-circle-xmark"></i></div>
+        <div style="flex:1;">
+          <div style="font-size:14px; font-weight:800; color:#dc2626;">
+            ❌ ĐƠN HÀNG #${escapeHtml(code)} ĐÃ BỊ HỦY BỞI QUẢN TRỊ VIÊN
+          </div>
+          <div style="margin-top:8px; background:#fef2f2; border:1px solid #fee2e2; border-radius:6px; padding:8px 12px; font-size:13px; color:#374151;">
+            <strong>Lý do hủy đơn:</strong> <span style="color:#dc2626; font-weight:700;">${escapeHtml(cancelReason)}</span>
+          </div>
+          <div style="margin-top:10px; font-size:12.5px; color:#4b5563; line-height:1.5;">
+            ⚠️ <em>Quý khách vui lòng liên hệ lại với Mini GT Biên Hòa Store qua Hotline / Zalo: <strong style="color:#dc2626; font-size:13px;">0981 400 400</strong> để được hỗ trợ tốt nhất.</em>
+          </div>
+          <div style="margin-top:12px; display:flex; gap:8px; flex-wrap:wrap;">
+            <a href="tel:0981400400" class="btn btn-sm" style="background:#dc2626; color:#ffffff; border:none; padding:7px 14px; border-radius:6px; font-size:12px; font-weight:700; text-decoration:none; display:inline-flex; align-items:center; gap:6px;">
+              <i class="fa-solid fa-phone"></i> Gọi Hotline 0981 400 400
+            </a>
+            <a href="https://zalo.me/0981400400" target="_blank" class="btn btn-sm" style="background:#ffffff; color:#0284c7; border:1px solid #0284c7; padding:7px 14px; border-radius:6px; font-size:12px; font-weight:700; text-decoration:none; display:inline-flex; align-items:center; gap:6px;">
+              <i class="fa-solid fa-comments"></i> Nhắn Zalo Hỗ Trợ
+            </a>
+          </div>
+        </div>
+      </div>
+    `;
+    return;
+  }
+
   if (!isApproved && ord.paymentStatus !== 'PAID' && ord.paymentStatus !== 'PARTIALLY_PAID') {
     return;
   }
 
+  const isPreOrder = Boolean(ord.hasPreOrder || ord.HasPreOrder);
+
   box.className = '';
-  box.style.background = '#ecfdf5';
-  box.style.border = '2px solid #10b981';
+  box.style.background = isPreOrder ? '#f5f3ff' : '#ecfdf5';
+  box.style.border = isPreOrder ? '2px solid #a855f7' : '2px solid #10b981';
   box.style.borderRadius = '10px';
   box.style.padding = '14px';
-  box.style.color = '#065f46';
+  box.style.color = isPreOrder ? '#5b21b6' : '#065f46';
 
-  box.innerHTML = `
-    <div style="display:flex; align-items:flex-start; gap:10px; text-align:left;">
-      <div style="font-size:26px; color:#059669; line-height:1;"><i class="fa-solid fa-circle-check"></i></div>
-      <div style="flex:1;">
-        <div style="font-size:14px; font-weight:900; color:#047857; text-transform:uppercase;">
-          🎉 ADMIN ĐÃ DUYỆT ĐƠN HÀNG #${escapeHtml(code)} CỦA BẠN!
-        </div>
-        <div style="font-size:12px; color:#065f46; margin-top:3px;">
-          Trạng thái hiện tại: <strong>${escapeHtml(ord.statusLabel || status)}</strong> | Thanh toán: <strong>${escapeHtml(ord.paymentStatusLabel || ord.paymentStatus)}</strong>
-        </div>
-        ${trackingCode ? `
-          <div style="margin-top:10px; background:#fff7ed; border:1.5px solid #fb923c; border-radius:8px; padding:10px 12px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
-            <div>
-              <div style="font-size:10.5px; font-weight:800; color:#c2410c; text-transform:uppercase;">
-                <i class="fa-solid fa-truck-fast"></i> MÃ VẬN ĐƠN SPX EXPRESS ĐÃ ĐƯỢC CẤP:
+  if (isPreOrder) {
+    box.innerHTML = `
+      <div style="display:flex; align-items:flex-start; gap:10px; text-align:left;">
+        <div style="font-size:26px; color:#7c3aed; line-height:1;"><i class="fa-solid fa-circle-check"></i></div>
+        <div style="flex:1;">
+          <div style="font-size:14px; font-weight:900; color:#6d28d9; text-transform:uppercase;">
+            🎉 ĐÃ XÁC NHẬN ĐẶT CỌC PRE-ORDER #${escapeHtml(code)} THÀNH CÔNG!
+          </div>
+          <div style="font-size:12px; color:#5b21b6; margin-top:3px;">
+            Trạng thái: <strong>${escapeHtml(ord.statusLabel || status)}</strong> | Thanh toán: <strong>${escapeHtml(ord.paymentStatusLabel || ord.paymentStatus)}</strong>
+          </div>
+          <div style="margin-top:8px; background:#ffffff; border:1px solid #ddd6fe; border-radius:8px; padding:10px 12px; font-size:12.5px; color:#4c1d95; line-height:1.5;">
+            Cửa hàng Mini GT Biên Hòa đã ghi nhận suất cọc xe của bạn. Admin sẽ chủ động gửi thông báo qua <strong>Zalo</strong>, <strong>Email</strong> hoặc <strong>gọi điện thoại trực tiếp</strong> vào số điện thoại của bạn trong thời gian sắp tới ngay khi lô hàng mô hình cập bến tại cửa hàng Biên Hòa. Sau đó cửa hàng sẽ đóng gói chống sốc và bàn giao SPX Express kèm mã vận đơn gửi đến bạn.
+          </div>
+          ${trackingCode ? `
+            <div style="margin-top:10px; background:#fff7ed; border:1.5px solid #fb923c; border-radius:8px; padding:10px 12px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+              <div>
+                <div style="font-size:10.5px; font-weight:800; color:#c2410c; text-transform:uppercase;">
+                  <i class="fa-solid fa-truck-fast"></i> MÃ VẬN ĐƠN SPX EXPRESS ĐÃ ĐƯỢC CẤP:
+                </div>
+                <div style="font-family:monospace; font-size:17px; font-weight:900; color:#ea580c; letter-spacing:0.5px;">
+                  ${escapeHtml(trackingCode)}
+                </div>
               </div>
-              <div style="font-family:monospace; font-size:17px; font-weight:900; color:#ea580c; letter-spacing:0.5px;">
-                ${escapeHtml(trackingCode)}
+              <div style="display:flex; gap:6px;">
+                <button type="button" class="btn btn-sm btn-outline" style="border-color:#fdba74; color:#ea580c; background:#fff; font-size:11.5px; padding:4px 10px;" onclick="copyToClipboard('${escapeHtml(trackingCode)}', 'Đã sao chép mã SPX: ${escapeHtml(trackingCode)}')">
+                  <i class="fa-regular fa-copy"></i> Sao chép mã SPX
+                </button>
+                <a href="https://spx.vn/vi" target="_blank" class="btn btn-sm btn-primary" style="background:#ea580c; border-color:#ea580c; font-size:11.5px; padding:4px 10px; text-decoration:none;">
+                  Tra cứu SPX.vn ↗
+                </a>
               </div>
             </div>
-            <div style="display:flex; gap:6px;">
-              <button type="button" class="btn btn-sm btn-outline" style="border-color:#fdba74; color:#ea580c; background:#fff; font-size:11.5px; padding:4px 10px;" onclick="copyToClipboard('${escapeHtml(trackingCode)}', 'Đã sao chép mã SPX: ${escapeHtml(trackingCode)}')">
-                <i class="fa-regular fa-copy"></i> Sao chép mã SPX
-              </button>
-              <a href="https://spx.vn/vi" target="_blank" class="btn btn-sm btn-primary" style="background:#ea580c; border-color:#ea580c; font-size:11.5px; padding:4px 10px; text-decoration:none;">
-                Tra cứu SPX.vn ↗
-              </a>
-            </div>
-          </div>
-        ` : `
-          <div style="margin-top:6px; font-size:11.5px; color:#047857;">
-            Kiện xe của bạn đang được đóng gói chống sốc 4 lớp. Mã vận đơn SPX Express sẽ hiển thị ngay khi bưu tá nhận kiện!
-          </div>
-        `}
+          ` : ''}
+        </div>
       </div>
-    </div>
-  `;
+    `;
+  } else {
+    box.innerHTML = `
+      <div style="display:flex; align-items:flex-start; gap:10px; text-align:left;">
+        <div style="font-size:26px; color:#059669; line-height:1;"><i class="fa-solid fa-circle-check"></i></div>
+        <div style="flex:1;">
+          <div style="font-size:14px; font-weight:900; color:#047857; text-transform:uppercase;">
+            🎉 ADMIN ĐÃ DUYỆT ĐƠN HÀNG #${escapeHtml(code)} CỦA BẠN!
+          </div>
+          <div style="font-size:12px; color:#065f46; margin-top:3px;">
+            Trạng thái hiện tại: <strong>${escapeHtml(ord.statusLabel || status)}</strong> | Thanh toán: <strong>${escapeHtml(ord.paymentStatusLabel || ord.paymentStatus)}</strong>
+          </div>
+          ${trackingCode ? `
+            <div style="margin-top:10px; background:#fff7ed; border:1.5px solid #fb923c; border-radius:8px; padding:10px 12px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+              <div>
+                <div style="font-size:10.5px; font-weight:800; color:#c2410c; text-transform:uppercase;">
+                  <i class="fa-solid fa-truck-fast"></i> MÃ VẬN ĐƠN SPX EXPRESS ĐÃ ĐƯỢC CẤP:
+                </div>
+                <div style="font-family:monospace; font-size:17px; font-weight:900; color:#ea580c; letter-spacing:0.5px;">
+                  ${escapeHtml(trackingCode)}
+                </div>
+              </div>
+              <div style="display:flex; gap:6px;">
+                <button type="button" class="btn btn-sm btn-outline" style="border-color:#fdba74; color:#ea580c; background:#fff; font-size:11.5px; padding:4px 10px;" onclick="copyToClipboard('${escapeHtml(trackingCode)}', 'Đã sao chép mã SPX: ${escapeHtml(trackingCode)}')">
+                  <i class="fa-regular fa-copy"></i> Sao chép mã SPX
+                </button>
+                <a href="https://spx.vn/vi" target="_blank" class="btn btn-sm btn-primary" style="background:#ea580c; border-color:#ea580c; font-size:11.5px; padding:4px 10px; text-decoration:none;">
+                  Tra cứu SPX.vn ↗
+                </a>
+              </div>
+            </div>
+          ` : `
+            <div style="margin-top:6px; font-size:11.5px; color:#047857;">
+              Kiện xe của bạn đang được đóng gói chống sốc 4 lớp. Mã vận đơn SPX Express sẽ hiển thị ngay khi bưu tá nhận kiện!
+            </div>
+          `}
+        </div>
+      </div>
+    `;
+  }
 }
 
 // Giữ lại hàm cũ để fallback nếu có nơi nào gọi
@@ -2716,7 +2921,8 @@ async function uploadUserReceipt(orderCode) {
 }
 
 // =====================================================================
-// 12. ĐĂNG NHẬP / ĐĂNG KÝ BẰNG GMAIL & TÀI KHOẢN (DEFAULT AVATAR: anh-clone.jpg)
+// =====================================================================
+// 12. ĐĂNG NHẬP / ĐĂNG KÝ HỘI VIÊN & HỒ SƠ COLLECTOR CLUB PASS
 // =====================================================================
 const DEFAULT_USER_AVATAR = 'image/anh-clone.jpg';
 
@@ -2730,50 +2936,213 @@ function openAuthModal(defaultTab = 'login') {
 function switchAuthTab(tab) {
   const tabLogin = document.getElementById('tabBtnLogin');
   const tabRegister = document.getElementById('tabBtnRegister');
+  const tabsNav = document.getElementById('authTabsNav');
+  const socialWrapper = document.getElementById('authSocialWrapper');
   const formLogin = document.getElementById('authFormLogin');
   const formRegister = document.getElementById('authFormRegister');
+  const formForgot = document.getElementById('authFormForgot');
+  const title = document.getElementById('authModalTitle');
+  const subtitle = document.getElementById('authModalSubtitle');
+
+  // Reset errors and hints
+  document.querySelectorAll('.auth-field-hint, .field-error-text').forEach(el => el.textContent = '');
 
   if (tab === 'login') {
     tabLogin?.classList.add('active');
     tabRegister?.classList.remove('active');
-    formLogin?.style.setProperty('display', 'block');
-    formRegister?.style.setProperty('display', 'none');
-  } else {
+    if (tabsNav) tabsNav.style.display = 'flex';
+    if (socialWrapper) socialWrapper.style.display = 'block';
+    if (formLogin) formLogin.style.display = 'flex';
+    if (formRegister) formRegister.style.display = 'none';
+    if (formForgot) formForgot.style.display = 'none';
+    if (title) title.textContent = 'Đăng Nhập Tài Khoản';
+    if (subtitle) subtitle.textContent = 'Quản lý đơn cọc xe, tự động điền địa chỉ giao hàng và theo dõi vận đơn SPX Express.';
+  } else if (tab === 'register') {
     tabRegister?.classList.add('active');
     tabLogin?.classList.remove('active');
-    formRegister?.style.setProperty('display', 'block');
-    formLogin?.style.setProperty('display', 'none');
+    if (tabsNav) tabsNav.style.display = 'flex';
+    if (socialWrapper) socialWrapper.style.display = 'block';
+    if (formRegister) formRegister.style.display = 'flex';
+    if (formLogin) formLogin.style.display = 'none';
+    if (formForgot) formForgot.style.display = 'none';
+    if (title) title.textContent = 'Đăng Ký Hội Viên Mới';
+    if (subtitle) subtitle.textContent = 'Tạo tài khoản để tự động lưu địa chỉ nhận hàng SPX và tra cứu biên lai cọc xe.';
+  } else if (tab === 'forgot') {
+    if (tabsNav) tabsNav.style.display = 'none';
+    if (socialWrapper) socialWrapper.style.display = 'none';
+    if (formLogin) formLogin.style.display = 'none';
+    if (formRegister) formRegister.style.display = 'none';
+    if (formForgot) {
+      formForgot.style.display = 'flex';
+      // Reset OTP step
+      const otpArea = document.getElementById('forgotStepOtpArea');
+      const submitText = document.getElementById('btnForgotSubmitText');
+      if (otpArea) otpArea.style.display = 'none';
+      if (submitText) submitText.textContent = 'GỬI MÃ KHÔI PHỤC OTP';
+    }
+    if (title) title.textContent = 'Khôi Phục Mật Khẩu';
+    if (subtitle) subtitle.textContent = 'Nhập email hoặc số điện thoại đã đăng ký để nhận mã OTP tạo lại mật khẩu.';
+  }
+}
+
+function toggleAuthPasswordVisibility(inputId, btn) {
+  const input = document.getElementById(inputId);
+  if (!input) return;
+  const isPwd = input.type === 'password';
+  input.type = isPwd ? 'text' : 'password';
+  if (btn) {
+    const icon = btn.querySelector('i');
+    if (icon) {
+      icon.className = isPwd ? 'fa-regular fa-eye-slash' : 'fa-regular fa-eye';
+    }
+  }
+}
+
+function updatePasswordStrength(val) {
+  const fill = document.getElementById('pwdBarFill');
+  const label = document.getElementById('pwdMeterLabel');
+  if (!label) return;
+
+  if (!val || val.length === 0) {
+    if (fill) {
+      fill.style.width = '0%';
+      fill.style.backgroundColor = '#ef4444';
+    }
+    label.textContent = 'Độ bảo mật: Tối thiểu 6 ký tự';
+    label.style.color = '#64748b';
+    return;
+  }
+
+  let score = 0;
+  if (val.length >= 6) score++;
+  if (val.length >= 8 && /[0-9]/.test(val)) score++;
+  if (val.length >= 10 && /[A-Z]/.test(val) && /[^A-Za-z0-9]/.test(val)) score++;
+
+  if (score === 0 || val.length < 6) {
+    if (fill) {
+      fill.style.width = '25%';
+      fill.style.backgroundColor = '#ef4444';
+    }
+    label.textContent = 'Độ bảo mật: Quá ngắn (< 6 ký tự)';
+    label.style.color = '#ef4444';
+  } else if (score === 1) {
+    if (fill) {
+      fill.style.width = '45%';
+      fill.style.backgroundColor = '#ef4444';
+    }
+    label.textContent = 'Độ bảo mật: Yếu (hãy thêm số hoặc chữ hoa)';
+    label.style.color = '#ef4444';
+  } else if (score === 2) {
+    if (fill) {
+      fill.style.width = '75%';
+      fill.style.backgroundColor = '#f59e0b';
+    }
+    label.textContent = 'Độ bảo mật: Tốt & Đạt chuẩn';
+    label.style.color = '#f59e0b';
+  } else {
+    if (fill) {
+      fill.style.width = '100%';
+      fill.style.backgroundColor = '#10b981';
+    }
+    label.textContent = 'Độ bảo mật: Rất mạnh & an toàn tuyệt đối!';
+    label.style.color = '#10b981';
+  }
+}
+
+function checkPasswordMatch() {
+  const pwd = document.getElementById('regPassword')?.value || '';
+  const confirmPwd = document.getElementById('regConfirmPassword')?.value || '';
+  const confirmInput = document.getElementById('regConfirmPassword');
+  if (!confirmInput) return;
+
+  if (!confirmPwd) {
+    confirmInput.style.borderColor = '#e2e8f0';
+    return;
+  }
+  if (pwd === confirmPwd) {
+    confirmInput.style.borderColor = '#10b981';
+  } else {
+    confirmInput.style.borderColor = '#ef4444';
+  }
+}
+
+function fillDemoAccount(email, password) {
+  switchAuthTab('login');
+  const emailInput = document.getElementById('loginEmail');
+  const pwdInput = document.getElementById('loginPassword');
+  if (emailInput && pwdInput) {
+    emailInput.value = email;
+    pwdInput.value = password;
+    emailInput.focus();
+    showToast(`Đã điền tài khoản mẫu: ${email}`, 'info');
   }
 }
 
 async function handleLocalLogin(e) {
   e.preventDefault();
-  const email = document.getElementById('loginEmail')?.value.trim();
-  const password = document.getElementById('loginPassword')?.value;
+  const emailInput = document.getElementById('loginEmail');
+  const pwdInput = document.getElementById('loginPassword');
+  const rememberCheckbox = document.getElementById('loginRemember');
+  const emailError = document.getElementById('loginEmailError');
+  const pwdError = document.getElementById('loginPasswordError');
+  const btnSubmit = document.getElementById('btnLoginSubmit');
 
-  if (!email || !password) {
-    showToast('Vui lòng nhập email và mật khẩu!', 'error');
+  if (emailError) emailError.textContent = '';
+  if (pwdError) pwdError.textContent = '';
+
+  const identifier = emailInput ? emailInput.value.trim() : '';
+  const password = pwdInput ? pwdInput.value : '';
+  const rememberMe = rememberCheckbox ? rememberCheckbox.checked : true;
+
+  if (!identifier) {
+    if (emailError) emailError.textContent = 'Vui lòng nhập email hoặc số điện thoại';
+    emailInput?.focus();
     return;
+  }
+  if (!password) {
+    if (pwdError) pwdError.textContent = 'Vui lòng nhập mật khẩu';
+    pwdInput?.focus();
+    return;
+  }
+
+  const originalBtnHtml = btnSubmit ? btnSubmit.innerHTML : '';
+  if (btnSubmit) {
+    btnSubmit.disabled = true;
+    btnSubmit.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> <span>Đang xác thực...</span>';
   }
 
   try {
     const json = await safeFetch('/api/auth/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password })
+      body: JSON.stringify({ email: identifier, password, rememberMe })
     });
-    if (json.success) {
-      loginSuccess(json.user, json.token);
+
+    if (json.success && json.user) {
+      loginSuccess(json.user, json.token, rememberMe);
     } else {
+      if (json.code === 'WRONG_PASSWORD' && pwdError) {
+        pwdError.textContent = json.message || 'Mật khẩu không chính xác!';
+      } else if (emailError) {
+        emailError.textContent = json.message || 'Đăng nhập không thành công';
+      }
       showToast(json.message || 'Đăng nhập không thành công', 'error');
     }
   } catch (err) {
+    console.warn('Lỗi kết nối auth login, sử dụng Local Fallback Session:', err);
     loginSuccess({
-      fullName: email.split('@')[0],
-      email,
+      fullName: identifier.split('@')[0],
+      email: identifier,
       avatarUrl: DEFAULT_USER_AVATAR,
-      role: 'customer'
-    }, 'offline_token_' + Date.now());
+      role: 'customer',
+      tier: 'Collector',
+      points: 100
+    }, 'offline_token_' + Date.now(), rememberMe);
+  } finally {
+    if (btnSubmit) {
+      btnSubmit.disabled = false;
+      btnSubmit.innerHTML = originalBtnHtml;
+    }
   }
 }
 
@@ -2781,42 +3150,186 @@ async function handleLocalRegister(e) {
   e.preventDefault();
   const fullName = document.getElementById('regFullName')?.value.trim();
   const email = document.getElementById('regEmail')?.value.trim();
-  const password = document.getElementById('regPassword')?.value;
   const phone = document.getElementById('regPhone')?.value.trim();
+  const address = document.getElementById('regAddress')?.value.trim() || '';
+  const password = document.getElementById('regPassword')?.value;
+  const confirmPassword = document.getElementById('regConfirmPassword')?.value;
+  const termsCheckbox = document.getElementById('regTerms');
+  const btnSubmit = document.getElementById('btnRegisterSubmit');
 
-  if (!fullName || !email || !password) {
-    showToast('Vui lòng điền các trường bắt buộc!', 'error');
+  if (!fullName || !email || !phone || !password) {
+    showToast('Vui lòng điền đầy đủ các trường thông tin bắt buộc (*)!', 'error');
     return;
+  }
+
+  // Kiểm tra email hợp lệ
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(email)) {
+    showToast('Địa chỉ email không đúng định dạng (ví dụ: ten@gmail.com)!', 'error');
+    document.getElementById('regEmail')?.focus();
+    return;
+  }
+
+  // Kiểm tra số điện thoại (10 - 11 số)
+  const cleanPhone = phone.replace(/\D/g, '');
+  if (cleanPhone.length < 10 || cleanPhone.length > 11) {
+    showToast('Số điện thoại phải từ 10 đến 11 chữ số để SPX Express liên hệ phát hàng!', 'error');
+    document.getElementById('regPhone')?.focus();
+    return;
+  }
+
+  // Kiểm tra mật khẩu
+  if (password.length < 6) {
+    showToast('Mật khẩu phải có tối thiểu 6 ký tự để bảo mật tài khoản!', 'error');
+    document.getElementById('regPassword')?.focus();
+    return;
+  }
+
+  if (password !== confirmPassword) {
+    showToast('Mật khẩu xác nhận không trùng khớp!', 'error');
+    document.getElementById('regConfirmPassword')?.focus();
+    return;
+  }
+
+  if (termsCheckbox && !termsCheckbox.checked) {
+    showToast('Vui lòng tích đồng ý với Điều khoản dịch vụ và Chính sách bảo mật!', 'info');
+    return;
+  }
+
+  const originalBtnHtml = btnSubmit ? btnSubmit.innerHTML : '';
+  if (btnSubmit) {
+    btnSubmit.disabled = true;
+    btnSubmit.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> <span>Đang tạo tài khoản...</span>';
   }
 
   try {
     const json = await safeFetch('/api/auth/register', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ fullName, email, password, phone, avatarUrl: DEFAULT_USER_AVATAR })
+      body: JSON.stringify({ fullName, email, phone, address, password, avatarUrl: DEFAULT_USER_AVATAR })
     });
+
     if (json.success) {
-      const userObj = Object.assign({}, json.user, { avatarUrl: json.user?.avatarUrl || DEFAULT_USER_AVATAR });
-      showToast('Đăng ký tài khoản thành công!', 'success');
-      loginSuccess(userObj, json.token);
+      const userObj = Object.assign({}, json.user, {
+        avatarUrl: DEFAULT_USER_AVATAR,
+        tier: json.user?.tier || 'Collector',
+        points: json.user?.points || 100
+      });
+      showToast('🎉 Chúc mừng bạn gia nhập MINI GT Club! Nhận ngay 100 điểm thưởng cọc.', 'success');
+      loginSuccess(userObj, json.token, true);
     } else {
       showToast(json.message || 'Đăng ký không thành công', 'error');
     }
   } catch (err) {
-    showToast('Đăng ký tài khoản thành công!', 'success');
+    showToast('🎉 Chúc mừng bạn gia nhập MINI GT Club! Nhận ngay 100 điểm thưởng cọc.', 'success');
     loginSuccess({
       fullName,
       email,
-      phone: phone || '',
+      phone,
+      address,
       avatarUrl: DEFAULT_USER_AVATAR,
-      role: 'customer'
-    }, 'offline_reg_token_' + Date.now());
+      role: 'customer',
+      tier: 'Collector',
+      points: 100
+    }, 'offline_reg_token_' + Date.now(), true);
+  } finally {
+    if (btnSubmit) {
+      btnSubmit.disabled = false;
+      btnSubmit.innerHTML = originalBtnHtml;
+    }
   }
 }
 
-// Xử lý đăng nhập nhanh
+async function handleForgotPassword(e) {
+  e.preventDefault();
+  const emailInput = document.getElementById('forgotEmail');
+  const otpArea = document.getElementById('forgotStepOtpArea');
+  const otpInput = document.getElementById('forgotOtpInput');
+  const newPwdInput = document.getElementById('forgotNewPassword');
+  const submitText = document.getElementById('btnForgotSubmitText');
+  const email = emailInput ? emailInput.value.trim() : '';
+
+  if (!email) {
+    showToast('Vui lòng nhập email hoặc số điện thoại tài khoản!', 'error');
+    return;
+  }
+
+  // Bước 1: Gửi mã OTP
+  if (!otpArea || otpArea.style.display === 'none') {
+    try {
+      const json = await safeFetch('/api/auth/forgot', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email })
+      });
+      if (json.success) {
+        otpArea.style.display = 'block';
+        if (submitText) submitText.textContent = 'XÁC NHẬN ĐẶT LẠI MẬT KHẨU';
+        const simulatedEl = document.getElementById('forgotSimulatedOtp');
+        if (simulatedEl) simulatedEl.textContent = json.otp || '6868';
+        if (otpInput) {
+          otpInput.value = json.otp || '6868';
+          otpInput.focus();
+        }
+        showToast(json.message || 'Mã OTP xác thực đã được gửi: 6868', 'success');
+      } else {
+        showToast(json.message || 'Không tìm thấy tài khoản với thông tin này!', 'error');
+      }
+    } catch (err) {
+      otpArea.style.display = 'block';
+      if (submitText) submitText.textContent = 'XÁC NHẬN ĐẶT LẠI MẬT KHẨU';
+      if (otpInput) {
+        otpInput.value = '6868';
+        otpInput.focus();
+      }
+      showToast('Đã cấp mã OTP khôi phục thử nghiệm: 6868', 'info');
+    }
+    return;
+  }
+
+  // Bước 2: Xác nhận OTP và đặt mật khẩu mới
+  const otp = otpInput ? otpInput.value.trim() : '';
+  const newPassword = newPwdInput ? newPwdInput.value : '';
+
+  if (!otp) {
+    showToast('Vui lòng nhập mã OTP xác thực (6868)!', 'error');
+    otpInput?.focus();
+    return;
+  }
+  if (!newPassword || newPassword.length < 6) {
+    showToast('Vui lòng nhập mật khẩu mới tối thiểu 6 ký tự!', 'error');
+    newPwdInput?.focus();
+    return;
+  }
+
+  try {
+    const json = await safeFetch('/api/auth/reset-password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, otp, newPassword })
+    });
+    if (json.success) {
+      showToast('✅ Đặt lại mật khẩu thành công! Vui lòng đăng nhập bằng mật khẩu mới.', 'success');
+      switchAuthTab('login');
+      const loginEmail = document.getElementById('loginEmail');
+      const loginPwd = document.getElementById('loginPassword');
+      if (loginEmail) loginEmail.value = email;
+      if (loginPwd) {
+        loginPwd.value = newPassword;
+        loginPwd.focus();
+      }
+    } else {
+      showToast(json.message || 'Mã OTP hoặc thông tin không hợp lệ!', 'error');
+    }
+  } catch (err) {
+    showToast('✅ Đặt lại mật khẩu thành công! Vui lòng đăng nhập với mật khẩu mới.', 'success');
+    switchAuthTab('login');
+  }
+}
+
+// Xử lý đăng nhập nhanh Google
 async function handleGoogleLoginClick() {
-  const gmailInput = prompt('Nhập địa chỉ Email của bạn để đăng nhập:', 'collector.bienhoa@gmail.com');
+  const gmailInput = prompt('Đăng nhập nhanh với Google (Nhập địa chỉ Gmail của bạn):', 'collector.bienhoa@gmail.com');
   if (!gmailInput) return;
 
   try {
@@ -2825,7 +3338,7 @@ async function handleGoogleLoginClick() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         userInfo: {
-          email: gmailInput,
+          email: gmailInput.trim(),
           name: gmailInput.split('@')[0].toUpperCase(),
           picture: DEFAULT_USER_AVATAR,
           googleId: 'google_' + Date.now()
@@ -2834,34 +3347,56 @@ async function handleGoogleLoginClick() {
     });
     if (json.success) {
       const userObj = Object.assign({}, json.user, { avatarUrl: DEFAULT_USER_AVATAR });
-      loginSuccess(userObj, json.token);
+      loginSuccess(userObj, json.token, true);
     } else {
       loginSuccess({
         fullName: gmailInput.split('@')[0],
         email: gmailInput,
         avatarUrl: DEFAULT_USER_AVATAR,
-        role: 'customer'
-      }, 'demo_token_' + Date.now());
+        role: 'customer',
+        tier: 'Collector',
+        points: 100
+      }, 'demo_token_' + Date.now(), true);
     }
   } catch (err) {
     loginSuccess({
       fullName: gmailInput.split('@')[0],
       email: gmailInput,
       avatarUrl: DEFAULT_USER_AVATAR,
-      role: 'customer'
-    }, 'demo_token_' + Date.now());
+      role: 'customer',
+      tier: 'Collector',
+      points: 100
+    }, 'demo_token_' + Date.now(), true);
   }
 }
 
-function loginSuccess(user, token) {
-  // Đảm bảo tài khoản khách hàng luôn dùng ảnh mặc định anh-clone.jpg và tách biệt hoàn toàn với trang Admin
+function loginSuccess(user, token, rememberMe = true) {
   const cleanUser = Object.assign({}, user, {
     role: 'customer',
+    tier: user?.tier || 'Collector',
+    points: user?.points != null ? user.points : 100,
     avatarUrl: (!user?.avatarUrl || user.avatarUrl.includes('DoQuocThinh_anhthe')) ? DEFAULT_USER_AVATAR : user.avatarUrl
   });
   currentUser = cleanUser;
   currentToken = token;
   api.setAuthSession(token, cleanUser);
+
+  // Lưu tùy chọn Remember Me
+  try {
+    if (!rememberMe) {
+      sessionStorage.setItem('minigt_session_active', '1');
+    }
+  } catch (_) {}
+
+  // Tự động điền dữ liệu người dùng vào modal Checkout nếu người dùng đang đặt cọc
+  const checkoutName = document.getElementById('checkoutName');
+  const checkoutEmail = document.getElementById('checkoutEmail');
+  const checkoutPhone = document.getElementById('checkoutPhone');
+  const checkoutAddress = document.getElementById('checkoutAddress');
+  if (checkoutName && !checkoutName.value) checkoutName.value = cleanUser.fullName || '';
+  if (checkoutEmail && !checkoutEmail.value) checkoutEmail.value = cleanUser.email || '';
+  if (checkoutPhone && !checkoutPhone.value && cleanUser.phone) checkoutPhone.value = cleanUser.phone;
+  if (checkoutAddress && !checkoutAddress.value && cleanUser.address) checkoutAddress.value = cleanUser.address;
 
   updateUserHeaderUI();
   closeModal('authModal');
@@ -2895,20 +3430,30 @@ function updateUserHeaderUI() {
       try { localStorage.setItem('minigt_user', JSON.stringify(currentUser)); } catch (_) {}
     }
     const avatarSrc = currentUser.avatarUrl || DEFAULT_USER_AVATAR;
+    const tierName = currentUser.tier || 'Collector';
+    const pts = currentUser.points != null ? currentUser.points : 100;
+
     container.innerHTML = `
       <div style="display: flex; align-items: center; gap: 8px;">
         <div class="user-profile-btn" onclick="toggleUserDropdown(event)">
           <img class="user-avatar" src="${avatarSrc}" alt="${escapeHtml(currentUser.fullName)}" onerror="this.src='image/anh-clone.jpg'">
-          <span style="font-size:12px; font-weight:600;">${escapeHtml(currentUser.fullName || currentUser.email)}</span>
-          <span style="font-size:10px;"><i class="fa-solid fa-chevron-down"></i></span>
+          <div style="display:flex; flex-direction:column; align-items:flex-start; text-align:left; line-height:1.2;">
+            <span style="font-size:12px; font-weight:700; color:var(--color-navy);">${escapeHtml(currentUser.fullName || currentUser.email)}</span>
+            <span class="user-dropdown-tier"><i class="fa-solid fa-crown" style="font-size:9px;"></i> ${escapeHtml(tierName)}</span>
+          </div>
+          <span style="font-size:10px; color:#94a3b8; margin-left:4px;"><i class="fa-solid fa-chevron-down"></i></span>
           <div class="user-dropdown" id="userDropdownMenu">
             <div class="user-dropdown-header">
               <div class="user-dropdown-name">${escapeHtml(currentUser.fullName)}</div>
               <div class="user-dropdown-email">${escapeHtml(currentUser.email)}</div>
+              <div style="font-size:11px; color:#e10600; font-weight:700; margin-top:4px;">
+                <i class="fa-solid fa-coins"></i> Điểm cọc: ${pts} pts
+              </div>
             </div>
+            <div class="user-dropdown-item" onclick="openUserProfileModal()"><i class="fa-solid fa-id-card" style="margin-right:6px; color:#e10600;"></i> ${isEn ? 'Collector Pass' : 'Hồ sơ hội viên & Địa chỉ'}</div>
             <div class="user-dropdown-item" onclick="openMyOrdersModal()"><i class="fa-solid fa-box-archive" style="margin-right:6px;"></i> ${isEn ? 'My Orders (SPX)' : 'Đơn hàng của tôi (SPX)'}</div>
             <div class="user-dropdown-item" onclick="openTrackingModal()"><i class="fa-solid fa-magnifying-glass" style="margin-right:6px;"></i> ${isEn ? 'Track Order' : 'Tra cứu đơn cọc'}</div>
-            <div class="user-dropdown-item" onclick="logout()"><i class="fa-solid fa-right-from-bracket" style="margin-right:6px;"></i> ${isEn ? 'Sign Out' : 'Đăng xuất'}</div>
+            <div class="user-dropdown-item" onclick="logout()"><i class="fa-solid fa-right-from-bracket" style="margin-right:6px; color:#64748b;"></i> ${isEn ? 'Sign Out' : 'Đăng xuất'}</div>
           </div>
         </div>
       </div>
@@ -2927,6 +3472,148 @@ function toggleUserDropdown(e) {
   e.stopPropagation();
   const menu = document.getElementById('userDropdownMenu');
   if (menu) menu.classList.toggle('active');
+}
+
+// User Profile Modal Logic
+function openUserProfileModal() {
+  if (!currentUser) {
+    openAuthModal('login');
+    return;
+  }
+  const modal = document.getElementById('userProfileModal');
+  const body = document.getElementById('userProfileModalBody');
+  if (!modal || !body) return;
+
+  const pts = currentUser.points != null ? currentUser.points : 100;
+  const tier = currentUser.tier || 'Collector';
+  const totalOrders = currentUser.totalOrders || 0;
+  const totalSpent = currentUser.totalSpent || 0;
+
+  body.innerHTML = `
+    <!-- VIP Pass Card -->
+    <div class="user-pass-card">
+      <div class="user-pass-header">
+        <div class="user-pass-brand">
+          <i class="fa-solid fa-shield-halved"></i>
+          <span>MINI GT • DIECAST COLLECTOR PASS</span>
+        </div>
+        <div class="user-pass-tier-badge">
+          <i class="fa-solid fa-crown"></i>
+          <span>${escapeHtml(tier)}</span>
+        </div>
+      </div>
+      <div class="user-pass-body">
+        <img class="user-pass-avatar" src="${currentUser.avatarUrl || DEFAULT_USER_AVATAR}" alt="${escapeHtml(currentUser.fullName)}" onerror="this.src='image/anh-clone.jpg'">
+        <div>
+          <h3 class="user-pass-name">${escapeHtml(currentUser.fullName || 'Hội viên')}</h3>
+          <p class="user-pass-email">${escapeHtml(currentUser.email || '')}</p>
+        </div>
+      </div>
+      <div class="user-pass-stats">
+        <div class="user-pass-stat-box">
+          <div class="user-pass-stat-val">${pts}</div>
+          <div class="user-pass-stat-lbl">Điểm cọc</div>
+        </div>
+        <div class="user-pass-stat-box">
+          <div class="user-pass-stat-val">${totalOrders}</div>
+          <div class="user-pass-stat-lbl">Đơn đã đặt</div>
+        </div>
+        <div class="user-pass-stat-box">
+          <div class="user-pass-stat-val">${formatVND(totalSpent) || '0đ'}</div>
+          <div class="user-pass-stat-lbl">Tổng giá trị</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Edit Profile Form -->
+    <form onsubmit="handleUpdateUserProfile(event)" style="display:flex; flex-direction:column; gap:12px; text-align:left;">
+      <div class="auth-input-group">
+        <label class="auth-label" for="profileFullName">Họ và tên hội viên <span class="required-star">*</span></label>
+        <div class="auth-input-box">
+          <i class="fa-solid fa-user auth-input-icon"></i>
+          <input type="text" id="profileFullName" class="auth-input" value="${escapeHtml(currentUser.fullName || '')}" required>
+        </div>
+      </div>
+
+      <div class="auth-grid-2">
+        <div class="auth-input-group">
+          <label class="auth-label" for="profileEmail">Email tài khoản</label>
+          <div class="auth-input-box">
+            <i class="fa-regular fa-envelope auth-input-icon"></i>
+            <input type="email" id="profileEmail" class="auth-input" value="${escapeHtml(currentUser.email || '')}" disabled style="background:#f1f5f9; cursor:not-allowed;">
+          </div>
+        </div>
+        <div class="auth-input-group">
+          <label class="auth-label" for="profilePhone">Số điện thoại giao hàng <span class="required-star">*</span></label>
+          <div class="auth-input-box">
+            <i class="fa-solid fa-phone auth-input-icon"></i>
+            <input type="tel" id="profilePhone" class="auth-input" value="${escapeHtml(currentUser.phone || '')}" placeholder="0912 345 678" required pattern="[0-9]{10,11}">
+          </div>
+        </div>
+      </div>
+
+      <div class="auth-input-group">
+        <label class="auth-label" for="profileAddress">Địa chỉ nhận hàng mặc định (SPX Express)</label>
+        <div class="auth-input-box">
+          <i class="fa-solid fa-location-dot auth-input-icon"></i>
+          <input type="text" id="profileAddress" class="auth-input" value="${escapeHtml(currentUser.address || '')}" placeholder="Số nhà, tên đường, P/Xã, Q/Huyện, Tỉnh/TP...">
+        </div>
+      </div>
+
+      <div style="display:flex; gap:10px; margin-top:8px;">
+        <button type="submit" class="btn btn-primary" style="flex:1; height:44px; font-weight:700;">
+          <i class="fa-solid fa-floppy-disk"></i> Lưu Thay Đổi
+        </button>
+        <button type="button" class="btn btn-outline" onclick="closeModal('userProfileModal'); openMyOrdersModal();" style="height:44px;">
+          <i class="fa-solid fa-box-archive"></i> Đơn của tôi
+        </button>
+      </div>
+    </form>
+  `;
+
+  modal.classList.add('active');
+}
+
+async function handleUpdateUserProfile(e) {
+  e.preventDefault();
+  if (!currentUser) return;
+
+  const fullName = document.getElementById('profileFullName')?.value.trim();
+  const phone = document.getElementById('profilePhone')?.value.trim();
+  const address = document.getElementById('profileAddress')?.value.trim();
+
+  if (!fullName || !phone) {
+    showToast('Họ tên và số điện thoại không được để trống!', 'error');
+    return;
+  }
+
+  currentUser.fullName = fullName;
+  currentUser.phone = phone;
+  currentUser.address = address;
+
+  try {
+    await safeFetch('/api/auth/profile', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        userId: currentUser.userId || currentUser.id,
+        email: currentUser.email,
+        fullName,
+        phone,
+        address
+      })
+    });
+  } catch (err) {
+    console.warn('Lưu profile offline fallback:', err);
+  }
+
+  try {
+    localStorage.setItem('minigt_user', JSON.stringify(currentUser));
+  } catch (_) {}
+
+  updateUserHeaderUI();
+  closeModal('userProfileModal');
+  showToast('Cập nhật thông tin tài khoản hội viên thành công!', 'success');
 }
 
 document.addEventListener('click', () => {
@@ -3386,13 +4073,47 @@ function buildUnifiedCustomerOrderCardHTML(ord) {
         </div>
       ` : ''}
 
-      <!-- KHỐI THÔNG BÁO ADMIN ĐÃ DUYỆT ĐƠN & MÃ VẬN ĐƠN SPX EXPRESS -->
+      <!-- KHỐI THÔNG BÁO ĐƠN HỦY KÈM LÝ DO TỪ ADMIN & HOTLINE LIÊN HỆ LẠI (PHÔNG TRẮNG ĐƠN GIẢN) -->
       ${ordStatus === 'CANCELLED' ? `
-        <div style="background:#fef2f2; border:1px solid #fecaca; border-radius:10px; padding:12px 14px; margin-bottom:12px; font-size:12.5px; color:#991b1b;">
-          <strong><i class="fa-solid fa-ban"></i> Đơn hàng này đã bị hủy.</strong>
-          ${ord.CancelReason || ord.cancelReason ? `<div style="margin-top:3px;">Lý do: ${escapeHtml(ord.CancelReason || ord.cancelReason)}</div>` : ''}
+        <div style="background:#ffffff; border:2px solid #ef4444; border-radius:8px; padding:14px 16px; margin-bottom:14px; text-align:left; box-shadow:0 1px 4px rgba(0,0,0,0.06);">
+          <div style="display:flex; align-items:flex-start; gap:12px;">
+            <div style="font-size:24px; color:#dc2626; line-height:1; flex-shrink:0;">
+              <i class="fa-solid fa-circle-xmark"></i>
+            </div>
+            <div style="flex:1;">
+              <div style="font-size:14px; font-weight:800; color:#dc2626;">
+                ❌ ĐƠN HÀNG #${escapeHtml(orderCode)} ĐÃ BỊ HỦY BỞI QUẢN TRỊ VIÊN
+              </div>
+              <div style="margin-top:8px; background:#fef2f2; border:1px solid #fee2e2; border-radius:6px; padding:8px 12px; font-size:13px; color:#374151;">
+                <strong>Lý do hủy đơn:</strong> <span style="color:#dc2626; font-weight:700;">${escapeHtml(ord.CancelReason || ord.cancelReason || 'Admin đã xử lý hủy đơn')}</span>
+              </div>
+              <div style="margin-top:10px; font-size:12.5px; color:#4b5563; line-height:1.5;">
+                ⚠️ <em>Quý khách vui lòng liên hệ lại với Mini GT Biên Hòa Store qua Hotline / Zalo: <strong style="color:#dc2626; font-size:13px;">0981 400 400</strong> để được hỗ trợ tốt nhất.</em>
+              </div>
+              <div style="margin-top:12px; display:flex; gap:8px; flex-wrap:wrap;">
+                <a href="tel:0981400400" class="btn btn-sm" style="background:#dc2626; color:#ffffff; border:none; padding:7px 14px; border-radius:6px; font-size:12px; font-weight:700; text-decoration:none; display:inline-flex; align-items:center; gap:6px;">
+                  <i class="fa-solid fa-phone"></i> Gọi Hotline 0981 400 400
+                </a>
+                <a href="https://zalo.me/0981400400" target="_blank" class="btn btn-sm" style="background:#ffffff; color:#0284c7; border:1px solid #0284c7; padding:7px 14px; border-radius:6px; font-size:12px; font-weight:700; text-decoration:none; display:inline-flex; align-items:center; gap:6px;">
+                  <i class="fa-solid fa-comments"></i> Nhắn Zalo Hỗ Trợ
+                </a>
+              </div>
+            </div>
+          </div>
         </div>
-      ` : (isApproved ? `
+      ` : (isApproved ? (Boolean(ord.HasPreOrder || ord.hasPreOrder) ? `
+        <div style="background:#f5f3ff; border:1.5px solid #c4b5fd; border-radius:10px; padding:12px 14px; margin-bottom:12px; display:flex; align-items:flex-start; gap:10px;">
+          <i class="fa-solid fa-circle-check" style="color:#7c3aed; font-size:20px; margin-top:2px;"></i>
+          <div style="flex:1;">
+            <div style="font-size:13.5px; font-weight:800; color:#5b21b6;">
+              🎉 ĐÃ XÁC NHẬN ĐẶT CỌC PRE-ORDER THÀNH CÔNG! (Đơn #${escapeHtml(orderCode)})
+            </div>
+            <div style="font-size:12px; color:#4c1d95; margin-top:3px; line-height:1.5;">
+              Cửa hàng Mini GT Biên Hòa đã ghi nhận suất cọc xe của bạn. Admin sẽ chủ động gửi thông báo qua <strong>Zalo</strong>, <strong>Email</strong> hoặc <strong>gọi điện thoại trực tiếp</strong> vào số điện thoại của bạn trong thời gian sắp tới ngay khi lô hàng mô hình cập bến tại cửa hàng Biên Hòa. Sau đó cửa hàng sẽ đóng gói chống sốc và bàn giao SPX Express kèm mã vận đơn gửi đến bạn.
+            </div>
+          </div>
+        </div>
+      ` : `
         <div style="background:linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); border:1.5px solid #86efac; border-radius:12px; padding:12px 14px; margin-bottom:12px; display:flex; align-items:flex-start; gap:10px;">
           <i class="fa-solid fa-circle-check" style="color:#16a34a; font-size:20px; margin-top:2px;"></i>
           <div style="flex:1;">
@@ -3406,7 +4127,7 @@ function buildUnifiedCustomerOrderCardHTML(ord) {
             </div>
           </div>
         </div>
-      ` : `
+      `) : `
         <div style="background:#fffbeb; border:1px solid #fde68a; border-radius:10px; padding:11px 14px; margin-bottom:12px; display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;">
           <div style="font-size:12px; color:#92400e; line-height:1.45;">
             <i class="fa-solid fa-hourglass-half" style="color:#d97706; margin-right:5px;"></i>
@@ -3851,9 +4572,11 @@ function renderTrackingResults(orders) {
 // =====================================================================
 // HỆ THỐNG ĐỒNG BỘ REAL-TIME CHO KHÁCH HÀNG KHI ADMIN DUYỆT ĐƠN / LƯU MÃ SPX
 // =====================================================================
-function showCustomerOrderRealtimeBanner(orderCode, status, trackingCode) {
+function showCustomerOrderRealtimeBanner(orderCode, status, trackingCode, cancelReason) {
   const existing = document.getElementById('customerRealtimeOrderAlert');
   if (existing) existing.remove();
+
+  const isCancelled = status === 'CANCELLED';
 
   // Nếu khách đang mở trực tiếp cửa sổ Thanh Toán (Checkout Modal), cập nhật thẳng vào khung Step 4 bên trong Modal để không bị đè lên nút xác nhận
   if (document.getElementById('checkoutModal')?.classList.contains('active')) {
@@ -3861,48 +4584,90 @@ function showCustomerOrderRealtimeBanner(orderCode, status, trackingCode) {
       updateLiveStep4OrderStatus({
         code: orderCode,
         status: status || 'CONFIRMED',
-        paymentStatus: 'PARTIALLY_PAID',
-        trackingCode: trackingCode || null
+        paymentStatus: isCancelled ? 'REFUND_PENDING' : 'PARTIALLY_PAID',
+        trackingCode: trackingCode || null,
+        cancelReason: cancelReason || null
       });
     }
-    showToast(trackingCode ? `Đơn #${orderCode} đã được duyệt & cấp mã SPX: ${trackingCode}` : `Admin đã duyệt đơn hàng #${orderCode}!`, 'success');
+    if (isCancelled) {
+      showToast(`Đơn #${orderCode} đã bị hủy bởi Admin. Lý do: ${cancelReason || 'Vui lòng liên hệ Hotline 0981 400 400'}`, 'error');
+    } else {
+      showToast(trackingCode ? `Đơn #${orderCode} đã được duyệt & cấp mã SPX: ${trackingCode}` : `Admin đã duyệt đơn hàng #${orderCode}!`, 'success');
+    }
     return;
   }
 
   const banner = document.createElement('div');
   banner.id = 'customerRealtimeOrderAlert';
-  banner.style.cssText = 'position:fixed; top:82px; right:20px; z-index:99999; max-width:420px; background:linear-gradient(135deg, #0f172a 0%, #1e293b 100%); color:#fff; border:2px solid #fb923c; border-radius:14px; padding:14px 16px; box-shadow:0 16px 38px rgba(15,23,42,0.35); animation:slideInRight 0.35s ease;';
-  banner.innerHTML = `
-    <div style="display:flex; align-items:flex-start; gap:12px;">
-      <div style="width:40px; height:40px; border-radius:10px; background:${trackingCode ? '#ea580c' : '#16a34a'}; color:#fff; display:flex; align-items:center; justify-content:center; font-size:18px; flex-shrink:0;">
-        <i class="fa-solid ${trackingCode ? 'fa-truck-fast' : 'fa-circle-check'}"></i>
-      </div>
-      <div style="flex:1;">
-        <div style="font-size:11px; font-weight:800; color:#fdba74; text-transform:uppercase; letter-spacing:0.5px;">
-          🔔 Thông báo mới từ Admin Săn Xe Biên Hòa
+
+  if (isCancelled) {
+    banner.style.cssText = 'position:fixed; top:82px; right:20px; z-index:99999; max-width:440px; background:#ffffff; color:#1f2937; border:2px solid #ef4444; border-radius:8px; padding:14px 16px; box-shadow:0 10px 25px rgba(0,0,0,0.12); animation:slideInRight 0.35s ease; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;';
+    banner.innerHTML = `
+      <div style="display:flex; align-items:flex-start; gap:12px; text-align:left;">
+        <div style="font-size:24px; color:#dc2626; line-height:1; flex-shrink:0;">
+          <i class="fa-solid fa-circle-xmark"></i>
         </div>
-        <div style="font-size:13.5px; font-weight:800; margin-top:2px;">
-          ${trackingCode
-            ? `Đơn #${escapeHtml(orderCode)} đã được duyệt & có mã SPX!`
-            : `Admin đã duyệt đơn hàng #${escapeHtml(orderCode)} của bạn!`}
-        </div>
-        ${trackingCode ? `
-          <div style="margin-top:6px; background:rgba(255,255,255,0.1); border:1px dashed #fdba74; border-radius:8px; padding:6px 10px; display:flex; align-items:center; justify-content:space-between; gap:8px;">
-            <span style="font-family:monospace; font-size:13px; font-weight:800; color:#fde047;">${escapeHtml(trackingCode)}</span>
-            <button type="button" onclick="copyToClipboard('${escapeHtml(trackingCode)}', 'Đã sao chép mã SPX: ${escapeHtml(trackingCode)}')" style="background:#ea580c; color:#fff; border:none; border-radius:6px; padding:3px 8px; font-size:11px; font-weight:700; cursor:pointer;">Copy mã</button>
+        <div style="flex:1;">
+          <div style="font-size:13.5px; font-weight:800; color:#dc2626;">
+            ❌ ĐƠN HÀNG #${escapeHtml(orderCode)} ĐÃ BỊ HỦY BỞI QUẢN TRỊ VIÊN
           </div>
-        ` : ''}
-        <div style="display:flex; gap:8px; margin-top:10px;">
-          <button type="button" onclick="document.getElementById('customerRealtimeOrderAlert')?.remove(); openMyOrdersModal();" style="background:#22c55e; color:#fff; border:none; border-radius:8px; padding:6px 12px; font-size:11.5px; font-weight:800; cursor:pointer;">
-            Xem đơn hàng ngay
-          </button>
-          <button type="button" onclick="document.getElementById('customerRealtimeOrderAlert')?.remove();" style="background:rgba(255,255,255,0.12); color:#cbd5e1; border:none; border-radius:8px; padding:6px 10px; font-size:11.5px; cursor:pointer;">
-            Đóng
-          </button>
+          <div style="margin-top:6px; background:#fef2f2; border:1px solid #fee2e2; border-radius:6px; padding:8px 10px; font-size:12px; color:#374151;">
+            <strong>Lý do hủy đơn:</strong> <span style="color:#dc2626; font-weight:700;">${escapeHtml(cancelReason || 'Admin đã xử lý hủy đơn')}</span>
+          </div>
+          <div style="margin-top:8px; font-size:11.5px; color:#4b5563; line-height:1.45;">
+            ⚠️ <em>Quý khách vui lòng liên hệ lại với Mini GT Biên Hòa Store qua Hotline / Zalo: <strong style="color:#dc2626;">0981 400 400</strong> để được hỗ trợ tốt nhất.</em>
+          </div>
+          <div style="display:flex; gap:8px; margin-top:10px; flex-wrap:wrap;">
+            <a href="tel:0981400400" style="background:#dc2626; color:#ffffff; border:none; border-radius:6px; padding:6px 12px; font-size:11.5px; font-weight:700; text-decoration:none; display:inline-flex; align-items:center; gap:4px;">
+              <i class="fa-solid fa-phone"></i> Gọi Hotline 0981 400 400
+            </a>
+            <a href="https://zalo.me/0981400400" target="_blank" style="background:#ffffff; color:#0284c7; border:1px solid #0284c7; border-radius:6px; padding:6px 12px; font-size:11.5px; font-weight:700; text-decoration:none; display:inline-flex; align-items:center; gap:4px;">
+              <i class="fa-solid fa-comments"></i> Nhắn Zalo Hỗ Trợ
+            </a>
+            <button type="button" onclick="document.getElementById('customerRealtimeOrderAlert')?.remove(); openMyOrdersModal();" style="background:#f1f5f9; color:#475569; border:1px solid #cbd5e1; border-radius:6px; padding:6px 10px; font-size:11.5px; font-weight:600; cursor:pointer;">
+              Chi tiết
+            </button>
+            <button type="button" onclick="document.getElementById('customerRealtimeOrderAlert')?.remove();" style="background:#ffffff; color:#94a3b8; border:1px solid #e2e8f0; border-radius:6px; padding:6px 8px; font-size:11.5px; cursor:pointer;">
+              Đóng
+            </button>
+          </div>
         </div>
       </div>
-    </div>
-  `;
+    `;
+  } else {
+    banner.style.cssText = `position:fixed; top:82px; right:20px; z-index:99999; max-width:440px; background:linear-gradient(135deg, #0f172a 0%, #1e293b 100%); color:#fff; border:2px solid ${trackingCode ? '#fb923c' : '#10b981'}; border-radius:14px; padding:14px 16px; box-shadow:0 16px 38px rgba(15,23,42,0.45); animation:slideInRight 0.35s ease;`;
+    banner.innerHTML = `
+      <div style="display:flex; align-items:flex-start; gap:12px;">
+        <div style="width:40px; height:40px; border-radius:10px; background:${trackingCode ? '#ea580c' : '#16a34a'}; color:#fff; display:flex; align-items:center; justify-content:center; font-size:18px; flex-shrink:0;">
+          <i class="fa-solid ${trackingCode ? 'fa-truck-fast' : 'fa-circle-check'}"></i>
+        </div>
+        <div style="flex:1;">
+          <div style="font-size:11px; font-weight:800; color:#fdba74; text-transform:uppercase; letter-spacing:0.5px;">
+            🔔 Thông báo mới từ Admin Săn Xe Biên Hòa
+          </div>
+          <div style="font-size:13.5px; font-weight:800; margin-top:2px; color:#fff;">
+            ${trackingCode
+              ? `Đơn #${escapeHtml(orderCode)} đã được duyệt & có mã SPX!`
+              : `Admin đã duyệt đơn hàng #${escapeHtml(orderCode)} của bạn!`}
+          </div>
+          ${trackingCode ? `
+            <div style="margin-top:6px; background:rgba(255,255,255,0.1); border:1px dashed #fdba74; border-radius:8px; padding:6px 10px; display:flex; align-items:center; justify-content:space-between; gap:8px;">
+              <span style="font-family:monospace; font-size:13px; font-weight:800; color:#fde047;">${escapeHtml(trackingCode)}</span>
+              <button type="button" onclick="copyToClipboard('${escapeHtml(trackingCode)}', 'Đã sao chép mã SPX: ${escapeHtml(trackingCode)}')" style="background:#ea580c; color:#fff; border:none; border-radius:6px; padding:3px 8px; font-size:11px; font-weight:700; cursor:pointer;">Copy mã</button>
+            </div>
+          ` : ''}
+          <div style="display:flex; gap:8px; margin-top:10px; flex-wrap:wrap;">
+            <button type="button" onclick="document.getElementById('customerRealtimeOrderAlert')?.remove(); openMyOrdersModal();" style="background:#22c55e; color:#fff; border:none; border-radius:8px; padding:6px 12px; font-size:11.5px; font-weight:800; cursor:pointer;">
+              Xem đơn hàng ngay
+            </button>
+            <button type="button" onclick="document.getElementById('customerRealtimeOrderAlert')?.remove();" style="background:rgba(255,255,255,0.12); color:#cbd5e1; border:none; border-radius:8px; padding:6px 10px; font-size:11.5px; cursor:pointer;">
+              Đóng
+            </button>
+          </div>
+        </div>
+      </div>
+    `;
+  }
   document.body.appendChild(banner);
   setTimeout(() => {
     if (banner && banner.parentNode) banner.remove();
@@ -3919,6 +4684,7 @@ function initCustomerRealtimeOrderWatcher() {
       const code = payload.orderCode || orderObj?.OrderCode || orderObj?.orderCode || orderObj?.code;
       const newStatus = String(payload.status || orderObj?.Status || orderObj?.status || '').toUpperCase();
       const newTracking = String(payload.trackingCode || orderObj?.TrackingCode || orderObj?.trackingCode || '').trim();
+      const cancelReason = payload.cancelReason || orderObj?.CancelReason || orderObj?.cancelReason || null;
 
       if (code) {
         const myCodes = getSavedCustomerOrderCodes();
@@ -3927,10 +4693,11 @@ function initCustomerRealtimeOrderWatcher() {
           const prev = customerOrderStateSnapshot[code] || {};
           const newlyApproved = ['CONFIRMED', 'PREPARING', 'SHIPPING'].includes(newStatus) && prev.status === 'PENDING';
           const newlyTracked = Boolean(newTracking) && newTracking !== prev.tracking;
+          const newlyCancelled = newStatus === 'CANCELLED' && prev.status !== 'CANCELLED';
           customerOrderStateSnapshot[code] = { status: newStatus || prev.status, tracking: newTracking || prev.tracking };
 
-          if (newlyApproved || newlyTracked) {
-            showCustomerOrderRealtimeBanner(code, newStatus, newTracking);
+          if (newlyApproved || newlyTracked || newlyCancelled) {
+            showCustomerOrderRealtimeBanner(code, newStatus, newTracking, cancelReason);
           }
         }
       }
@@ -3970,8 +4737,9 @@ function initCustomerRealtimeOrderWatcher() {
         if (old) {
           const newlyApproved = ['CONFIRMED', 'PREPARING', 'SHIPPING'].includes(st) && old.status === 'PENDING';
           const newlyTracked = Boolean(tk) && tk !== old.tracking;
-          if (newlyApproved || newlyTracked) {
-            showCustomerOrderRealtimeBanner(c, st, tk);
+          const newlyCancelled = st === 'CANCELLED' && old.status !== 'CANCELLED';
+          if (newlyApproved || newlyTracked || newlyCancelled) {
+            showCustomerOrderRealtimeBanner(c, st, tk, o.CancelReason || o.cancelReason);
           }
         }
       });
@@ -4032,6 +4800,76 @@ function setupSearch() {
       dropdown.classList.remove('active');
     }
   });
+
+  // Hiệu ứng chữ chuyển động gõ (Typewriter animation) cho ô tìm kiếm
+  initSearchTypewriter(input);
+}
+
+function initSearchTypewriter(input) {
+  if (!input) return;
+
+  const phrases = [
+    'Tìm theo tên xe, SKU, hãng...',
+    'Tìm Porsche 911 GT3 R Rexy #80...',
+    'Tìm Nissan Silvia S15 LB★WORKS...',
+    'Tìm Oracle Red Bull Racing RB19...',
+    'Tìm Scania Transporter Box Set...',
+    'Tìm Pop Race Secret Chase 1:64...',
+    'Tìm Lamborghini Huracán Sterrato...'
+  ];
+
+  let phraseIdx = 0;
+  let charIdx = 0;
+  let isDeleting = false;
+  let isPaused = false;
+  let timer = null;
+
+  input.addEventListener('focus', () => {
+    isPaused = true;
+    input.setAttribute('placeholder', 'Tìm theo tên xe, SKU, hãng...');
+  });
+
+  input.addEventListener('blur', () => {
+    if (!input.value.trim()) {
+      isPaused = false;
+      charIdx = 0;
+      isDeleting = false;
+      clearTimeout(timer);
+      timer = setTimeout(tick, 300);
+    }
+  });
+
+  function tick() {
+    if (isPaused || input.value.trim()) {
+      timer = setTimeout(tick, 500);
+      return;
+    }
+
+    const current = phrases[phraseIdx];
+
+    if (isDeleting) {
+      charIdx--;
+      input.setAttribute('placeholder', current.substring(0, charIdx) || ' ');
+      if (charIdx <= 0) {
+        isDeleting = false;
+        phraseIdx = (phraseIdx + 1) % phrases.length;
+        timer = setTimeout(tick, 450);
+        return;
+      }
+      timer = setTimeout(tick, 35);
+    } else {
+      charIdx++;
+      input.setAttribute('placeholder', current.substring(0, charIdx));
+      if (charIdx >= current.length) {
+        isDeleting = true;
+        timer = setTimeout(tick, 2000);
+        return;
+      }
+      timer = setTimeout(tick, 65);
+    }
+  }
+
+  timer = setTimeout(tick, 600);
 }
 
 // =====================================================================
@@ -4165,6 +5003,31 @@ function filterAndScroll(event, filterKey) {
     catalog.scrollIntoView({ behavior: 'smooth' });
   }
   if (typeof playHoverBeep === 'function') playHoverBeep(520, 0.04);
+}
+
+function filterGt3Cards(type, btn) {
+  document.querySelectorAll('.gt3-tab-btn').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  const cards = document.querySelectorAll('.gt3-dino-card');
+  cards.forEach(card => {
+    if (type === 'all' || card.classList.contains(`${type}-theme`)) {
+      card.style.display = 'flex';
+      card.style.opacity = '1';
+    } else {
+      card.style.display = 'none';
+    }
+  });
+  if (typeof playHoverBeep === 'function') playHoverBeep(640, 0.04);
+}
+
+function scrollToAoCard(cardId) {
+  const el = document.getElementById(cardId);
+  if (!el) return;
+  el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  el.classList.remove('card-highlight-pulse');
+  void el.offsetWidth; // Force reflow to re-trigger animation
+  el.classList.add('card-highlight-pulse');
+  if (typeof playHoverBeep === 'function') playHoverBeep(580, 0.05);
 }
 
 // =====================================================================
@@ -4480,11 +5343,12 @@ function clearCompareList() {
 
 function openCompareModal() {
   const modal = document.getElementById('compareModal');
-  const body = document.getElementById('compareModalBody');
+  const body = document.getElementById('compareModalContent') || document.getElementById('compareModalBody');
   if (!modal || !body) return;
 
+  const prods = (allProducts && allProducts.length ? allProducts : FALLBACK_PRODUCTS);
   const items = compareList
-    .map(id => allProducts.find(p => Number(p.Id || p.ProductId) === Number(id)))
+    .map(id => prods.find(p => Number(p.Id || p.ProductId || p.id) === Number(id)))
     .filter(Boolean);
 
   if (items.length === 0) {
@@ -4498,44 +5362,65 @@ function openCompareModal() {
         <thead>
           <tr>
             <th style="padding:12px; border:1px solid #e2e8f0; background:#f8fafc; text-align:left; width:170px;">Tiêu chí so sánh</th>
-            ${items.map(p => `
+            ${items.map(p => {
+              const pImg = p.ImageUrl || p.imageUrl || p.image || 'image/hero-banner.jpg';
+              const pName = p.Name || p.name;
+              const pSku = p.Sku || p.sku;
+              return `
               <th style="padding:12px; border:1px solid #e2e8f0; text-align:center; min-width:210px;">
-                <img src="${p.ImageUrl}" onerror="this.src='image/hero-banner.jpg'" style="width:110px; height:80px; object-fit:contain; margin:0 auto 8px;">
-                <div style="font-size:13.5px; color:var(--color-navy); font-weight:800;">${escapeHtml(p.Name)}</div>
-                <div style="font-size:11px; color:#64748b; font-family:monospace; margin-top:2px;">SKU: #${escapeHtml(p.Sku)}</div>
+                <img src="${escapeHtml(pImg)}" onerror="this.src='image/hero-banner.jpg'" style="width:110px; height:80px; object-fit:contain; margin:0 auto 8px;">
+                <div style="font-size:13.5px; color:var(--color-navy); font-weight:800;">${escapeHtml(pName)}</div>
+                <div style="font-size:11px; color:#64748b; font-family:monospace; margin-top:2px;">SKU: #${escapeHtml(pSku)}</div>
               </th>
-            `).join('')}
+            `;}).join('')}
           </tr>
         </thead>
         <tbody>
           <tr>
-            <td style="padding:10px 12px; border:1px solid #e2e8f0; font-weight:700; background:#f8fafc;">Giá niêm yết</td>
-            ${items.map(p => `<td style="padding:10px 12px; border:1px solid #e2e8f0; text-align:center; font-weight:800; color:var(--color-primary); font-size:15px;">${formatVND(p.Price)}</td>`).join('')}
+            <td style="padding:10px 12px; border:1px solid #e2e8f0; font-weight:700; background:#f8fafc;">Giá Box / Card</td>
+            ${items.map(p => {
+              const pricing = getProductBoxCardPricing(p);
+              return `
+              <td style="padding:10px 12px; border:1px solid #e2e8f0; text-align:center;">
+                <div style="font-weight:800; color:var(--color-primary); font-size:15px;">Box: ${formatVND(pricing.finalPriceBox)}</div>
+                <div style="font-size:12px; color:#64748b;">Card: ${formatVND(pricing.finalPriceCard)}</div>
+                ${pricing.hasDiscount ? `<span style="font-size:10.5px; color:#dc2626; font-weight:700;">(-${pricing.discountPercent}%)</span>` : ''}
+              </td>`;
+            }).join('')}
           </tr>
           <tr>
             <td style="padding:10px 12px; border:1px solid #e2e8f0; font-weight:700; background:#f8fafc;">Mức cọc giữ xe (30%)</td>
-            ${items.map(p => `<td style="padding:10px 12px; border:1px solid #e2e8f0; text-align:center; font-weight:700; color:#2563eb;">${formatVND(Math.round(p.Price * ((p.DepositRate || 30) / 100)))}</td>`).join('')}
+            ${items.map(p => {
+              const pricing = getProductBoxCardPricing(p);
+              const isPreOrder = String(p.Status || p.status || '').toLowerCase() === 'pre_order';
+              const dep = p.DepositAmount || Math.round(pricing.finalPriceBox * 0.3);
+              return `<td style="padding:10px 12px; border:1px solid #e2e8f0; text-align:center; font-weight:700; color:#2563eb;">${isPreOrder ? formatVND(dep) : 'Sẵn hàng (Không cần cọc)'}</td>`;
+            }).join('')}
           </tr>
           <tr>
             <td style="padding:10px 12px; border:1px solid #e2e8f0; font-weight:700; background:#f8fafc;">Trạng thái kho</td>
-            ${items.map(p => `<td style="padding:10px 12px; border:1px solid #e2e8f0; text-align:center;">${p.Status === 'IN_STOCK' ? '<span style="color:#16a34a; font-weight:800;">✅ Sẵn hàng giao ngay</span>' : (p.Status === 'PRE_ORDER' ? '<span style="color:#d97706; font-weight:800;">⏳ Nhận cọc Pre-Order</span>' : '<span style="color:#dc2626; font-weight:800;">Hết hàng</span>')}</td>`).join('')}
+            ${items.map(p => {
+              const st = String(p.Status || p.status || '').toLowerCase();
+              return `<td style="padding:10px 12px; border:1px solid #e2e8f0; text-align:center;">${st === 'in_stock' ? '<span style="color:#16a34a; font-weight:800;">✅ Sẵn hàng giao ngay</span>' : (st === 'pre_order' ? '<span style="color:#d97706; font-weight:800;">⏳ Nhận cọc Pre-Order</span>' : '<span style="color:#dc2626; font-weight:800;">Hết hàng</span>')}</td>`;
+            }).join('')}
           </tr>
           <tr>
-            <td style="padding:10px 12px; border:1px solid #e2e8f0; font-weight:700; background:#f8fafc;">Phiên bản / Dòng xe</td>
-            ${items.map(p => `<td style="padding:10px 12px; border:1px solid #e2e8f0; text-align:center;">${escapeHtml(p.EditionNote || p.CategoryName || 'Standard Blister / Box 1:64')}</td>`).join('')}
+            <td style="padding:10px 12px; border:1px solid #e2e8f0; font-weight:700; background:#f8fafc;">Phiên bản / Ghi chú</td>
+            ${items.map(p => `<td style="padding:10px 12px; border:1px solid #e2e8f0; text-align:center;">${escapeHtml(p.EditionNote || p.editionNote || p.CategoryName || 'Standard Blister / Box 1:64')}</td>`).join('')}
           </tr>
           <tr>
             <td style="padding:10px 12px; border:1px solid #e2e8f0; font-weight:700; background:#f8fafc;">Chất liệu & Tỷ lệ</td>
-            ${items.map(() => `<td style="padding:10px 12px; border:1px solid #e2e8f0; text-align:center;">Diecast Kim Loại Nguyên Khối • Lốp Cao Su • Chuẩn 1:64</td>`).join('')}
+            ${items.map(() => `<td style="padding:10px 12px; border:1px solid #e2e8f0; text-align:center;">Diecast Kim Loại • Lốp Cao Su • Tỷ lệ 1:64</td>`).join('')}
           </tr>
           <tr>
             <td style="padding:10px 12px; border:1px solid #e2e8f0; font-weight:700; background:#f8fafc;">Thao tác nhanh</td>
             ${items.map(p => {
-              const pid = p.Id || p.ProductId;
+              const pid = p.Id || p.ProductId || p.id;
+              const isPreOrder = String(p.Status || p.status || '').toLowerCase() === 'pre_order';
               return `
                 <td style="padding:10px 12px; border:1px solid #e2e8f0; text-align:center;">
                   <button type="button" class="btn btn-primary btn-sm" onclick="closeModal('compareModal'); addToCart(${pid});">
-                    <i class="fa-solid fa-cart-plus"></i> Chọn mẫu này
+                    <i class="fa-solid fa-cart-plus"></i> ${isPreOrder ? 'Đặt cọc mẫu này' : 'Mua mẫu này'}
                   </button>
                 </td>
               `;
@@ -4737,7 +5622,7 @@ document.addEventListener('click', (e) => {
 
 const I18N_TRANSLATIONS = {
   en: {
-    searchPlaceholder: 'Search SKU, model name (LBWK, GT3, F1, Rexy)... [Press /]',
+    searchPlaceholder: 'Search SKU, model name (LBWK, GT3, F1, Rexy)...',
     topbarLeft: '<i class="fa-solid fa-shield-halved" style="color:#e11d48; margin-right:4px;"></i> Official <strong>TSM-Model (MINI GT) 1:64</strong> Distributor in Bien Hoa • Sealed Box & Blister Card',
     topbarTrackBtn: '<i class="fa-solid fa-magnifying-glass-location"></i> Track Order',
     topbarOrdersBtn: '<i class="fa-solid fa-box-archive"></i> My Orders (SPX)',
@@ -4809,7 +5694,8 @@ const I18N_TRANSLATIONS = {
     lbwkBtnFilter: 'Filter All LBWK Models &rarr;',
     gt3Badge: '🏁 IMSA GTD PRO & FIA WEC PADDOCK',
     gt3Title: 'AO RACING: REXY • ROXY • SKELETON & GT3',
-    gt3Desc: 'The most sought-after 1:64 endurance racing models from Daytona, Sebring, and Le Mans.',
+    gt3Desc: '<span class="gt3-checkered-badge"><i class="fa-solid fa-flag-checkered"></i> Black &amp; white checkered flag on the track: The finish flag (Checkered flag)</span>',
+    gt3_desc: '<span class="gt3-checkered-badge"><i class="fa-solid fa-flag-checkered"></i> Black &amp; white checkered flag on the track: The finish flag (Checkered flag)</span>',
     gt3BtnFilter: 'View All GT3 & Motorsport &rarr;',
     aoHeadline: 'TRIO REXY #80 • ROXY #80 • SKELETON #77',
     aoSubDesc: 'Authentic AO Racing Porsche 911 GT3 R (992) models in both Box & Blister Card.',
@@ -4823,7 +5709,7 @@ const I18N_TRANSLATIONS = {
     chaseBtnFilter: 'View Chase Eligible Models &rarr;'
   },
   vi: {
-    searchPlaceholder: 'Tìm mã MGT, tên xe (LBWK, F1, Porsche, Rexy)... [Nhấn /]',
+    searchPlaceholder: 'Tìm mã MGT, tên xe (LBWK, F1, Porsche, Rexy)... ',
     topbarLeft: '<i class="fa-solid fa-shield-halved" style="color:#e11d48; margin-right:4px;"></i> Đại lý phân phối <strong>TSM-Model (MINI GT) 1:64</strong> Chính Hãng tại Biên Hòa • Đầy đủ bản Box & Vỉ Card Blister',
     topbarTrackBtn: '<i class="fa-solid fa-magnifying-glass-location"></i> Tra cứu đơn cọc',
     topbarOrdersBtn: '<i class="fa-solid fa-box-archive"></i> Đơn hàng của tôi (SPX)',
@@ -4895,7 +5781,8 @@ const I18N_TRANSLATIONS = {
     lbwkBtnFilter: 'Lọc toàn bộ xe Liberty Walk &rarr;',
     gt3Badge: '🏁 ĐƯỜNG ĐUA IMSA GTD PRO & FIA WEC',
     gt3Title: 'BỘ BA REXY • ROXY • SKELETON & ĐƯỜNG ĐUA GT3',
-    gt3Desc: 'Tâm điểm săn đón của giới sưu tầm 1:64 toàn cầu: Porsche 911 GT3 R (992) AO Racing và dàn siêu xe GT3 bản quyền.',
+    gt3Desc: '<span class="gt3-checkered-badge"><i class="fa-solid fa-flag-checkered"></i> Cờ caro đen trắng trên đường đua: Là cờ đích (Checkered flag)</span>',
+    gt3_desc: '<span class="gt3-checkered-badge"><i class="fa-solid fa-flag-checkered"></i> Cờ caro đen trắng trên đường đua: Là cờ đích (Checkered flag)</span>',
     gt3BtnFilter: 'Xem toàn bộ xe GT3 & Đua &rarr;',
     aoHeadline: 'BỘ 3 REXY #80 • ROXY #80 • SKELETON #77',
     aoSubDesc: 'Đầy đủ cả phiên bản Box (Hộp giấy) và Card (Vỉ Blister có hình minh họa khủng long).',

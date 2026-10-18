@@ -63,8 +63,16 @@ const steps = [
     ALTER TABLE dbo.Orders ADD CONSTRAINT CK_Orders_PaymentStatus
       CHECK (PaymentStatus IN ('UNPAID','PARTIALLY_PAID','PAID','REFUND_PENDING','REFUNDED'));`],
   ['CK_Orders_ShippingMethod', `
-    IF NOT EXISTS (SELECT 1 FROM sys.check_constraints WHERE name = 'CK_Orders_ShippingMethod')
-      ALTER TABLE dbo.Orders ADD CONSTRAINT CK_Orders_ShippingMethod CHECK (ShippingMethod IN ('SPX','PICKUP'));`],
+    IF EXISTS (SELECT 1 FROM sys.check_constraints WHERE name = 'CK_Orders_ShippingMethod')
+      ALTER TABLE dbo.Orders DROP CONSTRAINT CK_Orders_ShippingMethod;
+    ALTER TABLE dbo.Orders ADD CONSTRAINT CK_Orders_ShippingMethod CHECK (ShippingMethod IN ('SPX','PICKUP','BOX_SAVER'));`],
+  ['CK_Orders_Total', `
+    IF EXISTS (SELECT 1 FROM sys.check_constraints WHERE name = 'CK_Orders_Total')
+      ALTER TABLE dbo.Orders DROP CONSTRAINT CK_Orders_Total;
+    ALTER TABLE dbo.Orders ADD CONSTRAINT CK_Orders_Total CHECK (Total >= 0 AND Subtotal >= 0 AND ShippingFee >= 0);`],
+  ['Users.DropLegacyGmailConstraint', `
+    IF EXISTS (SELECT 1 FROM sys.check_constraints WHERE name = 'CK_Users_Gmail')
+      ALTER TABLE dbo.Users DROP CONSTRAINT CK_Users_Gmail;`],
 
   ['Products.IsActive', `
     IF COL_LENGTH('dbo.Products','IsActive') IS NULL
@@ -72,6 +80,40 @@ const steps = [
   ['Products.UpdatedAt', `
     IF COL_LENGTH('dbo.Products','UpdatedAt') IS NULL
       ALTER TABLE dbo.Products ADD UpdatedAt DATETIME2 NULL;`],
+  ['Products.CarNumber', `
+    IF COL_LENGTH('dbo.Products','CarNumber') IS NULL
+      ALTER TABLE dbo.Products ADD CarNumber VARCHAR(20) NULL;`],
+  ['Products.PackagingType', `
+    IF COL_LENGTH('dbo.Products','PackagingType') IS NULL
+      ALTER TABLE dbo.Products ADD PackagingType VARCHAR(20) NOT NULL CONSTRAINT DF_Products_PackagingType DEFAULT 'both';`],
+  ['Products.PriceBox', `
+    IF COL_LENGTH('dbo.Products','PriceBox') IS NULL
+      ALTER TABLE dbo.Products ADD PriceBox DECIMAL(18,2) NOT NULL CONSTRAINT DF_Products_PriceBox DEFAULT 0;`],
+  ['Products.PriceCard', `
+    IF COL_LENGTH('dbo.Products','PriceCard') IS NULL
+      ALTER TABLE dbo.Products ADD PriceCard DECIMAL(18,2) NOT NULL CONSTRAINT DF_Products_PriceCard DEFAULT 0;`],
+  ['Products.DiscountPercent', `
+    IF COL_LENGTH('dbo.Products','DiscountPercent') IS NULL
+      ALTER TABLE dbo.Products ADD DiscountPercent INT NOT NULL CONSTRAINT DF_Products_DiscountPercent DEFAULT 0;`],
+  ['Products.PriceBox backfill', `
+    EXEC('UPDATE dbo.Products SET PriceBox = CASE WHEN OldPrice IS NOT NULL AND OldPrice > Price THEN OldPrice ELSE Price END WHERE PriceBox = 0');
+    EXEC('UPDATE dbo.Products SET PriceCard = CASE WHEN PackagingType = ''box_only'' THEN PriceBox ELSE PriceBox + 60000 END WHERE PriceCard = 0');`],
+  ['OrderItems.PackagingOption', `
+    IF COL_LENGTH('dbo.OrderItems','PackagingOption') IS NULL
+      ALTER TABLE dbo.OrderItems ADD PackagingOption VARCHAR(20) NOT NULL CONSTRAINT DF_OrderItems_PackagingOption DEFAULT 'box';`],
+  ['View vw_ProductList', `
+    CREATE OR ALTER VIEW dbo.vw_ProductList AS
+    SELECT
+        p.ProductId, p.Sku, p.CarNumber, p.Name, p.Slug,
+        p.Brand, p.Scale, p.PackagingType,
+        p.PriceBox, p.PriceCard, p.DiscountPercent,
+        p.Price, p.OldPrice, p.DepositAmount,
+        p.QuotaPercent, p.EditionNote, p.PreOrderDeadline,
+        p.Stock, p.ImageUrl, p.Description, p.Status,
+        p.IsFeatured, p.IsNew, p.IsActive, p.CreatedAt, p.UpdatedAt,
+        c.CategoryId, c.Name AS CategoryName, c.Slug AS CategorySlug
+    FROM dbo.Products p
+    INNER JOIN dbo.Categories c ON p.CategoryId = c.CategoryId;`],
 
   ['Table OrderStatusHistory', `
     IF OBJECT_ID('dbo.OrderStatusHistory','U') IS NULL
@@ -140,6 +182,8 @@ const steps = [
       CREATE INDEX IX_OrderItems_OrderId ON dbo.OrderItems(OrderId);`]
 ];
 
+const { syncCanonicalData } = require('./002_sync_canonical_data');
+
 async function migrate({ exitOnDone = true } = {}) {
   const pool = await db.getPool();
   if (!pool) throw new Error('Không kết nối được SQL Server');
@@ -152,6 +196,20 @@ async function migrate({ exitOnDone = true } = {}) {
       throw err;
     }
   }
+
+  // Tự động đồng bộ 18 sản phẩm chuẩn nếu chạy trực tiếp hoặc phát hiện dữ liệu chưa chuẩn hóa Box/Card/Unicode
+  const checkSync = await db.query(`
+    SELECT COUNT(*) AS NeedsSync
+    FROM dbo.Products
+    WHERE CarNumber IS NULL OR PriceBox = 0 OR Name LIKE N'%Ă%' OR Name LIKE N'%â˜%'
+  `);
+  const countRes = await db.query('SELECT COUNT(*) AS Total FROM dbo.Products');
+  const totalProds = countRes.recordset[0]?.Total || 0;
+
+  if (exitOnDone || (checkSync.recordset[0]?.NeedsSync || 0) > 0 || totalProds < 18) {
+    await syncCanonicalData();
+  }
+
   console.log('[MIGRATION 001] Hoàn tất.');
   if (exitOnDone) process.exit(0);
 }
@@ -161,3 +219,4 @@ if (require.main === module) {
 }
 
 module.exports = { migrate };
+

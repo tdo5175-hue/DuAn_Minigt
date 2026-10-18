@@ -21,7 +21,7 @@
 
   const API_BASE = getApiBase();
   const SHARED_ORDERS_KEY = 'minigt_shared_orders_v2';
-  const SHARED_PRODUCTS_KEY = 'minigt_products_catalog_v3';
+  const SHARED_PRODUCTS_KEY = 'minigt_products_catalog_v4_canonical';
   const SHARED_SETTINGS_KEY = 'minigt_store_settings_v2';
   const SHARED_USERS_KEY = 'minigt_users_list_v2';
   const SHARED_SUBSCRIBERS_KEY = 'minigt_subscribers_v2';
@@ -118,6 +118,137 @@
   };
 
   // =====================================================================
+  // DỮ LIỆU TÀI KHOẢN HỘI VIÊN & QUẢN TRỊ (SHARED USERS DATABASE)
+  // =====================================================================
+  const DEFAULT_USERS_DATA = [
+    {
+      userId: 1,
+      id: 1,
+      fullName: 'Đỗ Quốc Thịnh',
+      email: 'quocthinh.admin@minigt.vn',
+      phone: '0988164164',
+      address: '38/2 Võ Thị Sáu, P. Quyết Thắng, TP. Biên Hòa, Đồng Nai',
+      totalOrders: 12,
+      totalSpent: 8450000,
+      role: 'admin',
+      tier: 'Quản Trị Viên',
+      points: 9999,
+      password: 'admin',
+      isActive: true,
+      avatarUrl: 'image/DoQuocThinh_anhthe.jpg',
+      createdAt: '2026-01-15T08:00:00Z'
+    },
+    {
+      userId: 2,
+      id: 2,
+      fullName: 'Nguyễn Đình Nam',
+      email: 'dinhnam.admin@minigt.vn',
+      phone: '0977164164',
+      address: 'Biên Hòa, Đồng Nai',
+      totalOrders: 9,
+      totalSpent: 6200000,
+      role: 'admin',
+      tier: 'Quản Trị Viên',
+      points: 9999,
+      password: 'admin',
+      isActive: true,
+      avatarUrl: 'image/Anh_The_Dinh_Nam.jpg',
+      createdAt: '2026-01-16T09:30:00Z'
+    },
+    {
+      userId: 3,
+      id: 3,
+      fullName: 'Trần Minh Quân',
+      email: 'minhquan.collector@gmail.com',
+      phone: '0912345678',
+      address: 'Quận 1, TP. Hồ Chí Minh',
+      totalOrders: 5,
+      totalSpent: 2450000,
+      role: 'customer',
+      tier: 'Gold Collector',
+      points: 350,
+      password: '123',
+      isActive: true,
+      avatarUrl: 'image/anh-clone.jpg',
+      createdAt: '2026-03-10T14:20:00Z'
+    },
+    {
+      userId: 4,
+      id: 4,
+      fullName: 'Lê Hoàng Long',
+      email: 'hoanglong.diecast@gmail.com',
+      phone: '0938112233',
+      address: 'TP. Thủ Dầu Một, Bình Dương',
+      totalOrders: 3,
+      totalSpent: 1380000,
+      role: 'customer',
+      tier: 'Collector',
+      points: 150,
+      password: '123',
+      isActive: true,
+      avatarUrl: 'image/anh-clone.jpg',
+      createdAt: '2026-04-02T11:10:00Z'
+    },
+    {
+      userId: 5,
+      id: 5,
+      fullName: 'VIP Collector Biên Hòa',
+      email: 'collector@gmail.com',
+      phone: '0988123456',
+      address: '123 Võ Thị Sáu, P. Quyết Thắng, TP. Biên Hòa, Đồng Nai',
+      totalOrders: 8,
+      totalSpent: 4500000,
+      role: 'customer',
+      tier: 'Diamond Member',
+      points: 500,
+      password: '123456',
+      isActive: true,
+      avatarUrl: 'image/anh-clone.jpg',
+      createdAt: '2026-04-10T10:00:00Z'
+    },
+    {
+      userId: 6,
+      id: 6,
+      fullName: 'AO Racing Fan Club',
+      email: 'rexy.fan@gmail.com',
+      phone: '0909686868',
+      address: '45 Nguyễn Ái Quốc, P. Tân Phong, TP. Biên Hòa',
+      totalOrders: 4,
+      totalSpent: 2150000,
+      role: 'customer',
+      tier: 'Gold Collector',
+      points: 280,
+      password: '123456',
+      isActive: true,
+      avatarUrl: 'image/anh-clone.jpg',
+      createdAt: '2026-05-01T15:30:00Z'
+    }
+  ];
+
+  const getSharedUsers = () => {
+    try {
+      const saved = localStorage.getItem(SHARED_USERS_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+      localStorage.setItem(SHARED_USERS_KEY, JSON.stringify(DEFAULT_USERS_DATA));
+      return DEFAULT_USERS_DATA;
+    } catch (e) {
+      return DEFAULT_USERS_DATA;
+    }
+  };
+
+  const saveSharedUsers = (users) => {
+    try {
+      localStorage.setItem(SHARED_USERS_KEY, JSON.stringify(users));
+      emitRealtimeSync('users_updated', { count: users.length });
+    } catch (e) {
+      console.warn('Không thể lưu users vào localStorage:', e);
+    }
+  };
+
+  // =====================================================================
   // DANH MỤC MẶC ĐỊNH & CHUẨN HÓA SẢN PHẨM (BOX vs CARD + GIẢM TRỰC TIẾP %)
   // =====================================================================
   const CATEGORY_MAP = {
@@ -125,213 +256,225 @@
     2: { id: 2, name: 'Formula 1 Racing', slug: 'f1-racing' },
     3: { id: 3, name: 'IMSA & GT3 Racing', slug: 'gt-racing' },
     4: { id: 4, name: 'Box Sets & Combo', slug: 'box-sets' },
-    5: { id: 5, name: 'Pop Race & Collab', slug: 'partner' }
+    5: { id: 5, name: 'Pop Race & Secret Chase', slug: 'partner' }
   };
 
   const DEFAULT_CATALOG_PRODUCTS = [
     {
-      id: 1, ProductId: 1, Sku: 'MGTS0026', CarNumber: 'S0026',
+      id: 1, ProductId: 1, Sku: 'MGTS0026', CarNumber: 'S026',
       Name: 'Lamborghini Huracán Sterrato All-Terrain Set (Box 4 xe)',
       CategoryId: 4, CategorySlug: 'box-sets', CategoryName: 'Box Sets & Combo',
       Brand: 'MINI GT', Scale: '1:64',
-      PriceBox: 1850000, PriceCard: 1950000, DiscountPercent: 0, PackagingType: 'both',
-      DepositAmount: 500000, QuotaPercent: 82, EditionNote: 'Box Set 4 Xe',
-      PreOrderDeadline: '2026-10-30', Stock: 20,
+      PriceBox: 1850000, PriceCard: 1850000, DiscountPercent: 0, PackagingType: 'box_only',
+      DepositAmount: 500000, QuotaPercent: 92, EditionNote: 'Box Set Đặc Biệt (Giới hạn 3000 bộ)',
+      PreOrderDeadline: '2026-10-30', Stock: 15,
       ImageUrl: 'image/lambo-sterrato-set.png',
-      Description: 'Set 4 xe Lamborghini Huracán Sterrato All-Terrain với hộp trưng bày Collector Box sang trọng, chi tiết lốp off-road và giá nóc safari độc quyền.',
-      Status: 'pre_order', IsFeatured: 1, IsNew: 1, soldCount: 28
+      Description: 'Bộ 4 xe Lamborghini Huracán Sterrato địa hình kèm hộp trưng bày Collector Box cao cấp chính hãng TSM-Model.',
+      Status: 'pre_order', IsFeatured: 1, IsNew: 1, soldCount: 38
     },
     {
       id: 2, ProductId: 2, Sku: 'MGT01413', CarNumber: '1413',
-      Name: 'Aston Martin AMR24 #18 Lance Stroll F1 Las Vegas GP',
+      Name: 'Aston Martin AMR24 #18 Lance Stroll 2024 F1 Las Vegas GP',
       CategoryId: 2, CategorySlug: 'f1-racing', CategoryName: 'Formula 1 Racing',
       Brand: 'MINI GT', Scale: '1:64',
       PriceBox: 420000, PriceCard: 480000, DiscountPercent: 10, PackagingType: 'both',
-      DepositAmount: 130000, QuotaPercent: 75, EditionNote: 'LHD Edition',
-      PreOrderDeadline: '2026-10-30', Stock: 45,
+      DepositAmount: 150000, QuotaPercent: 88, EditionNote: 'Kèm Figure Tay Đua F1 Las Vegas',
+      PreOrderDeadline: '2026-10-30', Stock: 25,
       ImageUrl: 'image/aston-amr24-stroll.png',
-      Description: 'Chiến mã F1 AMR24 của tay đua Lance Stroll tại chặng Las Vegas GP. Cánh gió sau khí động học, tem tài trợ sắc nét.',
+      Description: 'Mô hình xe đua F1 Aston Martin AMR24 #18 chặng Las Vegas GP 2024, sơn xanh Racing Green ánh kim tuyệt đẹp.',
       Status: 'pre_order', IsFeatured: 1, IsNew: 1, soldCount: 34
     },
     {
       id: 3, ProductId: 3, Sku: 'MGT01396', CarNumber: '1396',
-      Name: 'Aston Martin AMR24 #14 Fernando Alonso F1 Las Vegas GP',
+      Name: 'Aston Martin AMR24 #14 Fernando Alonso 2024 F1 Las Vegas GP',
       CategoryId: 2, CategorySlug: 'f1-racing', CategoryName: 'Formula 1 Racing',
       Brand: 'MINI GT', Scale: '1:64',
       PriceBox: 420000, PriceCard: 480000, DiscountPercent: 0, PackagingType: 'both',
-      DepositAmount: 130000, QuotaPercent: 90, EditionNote: '2x World Champ',
-      PreOrderDeadline: '2026-10-30', Stock: 12,
+      DepositAmount: 150000, QuotaPercent: 95, EditionNote: 'Bản Đua Đêm Las Vegas GP',
+      PreOrderDeadline: '2026-10-30', Stock: 18,
       ImageUrl: 'image/aston-amr24-alonso.png',
-      Description: 'Mẫu xe F1 AMR24 của huyền thoại 2 lần vô địch thế giới Fernando Alonso chặng Las Vegas GP.',
-      Status: 'pre_order', IsFeatured: 1, IsNew: 1, soldCount: 25
+      Description: 'Phiên bản xe đua F1 của huyền thoại Fernando Alonso #14 tại chặng đua đêm Las Vegas 2024.',
+      Status: 'pre_order', IsFeatured: 1, IsNew: 1, soldCount: 29
     },
     {
       id: 4, ProductId: 4, Sku: 'MGT00550', CarNumber: '550',
-      Name: 'Oracle Red Bull Racing RB18 #1 Max Verstappen Monaco GP',
+      Name: 'Oracle Red Bull Racing RB18 #1 Max Verstappen 2022 Monaco GP',
       CategoryId: 2, CategorySlug: 'f1-racing', CategoryName: 'Formula 1 Racing',
       Brand: 'MINI GT', Scale: '1:64',
-      PriceBox: 390000, PriceCard: 450000, DiscountPercent: 0, PackagingType: 'both',
-      DepositAmount: 120000, QuotaPercent: 60, EditionNote: 'Champion Livery',
-      PreOrderDeadline: null, Stock: 18,
+      PriceBox: 420000, PriceCard: 480000, DiscountPercent: 10, PackagingType: 'both',
+      DepositAmount: 0, QuotaPercent: 100, EditionNote: 'World Champion Edition • Box & Card',
+      PreOrderDeadline: null, Stock: 14,
       ImageUrl: 'image/f1_redbull.jpg',
-      Description: 'Mô hình Oracle Red Bull Racing RB18 số 1 Max Verstappen vô địch chặng đua Monaco GP danh giá.',
-      Status: 'in_stock', IsFeatured: 1, IsNew: 0, soldCount: 41
+      Description: 'Chiếc xe vô địch thế giới F1 Red Bull RB18 #1 của Max Verstappen với chi tiết khí động học tỉ lệ 1:64 sắc nét.',
+      Status: 'in_stock', IsFeatured: 1, IsNew: 1, soldCount: 52
     },
     {
       id: 5, ProductId: 5, Sku: 'MGT01055', CarNumber: '1055',
       Name: 'LB★WORKS Lamborghini Huracán GT Gravity Racing #5',
       CategoryId: 1, CategorySlug: 'liberty-walk', CategoryName: 'Liberty Walk LBWK',
       Brand: 'MINI GT', Scale: '1:64',
-      PriceBox: 330000, PriceCard: 390000, DiscountPercent: 0, PackagingType: 'both',
-      DepositAmount: 100000, QuotaPercent: 0, EditionNote: 'Widebody Aero',
-      PreOrderDeadline: null, Stock: 25,
+      PriceBox: 350000, PriceCard: 410000, DiscountPercent: 0, PackagingType: 'both',
+      DepositAmount: 0, QuotaPercent: 82, EditionNote: 'Liberty Walk Widebody #5',
+      PreOrderDeadline: null, Stock: 22,
       ImageUrl: 'image/mgt01055.webp',
-      Description: 'Bản độ Liberty Walk Huracán GT phong cách Gravity Racing với body kit vòm bánh rộng tán đinh đặc trưng.',
-      Status: 'in_stock', IsFeatured: 1, IsNew: 0, soldCount: 36
+      Description: 'Siêu phẩm độ thân rộng Liberty Walk Lamborghini Huracán GT màu tím xanh Gravity Racing cực kỳ nổi bật.',
+      Status: 'in_stock', IsFeatured: 1, IsNew: 1, soldCount: 46
     },
     {
       id: 6, ProductId: 6, Sku: 'MGT01143', CarNumber: '1143',
-      Name: 'Porsche 911 GT3 R #77 AO Racing "Skeleton" IMSA Petit Le Mans',
+      Name: 'Porsche 911 GT3 R #77 AO Racing "Skeleton" 2024 IMSA Petit Le Mans',
       CategoryId: 3, CategorySlug: 'gt-racing', CategoryName: 'IMSA & GT3 Racing',
       Brand: 'MINI GT', Scale: '1:64',
-      PriceBox: 380000, PriceCard: 440000, DiscountPercent: 5, PackagingType: 'both',
-      DepositAmount: 120000, QuotaPercent: 70, EditionNote: 'Halloween Skeleton',
-      PreOrderDeadline: '2026-10-30', Stock: 30,
+      PriceBox: 390000, PriceCard: 470000, DiscountPercent: 0, PackagingType: 'both',
+      DepositAmount: 150000, QuotaPercent: 89, EditionNote: 'Bản Giới Hạn Halloween Skeleton #77',
+      PreOrderDeadline: '2026-10-30', Stock: 20,
       ImageUrl: 'image/ske.webp',
-      Description: 'Phiên bản giới hạn Halloween của đội AO Racing với tem khung xương khủng long phát quang độc đáo trên nền sơn đen.',
-      Status: 'pre_order', IsFeatured: 1, IsNew: 1, soldCount: 39
+      Description: 'Phiên bản giới hạn Halloween Petit Le Mans với đồ họa bộ xương khủng long Rexy trên nền đen mờ.',
+      Status: 'pre_order', IsFeatured: 1, IsNew: 1, soldCount: 42
     },
     {
       id: 7, ProductId: 7, Sku: 'MGT01093', CarNumber: '1093',
-      Name: 'Porsche 911 GT3 R #77 AO Racing "Roxy" IMSA Road America',
+      Name: 'Porsche 911 GT3 R #77 AO Racing "Roxy" 2024 IMSA Road America',
       CategoryId: 3, CategorySlug: 'gt-racing', CategoryName: 'IMSA & GT3 Racing',
       Brand: 'MINI GT', Scale: '1:64',
-      PriceBox: 360000, PriceCard: 420000, DiscountPercent: 0, PackagingType: 'both',
-      DepositAmount: 110000, QuotaPercent: 88, EditionNote: 'Pink Dino IMSA',
-      PreOrderDeadline: null, Stock: 15,
+      PriceBox: 360000, PriceCard: 420000, DiscountPercent: 5, PackagingType: 'both',
+      DepositAmount: 0, QuotaPercent: 94, EditionNote: 'Khủng Long Hồng Roxy #77',
+      PreOrderDeadline: null, Stock: 12,
       ImageUrl: 'image/Roxy.webp',
-      Description: 'Chiếc Porsche khủng long hồng Roxy nổi tiếng của AO Racing tại giải đua Road America.',
-      Status: 'in_stock', IsFeatured: 1, IsNew: 0, soldCount: 33
+      Description: 'Mẫu Porsche 911 GT3 R khủng long hồng Roxy #77 siêu hot của đội đua AO Racing tại giải IMSA.',
+      Status: 'in_stock', IsFeatured: 1, IsNew: 1, soldCount: 38
     },
     {
       id: 8, ProductId: 8, Sku: 'MGT00782', CarNumber: '782',
-      Name: 'Porsche 911 GT3 R #80 AO Racing "Rexy" IMSA Sebring',
+      Name: 'Porsche 911 GT3 R #80 AO Racing "Rexy" 2023 IMSA Sebring 12h',
       CategoryId: 3, CategorySlug: 'gt-racing', CategoryName: 'IMSA & GT3 Racing',
       Brand: 'MINI GT', Scale: '1:64',
-      PriceBox: 370000, PriceCard: 430000, DiscountPercent: 0, PackagingType: 'both',
-      DepositAmount: 120000, QuotaPercent: 95, EditionNote: 'Green Dino IMSA',
+      PriceBox: 380000, PriceCard: 450000, DiscountPercent: 0, PackagingType: 'both',
+      DepositAmount: 0, QuotaPercent: 96, EditionNote: 'Khủng Long Xanh Rexy #80 Best-Seller',
       PreOrderDeadline: null, Stock: 8,
       ImageUrl: 'image/rexy.jpg',
-      Description: 'Biểu tượng khủng long xanh Rexy gầm rú khuấy đảo các trường đua IMSA và Le Mans.',
-      Status: 'in_stock', IsFeatured: 1, IsNew: 0, soldCount: 48
+      Description: 'Huyền thoại khủng long xanh Rexy #80 AO Racing được săn đón nhất trong giới sưu tầm MINI GT 1:64.',
+      Status: 'in_stock', IsFeatured: 1, IsNew: 0, soldCount: 65
     },
     {
-      id: 9, ProductId: 9, Sku: 'MGT00512', CarNumber: '1129',
-      Name: 'Lamborghini Huracán GT3 EVO #63 Squadra Corse Official',
+      id: 9, ProductId: 9, Sku: 'MGT01129', CarNumber: '1129',
+      Name: 'Lamborghini Huracán GT3 EVO2 #45 DEX Imaging 2024 IMSA Daytona 24h',
       CategoryId: 3, CategorySlug: 'gt-racing', CategoryName: 'IMSA & GT3 Racing',
       Brand: 'MINI GT', Scale: '1:64',
-      PriceBox: 340000, PriceCard: 400000, DiscountPercent: 0, PackagingType: 'both',
-      DepositAmount: 100000, QuotaPercent: 0, EditionNote: 'Factory Racing',
-      PreOrderDeadline: null, Stock: 5,
-      ImageUrl: 'image/minigt_lambogt3.jpg',
-      Description: 'Mẫu xe đua Lamborghini Huracán GT3 EVO #63 Squadra Corse với bộ tem khí động học sắc nét.',
-      Status: 'in_stock', IsFeatured: 1, IsNew: 0, soldCount: 19
+      PriceBox: 330000, PriceCard: 390000, DiscountPercent: 0, PackagingType: 'both',
+      DepositAmount: 0, QuotaPercent: 75, EditionNote: 'Đua Sức Bền Daytona 24 Hours',
+      PreOrderDeadline: null, Stock: 19,
+      ImageUrl: 'image/Minigt_Lambo_GT3.jpg',
+      Description: 'Mẫu xe đua Lamborghini Huracán GT3 EVO2 tham chiến giải đua sức bền 24 Giờ Daytona 2024.',
+      Status: 'in_stock', IsFeatured: 0, IsNew: 1, soldCount: 22
     },
     {
-      id: 10, ProductId: 10, Sku: 'MGT00755', CarNumber: '465',
-      Name: 'Nissan Silvia S15 LB-Super Silhouette #23 Formula Drift',
+      id: 10, ProductId: 10, Sku: 'MGT00465', CarNumber: '465',
+      Name: 'LB-Super Silhouette Nissan S15 Silvia Presentation',
       CategoryId: 1, CategorySlug: 'liberty-walk', CategoryName: 'Liberty Walk LBWK',
       Brand: 'MINI GT', Scale: '1:64',
-      PriceBox: 320000, PriceCard: 380000, DiscountPercent: 10, PackagingType: 'both',
-      DepositAmount: 100000, QuotaPercent: 0, EditionNote: 'LB★WORKS',
-      PreOrderDeadline: null, Stock: 12,
+      PriceBox: 320000, PriceCard: 370000, DiscountPercent: 0, PackagingType: 'both',
+      DepositAmount: 0, QuotaPercent: 90, EditionNote: 'Liberty Walk Group 5 Silhouette',
+      PreOrderDeadline: null, Stock: 16,
       ImageUrl: 'image/Minigt_s15chop_lbwk.jpg',
-      Description: 'Huyền thoại Nissan S15 phong cách Super Silhouette từ nhà độ Liberty Walk Wataru Kato.',
-      Status: 'in_stock', IsFeatured: 1, IsNew: 1, soldCount: 52
+      Description: 'Biểu tượng JDM Nissan Silvia S15 độ bodykit Super Silhouette hầm hố từ nhà độ Liberty Walk Nhật Bản.',
+      Status: 'in_stock', IsFeatured: 1, IsNew: 0, soldCount: 58
     },
     {
-      id: 11, ProductId: 11, Sku: 'MGT00688', CarNumber: '688',
-      Name: 'Lamborghini Aventador LB★WORKS Widebody 2.0 Matte Black',
+      id: 11, ProductId: 11, Sku: 'MGT00618', CarNumber: '618',
+      Name: 'LB-Super Silhouette Nissan S15 Silvia #23 2022 Goodwood Festival of Speed',
       CategoryId: 1, CategorySlug: 'liberty-walk', CategoryName: 'Liberty Walk LBWK',
       Brand: 'MINI GT', Scale: '1:64',
-      PriceBox: 360000, PriceCard: 430000, DiscountPercent: 0, PackagingType: 'both',
-      DepositAmount: 110000, QuotaPercent: 0, EditionNote: 'Zero Fighter',
-      PreOrderDeadline: null, Stock: 4,
-      ImageUrl: 'image/Minigt_Lambo_LBWK.jpg',
-      Description: 'Siêu bò Aventador độ thân rộng LB★WORKS Widebody 2.0 màu sơn đen nhám Zero Fighter.',
-      Status: 'in_stock', IsFeatured: 1, IsNew: 0, soldCount: 22
+      PriceBox: 340000, PriceCard: 400000, DiscountPercent: 0, PackagingType: 'both',
+      DepositAmount: 0, QuotaPercent: 95, EditionNote: 'Kỷ Niệm Lễ Hội Tốc Độ Goodwood #23',
+      PreOrderDeadline: null, Stock: 9,
+      ImageUrl: 'image/Minigt_S15_LBWK.jpg',
+      Description: 'Phiên bản kỷ niệm màn trình diễn drift của chiếc S15 #23 tại lễ hội tốc độ Goodwood Vương Quốc Anh.',
+      Status: 'in_stock', IsFeatured: 1, IsNew: 0, soldCount: 44
     },
     {
       id: 12, ProductId: 12, Sku: 'PR640325', CarNumber: '325',
-      Name: 'Pop Race Toyota Supra Top Secret GT300 Silver Chrome',
-      CategoryId: 5, CategorySlug: 'partner', CategoryName: 'Pop Race & Collab',
+      Name: 'Pop Race Top Secret GT300 Toyota Supra (A80) Silver Chrome',
+      CategoryId: 5, CategorySlug: 'partner', CategoryName: 'Pop Race & Secret Chase',
       Brand: 'Pop Race', Scale: '1:64',
-      PriceBox: 420000, PriceCard: 480000, DiscountPercent: 0, PackagingType: 'both',
-      DepositAmount: 130000, QuotaPercent: 0, EditionNote: 'Top Secret Chrome',
-      PreOrderDeadline: null, Stock: 19,
+      PriceBox: 480000, PriceCard: 480000, DiscountPercent: 0, PackagingType: 'box_only',
+      DepositAmount: 0, QuotaPercent: 92, EditionNote: 'Secret Chase 1/24 • Mở Nắp Ca-pô Động Cơ 2JZ',
+      PreOrderDeadline: null, Stock: 11,
       ImageUrl: 'image/Poprace_Supra_Secret.webp',
-      Description: 'Siêu phẩm Top Secret Supra màu bạc tráng gương có thể mở nắp capo chi tiết động cơ 2JZ.',
+      Description: 'Phiên bản mạ Chrome bạc đặc biệt của Top Secret Supra GT300, mở được nắp ca-pô chiêm ngưỡng khối động cơ 2JZ.',
+      Status: 'in_stock', IsFeatured: 1, IsNew: 1, soldCount: 40
+    },
+    {
+      id: 13, ProductId: 13, Sku: 'PR640118', CarNumber: '118',
+      Name: 'Pop Race Nissan Skyline GT-R V8 Drift (Hakosuka) Red Metallic',
+      CategoryId: 5, CategorySlug: 'partner', CategoryName: 'Pop Race & Secret Chase',
+      Brand: 'Pop Race', Scale: '1:64',
+      PriceBox: 450000, PriceCard: 450000, DiscountPercent: 0, PackagingType: 'box_only',
+      DepositAmount: 0, QuotaPercent: 86, EditionNote: 'Tháo Rời Nắp Máy Động Cơ V8',
+      PreOrderDeadline: null, Stock: 14,
+      ImageUrl: 'image/Poprace_Lambo_Secret.webp',
+      Description: 'Huyền thoại Hakosuka độ Drift động cơ V8 của Pop Race với sơn đỏ Metallic và bánh lốp cao su thật.',
+      Status: 'in_stock', IsFeatured: 0, IsNew: 1, soldCount: 26
+    },
+    {
+      id: 14, ProductId: 14, Sku: 'TH640012', CarNumber: 'KH12',
+      Name: 'Toyota Yaris WRC #18 Katsuta Takamoto Rally Japan Acrylic Case',
+      CategoryId: 5, CategorySlug: 'partner', CategoryName: 'Pop Race & Secret Chase',
+      Brand: 'Kaido House', Scale: '1:64',
+      PriceBox: 500000, PriceCard: 500000, DiscountPercent: 10, PackagingType: 'box_only',
+      DepositAmount: 0, QuotaPercent: 80, EditionNote: 'Kèm Đế Da & Hộp Mica Trưng Bày',
+      PreOrderDeadline: null, Stock: 10,
+      ImageUrl: 'image/TH_LamboUltraman.jpg',
+      Description: 'Mô hình xe đua địa hình WRC Toyota Yaris kèm đế trưng bày và hộp chống bụi Acrylic sang trọng.',
+      Status: 'in_stock', IsFeatured: 0, IsNew: 1, soldCount: 31
+    },
+    {
+      id: 15, ProductId: 15, Sku: 'MGTS0019', CarNumber: 'S019',
+      Name: 'Combo 2 Xe Porsche 911 GT3 R AO Racing Rexy #80 & Roxy #77 Twin Pack',
+      CategoryId: 4, CategorySlug: 'box-sets', CategoryName: 'Box Sets & Combo',
+      Brand: 'MINI GT', Scale: '1:64',
+      PriceBox: 750000, PriceCard: 870000, DiscountPercent: 5, PackagingType: 'both',
+      DepositAmount: 0, QuotaPercent: 95, EditionNote: 'Combo Rexy + Roxy Tiết Kiệm',
+      PreOrderDeadline: null, Stock: 6,
+      ImageUrl: 'image/roxy-rexy-2.webp',
+      Description: 'Bộ đôi khủng long đường đua Rexy #80 (Xanh) và Roxy #77 (Hồng) đóng gói Combo 2 xe ưu đãi.',
+      Status: 'in_stock', IsFeatured: 1, IsNew: 1, soldCount: 35
+    },
+    {
+      id: 16, ProductId: 16, Sku: 'MGT00642', CarNumber: '642',
+      Name: 'Red Bull RB18 #11 Sergio Perez & RB18 #1 Verstappen Pit Crew Box Set',
+      CategoryId: 4, CategorySlug: 'box-sets', CategoryName: 'Box Sets & Combo',
+      Brand: 'TSM-Model', Scale: '1:64',
+      PriceBox: 1150000, PriceCard: 1150000, DiscountPercent: 0, PackagingType: 'box_only',
+      DepositAmount: 0, QuotaPercent: 88, EditionNote: 'Set 2 Xe F1 + Đội Kỹ Thuật Pit Stop',
+      PreOrderDeadline: null, Stock: 7,
+      ImageUrl: 'image/f1-redbull-live.webp',
+      Description: 'Hộp sa bàn Pit Stop Red Bull Racing gồm 2 xe F1 RB18 và dàn nhân vật kỹ thuật viên thay lốp.',
       Status: 'in_stock', IsFeatured: 1, IsNew: 0, soldCount: 27
     },
     {
-      id: 13, ProductId: 13, Sku: 'PR640110', CarNumber: '110',
-      Name: 'Pop Race Lamborghini Huracán STO Blu Laufey',
-      CategoryId: 5, CategorySlug: 'partner', CategoryName: 'Pop Race & Collab',
-      Brand: 'Pop Race', Scale: '1:64',
-      PriceBox: 440000, PriceCard: 500000, DiscountPercent: 5, PackagingType: 'both',
-      DepositAmount: 140000, QuotaPercent: 0, EditionNote: 'Openable Engine',
-      PreOrderDeadline: null, Stock: 11,
-      ImageUrl: 'image/Poprace_Lambo_Secret.webp',
-      Description: 'Huracán STO màu xanh Laufey đặc trưng, mở nắp khoang động cơ cực kỳ tinh xảo.',
-      Status: 'in_stock', IsFeatured: 0, IsNew: 1, soldCount: 18
-    },
-    {
-      id: 14, ProductId: 14, Sku: 'TH-ULTRA63', CarNumber: '63',
-      Name: 'Trends Hobby Lamborghini Huracán GT3 EVO2 #63 Ultraman Tiga',
-      CategoryId: 5, CategorySlug: 'partner', CategoryName: 'Pop Race & Collab',
-      Brand: 'Trends Hobby', Scale: '1:64',
-      PriceBox: 550000, PriceCard: 630000, DiscountPercent: 0, PackagingType: 'both',
-      DepositAmount: 180000, QuotaPercent: 0, EditionNote: 'Acrylic Case',
-      PreOrderDeadline: null, Stock: 7,
-      ImageUrl: 'image/TH_LamboUltraman.jpg',
-      Description: 'Phiên bản giới hạn bản quyền chính thức Ultraman Tiga với hộp acrylic cao cấp và đế da sang trọng.',
-      Status: 'in_stock', IsFeatured: 1, IsNew: 1, soldCount: 21
-    },
-    {
-      id: 15, ProductId: 15, Sku: 'COMBO-AMR24', CarNumber: 'SET2',
-      Name: 'Combo Aston Martin AMR24 Las Vegas (Stroll #18 + Alonso #14)',
-      CategoryId: 4, CategorySlug: 'box-sets', CategoryName: 'Box Sets & Combo',
-      Brand: 'MINI GT', Scale: '1:64',
-      PriceBox: 820000, PriceCard: 920000, DiscountPercent: 10, PackagingType: 'both',
-      DepositAmount: 250000, QuotaPercent: 85, EditionNote: 'Trọn Bộ 2 Xe F1',
-      PreOrderDeadline: '2026-10-30', Stock: 10,
-      ImageUrl: 'image/aston-amr24-stroll.png',
-      Description: 'Cặp bài trùng AMR24 Las Vegas của 2 tay đua Lance Stroll và Fernando Alonso.',
-      Status: 'pre_order', IsFeatured: 1, IsNew: 1, soldCount: 24
-    },
-    {
-      id: 16, ProductId: 16, Sku: 'COMBO-AO3', CarNumber: 'AO3',
-      Name: 'Combo 3 Xe AO Racing Porsche 911 GT3 R (Rexy • Roxy • Skeleton)',
-      CategoryId: 4, CategorySlug: 'box-sets', CategoryName: 'Box Sets & Combo',
-      Brand: 'MINI GT', Scale: '1:64',
-      PriceBox: 1080000, PriceCard: 1180000, DiscountPercent: 5, PackagingType: 'both',
-      DepositAmount: 350000, QuotaPercent: 92, EditionNote: 'Bộ 3 Khủng Long IMSA',
-      PreOrderDeadline: '2026-10-30', Stock: 8,
-      ImageUrl: 'image/roxy_rexy_minigt.webp',
-      Description: 'Trọn bộ ba siêu phẩm khủng long AO Racing Porsche 911 GT3 R: Rexy #80, Roxy #77 và Skeleton #77.',
-      Status: 'pre_order', IsFeatured: 1, IsNew: 1, soldCount: 37
-    },
-    {
-      id: 17, ProductId: 17, Sku: 'MGT00618', CarNumber: '618',
-      Name: 'LB-Super Silhouette Nissan S15 Silvia #23 Goodwood FoS',
+      id: 17, ProductId: 17, Sku: 'MGT01055-LW', CarNumber: '1055C',
+      Name: 'LB★WORKS Lamborghini Huracán GT Gravity (Bản Vỉ Blister Card)',
       CategoryId: 1, CategorySlug: 'liberty-walk', CategoryName: 'Liberty Walk LBWK',
       Brand: 'MINI GT', Scale: '1:64',
-      PriceBox: 330000, PriceCard: 390000, DiscountPercent: 0, PackagingType: 'both',
-      DepositAmount: 100000, QuotaPercent: 0, EditionNote: 'Goodwood Edition',
-      PreOrderDeadline: null, Stock: 14,
-      ImageUrl: 'image/Minigt_S15_LBWK.jpg',
-      Description: 'Phiên bản kỷ niệm màn trình diễn drift của Nissan S15 Liberty Walk tại lễ hội tốc độ Goodwood Anh Quốc.',
-      Status: 'in_stock', IsFeatured: 0, IsNew: 0, soldCount: 20
+      PriceBox: 410000, PriceCard: 410000, DiscountPercent: 0, PackagingType: 'card_only',
+      DepositAmount: 0, QuotaPercent: 91, EditionNote: 'Vỉ Nhựa Blister Card Art Nguyên Seal',
+      PreOrderDeadline: null, Stock: 12,
+      ImageUrl: 'image/minig_lambo_lbwk.webp',
+      Description: 'Phiên bản đóng gói Vỉ nhựa cứng Blister Card cao cấp kèm ảnh bìa nghệ thuật Liberty Walk chống cấn góc 100%.',
+      Status: 'in_stock', IsFeatured: 0, IsNew: 1, soldCount: 33
+    },
+    {
+      id: 18, ProductId: 18, Sku: 'MGT00688', CarNumber: '688',
+      Name: 'LB★WORKS Lamborghini Aventador Limited Edition Matte Black',
+      CategoryId: 1, CategorySlug: 'liberty-walk', CategoryName: 'Liberty Walk LBWK',
+      Brand: 'MINI GT', Scale: '1:64',
+      PriceBox: 380000, PriceCard: 440000, DiscountPercent: 0, PackagingType: 'both',
+      DepositAmount: 0, QuotaPercent: 89, EditionNote: 'Siêu Bò Aventador Widebody Đen Nhám',
+      PreOrderDeadline: null, Stock: 10,
+      ImageUrl: 'image/Minigt_Lambo_LBWK.jpg',
+      Description: 'Siêu bò Lamborghini Aventador độ thân rộng LB★WORKS màu đen nhám kết hợp cánh gió GT cỡ lớn.',
+      Status: 'in_stock', IsFeatured: 1, IsNew: 0, soldCount: 30
     }
   ];
 
@@ -349,40 +492,53 @@
     };
 
     const packagingType = raw.packagingType || raw.PackagingType || 'both';
+
     // Giá gốc Bản Box (Hộp giấy)
-    const rawBaseBox = Number(raw.priceBox ?? raw.PriceBox ?? raw.basePriceBox ?? raw.oldPrice ?? raw.OldPrice ?? raw.price ?? raw.Price ?? 320000);
-    // Giá gốc Bản Card (Vỉ Blister): mặc định cao hơn Box 60.000đ (nằm trong khoảng 40k - 100k)
-    const rawBaseCard = Number(raw.priceCard ?? raw.PriceCard ?? raw.basePriceCard ?? (rawBaseBox + 60000));
-    const priceCardDiff = Math.max(40000, rawBaseCard - rawBaseBox);
-    const basePriceBox = Math.max(50000, rawBaseBox);
-    const basePriceCard = Math.max(basePriceBox + 40000, rawBaseCard || (basePriceBox + priceCardDiff));
+    const rawBoxVal = raw.priceBox ?? raw.PriceBox ?? raw.basePriceBox ?? raw.oldPrice ?? raw.OldPrice ?? raw.price ?? raw.Price ?? 320000;
+    const basePriceBox = Math.max(50000, Number(rawBoxVal));
 
-    // Tính % giảm giá trực tiếp
-    let discountPercent = Number(raw.discountPercent ?? raw.DiscountPercent ?? 0);
-    if (!discountPercent && raw.oldPrice && raw.price && Number(raw.oldPrice) > Number(raw.price)) {
-      discountPercent = Math.round(((Number(raw.oldPrice) - Number(raw.price)) / Number(raw.oldPrice)) * 100);
+    // Giá gốc Bản Card (Vỉ Blister)
+    let basePriceCard;
+    if (packagingType === 'box_only') {
+      basePriceCard = basePriceBox;
+    } else if (packagingType === 'card_only') {
+      const rawCardVal = raw.priceCard ?? raw.PriceCard ?? raw.basePriceCard ?? raw.price ?? raw.Price;
+      basePriceCard = rawCardVal != null ? Number(rawCardVal) : basePriceBox;
+    } else {
+      const rawCardVal = raw.priceCard ?? raw.PriceCard ?? raw.basePriceCard;
+      basePriceCard = rawCardVal != null ? Number(rawCardVal) : basePriceBox + 60000;
     }
-    discountPercent = Math.max(0, Math.min(80, Math.round(discountPercent)));
 
-    // Lấy % trừ trực tiếp vào tiền: Giá thực thu = Giá gốc * (100 - %) / 100
+    // % giảm giá trực tiếp
+    const discountPercent = Math.max(0, Math.min(80, Number(raw.discountPercent ?? raw.DiscountPercent ?? 0)));
+
+    // Giá sau giảm làm tròn đến 1.000đ
     const finalPriceBox = discountPercent > 0
-      ? Math.round((basePriceBox * (100 - discountPercent)) / 100)
-      : basePriceBox;
+      ? Math.round(((basePriceBox * (100 - discountPercent)) / 100) / 1000) * 1000
+      : (raw.finalPriceBox ?? raw.FinalPriceBox ?? (raw.price && !raw.oldPrice ? Number(raw.price) : basePriceBox));
     const finalPriceCard = discountPercent > 0
-      ? Math.round((basePriceCard * (100 - discountPercent)) / 100)
-      : basePriceCard;
+      ? Math.round(((basePriceCard * (100 - discountPercent)) / 100) / 1000) * 1000
+      : (raw.finalPriceCard ?? raw.FinalPriceCard ?? basePriceCard);
 
     const defaultIsCard = packagingType === 'card_only';
     const effectivePrice = defaultIsCard ? finalPriceCard : finalPriceBox;
-    const effectiveOldPrice = discountPercent > 0 ? (defaultIsCard ? basePriceCard : basePriceBox) : null;
+    const effectiveOldPrice = discountPercent > 0 ? (defaultIsCard ? basePriceCard : basePriceBox) : (raw.oldPrice ?? raw.OldPrice ?? null);
 
-    const stock = Number(raw.stock ?? raw.Stock ?? 10);
+    const rawStock = Number(raw.stock ?? raw.Stock ?? 10);
+    let stockBox = raw.stockBox != null ? Number(raw.stockBox) : (raw.StockBox != null ? Number(raw.StockBox) : (packagingType === 'card_only' ? 0 : Math.ceil(rawStock * 0.6)));
+    let stockCard = raw.stockCard != null ? Number(raw.stockCard) : (raw.StockCard != null ? Number(raw.StockCard) : (packagingType === 'box_only' ? 0 : Math.floor(rawStock * 0.4)));
+    if (packagingType === 'box_only') stockCard = 0;
+    if (packagingType === 'card_only') stockBox = 0;
+    const stock = stockBox + stockCard || rawStock;
+
+    const hasBox = packagingType !== 'card_only' && stockBox > 0;
+    const hasCard = packagingType !== 'box_only' && stockCard > 0;
+
     let status = String(raw.status || raw.Status || 'in_stock').toLowerCase();
-    if (stock <= 0) status = 'sold_out';
+    if (stock <= 0 && status !== 'pre_order') status = 'sold_out';
 
     const image = raw.image || raw.imageUrl || raw.ImageUrl || 'image/hero-banner.jpg';
-    const depositAmount = Number(raw.depositAmount ?? raw.DepositAmount ?? Math.round(effectivePrice * 0.3));
-    const quotaPercent = Number(raw.quotaPercent ?? raw.QuotaPercent ?? 0);
+    const depositAmount = Number(raw.depositAmount ?? raw.DepositAmount ?? (status === 'pre_order' ? Math.round((effectivePrice * 0.3) / 1000) * 1000 : 0));
     const editionNote = raw.editionNote ?? raw.EditionNote ?? '';
     const preOrderDeadline = raw.preOrderDeadline ?? raw.PreOrderDeadline ?? null;
     const brand = raw.brand || raw.Brand || 'MINI GT';
@@ -390,7 +546,7 @@
     const description = raw.description || raw.Description || '';
     const isFeatured = Boolean(raw.isFeatured ?? raw.IsFeatured);
     const isNew = Boolean(raw.isNew ?? raw.IsNew);
-    const carNumber = raw.carNumber || raw.CarNumber || sku.replace(/\D/g, '').replace(/^0+/, '') || '1:64';
+    const carNumber = raw.carNumber || raw.CarNumber || sku.replace(/\D/g, '').replace(/^0+/, '') || '64';
 
     return {
       id,
@@ -412,12 +568,10 @@
       Scale: scale,
       packagingType,
       PackagingType: packagingType,
-      // Giá gốc chưa giảm của Box & Card
       priceBox: basePriceBox,
       PriceBox: basePriceBox,
       priceCard: basePriceCard,
       PriceCard: basePriceCard,
-      // % Giảm trực tiếp và Giá sau khi trừ % trực tiếp
       discountPercent,
       DiscountPercent: discountPercent,
       hasDiscount: discountPercent > 0,
@@ -426,19 +580,24 @@
       FinalPriceBox: finalPriceBox,
       finalPriceCard,
       FinalPriceCard: finalPriceCard,
-      // Trường tương thích ngược
       price: effectivePrice,
       Price: effectivePrice,
       oldPrice: effectiveOldPrice,
       OldPrice: effectiveOldPrice,
       depositAmount,
       DepositAmount: depositAmount,
-      quotaPercent,
-      QuotaPercent: quotaPercent,
       editionNote,
       EditionNote: editionNote,
       preOrderDeadline,
       PreOrderDeadline: preOrderDeadline,
+      stockBox,
+      StockBox: stockBox,
+      stockCard,
+      StockCard: stockCard,
+      hasBox,
+      HasBox: hasBox,
+      hasCard,
+      HasCard: hasCard,
       stock,
       Stock: stock,
       status,
@@ -452,7 +611,7 @@
       IsFeatured: isFeatured ? 1 : 0,
       isNew,
       IsNew: isNew ? 1 : 0,
-      soldCount: Number(raw.soldCount || 15)
+      soldCount: Number(raw.soldCount || 25)
     };
   };
 
@@ -766,54 +925,264 @@
     }
 
     if (method === 'POST' && path === '/api/auth/login') {
-      const email = String(body.email || '').trim();
+      const identifier = String(body.email || body.username || '').trim().toLowerCase();
+      const password = String(body.password || '');
       const inAdminPage = isAdminContext(endpoint);
-      const userObj = inAdminPage
-        ? {
-            id: 1,
-            userId: 1,
-            fullName: 'Đỗ Quốc Thịnh & Nguyễn Đình Nam',
-            email: email || 'admin@minigt.com',
-            role: 'admin',
-            avatarUrl: 'image/DoQuocThinh_anhthe.jpg'
-          }
-        : {
-            id: Date.now(),
-            userId: Date.now(),
-            fullName: email.split('@')[0] || 'Khách hàng',
-            email,
-            role: 'customer',
-            avatarUrl: 'image/anh-clone.jpg'
-          };
-      const tok = (inAdminPage ? 'admin_tok_' : 'cust_tok_') + Date.now();
+
+      if (inAdminPage) {
+        const defaultAdmin = {
+          id: 1,
+          userId: 1,
+          fullName: 'Đỗ Quốc Thịnh & Nguyễn Đình Nam',
+          email: identifier || 'admin@minigt.com',
+          role: 'admin',
+          avatarUrl: 'image/DoQuocThinh_anhthe.jpg'
+        };
+        const tok = 'admin_tok_' + Date.now();
+        setAuthSession(tok, defaultAdmin);
+        return { success: true, token: tok, user: defaultAdmin, data: { token: tok, user: defaultAdmin } };
+      }
+
+      // Khách hàng đăng nhập: đối chiếu từ Shared Users DB
+      const users = getSharedUsers();
+      const cleanIdent = identifier.replace(/\s+/g, '');
+      const user = users.find(u => {
+        const emailMatch = u.email && u.email.toLowerCase() === identifier;
+        const rawPhone = (u.phone || '').replace(/\D/g, '');
+        const searchPhone = cleanIdent.replace(/\D/g, '');
+        const phoneMatch = Boolean(searchPhone && rawPhone && rawPhone === searchPhone);
+        return emailMatch || phoneMatch;
+      });
+
+      if (!user) {
+        return {
+          success: false,
+          code: 'USER_NOT_FOUND',
+          message: 'Tài khoản chưa tồn tại! Bạn vui lòng chọn tab "Đăng Ký Hội Viên" hoặc sử dụng tài khoản mẫu gợi ý.'
+        };
+      }
+
+      if (user.isActive === false) {
+        return {
+          success: false,
+          code: 'ACCOUNT_LOCKED',
+          message: 'Tài khoản của bạn đã bị tạm khóa. Vui lòng liên hệ CSKH qua Hotline hoặc Zalo hỗ trợ!'
+        };
+      }
+
+      // Kiểm tra mật khẩu (nếu user có mật khẩu cài đặt)
+      if (user.password && user.password !== password) {
+        return {
+          success: false,
+          code: 'WRONG_PASSWORD',
+          message: 'Mật khẩu không chính xác! Vui lòng kiểm tra lại hoặc nhấn "Quên mật khẩu?".'
+        };
+      }
+
+      user.lastLogin = new Date().toISOString();
+      saveSharedUsers(users);
+
+      const cleanUser = {
+        id: user.userId || user.id,
+        userId: user.userId || user.id,
+        fullName: user.fullName || user.email.split('@')[0],
+        email: user.email,
+        phone: user.phone || '',
+        address: user.address || '',
+        role: user.role || 'customer',
+        tier: user.tier || 'Collector',
+        points: user.points != null ? user.points : 100,
+        totalOrders: user.totalOrders || 0,
+        totalSpent: user.totalSpent || 0,
+        avatarUrl: (!user.avatarUrl || user.avatarUrl.includes('DoQuocThinh_anhthe')) ? 'image/anh-clone.jpg' : user.avatarUrl,
+        createdAt: user.createdAt || new Date().toISOString()
+      };
+
+      const tok = 'cust_tok_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
       return {
         success: true,
         token: tok,
-        user: userObj,
-        data: { token: tok, user: userObj }
+        user: cleanUser,
+        data: { token: tok, user: cleanUser },
+        message: `Đăng nhập thành công! Chào mừng ${cleanUser.fullName} trở lại.`
       };
     }
 
-    if (method === 'POST' && (path === '/api/auth/register' || path === '/api/auth/google')) {
-      const info = body.userInfo || body;
-      const email = String(info.email || 'collector@gmail.com').trim();
-      const fullName = String(info.fullName || info.name || email.split('@')[0]).trim();
-      const userObj = {
+    if (method === 'POST' && path === '/api/auth/register') {
+      const users = getSharedUsers();
+      const email = String(body.email || '').trim().toLowerCase();
+      const phone = String(body.phone || '').trim();
+      const fullName = String(body.fullName || '').trim() || (email.split('@')[0] || 'Hội viên MINI GT');
+      const address = String(body.address || '').trim();
+      const password = String(body.password || '123456');
+
+      if (!email || !password) {
+        return { success: false, message: 'Vui lòng cung cấp đầy đủ email và mật khẩu!' };
+      }
+
+      const existing = users.find(u => {
+        const emailMatch = u.email && u.email.toLowerCase() === email;
+        const rawPhone = (u.phone || '').replace(/\D/g, '');
+        const searchPhone = phone.replace(/\D/g, '');
+        const phoneMatch = Boolean(searchPhone && rawPhone && rawPhone === searchPhone);
+        return emailMatch || phoneMatch;
+      });
+
+      if (existing) {
+        return {
+          success: false,
+          code: 'USER_EXISTS',
+          message: 'Email hoặc số điện thoại này đã được đăng ký tài khoản! Bạn vui lòng chọn Đăng Nhập.'
+        };
+      }
+
+      const newUser = {
         id: Date.now(),
         userId: Date.now(),
         fullName,
         email,
-        phone: info.phone || '',
+        phone,
+        address,
+        password,
         role: 'customer',
-        avatarUrl: 'image/anh-clone.jpg'
+        tier: 'Collector',
+        points: 100, // Tặng ngay 100 điểm thưởng chào mừng hội viên mới!
+        totalOrders: 0,
+        totalSpent: 0,
+        avatarUrl: 'image/anh-clone.jpg',
+        isActive: true,
+        createdAt: new Date().toISOString(),
+        lastLogin: new Date().toISOString()
       };
-      const tok = 'cust_tok_' + Date.now();
+
+      users.unshift(newUser);
+      saveSharedUsers(users);
+
+      const tok = 'cust_tok_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
       return {
         success: true,
         token: tok,
-        user: userObj,
-        data: { token: tok, user: userObj }
+        user: newUser,
+        data: { token: tok, user: newUser },
+        message: 'Đăng ký tài khoản thành công! Tặng bạn 100 điểm thưởng hội viên chào mừng.'
       };
+    }
+
+    if (method === 'POST' && path === '/api/auth/google') {
+      const users = getSharedUsers();
+      const info = body.userInfo || body;
+      const email = String(info.email || 'collector.google@gmail.com').trim().toLowerCase();
+      const fullName = String(info.name || info.fullName || email.split('@')[0].toUpperCase()).trim();
+
+      let user = users.find(u => u.email && u.email.toLowerCase() === email);
+      if (!user) {
+        user = {
+          id: Date.now(),
+          userId: Date.now(),
+          fullName,
+          email,
+          phone: '',
+          address: '',
+          password: 'google_oauth_pass',
+          role: 'customer',
+          tier: 'Collector',
+          points: 100,
+          totalOrders: 0,
+          totalSpent: 0,
+          avatarUrl: 'image/anh-clone.jpg',
+          isActive: true,
+          createdAt: new Date().toISOString(),
+          lastLogin: new Date().toISOString()
+        };
+        users.unshift(user);
+        saveSharedUsers(users);
+      } else {
+        user.lastLogin = new Date().toISOString();
+        saveSharedUsers(users);
+      }
+
+      const tok = 'google_tok_' + Date.now();
+      return {
+        success: true,
+        token: tok,
+        user,
+        data: { token: tok, user },
+        message: 'Đăng nhập Google thành công!'
+      };
+    }
+
+    if (method === 'POST' && path === '/api/auth/forgot') {
+      const identifier = String(body.email || body.phone || '').trim().toLowerCase();
+      const users = getSharedUsers();
+      const cleanIdent = identifier.replace(/\s+/g, '');
+      const user = users.find(u => {
+        const emailMatch = u.email && u.email.toLowerCase() === identifier;
+        const rawPhone = (u.phone || '').replace(/\D/g, '');
+        const searchPhone = cleanIdent.replace(/\D/g, '');
+        return emailMatch || (searchPhone && rawPhone === searchPhone);
+      });
+
+      if (!user) {
+        return {
+          success: false,
+          message: 'Không tìm thấy tài khoản với email hoặc số điện thoại này trong hệ thống hội viên!'
+        };
+      }
+
+      return {
+        success: true,
+        otp: '6868',
+        message: `Mã OTP khôi phục đã được cấp cho tài khoản (${user.email}): 6868`
+      };
+    }
+
+    if (method === 'POST' && path === '/api/auth/reset-password') {
+      const identifier = String(body.email || '').trim().toLowerCase();
+      const otp = String(body.otp || '').trim();
+      const newPassword = String(body.newPassword || '').trim();
+
+      if (otp !== '6868') {
+        return { success: false, message: 'Mã xác thực OTP không chính xác! Vui lòng thử lại với mã 6868.' };
+      }
+      if (!newPassword || newPassword.length < 6) {
+        return { success: false, message: 'Mật khẩu mới phải có tối thiểu 6 ký tự!' };
+      }
+
+      const users = getSharedUsers();
+      const cleanIdent = identifier.replace(/\s+/g, '');
+      const user = users.find(u => {
+        const emailMatch = u.email && u.email.toLowerCase() === identifier;
+        const rawPhone = (u.phone || '').replace(/\D/g, '');
+        const searchPhone = cleanIdent.replace(/\D/g, '');
+        return emailMatch || (searchPhone && rawPhone === searchPhone);
+      });
+
+      if (!user) {
+        return { success: false, message: 'Không tìm thấy tài khoản để cập nhật mật khẩu mới!' };
+      }
+
+      user.password = newPassword;
+      saveSharedUsers(users);
+
+      return {
+        success: true,
+        message: 'Đặt lại mật khẩu thành công! Bạn có thể đăng nhập ngay với mật khẩu mới.'
+      };
+    }
+
+    if (method === 'PUT' && path === '/api/auth/profile') {
+      const users = getSharedUsers();
+      const userId = body.userId || body.id;
+      const user = users.find(u => (u.userId == userId || u.id == userId || (body.email && u.email && u.email.toLowerCase() === body.email.toLowerCase())));
+
+      if (user) {
+        if (body.fullName) user.fullName = body.fullName.trim();
+        if (body.phone) user.phone = body.phone.trim();
+        if (body.address) user.address = body.address.trim();
+        saveSharedUsers(users);
+        return { success: true, user, message: 'Cập nhật thông tin tài khoản thành công!' };
+      }
+      return { success: false, message: 'Không tìm thấy tài khoản để cập nhật!' };
     }
 
     // 1. DANH SÁCH SẢN PHẨM KHÁCH HÀNG & ADMIN (GET /api/products, GET /api/admin/products, POST/PUT/DELETE)
@@ -1108,21 +1477,10 @@
 
     // 5. Khách hàng & Bản tin & Settings trong Admin
     if (method === 'GET' && path === '/api/admin/users') {
-      const defaultUsers = [
-        { userId: 1, fullName: 'Đỗ Quốc Thịnh', email: 'quocthinh.admin@minigt.vn', phone: '0988164164', address: 'Biên Hòa, Đồng Nai', totalOrders: 12, totalSpent: 8450000, role: 'admin', isActive: true, createdAt: '2026-01-15T08:00:00Z' },
-        { userId: 2, fullName: 'Nguyễn Đình Nam', email: 'dinhnam.admin@minigt.vn', phone: '0977164164', address: 'Biên Hòa, Đồng Nai', totalOrders: 9, totalSpent: 6200000, role: 'admin', isActive: true, createdAt: '2026-01-16T09:30:00Z' },
-        { userId: 3, fullName: 'Trần Minh Quân', email: 'minhquan.collector@gmail.com', phone: '0912345678', address: 'Quận 1, TP. Hồ Chí Minh', totalOrders: 5, totalSpent: 2450000, role: 'customer', isActive: true, createdAt: '2026-03-10T14:20:00Z' },
-        { userId: 4, fullName: 'Lê Hoàng Long', email: 'hoanglong.diecast@gmail.com', phone: '0938112233', address: 'TP. Thủ Dầu Một, Bình Dương', totalOrders: 3, totalSpent: 1380000, role: 'customer', isActive: true, createdAt: '2026-04-02T11:10:00Z' }
-      ];
-      let users = defaultUsers;
-      try {
-        const saved = localStorage.getItem(SHARED_USERS_KEY);
-        if (saved) users = JSON.parse(saved);
-        else localStorage.setItem(SHARED_USERS_KEY, JSON.stringify(defaultUsers));
-      } catch (e) {}
+      let users = getSharedUsers();
       if (params.search) {
         const q = params.search.toLowerCase();
-        users = users.filter(u => u.fullName.toLowerCase().includes(q) || u.email.toLowerCase().includes(q));
+        users = users.filter(u => u.fullName.toLowerCase().includes(q) || u.email.toLowerCase().includes(q) || (u.phone && u.phone.includes(q)));
       }
       return { success: true, data: users };
     }
@@ -1374,6 +1732,8 @@
     upsertSharedOrder,
     getSharedProducts,
     saveSharedProducts,
+    getSharedUsers,
+    saveSharedUsers,
     normalizeProductObject,
     getMyOrderCodes,
     addMyOrderCode,

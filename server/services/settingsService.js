@@ -76,4 +76,4 @@ function buildVietQr(settings, amount, orderCode) {
   };
 }
 
-module.exports = { getAll, getPublic, update, shippingFeeFor, buildVietQr, EDITABLE_KEYS };
+module.exports = { getAll, getSettings: getAll, getPublic, update, shippingFeeFor, buildVietQr, EDITABLE_KEYS };

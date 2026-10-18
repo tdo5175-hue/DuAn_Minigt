@@ -30,7 +30,7 @@
     paymentMethod: 'ALL',
     search: '',
     page: 1,
-    limit: 20
+    limit: 10
   };
 
   let cachedProducts = [];
@@ -469,11 +469,27 @@
   // =====================================================================
   let productDiscountMode = 'none';
 
+  function handleBrandChange() {
+    const brandSelect = document.getElementById('prodBrand');
+    const customWrapper = document.getElementById('brandCustomWrapper');
+    const customInput = document.getElementById('prodBrandCustom');
+    if (brandSelect && customWrapper) {
+      if (brandSelect.value === 'custom') {
+        customWrapper.style.display = 'block';
+        if (customInput) customInput.focus();
+      } else {
+        customWrapper.style.display = 'none';
+      }
+    }
+  }
+
   function setProductDiscountMode(mode) {
     productDiscountMode = mode === 'sale' ? 'sale' : 'none';
     const btnNone = document.getElementById('btnDiscountModeNone');
     const btnSale = document.getElementById('btnDiscountModeSale');
     const pctInput = document.getElementById('prodDiscountPercent');
+    const discGroup = document.getElementById('prodDiscountGroup');
+    const quickPresets = document.getElementById('discountQuickPresets');
 
     if (btnNone) btnNone.classList.toggle('active', productDiscountMode === 'none');
     if (btnSale) btnSale.classList.toggle('active', productDiscountMode === 'sale');
@@ -483,6 +499,8 @@
         pctInput.value = '0';
         pctInput.disabled = true;
       }
+      if (discGroup) discGroup.style.opacity = '0.55';
+      if (quickPresets) quickPresets.style.display = 'none';
     } else {
       if (pctInput) {
         pctInput.disabled = false;
@@ -490,6 +508,8 @@
           pctInput.value = '10';
         }
       }
+      if (discGroup) discGroup.style.opacity = '1';
+      if (quickPresets) quickPresets.style.display = 'flex';
     }
     handleProductPriceInput();
   }
@@ -511,10 +531,31 @@
   function setBoxPricePreset(price) {
     const boxInput = document.getElementById('prodPriceBox');
     const cardInput = document.getElementById('prodPriceCard');
+    const packType = document.getElementById('prodPackagingType')?.value || 'both';
+
     if (boxInput) boxInput.value = String(price);
-    const currentCard = parseFloat(cardInput?.value) || 0;
-    if (cardInput && currentCard < price + 40000) {
-      cardInput.value = String(price + 60000);
+
+    if (packType === 'both') {
+      const currentBox = parseFloat(boxInput?.dataset.prevBox) || 0;
+      const currentCard = parseFloat(cardInput?.value) || 0;
+      const diff = (currentCard > currentBox && currentBox > 0) ? (currentCard - currentBox) : 60000;
+      if (cardInput) cardInput.value = String(price + diff);
+    } else if (packType === 'box_only') {
+      if (cardInput) cardInput.value = String(price);
+    }
+
+    if (boxInput) boxInput.dataset.prevBox = String(price);
+    handleProductPriceInput();
+  }
+
+  function setCardPricePreset(price) {
+    const cardInput = document.getElementById('prodPriceCard');
+    const boxInput = document.getElementById('prodPriceBox');
+    const packType = document.getElementById('prodPackagingType')?.value || 'both';
+
+    if (cardInput) cardInput.value = String(price);
+    if (packType === 'card_only' && boxInput) {
+      boxInput.value = String(price);
     }
     handleProductPriceInput();
   }
@@ -522,43 +563,206 @@
   function addCardDiffFromBox(diff) {
     const boxInput = document.getElementById('prodPriceBox');
     const cardInput = document.getElementById('prodPriceCard');
-    const baseBox = parseFloat(boxInput?.value) || 380000;
-    if (boxInput && !boxInput.value) boxInput.value = String(baseBox);
-    if (cardInput) cardInput.value = String(baseBox + Number(diff));
+    const baseBox = parseFloat(boxInput?.value) || 320000;
+    if (boxInput && (!boxInput.value || parseFloat(boxInput.value) <= 0)) {
+      boxInput.value = String(baseBox);
+    }
+    if (cardInput) {
+      cardInput.value = String(baseBox + Number(diff));
+    }
     handleProductPriceInput();
   }
 
+  function handleStockInputs() {
+    const packType = document.getElementById('prodPackagingType')?.value || 'both';
+    const boxInput = document.getElementById('prodStockBox');
+    const cardInput = document.getElementById('prodStockCard');
+    const boxNotice = document.getElementById('stockBoxDisabledNotice');
+    const cardNotice = document.getElementById('stockCardDisabledNotice');
+    const badge = document.getElementById('prodTotalStockBadge');
+    const hiddenStock = document.getElementById('prodStock');
+
+    if (!boxInput || !cardInput) return;
+
+    if (packType === 'box_only') {
+      cardInput.disabled = true;
+      cardInput.value = '0';
+      if (cardNotice) cardNotice.style.display = 'block';
+      boxInput.disabled = false;
+      if (boxNotice) boxNotice.style.display = 'none';
+    } else if (packType === 'card_only') {
+      boxInput.disabled = true;
+      boxInput.value = '0';
+      if (boxNotice) boxNotice.style.display = 'block';
+      cardInput.disabled = false;
+      if (cardNotice) cardNotice.style.display = 'none';
+    } else {
+      boxInput.disabled = false;
+      cardInput.disabled = false;
+      if (boxNotice) boxNotice.style.display = 'none';
+      if (cardNotice) cardNotice.style.display = 'none';
+    }
+
+    let stockBox = parseInt(boxInput.value, 10);
+    if (isNaN(stockBox) || stockBox < 0) stockBox = 0;
+    let stockCard = parseInt(cardInput.value, 10);
+    if (isNaN(stockCard) || stockCard < 0) stockCard = 0;
+
+    let total = 0;
+    if (packType === 'box_only') {
+      total = stockBox;
+    } else if (packType === 'card_only') {
+      total = stockCard;
+    } else {
+      total = stockBox + stockCard;
+    }
+
+    if (hiddenStock) hiddenStock.value = String(total);
+
+    if (badge) {
+      if (total <= 0) {
+        badge.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i> Tổng tồn: 0 (Hết hàng)';
+        badge.style.color = '#dc2626';
+        badge.style.background = '#fef2f2';
+        badge.style.borderColor = '#fecaca';
+      } else {
+        badge.innerHTML = `Tổng tồn: <strong>${total}</strong> chiếc (📦 ${stockBox} Box + 🛡️ ${stockCard} Card)`;
+        badge.style.color = '#059669';
+        badge.style.background = '#ecfdf5';
+        badge.style.borderColor = '#a7f3d0';
+      }
+    }
+  }
+
   function handleProductPriceInput() {
+    handleStockInputs();
     const packType = document.getElementById('prodPackagingType')?.value || 'both';
     const boxInput = document.getElementById('prodPriceBox');
     const cardInput = document.getElementById('prodPriceCard');
     const pctInput = document.getElementById('prodDiscountPercent');
+
     const boxGroup = document.getElementById('prodBoxPriceGroup');
     const cardGroup = document.getElementById('prodCardPriceGroup');
+    const boxPresetsWrap = document.getElementById('boxPresetsWrap');
+    const cardDiffPresetsWrap = document.getElementById('cardDiffPresetsWrap');
+    const cardDirectPresetsWrap = document.getElementById('cardDirectPresetsWrap');
+    const boxDisabledNotice = document.getElementById('boxDisabledNotice');
+    const cardDisabledNotice = document.getElementById('cardDisabledNotice');
 
-    if (boxGroup) boxGroup.style.opacity = packType === 'card_only' ? '0.45' : '1';
-    if (cardGroup) cardGroup.style.opacity = packType === 'box_only' ? '0.45' : '1';
+    // 1. Điều phối giao diện theo Quy cách đóng gói (both, box_only, card_only)
+    if (packType === 'box_only') {
+      if (boxGroup) {
+        boxGroup.style.opacity = '1';
+        boxGroup.style.pointerEvents = 'auto';
+      }
+      if (boxInput) {
+        boxInput.disabled = false;
+        boxInput.required = true;
+      }
+      if (boxPresetsWrap) boxPresetsWrap.style.display = 'flex';
+      if (boxDisabledNotice) boxDisabledNotice.style.display = 'none';
 
+      if (cardGroup) {
+        cardGroup.style.opacity = '0.5';
+        cardGroup.style.pointerEvents = 'none';
+      }
+      if (cardInput) {
+        cardInput.disabled = true;
+        cardInput.required = false;
+        cardInput.value = boxInput?.value || '320000';
+      }
+      if (cardDiffPresetsWrap) cardDiffPresetsWrap.style.display = 'none';
+      if (cardDirectPresetsWrap) cardDirectPresetsWrap.style.display = 'none';
+      if (cardDisabledNotice) cardDisabledNotice.style.display = 'block';
+
+    } else if (packType === 'card_only') {
+      if (cardGroup) {
+        cardGroup.style.opacity = '1';
+        cardGroup.style.pointerEvents = 'auto';
+      }
+      if (cardInput) {
+        cardInput.disabled = false;
+        cardInput.required = true;
+      }
+      if (cardDiffPresetsWrap) cardDiffPresetsWrap.style.display = 'none';
+      if (cardDirectPresetsWrap) cardDirectPresetsWrap.style.display = 'flex';
+      if (cardDisabledNotice) cardDisabledNotice.style.display = 'none';
+
+      if (boxGroup) {
+        boxGroup.style.opacity = '0.5';
+        boxGroup.style.pointerEvents = 'none';
+      }
+      if (boxInput) {
+        boxInput.disabled = true;
+        boxInput.required = false;
+        boxInput.value = cardInput?.value || '380000';
+      }
+      if (boxPresetsWrap) boxPresetsWrap.style.display = 'none';
+      if (boxDisabledNotice) boxDisabledNotice.style.display = 'block';
+
+    } else {
+      // 'both'
+      if (boxGroup) {
+        boxGroup.style.opacity = '1';
+        boxGroup.style.pointerEvents = 'auto';
+      }
+      if (boxInput) {
+        boxInput.disabled = false;
+        boxInput.required = true;
+      }
+      if (boxPresetsWrap) boxPresetsWrap.style.display = 'flex';
+      if (boxDisabledNotice) boxDisabledNotice.style.display = 'none';
+
+      if (cardGroup) {
+        cardGroup.style.opacity = '1';
+        cardGroup.style.pointerEvents = 'auto';
+      }
+      if (cardInput) {
+        cardInput.disabled = false;
+        cardInput.required = true;
+      }
+      if (cardDiffPresetsWrap) cardDiffPresetsWrap.style.display = 'flex';
+      if (cardDirectPresetsWrap) cardDirectPresetsWrap.style.display = 'none';
+      if (cardDisabledNotice) cardDisabledNotice.style.display = 'none';
+    }
+
+    // 2. Đọc giá trị
     let priceBox = parseFloat(boxInput?.value) || 0;
     let priceCard = parseFloat(cardInput?.value) || 0;
 
-    if (priceBox > 0 && priceCard <= 0) {
-      priceCard = priceBox + 60000;
+    if (packType === 'card_only') {
+      if (priceCard <= 0) priceCard = 380000;
+      priceBox = priceCard;
+      if (boxInput) boxInput.value = String(priceBox);
+    } else if (packType === 'box_only') {
+      if (priceBox <= 0) priceBox = 320000;
+      priceCard = priceBox;
+      if (cardInput) cardInput.value = String(priceCard);
+    } else {
+      if (priceBox <= 0) priceBox = 320000;
+      if (priceCard <= 0) {
+        priceCard = priceBox + 60000;
+        if (cardInput) cardInput.value = String(priceCard);
+      }
     }
 
+    // 3. Xử lý % giảm giá
     let rawPct = parseInt(pctInput?.value) || 0;
     if (rawPct < 0) rawPct = 0;
-    if (rawPct > 90) rawPct = 90;
+    if (rawPct > 80) rawPct = 80;
 
     if (rawPct > 0 && productDiscountMode !== 'sale') {
       productDiscountMode = 'sale';
       document.getElementById('btnDiscountModeNone')?.classList.remove('active');
       document.getElementById('btnDiscountModeSale')?.classList.add('active');
       if (pctInput) pctInput.disabled = false;
+      const discGroup = document.getElementById('prodDiscountGroup');
+      if (discGroup) discGroup.style.opacity = '1';
     }
 
     const activePct = productDiscountMode === 'sale' ? rawPct : 0;
 
+    // 4. Tính toán giá thực thu sau khi trừ trực tiếp %
     const finalBox = activePct > 0
       ? Math.round((priceBox * (100 - activePct) / 100) / 1000) * 1000
       : priceBox;
@@ -566,7 +770,7 @@
       ? Math.round((priceCard * (100 - activePct) / 100) / 1000) * 1000
       : priceCard;
 
-    // Đồng bộ vào input ẩn #prodPrice & #prodOldPrice để tương thích ngược
+    // Đồng bộ vào input ẩn #prodPrice & #prodOldPrice để tương thích ngược API & database
     const hiddenPrice = document.getElementById('prodPrice');
     const hiddenOld = document.getElementById('prodOldPrice');
     const baseMain = packType === 'card_only' ? priceCard : priceBox;
@@ -574,61 +778,87 @@
     if (hiddenPrice) hiddenPrice.value = finalMain || 0;
     if (hiddenOld) hiddenOld.value = activePct > 0 ? baseMain : '';
 
-    // Cập nhật hiển thị trực tiếp
-    const boxDisplay = document.getElementById('prodFinalBoxDisplay');
-    const cardDisplay = document.getElementById('prodFinalCardDisplay');
-    const diffDisplay = document.getElementById('prodCardDiffDisplay');
+    // Cập nhật badge %
     const badge = document.getElementById('prodDiscountPreviewBadge');
-    const summaryEl = document.getElementById('prodLivePriceSummary');
-
-    if (boxDisplay) {
-      boxDisplay.textContent = activePct > 0
-        ? `${formatVND(finalBox)} (Đã trừ -${activePct}% từ ${formatVND(priceBox)})`
-        : `${formatVND(priceBox)} (Giá niêm yết)`;
-    }
-    if (cardDisplay) {
-      cardDisplay.textContent = activePct > 0
-        ? `${formatVND(finalCard)} (Đã trừ -${activePct}% từ ${formatVND(priceCard)})`
-        : `${formatVND(priceCard)} (Giá niêm yết)`;
-    }
-    if (diffDisplay) {
-      const diff = priceCard - priceBox;
-      if (diff >= 0) {
-        diffDisplay.style.color = '#1d4ed8';
-        diffDisplay.textContent = `+${formatVND(diff)} so với Box`;
-      } else {
-        diffDisplay.style.color = '#dc2626';
-        diffDisplay.textContent = `⚠️ Thấp hơn Box ${formatVND(Math.abs(diff))}`;
-      }
-    }
-
     if (badge) {
       if (activePct <= 0) {
         badge.style.color = '#059669';
         badge.textContent = '✓ Không giảm giá (0%)';
       } else {
         badge.style.color = '#dc2626';
-        badge.textContent = `🔥 Giảm trực tiếp -${activePct}% vào giá bán`;
+        badge.textContent = `🔥 Giảm trực tiếp -${activePct}%`;
       }
     }
 
+    // 5. Render bảng tính trực tiếp #prodLivePriceSummary phân định rõ ràng 100% từng bản
+    const summaryEl = document.getElementById('prodLivePriceSummary');
     if (summaryEl) {
-      if (activePct > 0) {
-        summaryEl.innerHTML = `🔥 Đang giảm <strong>-${activePct}%</strong> trực tiếp • Bản Box: <strong style="color:#059669;">${formatVND(finalBox)}</strong> <span style="text-decoration:line-through; color:#94a3b8;">${formatVND(priceBox)}</span> • Bản Card: <strong style="color:#1d4ed8;">${formatVND(finalCard)}</strong> <span style="text-decoration:line-through; color:#94a3b8;">${formatVND(priceCard)}</span>`;
-      } else {
-        summaryEl.innerHTML = `Chế độ <strong>Giá niêm yết (0%)</strong> • Bản Box: <strong style="color:#059669;">${formatVND(priceBox)}</strong> • Bản Card: <strong style="color:#1d4ed8;">${formatVND(priceCard)}</strong>`;
-      }
+      const statusBanner = activePct > 0
+        ? `<div style="display:flex; align-items:center; justify-content:space-between; background:#fef2f2; border:1px solid #fecaca; padding:7px 12px; border-radius:7px; color:#b91c1c; font-weight:700; font-size:12px; margin-bottom:8px;">
+             <span><i class="fa-solid fa-fire" style="margin-right:6px;"></i> Giảm giá trực tiếp <strong>-${activePct}%</strong> trừ thẳng vào tiền thanh toán</span>
+             <span style="font-size:11px; background:#fee2e2; padding:2px 8px; border-radius:4px; color:#991b1b;">Auto trừ giá</span>
+           </div>`
+        : `<div style="display:flex; align-items:center; justify-content:space-between; background:#f0fdf4; border:1px solid #bbf7d0; padding:7px 12px; border-radius:7px; color:#15803d; font-weight:700; font-size:12px; margin-bottom:8px;">
+             <span><i class="fa-solid fa-tag" style="margin-right:6px;"></i> Áp dụng Giá niêm yết chuẩn (Không áp dụng giảm %)</span>
+             <span style="font-size:11px; background:#dcfce7; padding:2px 8px; border-radius:4px; color:#166534;">Giá gốc</span>
+           </div>`;
+
+      const boxBlock = (packType !== 'card_only') ? `
+        <div style="background:#ffffff; border:1.5px solid ${activePct > 0 ? '#10b981' : '#e2e8f0'}; border-radius:8px; padding:10px 14px; flex:1; min-width:210px; box-shadow:0 1px 3px rgba(0,0,0,0.03);">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px;">
+            <span style="font-weight:800; color:#0f172a; font-size:12.5px;"><i class="fa-solid fa-cube" style="color:#0284c7; margin-right:4px;"></i> BẢN BOX (Hộp giấy)</span>
+            ${activePct > 0 ? `<span style="background:#dcfce7; color:#15803d; font-weight:800; font-size:10.5px; padding:2px 7px; border-radius:99px;">-${activePct}%</span>` : ''}
+          </div>
+          <div style="display:flex; align-items:baseline; gap:8px;">
+            <span style="font-size:16px; font-weight:900; color:#059669;">${formatVND(finalBox)}</span>
+            ${activePct > 0 ? `<span style="font-size:12px; color:#94a3b8; text-decoration:line-through;">${formatVND(priceBox)}</span>` : ''}
+          </div>
+          <div style="font-size:11px; color:#64748b; margin-top:3px;">
+            ${activePct > 0 ? `Tiết kiệm được: <strong style="color:#059669;">${formatVND(priceBox - finalBox)}</strong>` : 'Giá thực thu khi khách đặt mua'}
+          </div>
+        </div>
+      ` : '';
+
+      const cardBlock = (packType !== 'box_only') ? `
+        <div style="background:#ffffff; border:1.5px solid ${activePct > 0 ? '#3b82f6' : '#e2e8f0'}; border-radius:8px; padding:10px 14px; flex:1; min-width:210px; box-shadow:0 1px 3px rgba(0,0,0,0.03);">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px;">
+            <span style="font-weight:800; color:#0f172a; font-size:12.5px;"><i class="fa-solid fa-shield-halved" style="color:#2563eb; margin-right:4px;"></i> BẢN CARD (Vỉ Blister)</span>
+            ${activePct > 0 ? `<span style="background:#dbeafe; color:#1d4ed8; font-weight:800; font-size:10.5px; padding:2px 7px; border-radius:99px;">-${activePct}%</span>` : ''}
+          </div>
+          <div style="display:flex; align-items:baseline; gap:8px;">
+            <span style="font-size:16px; font-weight:900; color:#2563eb;">${formatVND(finalCard)}</span>
+            ${activePct > 0 ? `<span style="font-size:12px; color:#94a3b8; text-decoration:line-through;">${formatVND(priceCard)}</span>` : ''}
+          </div>
+          <div style="font-size:11px; color:#64748b; margin-top:3px;">
+            ${packType === 'both' ? `Chênh lệch so với Box: <strong style="color:#2563eb;">+${formatVND(finalCard - finalBox)}</strong>` : (activePct > 0 ? `Tiết kiệm: <strong style="color:#2563eb;">${formatVND(priceCard - finalCard)}</strong>` : 'Giá thực thu khi khách đặt mua')}
+          </div>
+        </div>
+      ` : '';
+
+      summaryEl.innerHTML = `
+        <div style="display:flex; flex-direction:column; width:100%;">
+          ${statusBanner}
+          <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(210px, 1fr)); gap:10px;">
+            ${boxBlock}
+            ${cardBlock}
+          </div>
+        </div>
+      `;
     }
   }
 
   function autoCalcProductDeposit(rate = 0.3) {
-    const priceBox = parseFloat(document.getElementById('prodPriceBox')?.value) || parseFloat(document.getElementById('prodPrice')?.value) || 0;
+    const packType = document.getElementById('prodPackagingType')?.value || 'both';
+    const boxInput = document.getElementById('prodPriceBox');
+    const cardInput = document.getElementById('prodPriceCard');
+    const targetBase = packType === 'card_only' ? (parseFloat(cardInput?.value) || 0) : (parseFloat(boxInput?.value) || 0);
     const depInput = document.getElementById('prodDeposit');
-    if (!priceBox) {
-      adminToast('Vui lòng nhập Giá bản Box trước khi tự tính tiền cọc!', 'error');
+
+    if (!targetBase || targetBase <= 0) {
+      adminToast('Vui lòng nhập giá mô hình trước khi tự tính tiền cọc!', 'error');
       return;
     }
-    const calc = Math.round((priceBox * rate) / 5000) * 5000;
+    const calc = Math.round((targetBase * rate) / 5000) * 5000;
     if (depInput) depInput.value = calc;
     adminToast(`Đã tự động tính tiền cọc ${Math.round(rate * 100)}%: ${formatVND(calc)}`, 'info');
   }
@@ -694,6 +924,45 @@
           ? '<span style="background:#eff6ff; color:#1d4ed8; padding:1px 6px; border-radius:4px; font-size:10px; font-weight:700;">Chỉ Card</span>'
           : '<span style="background:#f1f5f9; color:#334155; padding:1px 6px; border-radius:4px; font-size:10px; font-weight:700;">Box & Card</span>');
 
+      const stockBoxVal = (typeof p.stockBox === 'number') ? p.stockBox : (p.packagingType === 'card_only' ? 0 : Math.ceil(p.stock / 2));
+      const stockCardVal = (typeof p.stockCard === 'number') ? p.stockCard : (p.packagingType === 'box_only' ? 0 : Math.floor(p.stock / 2));
+
+      // Phân định dòng giá Box
+      let boxPriceRow = '';
+      if (p.packagingType === 'card_only') {
+        boxPriceRow = '<div style="color:#94a3b8; font-size:11px; text-decoration:line-through;"><span style="color:#94a3b8;">📦 Box:</span> <em>(Không bán Box)</em></div>';
+      } else if (stockBoxVal <= 0) {
+        boxPriceRow = `<div><span style="text-decoration:line-through; color:#dc2626; font-size:11.5px;">📦 Box: ${formatVND(finalBox)}</span> <span style="background:#fee2e2; color:#b91c1c; font-size:9.5px; padding:1px 4px; border-radius:3px; font-weight:800;">Hết Box</span></div>`;
+      } else {
+        boxPriceRow = `<div><span style="color:#64748b; font-size:11px;">📦 Box:</span> <strong style="color:#0f172a;">${formatVND(finalBox)}</strong> ${discountPct > 0 ? `<span style="color:#94a3b8; text-decoration:line-through; font-size:10.5px;">${formatVND(p.priceBox)}</span>` : ''}</div>`;
+      }
+
+      // Phân định dòng giá Card
+      let cardPriceRow = '';
+      if (p.packagingType === 'box_only') {
+        cardPriceRow = '<div style="color:#94a3b8; font-size:11px; text-decoration:line-through;"><span style="color:#94a3b8;">🛡️ Card:</span> <em>(Không bán Card)</em></div>';
+      } else if (stockCardVal <= 0) {
+        cardPriceRow = `<div><span style="text-decoration:line-through; color:#dc2626; font-size:11.5px;">🛡️ Card: ${formatVND(finalCard)}</span> <span style="background:#fee2e2; color:#b91c1c; font-size:9.5px; padding:1px 4px; border-radius:3px; font-weight:800;">Hết Card</span></div>`;
+      } else {
+        cardPriceRow = `<div><span style="color:#64748b; font-size:11px;">🛡️ Card:</span> <strong style="color:#1d4ed8;">${formatVND(finalCard)}</strong> ${discountPct > 0 ? `<span style="color:#94a3b8; text-decoration:line-through; font-size:10.5px;">${formatVND(p.priceCard)}</span>` : ''}</div>`;
+      }
+
+      // Phân định Tồn kho chi tiết thực tế
+      let stockDetailHtml = '';
+      if (p.packagingType === 'box_only') {
+        stockDetailHtml = `<div style="font-size:10.5px; margin-top:2px;">📦 <strong style="color:#059669;">${stockBoxVal}</strong> Box &bull; <del style="color:#94a3b8;">Card: 0</del></div>`;
+      } else if (p.packagingType === 'card_only') {
+        stockDetailHtml = `<div style="font-size:10.5px; margin-top:2px;"><del style="color:#94a3b8;">Box: 0</del> &bull; 🛡️ <strong style="color:#1d4ed8;">${stockCardVal}</strong> Card</div>`;
+      } else {
+        stockDetailHtml = `
+          <div style="font-size:10.5px; margin-top:2px; display:flex; gap:4px; align-items:center;">
+            <span style="${stockBoxVal <= 0 ? 'text-decoration:line-through; color:#dc2626;' : 'color:#059669; font-weight:700;'}">📦 ${stockBoxVal} Box</span>
+            <span style="color:#cbd5e1;">&bull;</span>
+            <span style="${stockCardVal <= 0 ? 'text-decoration:line-through; color:#dc2626;' : 'color:#1d4ed8; font-weight:700;'}">🛡️ ${stockCardVal} Card</span>
+          </div>
+        `;
+      }
+
       const tags = [packBadge];
       if (p.isFeatured) tags.push('<span style="background:#fef3c7; color:#b45309; padding:1px 6px; border-radius:4px; font-size:10px; font-weight:700;">Featured</span>');
       if (p.isNew) tags.push('<span style="background:#dbeafe; color:#1d4ed8; padding:1px 6px; border-radius:4px; font-size:10px; font-weight:700;">New</span>');
@@ -716,14 +985,17 @@
           </td>
           <td>
             <div style="font-size:12px; line-height:1.45;">
-              ${p.packagingType !== 'card_only' ? `<div><span style="color:#64748b; font-size:11px;">📦 Box:</span> <strong style="color:#0f172a;">${formatVND(finalBox)}</strong> ${discountPct > 0 ? `<span style="color:#94a3b8; text-decoration:line-through; font-size:10.5px;">${formatVND(p.priceBox)}</span>` : ''}</div>` : ''}
-              ${p.packagingType !== 'box_only' ? `<div><span style="color:#64748b; font-size:11px;">🛡️ Card:</span> <strong style="color:#1d4ed8;">${formatVND(finalCard)}</strong> ${discountPct > 0 ? `<span style="color:#94a3b8; text-decoration:line-through; font-size:10.5px;">${formatVND(p.priceCard)}</span>` : ''}</div>` : ''}
+              ${boxPriceRow}
+              ${cardPriceRow}
             </div>
             ${discountPct > 0
               ? `<div style="margin-top:2px;"><span style="background:#fee2e2; color:#dc2626; padding:1px 6px; border-radius:4px; font-weight:800; font-size:10px;">🔥 Đang giảm -${discountPct}%</span></div>`
               : `<div style="font-size:10px; color:#059669; font-weight:700; margin-top:2px;">Giá niêm yết (0%)</div>`}
           </td>
-          <td>${stockBadge}</td>
+          <td>
+            ${stockBadge}
+            ${stockDetailHtml}
+          </td>
           <td>${statusBadge}</td>
           <td><div style="display:flex; flex-wrap:wrap; gap:4px;">${tags.join(' ')}</div></td>
           <td style="text-align:right; white-space:nowrap;">
@@ -772,19 +1044,85 @@
     loadProducts();
   }
 
+  function handleProductStatusChange() {
+    const status = document.getElementById('prodStatus')?.value;
+    const preOrderCard = document.getElementById('preOrderConfigCard');
+    if (!preOrderCard) return;
+    if (status === 'pre_order') {
+      preOrderCard.style.display = 'block';
+      updateExpectedDeliveryString();
+      syncDepositPercentToAmount();
+    } else {
+      preOrderCard.style.display = 'none';
+    }
+  }
+
+  function updateExpectedDeliveryString() {
+    const month = document.getElementById('prodExpectedMonth')?.value || '11';
+    const year = document.getElementById('prodExpectedYear')?.value || '2026';
+    const str = `Tháng ${String(month).padStart(2, '0')}/${year} (Có thể trễ hơn dự kiến)`;
+    const hidden = document.getElementById('prodExpectedDelivery');
+    const preview = document.getElementById('lblExpectedDeliveryPreview');
+    if (hidden) hidden.value = str;
+    if (preview) preview.textContent = str;
+  }
+
+  function setDepositPercentPreset(pct) {
+    const pctInput = document.getElementById('prodDepositPercent');
+    if (pctInput) {
+      pctInput.value = pct;
+      syncDepositPercentToAmount();
+    }
+  }
+
+  function syncDepositPercentToAmount() {
+    const pct = parseInt(document.getElementById('prodDepositPercent')?.value, 10) || 30;
+    const priceBox = parseFloat(document.getElementById('prodPriceBox')?.value) || 0;
+    if (priceBox > 0) {
+      const depAmt = Math.round((priceBox * (pct / 100)) / 1000) * 1000;
+      const depEl = document.getElementById('prodDeposit');
+      if (depEl) depEl.value = depAmt;
+    }
+  }
+
   function openAddProductModal() {
     const form = document.getElementById('productForm');
     if (form) form.reset();
     document.getElementById('editProductId').value = '';
     document.getElementById('productModalTitle').textContent = 'Thêm Mô Hình Xe Mới (Cấu hình Box & Card)';
+    const carEl = document.getElementById('prodCarNumber');
+    if (carEl) carEl.value = '';
+
+    const brandEl = document.getElementById('prodBrand');
+    if (brandEl) brandEl.value = 'MINI GT';
+    handleBrandChange();
+
     const packEl = document.getElementById('prodPackagingType');
     if (packEl) packEl.value = 'both';
     const boxEl = document.getElementById('prodPriceBox');
     if (boxEl) boxEl.value = '380000';
     const cardEl = document.getElementById('prodPriceCard');
     if (cardEl) cardEl.value = '440000';
+
+    const stockBoxEl = document.getElementById('prodStockBox');
+    if (stockBoxEl) stockBoxEl.value = '12';
+    const stockCardEl = document.getElementById('prodStockCard');
+    if (stockCardEl) stockCardEl.value = '8';
+
     setProductDiscountMode('none');
     handleProductPriceInput();
+    handleStockInputs();
+
+    const stEl = document.getElementById('prodStatus');
+    if (stEl) stEl.value = 'in_stock';
+    const mEl = document.getElementById('prodExpectedMonth');
+    const yEl = document.getElementById('prodExpectedYear');
+    const dpEl = document.getElementById('prodDepositPercent');
+    if (mEl) mEl.value = '11';
+    if (yEl) yEl.value = '2026';
+    if (dpEl) dpEl.value = '30';
+    handleProductStatusChange();
+
     updateProductImagePreview('image/hero-banner.jpg');
     document.getElementById('productModal').classList.add('active');
   }
@@ -799,9 +1137,26 @@
       document.getElementById('productModalTitle').textContent = `Chỉnh Sửa Mô Hình: #${p.sku}`;
 
       document.getElementById('prodSku').value = p.sku;
+      const carEditEl = document.getElementById('prodCarNumber');
+      if (carEditEl) carEditEl.value = p.carNumber || p.CarNumber || (p.sku ? p.sku.replace(/\D/g, '') : '');
       document.getElementById('prodName').value = p.name;
       document.getElementById('prodCategory').value = p.category.id;
-      document.getElementById('prodBrand').value = p.brand;
+
+      // Xử lý Thương hiệu
+      const brandVal = p.brand || 'MINI GT';
+      const brandEl = document.getElementById('prodBrand');
+      const customWrapper = document.getElementById('brandCustomWrapper');
+      const customInput = document.getElementById('prodBrandCustom');
+      const knownBrands = ['MINI GT', 'Pop Race', 'Kaido House', 'TSM-Model', 'Inno64', 'Tarmac Works', 'Hobby Japan', 'Sparky', 'Trends Hobby', 'Hot Wheels Premium'];
+      if (knownBrands.includes(brandVal)) {
+        if (brandEl) brandEl.value = brandVal;
+        if (customWrapper) customWrapper.style.display = 'none';
+      } else {
+        if (brandEl) brandEl.value = 'custom';
+        if (customWrapper) customWrapper.style.display = 'block';
+        if (customInput) customInput.value = brandVal;
+      }
+
       document.getElementById('prodScale').value = p.scale;
 
       const packEl = document.getElementById('prodPackagingType');
@@ -828,11 +1183,34 @@
       handleProductPriceInput();
 
       document.getElementById('prodDeposit').value = p.depositAmount || '';
-      document.getElementById('prodQuota').value = p.quotaPercent || 0;
       document.getElementById('prodEdition').value = p.editionNote || '';
       document.getElementById('prodDeadline').value = p.preOrderDeadline || '';
       document.getElementById('prodStatus').value = p.status;
-      document.getElementById('prodStock').value = p.stock;
+
+      // Cấu hình Pre-Order dự kiến hàng về & % cọc
+      const expStr = p.expectedDelivery || p.ExpectedDelivery || '';
+      if (expStr) {
+        const mMatch = expStr.match(/(\d{1,2})\/(\d{4})/);
+        if (mMatch) {
+          const mVal = parseInt(mMatch[1], 10);
+          const yVal = mMatch[2];
+          const mEl = document.getElementById('prodExpectedMonth');
+          const yEl = document.getElementById('prodExpectedYear');
+          if (mEl) mEl.value = String(mVal);
+          if (yEl) yEl.value = yVal;
+        }
+      }
+      const dpInput = document.getElementById('prodDepositPercent');
+      if (dpInput) dpInput.value = p.depositPercent || p.DepositPercent || 30;
+      handleProductStatusChange();
+
+      // Điền số lượng tồn kho Box & Card thực tế kiểm hàng
+      const stockBoxInput = document.getElementById('prodStockBox');
+      const stockCardInput = document.getElementById('prodStockCard');
+      if (stockBoxInput) stockBoxInput.value = (typeof p.stockBox === 'number') ? p.stockBox : (p.packagingType === 'card_only' ? 0 : Math.ceil((p.stock || 0) / 2));
+      if (stockCardInput) stockCardInput.value = (typeof p.stockCard === 'number') ? p.stockCard : (p.packagingType === 'box_only' ? 0 : Math.floor((p.stock || 0) / 2));
+      handleStockInputs();
+
       document.getElementById('prodImage').value = p.image;
       document.getElementById('prodDesc').value = p.description || '';
       document.getElementById('prodIsFeatured').checked = !!p.isFeatured;
@@ -865,10 +1243,36 @@
 
     const id = document.getElementById('editProductId').value;
     const packagingType = document.getElementById('prodPackagingType')?.value || 'both';
-    const priceBox = parseFloat(document.getElementById('prodPriceBox')?.value) || 380000;
-    const priceCard = parseFloat(document.getElementById('prodPriceCard')?.value) || (priceBox + 60000);
+    let priceBox = parseFloat(document.getElementById('prodPriceBox')?.value) || 0;
+    let priceCard = parseFloat(document.getElementById('prodPriceCard')?.value) || 0;
+
+    if (packagingType === 'box_only') {
+      if (priceBox <= 0) {
+        adminToast('Vui lòng nhập giá gốc cho Bản Box!', 'error');
+        return;
+      }
+      priceCard = priceBox;
+    } else if (packagingType === 'card_only') {
+      if (priceCard <= 0) {
+        adminToast('Vui lòng nhập giá gốc cho Bản Card!', 'error');
+        return;
+      }
+      priceBox = priceCard;
+    } else {
+      // both
+      if (priceBox <= 0) {
+        adminToast('Vui lòng nhập giá cho Bản Box!', 'error');
+        return;
+      }
+      if (priceCard <= 0) {
+        priceCard = priceBox + 60000;
+        const cEl = document.getElementById('prodPriceCard');
+        if (cEl) cEl.value = String(priceCard);
+      }
+    }
+
     const rawPct = parseInt(document.getElementById('prodDiscountPercent')?.value) || 0;
-    const discountPercent = (productDiscountMode === 'sale' && rawPct > 0) ? Math.min(90, rawPct) : 0;
+    const discountPercent = (productDiscountMode === 'sale' && rawPct > 0) ? Math.min(80, rawPct) : 0;
 
     const finalPriceBox = discountPercent > 0
       ? Math.round((priceBox * (100 - discountPercent) / 100) / 1000) * 1000
@@ -882,11 +1286,24 @@
       ? (packagingType === 'card_only' ? priceCard : priceBox)
       : null;
 
+    const skuVal = document.getElementById('prodSku').value.trim();
+    const carVal = document.getElementById('prodCarNumber')?.value.trim() || skuVal.replace(/\D/g, '') || null;
+
+    let brandVal = document.getElementById('prodBrand')?.value || 'MINI GT';
+    if (brandVal === 'custom') {
+      brandVal = document.getElementById('prodBrandCustom')?.value.trim() || 'MINI GT';
+    }
+
+    const stockBox = parseInt(document.getElementById('prodStockBox')?.value, 10) || 0;
+    const stockCard = parseInt(document.getElementById('prodStockCard')?.value, 10) || 0;
+    const computedStock = packagingType === 'box_only' ? stockBox : (packagingType === 'card_only' ? stockCard : (stockBox + stockCard));
+
     const payload = {
-      sku: document.getElementById('prodSku').value.trim(),
+      sku: skuVal,
+      carNumber: carVal,
       name: document.getElementById('prodName').value.trim(),
       categoryId: parseInt(document.getElementById('prodCategory').value),
-      brand: document.getElementById('prodBrand').value.trim(),
+      brand: brandVal,
       scale: document.getElementById('prodScale').value.trim(),
       packagingType,
       priceBox,
@@ -897,11 +1314,14 @@
       price: mainPrice,
       oldPrice: mainOldPrice,
       depositAmount: document.getElementById('prodDeposit').value ? parseFloat(document.getElementById('prodDeposit').value) : null,
-      quotaPercent: parseInt(document.getElementById('prodQuota').value) || 0,
       editionNote: document.getElementById('prodEdition').value.trim(),
       preOrderDeadline: document.getElementById('prodDeadline').value || null,
       status: document.getElementById('prodStatus').value,
-      stock: parseInt(document.getElementById('prodStock').value) || 0,
+      expectedDelivery: document.getElementById('prodStatus').value === 'pre_order' ? (document.getElementById('prodExpectedDelivery')?.value || 'Tháng 11/2026 (Có thể trễ hơn dự kiến)') : null,
+      depositPercent: parseInt(document.getElementById('prodDepositPercent')?.value, 10) || 30,
+      stock: computedStock,
+      stockBox,
+      stockCard,
       imageUrl: document.getElementById('prodImage').value.trim(),
       description: document.getElementById('prodDesc').value.trim(),
       isFeatured: document.getElementById('prodIsFeatured').checked,
@@ -997,7 +1417,8 @@
       tabCountPreparing: counts.preparing,
       tabCountShipping: counts.shipping,
       tabCountDelivered: counts.delivered,
-      tabCountCancelled: counts.cancelled
+      tabCountCancelled: counts.cancelled,
+      tabCountPreOrder: counts.preOrder || counts.countPreOrder || 0
     };
     for (const [id, count] of Object.entries(map)) {
       const el = document.getElementById(id);
@@ -1006,15 +1427,37 @@
   }
 
   function renderPaymentBadge(paymentStatus, paymentMethod) {
-    const statusMap = {
-      UNPAID: { text: 'Chưa thanh toán', bg: '#fee2e2', color: '#b91c1c' },
-      PARTIALLY_PAID: { text: 'Đã nhận cọc', bg: '#eff6ff', color: '#1d4ed8' },
-      PAID: { text: 'Đã thanh toán đủ', bg: '#ecfdf5', color: '#047857' },
-      REFUND_PENDING: { text: 'Chờ hoàn tiền', bg: '#fef3c7', color: '#b45309' },
-      REFUNDED: { text: 'Đã hoàn tiền', bg: '#f1f5f9', color: '#475569' }
-    };
-    const s = statusMap[paymentStatus] || { text: paymentStatus, bg: '#f1f5f9', color: '#334155' };
-    return `<span class="status-badge" style="background:${s.bg}; color:${s.color}; border:1px solid rgba(0,0,0,0.06); font-weight:700;">${s.text}</span>`;
+    const isBankOrDeposit = paymentMethod === 'BANK_TRANSFER' || paymentMethod === 'DEPOSIT';
+
+    if (paymentStatus === 'PAID') {
+      return `<span class="status-badge" style="background:#ecfdf5; color:#047857; border:1px solid #a7f3d0; font-weight:700;"><i class="fa-solid fa-circle-check"></i> Đã nhận đủ tiền</span>`;
+    }
+    if (paymentStatus === 'PARTIALLY_PAID') {
+      return `<span class="status-badge" style="background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe; font-weight:700;"><i class="fa-solid fa-circle-check"></i> Đã nhận cọc</span>`;
+    }
+    if (paymentStatus === 'REFUND_PENDING') {
+      return `<span class="status-badge" style="background:#fef3c7; color:#b45309; border:1px solid #fde68a; font-weight:700;"><i class="fa-solid fa-rotate-left"></i> Chờ hoàn tiền</span>`;
+    }
+    if (paymentStatus === 'REFUNDED') {
+      return `<span class="status-badge" style="background:#f1f5f9; color:#475569; border:1px solid #cbd5e1; font-weight:700;"><i class="fa-solid fa-clock-rotate-left"></i> Đã hoàn tiền</span>`;
+    }
+
+    // Trường hợp UNPAID:
+    // Với Đơn Chuyển Khoản Full hoặc Cọc: Khách bấm "Tôi đã chuyển khoản xong" chỉ là thông báo.
+    // Admin PHẢI check App MB Bank nhận tiền rồi mới duyệt!
+    if (isBankOrDeposit) {
+      return `
+        <span class="status-badge" style="background:#fffbeb; color:#b45309; border:1.5px solid #fde68a; font-weight:800; font-size:11px; padding:3px 7px; border-radius:5px; display:inline-flex; align-items:center; gap:4px;">
+          <i class="fa-solid fa-building-columns"></i> Check TK MB Bank
+        </span>
+        <div style="font-size:10px; color:#c2410c; margin-top:2px; font-weight:700; line-height:1.2;">
+          <i class="fa-solid fa-bell"></i> Kiểm tra TK trước khi duyệt!
+        </div>
+      `;
+    }
+
+    // Đơn COD
+    return `<span class="status-badge" style="background:#f1f5f9; color:#475569; border:1px solid #cbd5e1; font-weight:700;"><i class="fa-solid fa-hand-holding-dollar"></i> Thu COD khi giao</span>`;
   }
 
   function renderOrderBadge(status) {
@@ -1030,117 +1473,466 @@
     return `<span class="status-badge" style="background:${s.bg}; color:${s.color}; border:1px solid rgba(0,0,0,0.06); font-weight:700;"><i class="fa-solid ${s.icon}"></i> ${s.text}</span>`;
   }
 
+  const revealedPhoneOrders = new Set();
+
+  function maskPhoneNumber(phone) {
+    if (!phone) return '09•• ••• •••';
+    const cleaned = String(phone).replace(/\s+/g, '');
+    if (cleaned.length < 8) return '••••••••';
+    return cleaned.slice(0, 4) + ' ••• ' + cleaned.slice(-3);
+  }
+
+  function togglePhoneMask(orderId) {
+    const oId = Number(orderId);
+    if (revealedPhoneOrders.has(oId)) {
+      revealedPhoneOrders.delete(oId);
+    } else {
+      revealedPhoneOrders.add(oId);
+    }
+    const span = document.getElementById(`phoneMask_${oId}`);
+    const btn = document.getElementById(`btnPhoneMask_${oId}`);
+    const order = (cachedOrders || []).find(o => o.id == oId);
+    const realPhone = (order && ((order.customer && order.customer.phone) || order.phone)) || '';
+
+    if (span && btn) {
+      if (revealedPhoneOrders.has(oId)) {
+        span.textContent = realPhone;
+        span.style.color = '#059669';
+        btn.innerHTML = '<i class="fa-solid fa-eye-slash"></i>';
+        btn.title = 'Ẩn số điện thoại bảo mật';
+      } else {
+        span.textContent = maskPhoneNumber(realPhone);
+        span.style.color = '#334155';
+        btn.innerHTML = '<i class="fa-solid fa-eye"></i>';
+        btn.title = 'Hiện đầy đủ số điện thoại';
+      }
+    }
+  }
+
+  function copyOrderCode(code, evt) {
+    if (evt && evt.stopPropagation) evt.stopPropagation();
+    if (!code) return;
+    const cleanCode = code.startsWith('#') ? code : `#${code}`;
+    navigator.clipboard.writeText(cleanCode).then(() => {
+      adminToast(`Đã sao chép mã đơn: ${cleanCode}`, 'success');
+    }).catch(() => {
+      adminToast(`Mã đơn: ${cleanCode}`, 'info');
+    });
+  }
+
+  function formatOrderDateTime(d) {
+    if (!d) return '--:--';
+    try {
+      const dt = new Date(d);
+      if (isNaN(dt.getTime())) return String(d);
+      const pad = n => String(n).padStart(2, '0');
+      return `${pad(dt.getDate())}/${pad(dt.getMonth() + 1)}/${dt.getFullYear()} ${pad(dt.getHours())}:${pad(dt.getMinutes())}`;
+    } catch (e) {
+      return String(d);
+    }
+  }
+
+  function renderOrderItemsPreview(items) {
+    if (!items || !items.length) {
+      return '<span style="font-size:11px; color:#94a3b8; font-style:italic;">(Chưa có sản phẩm)</span>';
+    }
+    const rendered = items.slice(0, 2).map(it => {
+      const isCard = (it.packagingOption || it.PackagingOption) === 'card';
+      const packBadge = isCard
+        ? '<span class="badge-order-pack card"><i class="fa-solid fa-shield-halved"></i> Card</span>'
+        : '<span class="badge-order-pack box"><i class="fa-solid fa-cube"></i> Box</span>';
+      let img = it.imageUrl || it.ImageUrl || it.productImage || 'image/hero-banner.jpg';
+      let finalImg = img.startsWith('http') ? img : ('../' + img.replace(/^\/+/, ''));
+      const itName = it.name || it.productName || 'Mô hình Diecast 1:64';
+      return `
+        <div class="order-item-chip" title="${escapeHtml(itName)}">
+          <img src="${finalImg}" alt="" style="width:24px; height:24px; object-fit:contain; border-radius:4px; border:1px solid #e2e8f0; background:#fff; flex-shrink:0;">
+          <div style="flex:1; min-width:0; overflow:hidden;">
+            <div style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:160px; font-weight:700; font-size:11.5px; color:#0f172a;">
+              ${escapeHtml(itName)}
+            </div>
+            <div style="display:flex; align-items:center; gap:5px; margin-top:1px;">
+              ${packBadge}
+              <span style="font-size:10.5px; font-weight:800; color:#475569;">×${it.quantity || 1}</span>
+            </div>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    const moreCount = items.length - 2;
+    return rendered + (moreCount > 0 ? `<div style="font-size:10.5px; color:#2563eb; font-weight:700; margin-left:4px;">+ ${moreCount} mẫu xe khác...</div>` : '');
+  }
+
+  function printOrderInvoice(orderId) {
+    const o = (cachedOrders || []).find(item => item.id == orderId);
+    if (!o) {
+      adminToast('Không tìm thấy dữ liệu đơn hàng để in', 'error');
+      return;
+    }
+    const custName = (o.customer && o.customer.fullName) || o.fullName || 'Khách hàng';
+    const custAddr = (o.customer && o.customer.address) || o.address || 'Tại shop';
+    const custPhone = (o.customer && o.customer.phone) || o.phone || '';
+    const orderTotal = o.total ?? o.totalAmount ?? 0;
+    const items = o.items || [];
+
+    const printWin = window.open('', '_blank', 'width=800,height=700');
+    if (!printWin) {
+      adminToast('Trình duyệt đã chặn popup in. Vui lòng cho phép popup!', 'warning');
+      return;
+    }
+
+    const rowsHtml = items.map((it, idx) => `
+      <tr style="border-bottom:1px solid #e2e8f0;">
+        <td style="padding:8px; text-align:center;">${idx + 1}</td>
+        <td style="padding:8px;">
+          <strong>${escapeHtml(it.name || it.productName || 'Mô hình')}</strong>
+          <div style="font-size:11px; color:#64748b;">SKU: ${escapeHtml(it.sku || '-')} &bull; Quy cách: <strong>${(it.packagingOption || it.PackagingOption) === 'card' ? 'Bản Card (Vỉ Blister)' : 'Bản Box (Hộp giấy)'}</strong></div>
+        </td>
+        <td style="padding:8px; text-align:center;">${it.quantity || 1}</td>
+        <td style="padding:8px; text-align:right;">${formatVND(it.unitPrice || 0)}</td>
+        <td style="padding:8px; text-align:right;"><strong>${formatVND(it.lineTotal || ((it.unitPrice || 0) * (it.quantity || 1)))}</strong></td>
+      </tr>
+    `).join('');
+
+    printWin.document.write(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Phiếu Giao Hàng #${escapeHtml(o.code)} - Mini GT Store</title>
+        <style>
+          body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 25px; color: #0f172a; margin: 0; }
+          .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #e10600; padding-bottom: 15px; margin-bottom: 20px; }
+          .logo { font-size: 22px; font-weight: 900; color: #e10600; letter-spacing: -0.5px; }
+          .order-meta { text-align: right; font-size: 13px; color: #475569; }
+          .customer-box { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px; margin-bottom: 20px; font-size: 13px; line-height: 1.5; }
+          table { width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 13px; }
+          th { background: #f1f5f9; padding: 10px 8px; text-align: left; font-weight: 700; border-bottom: 1px solid #cbd5e1; }
+          .total-box { margin-left: auto; width: 300px; font-size: 13px; line-height: 1.8; }
+          .total-row { display: flex; justify-content: space-between; }
+          .total-final { font-size: 16px; font-weight: 800; color: #e10600; border-top: 1px solid #cbd5e1; padding-top: 6px; margin-top: 6px; }
+          .footer-note { margin-top: 35px; text-align: center; font-size: 12px; color: #64748b; border-top: 1px dashed #cbd5e1; padding-top: 15px; }
+          @media print { .no-print { display: none; } body { padding: 0; } }
+        </style>
+      </head>
+      <body>
+        <div class="no-print" style="margin-bottom:15px; display:flex; justify-content:space-between; align-items:center;">
+          <button onclick="window.print()" style="background:#e10600; color:#fff; border:none; padding:8px 18px; border-radius:6px; font-weight:700; cursor:pointer;">🖨️ In Phiếu Giao Hàng</button>
+          <span style="font-size:12px; color:#64748b;">(Có thể bấm Ctrl+P để in hoặc lưu PDF)</span>
+        </div>
+        <div class="header">
+          <div>
+            <div class="logo">MINI GT BIÊN HÒA STORE</div>
+            <div style="font-size:12px; color:#475569; margin-top:2px;">Mô hình tĩnh Diecast 1:64 chính hãng cao cấp</div>
+            <div style="font-size:11px; color:#64748b;">Hotline / Zalo: 0981 400 400 &bull; Biên Hòa, Đồng Nai</div>
+          </div>
+          <div class="order-meta">
+            <div style="font-size:16px; font-weight:800; color:#e10600;">#${escapeHtml(o.code)}</div>
+            <div>Ngày đặt: ${new Date(o.createdAt || Date.now()).toLocaleDateString('vi-VN')}</div>
+            ${o.trackingCode ? `<div style="font-weight:700; color:#ea580c; margin-top:3px;">SPX: ${escapeHtml(o.trackingCode)}</div>` : ''}
+          </div>
+        </div>
+
+        <div class="customer-box">
+          <div style="font-weight:700; font-size:14px; margin-bottom:4px; color:#0f172a;">👤 Người nhận: ${escapeHtml(custName)}</div>
+          <div>📞 Số điện thoại: <strong>${escapeHtml(custPhone)}</strong></div>
+          <div>📍 Địa chỉ giao: ${escapeHtml(custAddr)}</div>
+          <div>🚚 Đơn vị vận chuyển: <strong>SPX Express</strong> ${o.trackingCode ? `(Mã VĐ: ${escapeHtml(o.trackingCode)})` : ''}</div>
+        </div>
+
+        <table>
+          <thead>
+            <tr>
+              <th style="width:40px; text-align:center;">STT</th>
+              <th>Mô Hình & Quy Cách</th>
+              <th style="width:60px; text-align:center;">SL</th>
+              <th style="width:110px; text-align:right;">Đơn Giá</th>
+              <th style="width:120px; text-align:right;">Thành Tiền</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rowsHtml}
+          </tbody>
+        </table>
+
+        <div class="total-box">
+          <div class="total-row"><span>Tổng giá trị hàng:</span> <strong>${formatVND(orderTotal)}</strong></div>
+          ${o.depositAmount > 0 ? `<div class="total-row" style="color:#2563eb;"><span>Đã đặt cọc trước:</span> <strong>-${formatVND(o.depositAmount)}</strong></div>` : ''}
+          <div class="total-row total-final">
+            <span>${o.paymentStatus === 'PAID' ? 'ĐÃ THANH TOÁN ĐỦ:' : (o.paymentMethod === 'COD' || o.depositAmount > 0 ? 'SỐ TIỀN THU COD:' : 'CẦN THU:')}</span>
+            <span>${o.paymentStatus === 'PAID' ? '0 đ (Đã thanh toán)' : formatVND(Math.max(0, orderTotal - (o.depositAmount || 0)))}</span>
+          </div>
+        </div>
+
+        <div class="footer-note">
+          <p style="margin:0 0 4px 0; font-weight:600;">Cảm ơn quý khách đã tin tưởng và đồng hành cùng Mini GT Biên Hòa Store!</p>
+          <p style="margin:0;">Vui lòng quay video mở kiện hàng seal để được hỗ trợ bảo hành chính hãng tốt nhất.</p>
+        </div>
+      </body>
+      </html>
+    `);
+    printWin.document.close();
+  }
+
+  function getDateGroupKey(dateStr) {
+    if (!dateStr) return 'Đơn không rõ ngày';
+    try {
+      const dt = new Date(dateStr);
+      if (isNaN(dt.getTime())) return 'Đơn không rõ ngày';
+      const pad = n => String(n).padStart(2, '0');
+      const day = dt.getDate();
+      const month = dt.getMonth() + 1;
+      const year = dt.getFullYear();
+
+      const now = new Date();
+      const todayStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+
+      const yesterday = new Date(now);
+      yesterday.setDate(now.getDate() - 1);
+      const yesterdayStr = `${yesterday.getFullYear()}-${pad(yesterday.getMonth() + 1)}-${pad(yesterday.getDate())}`;
+
+      const currStr = `${year}-${pad(month)}-${pad(day)}`;
+
+      if (currStr === todayStr) {
+        return `Hôm nay — ${pad(day)}/${pad(month)}/${year}`;
+      } else if (currStr === yesterdayStr) {
+        return `Hôm qua — ${pad(day)}/${pad(month)}/${year}`;
+      } else {
+        return `Ngày ${pad(day)}/${pad(month)}/${year}`;
+      }
+    } catch (e) {
+      return 'Đơn không rõ ngày';
+    }
+  }
+
   function renderOrdersTable(orders) {
     const tbody = document.getElementById('ordersTbody');
     if (!tbody) return;
 
     if (!orders.length) {
-      tbody.innerHTML = '<tr><td colspan="9" style="text-align:center; padding:2rem; color:#64748b;">Không tìm thấy đơn hàng nào</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:2.5rem; color:#64748b;">Không tìm thấy đơn hàng nào phù hợp với bộ lọc</td></tr>';
       return;
     }
 
-    tbody.innerHTML = orders.map(o => {
-      // Xác định các hành động khả dụng theo State Machine
+    // Đếm số lượng đơn của từng nhóm ngày trên trang hiện tại
+    const groupCounts = {};
+    orders.forEach(o => {
+      const k = getDateGroupKey(o.createdAt || o.created_at);
+      groupCounts[k] = (groupCounts[k] || 0) + 1;
+    });
+
+    let lastGroup = null;
+    const rowsHtml = [];
+
+    orders.forEach(o => {
+      const currentGroup = getDateGroupKey(o.createdAt || o.created_at);
+      if (currentGroup !== lastGroup) {
+        lastGroup = currentGroup;
+        const countInGroup = groupCounts[currentGroup] || 1;
+        rowsHtml.push(`
+          <tr class="order-date-divider-row">
+            <td colspan="7">
+              <div class="order-date-divider-content">
+                <span class="date-badge">
+                  <i class="fa-regular fa-calendar-check"></i> <strong>${currentGroup}</strong>
+                </span>
+                <span class="date-count">${countInGroup} đơn hàng</span>
+              </div>
+            </td>
+          </tr>
+        `);
+      }
+
       const actions = [];
 
-      // 1. Xem chi tiết luôn có
-      actions.push(`<button class="btn-admin btn-admin-outline" style="padding:3px 7px; font-size:11.5px;" onclick="viewOrderDetail(${o.id})" title="Xem chi tiết"><i class="fa-solid fa-eye"></i> Chi tiết</button>`);
+      // 1. Xem chi tiết
+      actions.push(`<button class="btn-admin btn-admin-outline" style="padding:3px 7px; font-size:11px;" onclick="viewOrderDetail(${o.id})" title="Xem chi tiết đơn"><i class="fa-solid fa-eye"></i> Chi tiết</button>`);
 
-      // 2. Nút xác nhận thanh toán (nếu đơn chuyển khoản hoặc cọc mà chưa thanh toán)
+      // 2. In phiếu giao hàng
+      actions.push(`<button class="btn-admin btn-admin-outline" style="padding:3px 7px; font-size:11px;" onclick="printOrderInvoice(${o.id})" title="In phiếu đóng gói / giao hàng"><i class="fa-solid fa-print"></i> In đơn</button>`);
+
+      // 3. Xác nhận tiền cọc hoặc thanh toán full
       if (o.status !== 'CANCELLED' && o.paymentStatus !== 'PAID' && o.paymentMethod !== 'COD') {
         if (o.paymentMethod === 'DEPOSIT' && o.paymentStatus === 'UNPAID') {
-          actions.push(`<button class="btn-admin btn-admin-outline" style="padding:3px 7px; font-size:11.5px; color:#2563eb; border-color:#93c5fd;" onclick="confirmPaymentAction(${o.id}, 'deposit')" title="Xác nhận đã nhận cọc"><i class="fa-solid fa-money-bill-transfer"></i> Nhận Cọc</button>`);
+          actions.push(`<button class="btn-admin btn-admin-outline" style="padding:3px 7px; font-size:11px; color:#2563eb; border-color:#93c5fd;" onclick="confirmPaymentAction(${o.id}, 'deposit')" title="Xác nhận đã nhận cọc"><i class="fa-solid fa-money-bill-transfer"></i> Nhận Cọc</button>`);
         } else if (o.paymentMethod === 'BANK_TRANSFER' && o.paymentStatus === 'UNPAID') {
-          actions.push(`<button class="btn-admin btn-admin-outline" style="padding:3px 7px; font-size:11.5px; color:#2563eb; border-color:#93c5fd;" onclick="confirmPaymentAction(${o.id}, 'full')" title="Xác nhận nhận đủ tiền 100%"><i class="fa-solid fa-circle-dollar-to-slot"></i> Nhận Full</button>`);
+          actions.push(`<button class="btn-admin btn-admin-outline" style="padding:3px 7px; font-size:11px; color:#2563eb; border-color:#93c5fd;" onclick="confirmPaymentAction(${o.id}, 'full')" title="Xác nhận nhận đủ tiền 100%"><i class="fa-solid fa-circle-dollar-to-slot"></i> Nhận Full</button>`);
         }
       }
 
-      // 3. Nút duyệt đơn nhanh (Approve: PENDING -> CONFIRMED)
+      // 4. Duyệt đơn (PENDING -> CONFIRMED)
       if (o.status === 'PENDING') {
-        actions.push(`<button class="btn-admin btn-admin-primary" style="padding:3px 8px; font-size:11.5px;" onclick="changeOrderStatus(${o.id}, 'CONFIRMED')" title="Duyệt đơn hàng ngay"><i class="fa-solid fa-check"></i> Duyệt đơn</button>`);
+        actions.push(`<button class="btn-admin btn-admin-primary" style="padding:3px 8px; font-size:11px;" onclick="changeOrderStatus(${o.id}, 'CONFIRMED')" title="Duyệt đơn hàng ngay"><i class="fa-solid fa-check"></i> Duyệt đơn</button>`);
       }
 
-      // 4. Nút chuẩn bị hàng (CONFIRMED -> PREPARING)
+      // 5. Chuẩn bị hàng (CONFIRMED -> PREPARING)
       if (o.status === 'CONFIRMED') {
-        actions.push(`<button class="btn-admin btn-admin-primary" style="padding:3px 8px; font-size:11.5px; background:#7e22ce; border-color:#7e22ce;" onclick="changeOrderStatus(${o.id}, 'PREPARING')" title="Chuyển sang đóng gói"><i class="fa-solid fa-box"></i> Đóng gói</button>`);
+        actions.push(`<button class="btn-admin btn-admin-primary" style="padding:3px 8px; font-size:11px; background:#7e22ce; border-color:#7e22ce;" onclick="changeOrderStatus(${o.id}, 'PREPARING')" title="Chuyển sang đóng gói"><i class="fa-solid fa-box"></i> Đóng gói</button>`);
       }
 
-      // 5. Nút dán/lưu mã SPX & giao hàng (Luôn hiển thị cho đơn chưa hủy để Admin dán mã bất cứ lúc nào)
+      // 5b. Báo hàng Pre-Order đã về kho (chỉ dành riêng cho đơn có xe Pre-Order)
+      if ((o.hasPreOrder || o.HasPreOrder) && ['CONFIRMED', 'PREPARING'].includes(o.status)) {
+        if (!o.preOrderNotified && !o.PreOrderNotified) {
+          actions.push(`<button class="btn-admin btn-admin-primary" style="padding:3px 8px; font-size:11px; background:#7c3aed; border-color:#7c3aed;" onclick="markPreOrderArrivedAction(${o.id})" title="Báo hàng Pre-Order đã về tới kho Biên Hòa để giao"><i class="fa-solid fa-bell"></i> Báo Hàng Đã Về</button>`);
+        } else {
+          actions.push(`<span style="font-size:10px; color:#7c3aed; font-weight:700; background:#f5f3ff; border:1px solid #ddd6fe; padding:2px 6px; border-radius:4px;"><i class="fa-solid fa-circle-check"></i> Đã về kho</span>`);
+        }
+      }
+
+      // 6. Dán mã vận đơn SPX (PENDING, CONFIRMED, PREPARING, SHIPPING)
       if (['PENDING', 'CONFIRMED', 'PREPARING', 'SHIPPING'].includes(o.status)) {
-        actions.push(`<button class="btn-admin btn-admin-primary" style="padding:3px 8px; font-size:11.5px; background:#ea580c; border-color:#ea580c;" onclick="openShipSpxModal(${o.id})" title="Dán mã vận đơn SPX Express"><i class="fa-solid fa-truck-fast"></i> ${o.trackingCode ? 'Sửa mã SPX' : 'Dán mã SPX'}</button>`);
+        actions.push(`<button class="btn-admin btn-admin-primary" style="padding:3px 8px; font-size:11px; background:#ea580c; border-color:#ea580c;" onclick="openShipSpxModal(${o.id})" title="Dán mã vận đơn SPX Express"><i class="fa-solid fa-truck-fast"></i> ${o.trackingCode ? 'Sửa SPX' : 'Gán SPX'}</button>`);
       }
 
-      // 6. Nút hoàn tất giao hàng (SHIPPING -> DELIVERED)
+      // 7. Hoàn tất giao hàng (SHIPPING -> DELIVERED)
       if (o.status === 'SHIPPING') {
-        actions.push(`<button class="btn-admin btn-admin-primary" style="padding:3px 8px; font-size:11.5px; background:#059669; border-color:#059669;" onclick="changeOrderStatus(${o.id}, 'DELIVERED')" title="Xác nhận đã giao hàng & thu tiền"><i class="fa-solid fa-circle-check"></i> Đã giao</button>`);
+        actions.push(`<button class="btn-admin btn-admin-primary" style="padding:3px 8px; font-size:11px; background:#059669; border-color:#059669;" onclick="changeOrderStatus(${o.id}, 'DELIVERED')" title="Xác nhận đã giao hàng & thu tiền"><i class="fa-solid fa-circle-check"></i> Đã giao</button>`);
       }
 
-      // 7. Nút hoàn tiền (cho đơn hủy có paymentStatus = REFUND_PENDING)
+      // 8. Hoàn tiền nếu đơn hủy đang chờ hoàn tiền
       if (o.paymentStatus === 'REFUND_PENDING') {
-        actions.push(`<button class="btn-admin btn-admin-primary" style="padding:3px 8px; font-size:11.5px; background:#b45309; border-color:#b45309;" onclick="markRefundedAction(${o.id})" title="Xác nhận đã hoàn tiền cho khách"><i class="fa-solid fa-hand-holding-dollar"></i> Đã hoàn tiền</button>`);
+        actions.push(`<button class="btn-admin btn-admin-primary" style="padding:3px 8px; font-size:11px; background:#b45309; border-color:#b45309;" onclick="markRefundedAction(${o.id})" title="Xác nhận đã hoàn tiền cho khách"><i class="fa-solid fa-hand-holding-dollar"></i> Đã hoàn tiền</button>`);
       }
 
-      // 8. Nút hủy đơn (Chỉ cho phép khi đơn ở PENDING, CONFIRMED, PREPARING)
+      // 9. Hủy đơn
       if (['PENDING', 'CONFIRMED', 'PREPARING'].includes(o.status)) {
-        actions.push(`<button class="btn-admin btn-admin-outline" style="padding:3px 7px; font-size:11.5px; color:#dc2626;" onclick="openCancelOrderModal(${o.id})" title="Hủy đơn hàng"><i class="fa-solid fa-ban"></i> Hủy</button>`);
+        actions.push(`<button class="btn-admin btn-admin-outline" style="padding:3px 7px; font-size:11px; color:#dc2626; border-color:#fca5a5;" onclick="openCancelOrderModal(${o.id})" title="Hủy đơn hàng"><i class="fa-solid fa-ban"></i> Hủy</button>`);
       }
 
       const custName = (o.customer && o.customer.fullName) || o.fullName || 'Khách hàng';
       const custAddr = (o.customer && o.customer.address) || o.address || '';
       const custPhone = (o.customer && o.customer.phone) || o.phone || '';
       const orderTotal = o.total ?? o.totalAmount ?? 0;
+      const isPhoneRevealed = revealedPhoneOrders.has(Number(o.id));
+      const isPreOrder = Boolean(o.hasPreOrder || o.HasPreOrder);
+      const preOrderExpected = o.preOrderExpected || o.PreOrderExpected || '';
 
       const trackingBadge = o.trackingCode
-        ? `<div style="font-family:monospace; font-weight:800; color:#ea580c; font-size:12px; background:#fff7ed; border:1px solid #fdba74; padding:2px 6px; border-radius:4px; display:inline-block;">${escapeHtml(o.trackingCode)}</div><div><a href="https://spx.vn/vi" target="_blank" style="font-size:10.5px; color:#c2410c; text-decoration:none; font-weight:700;">Tra cứu SPX ↗</a></div>`
-        : `<button class="btn-admin btn-admin-outline" style="padding:2px 7px; font-size:11px; color:#ea580c; border-color:#fdba74; background:#fff7ed;" onclick="openShipSpxModal(${o.id})">+ Dán mã SPX</button>`;
+        ? `<div style="font-family:monospace; font-weight:800; color:#ea580c; font-size:11.5px; background:#fff7ed; border:1px solid #fdba74; padding:2px 6px; border-radius:4px; display:inline-block; white-space:nowrap;">${escapeHtml(o.trackingCode)}</div><div><a href="https://spx.vn/vi" target="_blank" style="font-size:10.5px; color:#c2410c; text-decoration:none; font-weight:700;">Tra cứu SPX ↗</a></div>`
+        : `<button class="btn-admin btn-admin-outline" style="padding:2px 7px; font-size:11px; color:#ea580c; border-color:#fdba74; background:#fff7ed;" onclick="openShipSpxModal(${o.id})">+ Gán SPX</button>`;
 
-      return `
+      rowsHtml.push(`
         <tr>
-          <td><strong style="color:#e10600; font-family:monospace;">#${o.code}</strong></td>
+          <!-- 1. Mã đơn & Thời gian (nowrap + copy button) -->
+          <td style="white-space:nowrap;">
+            <div class="col-order-code">
+              <span>#${escapeHtml(o.code)}</span>
+              <button type="button" class="btn-copy-code" onclick="copyOrderCode('${escapeHtml(o.code)}', event)" title="Sao chép mã đơn">
+                <i class="fa-regular fa-copy"></i>
+              </button>
+            </div>
+            <div style="font-size:11px; color:#64748b; margin-top:2px;">
+              <i class="fa-regular fa-clock" style="font-size:10px;"></i> ${formatOrderDateTime(o.createdAt || o.created_at)}
+            </div>
+            ${isPreOrder ? `
+              <div style="margin-top:3px;">
+                <span style="font-size:10px; font-weight:800; color:#7c3aed; background:#f5f3ff; border:1px solid #ddd6fe; padding:1px 6px; border-radius:4px; display:inline-flex; align-items:center; gap:3px;">
+                  <i class="fa-solid fa-bolt"></i> PRE-ORDER ${preOrderExpected ? `• ${escapeHtml(preOrderExpected)}` : ''}
+                </span>
+              </div>
+            ` : ''}
+          </td>
+
+          <!-- 2. Khách hàng & SĐT (bảo mật số điện thoại bằng eye toggle) -->
           <td>
-            <div style="font-weight:700; color:#0f172a;">${escapeHtml(custName)}</div>
-            <div style="font-size:11px; color:#64748b; max-width:200px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
-              ${escapeHtml(custAddr)}
+            <div style="font-weight:700; color:#0f172a; font-size:12.5px;">${escapeHtml(custName)}</div>
+            <div class="phone-privacy-wrapper" style="margin-top:2px;">
+              <span class="phone-masked-text" id="phoneMask_${o.id}">
+                ${isPhoneRevealed ? escapeHtml(custPhone) : maskPhoneNumber(custPhone)}
+              </span>
+              <button type="button" class="btn-toggle-mask" id="btnPhoneMask_${o.id}" onclick="togglePhoneMask(${o.id})" title="${isPhoneRevealed ? 'Ẩn số điện thoại bảo mật' : 'Hiện đầy đủ số điện thoại'}">
+                <i class="fa-solid ${isPhoneRevealed ? 'fa-eye-slash' : 'fa-eye'}"></i>
+              </button>
+            </div>
+            <div style="font-size:11px; color:#64748b; margin-top:2px; max-width:180px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${escapeHtml(custAddr)}">
+              ${escapeHtml(custAddr || 'Tại shop')}
             </div>
           </td>
-          <td><span style="font-weight:600;">${escapeHtml(custPhone)}</span></td>
+
+          <!-- 3. Mô hình & Quy cách (Box / Card) -->
           <td>
-            <strong style="color:#0f172a;">${formatVND(orderTotal)}</strong>
-            ${o.depositAmount > 0 ? `<div style="font-size:11px; color:#2563eb;">Cọc: ${formatVND(o.depositAmount)}</div>` : ''}
+            <div class="order-product-list-preview">
+              ${renderOrderItemsPreview(o.items)}
+            </div>
           </td>
-          <td style="font-size:12px; font-weight:600; color:#475569;">${o.paymentMethod}</td>
-          <td>${renderPaymentBadge(o.paymentStatus, o.paymentMethod)}</td>
-          <td>${renderOrderBadge(o.status)}</td>
-          <td>${trackingBadge}</td>
+
+          <!-- 4. Tổng tiền & Cọc -->
+          <td style="white-space:nowrap;">
+            <strong style="color:#0f172a; font-size:13px;">${formatVND(orderTotal)}</strong>
+            ${o.depositAmount > 0
+              ? `<div style="font-size:11px; color:#2563eb; font-weight:700; margin-top:2px;">
+                   <i class="fa-solid fa-hand-holding-dollar"></i> Cọc: ${formatVND(o.depositAmount)}
+                 </div>
+                 <div style="font-size:10.5px; color:#64748b; margin-top:1px;">
+                   COD còn: <strong>${formatVND(Math.max(0, orderTotal - o.depositAmount))}</strong>
+                 </div>`
+              : `<div style="font-size:10.5px; color:#059669; font-weight:700; margin-top:2px;">
+                   ${o.paymentMethod === 'COD' ? 'Thu COD 100%' : 'Thanh toán Full'}
+                 </div>`
+            }
+          </td>
+
+          <!-- 5. Thanh toán -->
+          <td>
+            <div style="font-size:11.5px; font-weight:700; color:#334155; margin-bottom:3px;">
+              ${o.paymentMethod === 'DEPOSIT' ? '⚡ Cọc MB Bank' : (o.paymentMethod === 'COD' ? '📦 Ship COD' : '💳 Chuyển khoản')}
+            </div>
+            ${renderPaymentBadge(o.paymentStatus, o.paymentMethod)}
+          </td>
+
+          <!-- 6. Trạng thái đơn & SPX -->
+          <td>
+            <div style="margin-bottom:4px;">
+              ${renderOrderBadge(o.status)}
+            </div>
+            ${trackingBadge}
+          </td>
+
+          <!-- 7. Thao tác xử lý (Sticky bên phải, luôn hiển thị, không bị tràn màn hình) -->
           <td style="text-align:right;">
-            <div style="display:flex; justify-content:flex-end; gap:5px; flex-wrap:wrap;">
+            <div class="order-action-group">
               ${actions.join('')}
             </div>
           </td>
         </tr>
-      `;
-    }).join('');
+      `);
+    });
+
+    tbody.innerHTML = rowsHtml.join('');
   }
 
   function renderOrdersPagination(pagination) {
     const container = document.getElementById('ordersPagination');
     if (!container || !pagination) return;
 
-    const { page, totalPages, total } = pagination;
-    if (totalPages <= 1) {
-      container.innerHTML = `<span style="font-size:12px; color:#64748b;">Hiển thị <strong>${total}</strong> đơn hàng</span>`;
-      return;
-    }
+    const { page, totalPages, total, limit } = pagination;
+    const currentLimit = orderFilter.limit || limit || 10;
 
     container.innerHTML = `
-      <div style="display:flex; justify-content:space-between; align-items:center; width:100%; padding-top:12px;">
-        <span style="font-size:12.5px; color:#64748b;">Trang <strong>${page}</strong> / <strong>${totalPages}</strong> (Tổng cộng: <strong>${total}</strong> đơn)</span>
+      <div style="display:flex; justify-content:space-between; align-items:center; width:100%; padding-top:12px; flex-wrap:wrap; gap:10px;">
+        <div style="display:flex; align-items:center; gap:12px; font-size:12.5px; color:#64748b; flex-wrap:wrap;">
+          <span>Trang <strong>${page}</strong> / <strong>${totalPages || 1}</strong> (Tổng cộng: <strong>${total}</strong> đơn)</span>
+          <div style="display:flex; align-items:center; gap:5px;">
+            <span style="font-size:11.5px;">Hiển thị:</span>
+            <select class="form-control" style="width:auto; padding:2px 8px; font-size:11.5px; height:28px;" onchange="changeOrderPageSize(this.value)">
+              <option value="10" ${currentLimit == 10 ? 'selected' : ''}>10 đơn / trang</option>
+              <option value="20" ${currentLimit == 20 ? 'selected' : ''}>20 đơn / trang</option>
+              <option value="50" ${currentLimit == 50 ? 'selected' : ''}>50 đơn / trang</option>
+            </select>
+          </div>
+        </div>
         <div style="display:flex; gap:6px;">
           <button class="btn-admin btn-admin-outline" style="padding:4px 10px;" ${page <= 1 ? 'disabled' : ''} onclick="goToOrderPage(${page - 1})">◀ Trước</button>
           <button class="btn-admin btn-admin-outline" style="padding:4px 10px;" ${page >= totalPages ? 'disabled' : ''} onclick="goToOrderPage(${page + 1})">Sau ▶</button>
         </div>
       </div>
     `;
+  }
+
+  function changeOrderPageSize(newSize) {
+    orderFilter.limit = parseInt(newSize, 10) || 10;
+    orderFilter.page = 1;
+    loadOrders();
   }
 
   function goToOrderPage(p) {
@@ -1560,11 +2352,19 @@ MÃ ĐƠN SHOP: #${currentActionOrderData.code}`;
     }
   }
 
+  function setCancelReasonPreset(reason) {
+    const input = document.getElementById('cancelOrderReasonInput');
+    if (input) {
+      input.value = reason;
+      input.focus();
+    }
+  }
+
   async function confirmCancelOrderSubmit() {
     if (!currentActionOrderId) return;
     const reason = document.getElementById('cancelOrderReasonInput')?.value.trim();
     if (!reason || reason.length < 3) {
-      adminToast('Vui lòng nhập lý do hủy đơn (tối thiểu 3 ký tự)', 'error');
+      adminToast('Vui lòng nhập hoặc chọn lý do hủy đơn (tối thiểu 3 ký tự)', 'error');
       return;
     }
 
@@ -1574,6 +2374,17 @@ MÃ ĐƠN SHOP: #${currentActionOrderData.code}`;
       closeAdminModal('cancelOrderModal');
       loadOrders();
       loadDashboard();
+      if (document.getElementById('orderDetailModal')?.classList.contains('active')) {
+        viewOrderDetail(currentActionOrderId);
+      }
+      if (api && typeof api.emitRealtimeSync === 'function') {
+        api.emitRealtimeSync('ORDER_UPDATED', {
+          orderCode: res.data?.code,
+          status: 'CANCELLED',
+          cancelReason: reason,
+          order: res.data
+        });
+      }
     } catch (err) {
       adminToast('Lỗi hủy đơn: ' + err.message, 'error');
     }
@@ -1988,15 +2799,35 @@ MÃ ĐƠN SHOP: #${currentActionOrderData.code}`;
   window.openAddProductModal = openAddProductModal;
   window.openEditProductModal = openEditProductModal;
   window.updateProductImagePreview = updateProductImagePreview;
+  window.handleBrandChange = handleBrandChange;
   window.setProductDiscountMode = setProductDiscountMode;
   window.handleProductPriceInput = handleProductPriceInput;
   window.applyQuickDiscountPercent = applyQuickDiscountPercent;
   window.setBoxPricePreset = setBoxPricePreset;
+  window.setCardPricePreset = setCardPricePreset;
   window.addCardDiffFromBox = addCardDiffFromBox;
   window.autoCalcProductDeposit = autoCalcProductDeposit;
+  window.handleStockInputs = handleStockInputs;
   window.saveProduct = saveProduct;
   window.cloneProduct = cloneProduct;
   window.deleteProduct = deleteProduct;
+
+  async function markPreOrderArrivedAction(orderId) {
+    if (!confirm('Xác nhận: Lô hàng Pre-Order của đơn hàng này đã về tới kho cửa hàng Biên Hòa? Trạng thái đơn sẽ được cập nhật để bạn chuẩn bị đóng gói & gán mã SPX Express giao cho khách.')) return;
+    try {
+      const res = await api.put(`/api/admin/orders/${orderId}/preorder-arrived`, {});
+      if (res.success) {
+        adminToast(res.message || 'Đã báo hàng Pre-Order về kho thành công!', 'success');
+        if (api && typeof api.emitRealtimeSync === 'function') {
+          api.emitRealtimeSync('ORDER_UPDATED', { orderId, order: res.data });
+        }
+        loadOrders();
+        loadDashboard();
+      }
+    } catch (err) {
+      adminToast('Lỗi cập nhật hàng về: ' + err.message, 'error');
+    }
+  }
 
   // Orders
   window.loadOrders = loadOrders;
@@ -2007,6 +2838,11 @@ MÃ ĐƠN SHOP: #${currentActionOrderData.code}`;
   window.viewOrderDetail = viewOrderDetail;
   window.changeOrderStatus = changeOrderStatus;
   window.confirmPaymentAction = confirmPaymentAction;
+  window.markPreOrderArrivedAction = markPreOrderArrivedAction;
+  window.handleProductStatusChange = handleProductStatusChange;
+  window.updateExpectedDeliveryString = updateExpectedDeliveryString;
+  window.setDepositPercentPreset = setDepositPercentPreset;
+  window.syncDepositPercentToAmount = syncDepositPercentToAmount;
   window.openShipSpxModal = openShipSpxModal;
   window.copyShipSpxDispatchInfo = copyShipSpxDispatchInfo;
   window.pasteTrackingToInput = pasteTrackingToInput;
@@ -2014,8 +2850,13 @@ MÃ ĐƠN SHOP: #${currentActionOrderData.code}`;
   window.confirmShipSpxSubmit = confirmShipSpxSubmit;
   window.openCancelOrderModal = openCancelOrderModal;
   window.confirmCancelOrderSubmit = confirmCancelOrderSubmit;
+  window.setCancelReasonPreset = setCancelReasonPreset;
+  window.changeOrderPageSize = changeOrderPageSize;
   window.markRefundedAction = markRefundedAction;
   window.exportOrdersToCSV = exportOrdersToCSV;
+  window.togglePhoneMask = togglePhoneMask;
+  window.copyOrderCode = copyOrderCode;
+  window.printOrderInvoice = printOrderInvoice;
 
   // Customers & Newsletter & Settings
   window.loadUsers = loadUsers;

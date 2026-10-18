@@ -993,6 +993,29 @@ body {
   color: var(--admin-primary);
 }
 
+.order-tab-btn.pre-order-tab-highlight {
+  background: #f5f3ff;
+  border-color: #ddd6fe;
+  color: #7c3aed;
+}
+
+.order-tab-btn.pre-order-tab-highlight:hover {
+  background: #ede9fe;
+  color: #6d28d9;
+}
+
+.order-tab-btn.pre-order-tab-highlight.active {
+  background: #7c3aed;
+  border-color: #7c3aed;
+  color: #fff;
+  box-shadow: 0 2px 8px rgba(124, 58, 237, 0.35);
+}
+
+.order-tab-btn.pre-order-tab-highlight.active .tab-pill-count {
+  background: #fff;
+  color: #7c3aed;
+}
+
 @media (max-width: 992px) {
   #sidebarToggleBtn {
     display: inline-flex !important;
@@ -1510,6 +1533,260 @@ body {
   }
 }
 
+/* =====================================================================
+   ADMIN ORDER MANAGEMENT ENHANCEMENTS & PRIVACY PROTECTION
+   ===================================================================== */
+.admin-orders-table th {
+  font-size: 11.5px;
+  font-weight: 750;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #475569;
+  background: #f8fafc;
+  padding: 10px 12px;
+}
 
+.admin-orders-table td {
+  padding: 11px 12px;
+  vertical-align: middle;
+}
 
+.col-order-code {
+  white-space: nowrap !important;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-weight: 800;
+  font-size: 13px;
+  color: #e10600;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.btn-copy-code {
+  background: transparent;
+  border: 1px solid transparent;
+  cursor: pointer;
+  color: #94a3b8;
+  padding: 2px 5px;
+  font-size: 11px;
+  border-radius: 4px;
+  transition: all 0.15s ease;
+  line-height: 1;
+}
+
+.btn-copy-code:hover {
+  color: #0f172a;
+  background: #e2e8f0;
+  border-color: #cbd5e1;
+}
+
+.phone-privacy-wrapper {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+}
+
+.phone-masked-text {
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  color: #334155;
+  font-size: 12px;
+}
+
+.btn-toggle-mask {
+  background: #f1f5f9;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  padding: 1px 6px;
+  font-size: 10.5px;
+  color: #475569;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-toggle-mask:hover {
+  background: #e2e8f0;
+  color: #0f172a;
+  border-color: #94a3b8;
+}
+
+.order-product-list-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  max-width: 250px;
+}
+
+.order-item-chip {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 11.5px;
+  color: #0f172a;
+  background: #f8fafc;
+  padding: 3px 6px;
+  border-radius: 6px;
+  border: 1px solid #f1f5f9;
+}
+
+.badge-order-pack {
+  font-size: 9.5px;
+  font-weight: 800;
+  padding: 1.5px 6px;
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  white-space: nowrap;
+}
+
+.badge-order-pack.box {
+  background: #e0f2fe;
+  color: #0369a1;
+  border: 1px solid #bae6fd;
+}
+
+.badge-order-pack.card {
+  background: #fef2f2;
+  color: #b91c1c;
+  border: 1px solid #fecaca;
+}
+
+.order-action-group {
+  display: flex;
+  justify-content: flex-end;
+  gap: 4px;
+  flex-wrap: wrap;
+  max-width: 175px;
+  margin-left: auto;
+}
+
+/* =====================================================================
+   STICKY ACTION COLUMN CHO BẢNG ĐƠN HÀNG (LUÔN THẤY NÚT DUYỆT, IN, HỦY)
+   ===================================================================== */
+.admin-orders-table {
+  min-width: 1080px;
+}
+
+.admin-orders-table th:last-child,
+.admin-orders-table td:last-child {
+  position: sticky;
+  right: 0;
+  background: #ffffff;
+  z-index: 5;
+  box-shadow: -4px 0 10px rgba(0, 0, 0, 0.05);
+}
+
+.admin-orders-table th:last-child {
+  background: #f8fafc;
+  z-index: 6;
+}
+
+[data-theme="dark"] .admin-orders-table th:last-child {
+  background: #1e293b;
+}
+
+[data-theme="dark"] .admin-orders-table td:last-child {
+  background: #0f172a;
+  box-shadow: -4px 0 10px rgba(0, 0, 0, 0.35);
+}
+
+/* PHÂN CHIA ĐƠN HÀNG THEO NGÀY (DATE GROUPING DIVIDER) */
+.order-date-divider-row {
+  background: #f8fafc;
+}
+
+.order-date-divider-row td {
+  padding: 8px 14px !important;
+  background: #f1f5f9;
+  border-top: 2px solid #e2e8f0;
+  border-bottom: 2px solid #e2e8f0;
+}
+
+[data-theme="dark"] .order-date-divider-row td {
+  background: #1e293b;
+  border-color: #334155;
+}
+
+.order-date-divider-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-weight: 800;
+  font-size: 12.5px;
+  color: #1e293b;
+  letter-spacing: 0.3px;
+}
+
+[data-theme="dark"] .order-date-divider-content {
+  color: #f8fafc;
+}
+
+.order-date-divider-content .date-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.order-date-divider-content .date-badge i {
+  color: var(--admin-primary);
+  font-size: 13px;
+}
+
+.order-date-divider-content .date-count {
+  font-size: 11px;
+  font-weight: 700;
+  color: #475569;
+  background: #e2e8f0;
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+
+[data-theme="dark"] .order-date-divider-content .date-count {
+  background: #334155;
+  color: #cbd5e1;
+}
+
+/* NÚT CHỌN NHANH LÝ DO HỦY ĐƠN TRONG MODAL */
+.cancel-preset-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.cancel-chip-btn {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #b91c1c;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 9px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  line-height: 1.3;
+}
+
+.cancel-chip-btn:hover {
+  background: #dc2626;
+  color: #ffffff;
+  border-color: #dc2626;
+}
+
+[data-theme="dark"] .cancel-chip-btn {
+  background: rgba(220, 38, 38, 0.15);
+  border-color: rgba(220, 38, 38, 0.4);
+  color: #fca5a5;
+}
+
+[data-theme="dark"] .cancel-chip-btn:hover {
+  background: #dc2626;
+  color: #ffffff;
+}
 

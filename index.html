@@ -35,9 +35,9 @@
         <!-- <a href="admin/index.html" style="color:#f59e0b; font-weight:700;"><i class="fa-solid fa-crown"></i> <span data-i18n="nav_admin">Quản trị Store</span></a> -->
         <a href="javascript:void(0)" onclick="openTrackingModal()"><i class="fa-solid fa-truck-fast"></i> <span data-i18n="nav_track">Tra cứu đơn hàng</span></a>
         <a href="#collector-hub" onclick="scrollToSection(event, 'collector-hub')"><i class="fa-solid fa-ruler-combined"></i> <span data-i18n="nav_guide">Cẩm nang 1:64</span></a>
-        <a href="tel:0988164164" class="hotline-link"><i class="fa-solid fa-phone"></i> Hotline: <strong>0988.164.164</strong></a>
+        <a href="tel:0988164164" class="hotline-link"><i class="fa-solid fa-phone"></i> Hotline: <strong>0981.903.400</strong></a>
         <div class="lang-switch" onclick="toggleSiteLanguage()" title="Chuyển đổi ngôn ngữ VN / EN" style="cursor:pointer;">
-          <span id="topLangVN" class="active">VN</span> / <span id="topLangEN">EN</span>
+          <!-- <span id="topLangVN" class="active">VN</span> / <span id="topLangEN">EN</span> -->
         </div>
       </div>
     </div>
@@ -88,12 +88,11 @@
           </ul>
         </nav>
 
-        <!-- Search Bar with Live Dropdown & Shortcut -->
+        <!-- Search Bar with Live Dropdown & Typewriter Animation -->
         <div class="header-search">
           <div class="search-input-wrapper">
             <span class="search-icon-btn"><i class="fa-solid fa-magnifying-glass"></i></span>
-            <input type="text" id="headerSearchInput" data-i18n-placeholder="search_placeholder" placeholder="Tìm theo tên xe, SKU, hãng..." autocomplete="off">
-            <span class="search-kbd-hint"><kbd>/</kbd></span>
+            <input type="text" id="headerSearchInput" data-i18n-placeholder="search_placeholder" placeholder="Tìm theo tên xe, hãng..." autocomplete="off">
           </div>
           <div class="search-results-dropdown" id="searchResultsDropdown"></div>
         </div>
@@ -148,7 +147,7 @@
           <div id="userProfileArea">
             <button type="button" class="btn-login-clean" onclick="openAuthModal('login')">
               <i class="fa-regular fa-user"></i>
-              <span data-i18n="btn_login">Đăng nhập</span>
+              <span data-i18n="btnSignIn">Đăng nhập</span>
             </button>
           </div>
         </div>
@@ -165,18 +164,12 @@
          3. HERO SHOWROOM CAROUSEL (EQUAL HEIGHT SLIDES + MULTI-LAYER TRANSITIONS)
          ===================================================================== -->
     <section class="hero-section" aria-label="Bộ sưu tập nổi bật">
-      <div class="container">
-        <div class="hero-slider-wrap" id="heroSliderWrap">
+      <div class="hero-slider-wrap" id="heroSliderWrap">
 
-          <!-- SLIDE 1: MAIN DIECAST FLEET PRE-ORDER -->
-          <div class="hero-slide active" data-slide-index="0">
-            <div class="hero-image-stage">
-              <div class="hero-hotspot-guide-pill">
-                <span class="guide-pulse-dot"></span>
-                <span data-i18n="hero_hotspot_guide">CHẠM VÀO ĐIỂM [+] ĐỂ XEM CHI TIẾT &amp; CHỌN BẢN BOX / CARD TRÊN BANNER</span>
-              </div>
-
-              <img src="image/hero-banner.jpg" alt="Bộ sưu tập MINI GT Pre-Order 2026" class="hero-img-main">
+        <!-- SLIDE 1: MAIN DIECAST FLEET PRE-ORDER -->
+        <div class="hero-slide active" data-slide-index="0">
+          <div class="hero-image-stage">
+            <img src="image/hero-banner.jpg" alt="Bộ sưu tập MINI GT Pre-Order 2026" class="hero-img-main">
 
               <!-- Hotspot 1: Scania Transporter Truck Set -->
               <button class="hero-hotspot hotspot-truck" type="button" aria-label="Xem Lamborghini Sterrato & Transporter Box Set" onclick="openQuickView(1)">
@@ -224,7 +217,7 @@
                 <span class="hotspot-tooltip">
                   <span class="hs-tag">#MGT00550 • WORLD CHAMPION</span>
                   <span class="hs-title">Oracle Red Bull RB19 #1 Max Verstappen</span>
-                  <span class="hs-price"><span>420.000đ</span> <span class="hs-cta">Xem ngay ➔</span></span>
+                  <span class="hs-price"><span>378.000đ</span> <span class="hs-cta">Xem ngay ➔</span></span>
                 </span>
               </button>
 
@@ -244,7 +237,7 @@
                 <span class="hotspot-tooltip">
                   <span class="hs-tag">#MGT00550 • MONACO GP</span>
                   <span class="hs-title">Oracle Red Bull RB18 #1 Max Verstappen</span>
-                  <span class="hs-price"><span>420.000đ</span> <span class="hs-cta">Xem ngay ➔</span></span>
+                  <span class="hs-price"><span>378.000đ</span> <span class="hs-cta">Xem ngay ➔</span></span>
                 </span>
               </button>
             </div>
@@ -349,35 +342,66 @@
                   </div>
                 </div>
 
-                <!-- Right: High-Res Visual Banner (roxy_rexy_minigt.webp) + 3 Quick Model Cards -->
-                <div class="hero-ao-right-wrap">
-                  <div class="hero-ao-main-art" onclick="scrollToSection(event, 'gt3-paddock')">
-                    <img src="image/roxy_rexy_minigt.webp" alt="AO Racing Porsche 911 GT3 R Rexy & Roxy MINI GT">
-                    <span class="hero-ao-art-tag">Official MINI GT x AO Racing 1:64</span>
+                <!-- Right: Dual Showcase - Left Poster (roxy-rexy-ske-3.jpg) + Right Stack (roxy_rexy_minigt.webp on top, 3 box cards underneath) -->
+                <div class="hero-ao-showcase-split">
+                  <!-- Left Poster Art: roxy-rexy-ske-3 (Nằm liền bên trái kế bên ảnh roxy-rexy) -->
+                  <div class="hero-ao-poster-art" onclick="scrollToSection(event, 'gt3-paddock')" title="Xem trọn bộ ba Porsche GT3 R AO Racing">
+                    <img src="image/roxy-rexy-ske-3.jpg" alt="AO Racing Porsche 911 GT3 R Rexy Roxy Skeleton Trio" class="hero-ao-poster-img" onerror="this.src='image/hero-banner.jpg'">
+                    <span class="hero-ao-poster-tag"><i class="fa-solid fa-layer-group"></i> AO Racing Trio 1:64</span>
                   </div>
-                  <div class="hero-trio-showcase">
-                    <div class="hero-trio-card" onclick="openQuickView(8)" title="Xem Porsche 911 GT3 R Rexy #80">
-                      <img src="image/rexy.jpg" alt="Rexy AO Racing #80">
-                      <div class="hero-trio-meta">
-                        <span class="trio-badge trio-rexy">Rexy #80</span>
-                        <strong class="trio-title">Porsche GT3 R Rexy</strong>
-                        <span class="trio-price">Box 380k • Card 450k</span>
-                      </div>
+
+                  <!-- Right Stack: Top is roxy-rexy banner, Bottom is the 3 bigger box cards -->
+                  <div class="hero-ao-stack">
+                    <div class="hero-ao-main-art" onclick="scrollToSection(event, 'gt3-paddock')" title="Khám phá đường đua IMSA AO Racing">
+                      <img src="image/roxy_rexy_minigt.webp" alt="AO Racing Porsche 911 GT3 R Rexy &amp; Roxy MINI GT">
+                      <span class="hero-ao-art-tag"><i class="fa-solid fa-flag-checkered"></i> Official MINI GT x AO Racing 1:64</span>
                     </div>
-                    <div class="hero-trio-card" onclick="openQuickView(7)" title="Xem Porsche 911 GT3 R Roxy #77">
-                      <img src="image/Roxy.webp" alt="Roxy AO Racing #77" onerror="this.src='image/roxy_rexy_minigt.webp'">
-                      <div class="hero-trio-meta">
-                        <span class="trio-badge trio-roxy">Roxy #77</span>
-                        <strong class="trio-title">Porsche GT3 R Roxy</strong>
-                        <span class="trio-price">Box 342k (-5%)</span>
+
+                    <!-- 3 Box List Cards: Làm to hơn, rõ ràng, dễ nhìn và khớp bố cục đẹp nhất -->
+                    <div class="hero-trio-showcase">
+                      <div class="hero-trio-card" onclick="openQuickView(8)" title="Xem Porsche 911 GT3 R Rexy #80">
+                        <div class="trio-img-wrap">
+                          <img src="image/rexy.jpg" alt="Rexy AO Racing #80" onerror="this.src='image/hero-banner.jpg'">
+                        </div>
+                        <div class="hero-trio-meta">
+                          <span class="trio-badge trio-rexy"><i class="fa-solid fa-dragon"></i> Rexy #80</span>
+                          <strong class="trio-title">Porsche GT3 R Rexy</strong>
+                          <span class="trio-edition">IMSA Sebring 12h</span>
+                          <div class="trio-price-row">
+                            <span class="trio-price">Box 380k</span>
+                            <span class="trio-price-card">Card 450k</span>
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                    <div class="hero-trio-card" onclick="openQuickView(6)" title="Xem Porsche 911 GT3 R Skeleton #77">
-                      <img src="image/ske.webp" alt="Skeleton AO Racing #77" onerror="this.src='image/roxy_rexy_minigt.webp'">
-                      <div class="hero-trio-meta">
-                        <span class="trio-badge trio-ske">Skeleton #77</span>
-                        <strong class="trio-title">GT3 R Skeleton</strong>
-                        <span class="trio-price">Box 390k • Card 470k</span>
+
+                      <div class="hero-trio-card" onclick="openQuickView(7)" title="Xem Porsche 911 GT3 R Roxy #77">
+                        <div class="trio-img-wrap">
+                          <img src="image/Roxy.webp" alt="Roxy AO Racing #77" onerror="this.src='image/roxy_rexy_minigt.webp'">
+                        </div>
+                        <div class="hero-trio-meta">
+                          <span class="trio-badge trio-roxy"><i class="fa-solid fa-heart"></i> Roxy #77</span>
+                          <strong class="trio-title">Porsche GT3 R Roxy</strong>
+                          <span class="trio-edition">IMSA Road America</span>
+                          <div class="trio-price-row">
+                            <span class="trio-price highlight">Box 342k (-5%)</span>
+                            <span class="trio-price-card">Card 420k</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div class="hero-trio-card" onclick="openQuickView(6)" title="Xem Porsche 911 GT3 R Skeleton #77">
+                        <div class="trio-img-wrap">
+                          <img src="image/ske.webp" alt="Skeleton AO Racing #77" onerror="this.src='image/roxy_rexy_minigt.webp'">
+                        </div>
+                        <div class="hero-trio-meta">
+                          <span class="trio-badge trio-ske"><i class="fa-solid fa-skull"></i> Skeleton #77</span>
+                          <strong class="trio-title">GT3 R Skeleton</strong>
+                          <span class="trio-edition">Petit Le Mans</span>
+                          <div class="trio-price-row">
+                            <span class="trio-price">Box 390k</span>
+                            <span class="trio-price-card">Card 470k</span>
+                          </div>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -402,8 +426,7 @@
             <button type="button" class="hero-dot" aria-label="Hiện slide 4" aria-current="false" onclick="goToHeroSlide(3)"></button>
           </div>
         </div>
-      </div>
-    </section>
+      </section>
 
     <!-- =====================================================================
          4. PRE-ORDER LIVE COUNTDOWN STRIP BAR
@@ -487,9 +510,9 @@
       <div class="container">
 
         <!-- Top Pre-Order Quick Highlights Row -->
-        <div class="preorder-quick-row" id="preorderQuickRow">
+        <!-- <div class="preorder-quick-row" id="preorderQuickRow"> -->
           <!-- Rendered dynamically by js/app.js -->
-        </div>
+        <!-- </div> -->
 
         <header class="section-header">
           <span class="section-eyebrow" data-i18n="catalog_eyebrow">CATALOGUE CHÍNH HÃNG 1:64 DIE-CAST (BOX &amp; BLISTER CARD)</span>
@@ -570,7 +593,7 @@
         <!-- Pagination Controls -->
         <div class="catalog-pagination-wrap" id="catalogPaginationWrap">
           <div class="catalog-pagination-info" id="catalogPaginationInfo">
-            Hiển thị 1 - 9 trên tổng số mô hình xe
+            Hiển thị 1 - 8 trên tổng số mô hình xe
           </div>
           <div class="catalog-pagination-controls" id="catalogPaginationControls">
             <!-- Dynamic page buttons -->
@@ -594,9 +617,7 @@
               Khám phá di sản độ xe thân rộng của Wataru Kato: Vòm bánh xe đinh tán cơ bắp (Overfenders), gầm hạ sát mặt đường và cánh gió GT khí động học trên từng mẫu mô hình kim loại 1:64.
             </p>
           </div>
-          <button type="button" class="btn btn-primary" onclick="filterAndScroll(event, 'lbwk')" style="white-space:nowrap;">
-            <i class="fa-solid fa-bolt"></i> <span data-i18n="lbwk_btn_all">Xem tất cả xe LB★WORKS</span>
-          </button>
+          
         </div>
 
         <div class="lbwk-bento-grid">
@@ -680,7 +701,11 @@
                   <button type="button" class="btn btn-sm btn-outline" onclick="openQuickView(11)"><i class="fa-solid fa-eye"></i> Xem xe</button>
                 </div>
               </div>
+              
             </div>
+            <button type="button" class="btn btn-primary" onclick="filterAndScroll(event, 'lbwk')" style="white-space:nowrap; width: 235px; margin-left: 330px;">
+            <i class="fa-solid fa-bolt"></i> <span data-i18n="lbwk_btn_all">Xem tất cả xe LB★WORKS</span>
+          </button>
           </div>
         </div>
       </div>
@@ -690,102 +715,106 @@
          5C. GT3 / IMSA ENDURANCE & AO RACING PADDOCK (WITH roxy_rexy_minigt.webp)
          ===================================================================== -->
     <section class="gt3-paddock-section" id="gt3-paddock" aria-label="Đường đua IMSA GT3 & Formula 1 Paddock">
-      <div class="container">
-        <header class="section-header">
-          <span class="section-eyebrow" data-i18n="gt3_eyebrow">IMSA WEATHERTECH • DAYTONA 24H • AO RACING PADDOCK</span>
-          <h2 class="section-title" data-i18n="gt3_title">PORSCHE 911 GT3 R: BỘ BA REXY • ROXY • SKELETON</h2>
-          <p class="section-desc" data-i18n="gt3_desc">
-            Trọn bộ sưu tập chiến mã đường đua GT3 bản quyền chính thức từ đội đua AO Racing và IMSA Daytona 24h với cả hai tùy chọn <strong>Box (Hộp giấy)</strong> và <strong>Card (Vỉ nhựa Blister)</strong>.
-          </p>
-        </header>
-
-        <!-- Featured Banner with image/roxy_rexy_minigt.webp -->
-        <div class="ao-showcase-hero-banner" style="background-image: url('image/roxy_rexy_minigt.webp');">
-          <div class="ao-showcase-hero-overlay">
+      <!-- Featured Banner: 100% Widescreen Full-Width Edge-to-Edge -->
+      <div class="ao-showcase-hero-banner" style="background-image: url('image/roxy-rexy-2.webp');">
+        <div class="ao-banner-bg" style="background-image: url('image/roxy-rexy-2.webp');" role="img" aria-label="Bộ đôi Porsche 911 GT3 R Rexy và Roxy AO Racing"></div>
+        <div class="ao-banner-scanline"></div>
+        <div class="ao-showcase-hero-overlay">
+          <div class="container ao-showcase-inner">
             <div class="ao-showcase-hero-text">
-              <span class="ao-showcase-pill"><i class="fa-solid fa-trophy"></i> OFFICIAL AO RACING x MINI GT 1:64</span>
-              <h3>Bộ Sưu Tập Khủng Long Đường Đua IMSA GTD PRO</h3>
-              <p>Hình ảnh thực tế bộ đôi Porsche 911 GT3 R <strong>Rexy #80</strong> &amp; <strong>Roxy #77</strong> cùng phiên bản giới hạn <strong>Skeleton #77</strong> Petit Le Mans.</p>
-            </div>
-            <div class="ao-showcase-hero-actions">
-              <button type="button" class="btn btn-primary" onclick="filterAndScroll(event, 'ao_racing')">
-                <i class="fa-solid fa-filter"></i> Lọc trọn bộ AO Racing
-              </button>
+              <div class="ao-showcase-meta-bar">
+                <span class="ao-showcase-pill">
+                  <span class="ao-live-dot"></span>
+                  <i class="fa-solid fa-trophy"></i> OFFICIAL AO RACING x MINI GT 1:64
+                </span>
+              </div>
+              <h3 class="ao-showcase-title">Bộ Sưu Tập Khủng Long Đường Đua IMSA GTD PRO</h3>
+              <p class="ao-showcase-desc">
+                Hình ảnh thực tế bộ đôi Porsche 911 GT3 R <strong>Rexy #80</strong> &amp; <strong>Roxy #77</strong> cùng phiên bản giới hạn <strong>Skeleton #77</strong> Petit Le Mans.
+              </p>
+              <div class="ao-showcase-cta">
+                <button type="button" class="btn btn-primary btn-ao-filter" onclick="filterAndScroll(event, 'ao_racing')">
+                  <i class="fa-solid fa-filter"></i> Lọc trọn bộ AO Racing
+                </button>
+              </div>
             </div>
           </div>
         </div>
+      </div>
 
-        <div class="gt3-trio-banner">
+      <!-- 3 Cards: Rexy, Roxy, Skeleton sạch sẽ, thông thoáng -->
+      <div class="container">
+        <div class="gt3-trio-banner" id="gt3-trio-grid">
           <!-- Card 1: Rexy #80 -->
-          <div class="gt3-dino-card rexy-theme">
-            <div style="display:flex; justify-content:space-between; align-items:center;">
-              <span style="background:#dcfce7; color:#15803d; font-size:10.5px; font-weight:800; padding:3px 9px; border-radius:99px;">#MGT00782 • REXY #80</span>
-              <span style="font-size:11px; font-weight:700; color:#059669;">Box 380k • Card 450k</span>
+          <div class="gt3-dino-card rexy-theme" id="rexy-card">
+            <div class="gt3-card-top-row">
+              <span class="gt3-sku-tag rexy-tag">#MGT00782 • REXY #80</span>
+              <span class="gt3-status-pill rexy-status">Box 380k • Card 450k</span>
             </div>
             <div class="gt3-dino-img-wrap">
               <img src="image/rexy.jpg" alt="Porsche 911 GT3 R #80 AO Racing Rexy">
             </div>
-            <h3 style="font-size:15.5px; font-weight:800; color:var(--text-primary); margin-bottom:4px;">Porsche 911 GT3 R #80 AO Racing "Rexy"</h3>
-            <p style="font-size:12px; color:var(--text-secondary); line-height:1.5; margin-bottom:12px;">
+            <h3>Porsche 911 GT3 R #80 AO Racing "Rexy"</h3>
+            <p>
               Phiên bản khủng long xanh T-Rex tại giải đua sức bền Sebring &amp; Daytona. Có sẵn cả bản Hộp giấy (Box) và Vỉ Blister (Card).
             </p>
-            <div style="margin-top:auto; display:flex; justify-content:space-between; align-items:center; padding-top:10px; border-top:1px dashed var(--border-subtle);">
-              <div>
-                <strong style="font-size:17px; font-weight:900; color:#0f172a;">380.000đ</strong>
-                <span style="font-size:10.5px; color:#64748b; display:block;">Bản Box (Card: 450.000đ)</span>
+            <div class="gt3-card-bottom-row">
+              <div class="gt3-price-group">
+                <strong>380.000đ</strong>
+                <span>Bản Box (Card: 450.000đ)</span>
               </div>
-              <div style="display:flex; gap:6px;">
-                <button type="button" class="btn btn-sm btn-outline" onclick="openQuickView(8)"><i class="fa-solid fa-eye"></i></button>
+              <div class="gt3-actions-group">
+                <button type="button" class="btn btn-sm btn-outline" onclick="openQuickView(8)" title="Xem chi tiết"><i class="fa-solid fa-eye"></i></button>
                 <button type="button" class="card-btn-buy" onclick="handleCardAction(8, event)"><i class="fa-solid fa-bag-shopping"></i> Mua ngay</button>
               </div>
             </div>
           </div>
 
           <!-- Card 2: Roxy #77 -->
-          <div class="gt3-dino-card roxy-theme">
-            <div style="display:flex; justify-content:space-between; align-items:center;">
-              <span style="background:#fce7f3; color:#be185d; font-size:10.5px; font-weight:800; padding:3px 9px; border-radius:99px;">#MGT01093 • ROXY #77</span>
-              <span style="font-size:11px; font-weight:700; color:#dc2626;">Đang giảm -5%</span>
+          <div class="gt3-dino-card roxy-theme" id="roxy-card">
+            <div class="gt3-card-top-row">
+              <span class="gt3-sku-tag roxy-tag">#MGT01093 • ROXY #77</span>
+              <span class="gt3-status-pill sale">Đang giảm -5%</span>
             </div>
             <div class="gt3-dino-img-wrap">
               <img src="image/Roxy.webp" alt="Porsche 911 GT3 R #77 AO Racing Roxy" onerror="this.src='image/roxy_rexy_minigt.webp'">
             </div>
-            <h3 style="font-size:15.5px; font-weight:800; color:var(--text-primary); margin-bottom:4px;">Porsche 911 GT3 R #77 AO Racing "Roxy"</h3>
-            <p style="font-size:12px; color:var(--text-secondary); line-height:1.5; margin-bottom:12px;">
+            <h3>Porsche 911 GT3 R #77 AO Racing "Roxy"</h3>
+            <p>
               Phiên bản khủng long hồng Roxy tại chặng Virginia &amp; Road America. Sơn hồng Magenta kết hợp gai lưng xanh chuẩn xác.
             </p>
-            <div style="margin-top:auto; display:flex; justify-content:space-between; align-items:center; padding-top:10px; border-top:1px dashed var(--border-subtle);">
-              <div>
-                <strong style="font-size:17px; font-weight:900; color:#e10600;">342.000đ</strong>
-                <span style="font-size:10.5px; color:#64748b; display:block;">Bản Box -5% (Card: 408.000đ)</span>
+            <div class="gt3-card-bottom-row">
+              <div class="gt3-price-group">
+                <strong class="price-sale">342.000đ</strong>
+                <span>Bản Box -5% (Card: 399.000đ)</span>
               </div>
-              <div style="display:flex; gap:6px;">
-                <button type="button" class="btn btn-sm btn-outline" onclick="openQuickView(7)"><i class="fa-solid fa-eye"></i></button>
+              <div class="gt3-actions-group">
+                <button type="button" class="btn btn-sm btn-outline" onclick="openQuickView(7)" title="Xem chi tiết"><i class="fa-solid fa-eye"></i></button>
                 <button type="button" class="card-btn-buy" onclick="handleCardAction(7, event)"><i class="fa-solid fa-bag-shopping"></i> Mua ngay</button>
               </div>
             </div>
           </div>
 
           <!-- Card 3: Skeleton #77 -->
-          <div class="gt3-dino-card skeleton-theme">
-            <div style="display:flex; justify-content:space-between; align-items:center;">
-              <span style="background:#f1f5f9; color:#334155; font-size:10.5px; font-weight:800; padding:3px 9px; border-radius:99px;">#MGT01143 • SKELETON #77</span>
-              <span style="font-size:11px; font-weight:700; color:#2563eb;">Pre-Order (Cọc 150k)</span>
+          <div class="gt3-dino-card skeleton-theme" id="ske-card">
+            <div class="gt3-card-top-row">
+              <span class="gt3-sku-tag skeleton-tag">#MGT01143 • SKELETON #77</span>
+              <span class="gt3-status-pill preorder">Pre-Order (Cọc 150k)</span>
             </div>
             <div class="gt3-dino-img-wrap">
               <img src="image/ske.webp" alt="Porsche 911 GT3 R #77 AO Racing Skeleton" onerror="this.src='image/roxy_rexy_minigt.webp'">
             </div>
-            <h3 style="font-size:15.5px; font-weight:800; color:var(--text-primary); margin-bottom:4px;">Porsche 911 GT3 R #77 AO Racing "Skeleton"</h3>
-            <p style="font-size:12px; color:var(--text-secondary); line-height:1.5; margin-bottom:12px;">
+            <h3>Porsche 911 GT3 R #77 AO Racing "Skeleton"</h3>
+            <p>
               Bản giới hạn Halloween Petit Le Mans với đồ họa bộ xương khủng long Rexy trên nền đen mờ. Tùy chọn Box hoặc Card.
             </p>
-            <div style="margin-top:auto; display:flex; justify-content:space-between; align-items:center; padding-top:10px; border-top:1px dashed var(--border-subtle);">
-              <div>
-                <strong style="font-size:17px; font-weight:900; color:#0f172a;">390.000đ</strong>
-                <span style="font-size:10.5px; color:#64748b; display:block;">Bản Box (Card: 470.000đ)</span>
+            <div class="gt3-card-bottom-row">
+              <div class="gt3-price-group">
+                <strong>390.000đ</strong>
+                <span>Bản Box (Card: 470.000đ)</span>
               </div>
-              <div style="display:flex; gap:6px;">
-                <button type="button" class="btn btn-sm btn-outline" onclick="openQuickView(6)"><i class="fa-solid fa-eye"></i></button>
+              <div class="gt3-actions-group">
+                <button type="button" class="btn btn-sm btn-outline" onclick="openQuickView(6)" title="Xem chi tiết"><i class="fa-solid fa-eye"></i></button>
                 <button type="button" class="card-btn-preorder" onclick="handleCardAction(6, event)"><i class="fa-solid fa-plus"></i> Đặt cọc</button>
               </div>
             </div>
@@ -1105,26 +1134,40 @@
        ===================================================================== -->
   <aside>
     <!-- Cart Drawer Overlay & Aside Panel -->
-    <div class="cart-drawer-overlay" id="cartDrawerOverlay">
+    <div class="cart-drawer-overlay" id="cartDrawerOverlay" onclick="if(event.target===this)closeCartDrawer()">
       <div class="cart-drawer" role="dialog" aria-modal="true" aria-label="Giỏ hàng và cọc xe">
         <div class="cart-drawer-header">
-          <h3>Giỏ Đặt Cọc Mô Hình</h3>
-          <button class="close-drawer-btn" onclick="closeCartDrawer()" aria-label="Đóng giỏ hàng">✕</button>
+          <div class="cart-drawer-header-left">
+            <div class="cart-drawer-title-row">
+              <i class="fa-solid fa-bag-shopping"></i>
+              <h3>Giỏ Đặt Cọc Mô Hình</h3>
+              <span class="cart-header-count-pill" id="cartHeaderCountPill">0</span>
+            </div>
+            <p class="cart-drawer-subtitle">Lưu kho 30 ngày • 100% Nguyên seal chính hãng</p>
+          </div>
+          <button class="close-drawer-btn" onclick="closeCartDrawer()" aria-label="Đóng giỏ hàng" title="Đóng giỏ hàng">✕</button>
         </div>
         <div class="cart-drawer-body" id="cartDrawerItems">
           <!-- Populated by JS -->
         </div>
         <div class="cart-drawer-footer">
-          <div class="cart-summary-row">
-            <span>Tổng tiền hàng:</span>
-            <span id="cartTotalAmount">0đ</span>
+          <div class="cart-summary-breakdown">
+            <div class="cart-summary-row">
+              <span class="summary-label"><i class="fa-solid fa-tags"></i> Tổng giá trị đơn xe:</span>
+              <span class="summary-val" id="cartTotalAmount">0đ</span>
+            </div>
+            <div class="cart-summary-row highlight-deposit">
+              <span class="summary-label"><i class="fa-solid fa-shield-halved"></i> Tiền cọc giữ mẫu (30%):</span>
+              <span class="summary-val deposit-val" id="cartDepositAmount">0đ</span>
+            </div>
+            <div class="cart-summary-row remaining-row">
+              <span class="summary-label"><i class="fa-solid fa-hand-holding-dollar"></i> Còn lại khi nhận xe (70%):</span>
+              <span class="summary-val" id="cartRemainingAmount">0đ</span>
+            </div>
           </div>
-          <div class="cart-summary-row" style="color: var(--color-primary); font-weight: bold;">
-            <span>Tiền cọc giữ mẫu:</span>
-            <span id="cartDepositAmount">0đ</span>
-          </div>
-          <button class="btn btn-primary" style="width: 100%; margin-top: 10px;" onclick="openCheckoutModal()">
-            Tiến Hành Đặt Cọc Ngay ➔
+          <button class="btn btn-primary btn-checkout-drawer" onclick="openCheckoutModal()">
+            <span>Tiến Hành Đặt Cọc Ngay</span>
+            <i class="fa-solid fa-arrow-right"></i>
           </button>
         </div>
       </div>
@@ -1156,7 +1199,7 @@
       <div class="footer-grid">
         <!-- Col 1: Brand Info -->
         <div class="footer-col-about">
-          <img src="image/logominigt.png" alt="MINI GT Logo Footer" class="footer-logo">
+          <img src="image/logo-minigt.webp" alt="MINI GT Logo Footer" class="footer-logo">
           <p class="footer-about-text">
             <strong>MINI GT STORE BIÊN HÒA</strong> — Đại lý chuyên phân phối mô hình xe die-cast 1:64 bản quyền chính thức từ TrueScale Miniatures (TSM-Model), Pop Race và Kaido House tại Việt Nam.
           </p>
@@ -1229,73 +1272,305 @@
        15. ALL MODALS (AUTH GMAIL, QUICK VIEW, CHECKOUT, TRACKING, TOASTS)
        ===================================================================== -->
 
-  <!-- AUTH MODAL: ĐĂNG NHẬP / ĐĂNG KÝ BẰNG GMAIL & TÀI KHOẢN -->
-  <div class="modal-overlay" id="authModal" role="dialog" aria-modal="true" aria-label="Đăng nhập tài khoản">
-    <div class="modal-container">
-      <button class="modal-close-btn" onclick="closeModal('authModal')">✕</button>
-      <div class="modal-body">
-        <div class="auth-tabs">
-          <button class="auth-tab-btn active" id="tabBtnLogin" onclick="switchAuthTab('login')">Đăng Nhập</button>
-          <button class="auth-tab-btn" id="tabBtnRegister" onclick="switchAuthTab('register')">Đăng Ký Mới</button>
+  <!-- AUTH MODAL: ĐĂNG NHẬP / ĐĂNG KÝ HỘI VIÊN CHÍNH HÃNG -->
+  <div class="modal-overlay" id="authModal" role="dialog" aria-modal="true" aria-label="Đăng nhập tài khoản hội viên">
+    <div class="modal-container auth-modal-container">
+      <button type="button" class="modal-close-btn auth-close-btn" onclick="closeModal('authModal')" aria-label="Đóng cửa sổ">✕</button>
+      
+      <div class="auth-modal-split">
+        <!-- LEFT COLUMN: BRANDING & REAL STORE/PROJECT SHOWCASE -->
+        <div class="auth-brand-side">
+          <div>
+            <div class="auth-brand-top">
+              <img src="image/logo-minigt.webp" alt="MINI GT Logo" class="auth-brand-logo">
+              <span class="auth-official-tag"><i class="fa-solid fa-store"></i> BIÊN HÒA STORE</span>
+            </div>
+
+            <div class="auth-brand-hero">
+              <h3 class="auth-brand-title">Hệ Thống Mô Hình Tĩnh 1:64</h3>
+              <p class="auth-brand-desc">Đồ án Thiết Kế Website - Khoa CNTT, Trường Đại học Lạc Hồng. Nền tảng phân phối và quản lý đặt cọc mô hình diecast chính hãng tại Đồng Nai.</p>
+            </div>
+
+            <div class="auth-trust-list">
+              <div class="auth-trust-item">
+                <div class="auth-trust-icon"><i class="fa-solid fa-map-location-dot"></i></div>
+                <div class="auth-trust-text">
+                  <strong>Showroom &amp; Nhận Hàng Trực Tiếp</strong>
+                  <span>38/2 Võ Thị Sáu, P. Quyết Thắng, TP. Biên Hòa, Đồng Nai</span>
+                </div>
+              </div>
+              <div class="auth-trust-item">
+                <div class="auth-trust-icon"><i class="fa-solid fa-graduation-cap"></i></div>
+                <div class="auth-trust-text">
+                  <strong>Nhóm Tác Giả Đề Tài (ĐH Lạc Hồng)</strong>
+                  <span>Đỗ Quốc Thịnh &amp; Nguyễn Đình Nam • Chuyên ngành CNTT</span>
+                </div>
+              </div>
+              <div class="auth-trust-item">
+                <div class="auth-trust-icon"><i class="fa-solid fa-certificate"></i></div>
+                <div class="auth-trust-text">
+                  <strong>100% Nguyên Seal Nhà Sản Xuất</strong>
+                  <span>Mô hình đúc kim loại tỷ lệ 1:64 TSM-Model, Pop Race, Kaido House</span>
+                </div>
+              </div>
+              <div class="auth-trust-item">
+                <div class="auth-trust-icon"><i class="fa-solid fa-boxes-packing"></i></div>
+                <div class="auth-trust-text">
+                  <strong>Bọc Xốp Khí 4 Lớp Chống Móp Hộp</strong>
+                  <span>Giao vận chuyển chuyên nghiệp qua bưu cục SPX Express</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="auth-brand-footer">
+            <div class="auth-server-status">
+              <span class="auth-status-dot"></span>
+              <span>Hệ thống cơ sở dữ liệu đồng bộ tài khoản 24/7</span>
+            </div>
+          </div>
         </div>
 
-
-
-        <!-- Google / Gmail One-Click Button -->
-        <button class="google-auth-btn" type="button" onclick="handleGoogleLoginClick()">
-          <svg viewBox="0 0 24 24" width="18" height="18">
-            <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.8-2.4 3.66v3.05h3.88c2.27-2.09 3.66-5.17 3.66-9.15z"/>
-            <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.24v3.15C3.26 21.36 7.33 24 12 24z"/>
-            <path fill="#FBBC05" d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.24C.45 8.15 0 9.99 0 12s.45 3.85 1.24 5.42l4.04-3.15z"/>
-            <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.33 0 3.26 2.64 1.24 6.58l4.04 3.15c.95-2.83 3.6-4.98 6.72-4.98z"/>
-          </svg>
-          Đăng nhập nhanh với Google (Gmail)
-        </button>
-
-        <div class="auth-divider">hoặc sử dụng email cá nhân</div>
-
-        <form id="authFormLogin" onsubmit="handleLocalLogin(event)">
-          <div class="form-group">
-            <label class="form-label" for="loginEmail">Email / Gmail</label>
-            <input type="email" id="loginEmail" class="form-input" placeholder="vidu@gmail.com" required>
+        <!-- RIGHT COLUMN: SPACIOUS, ERGONOMIC AUTH FORM -->
+        <div class="auth-form-side">
+          <!-- Form Header Title & Subtitle (dynamically updated by switchAuthTab) -->
+          <div class="auth-form-header">
+            <h3 class="auth-form-title" id="authModalTitle">Đăng Nhập Tài Khoản</h3>
+            <p class="auth-form-subtitle" id="authModalSubtitle">Quản lý đơn cọc xe, tự động điền địa chỉ giao hàng và theo dõi vận đơn SPX Express.</p>
           </div>
-          <div class="form-group">
-            <div style="display:flex; justify-content:space-between; align-items:center;">
-              <label class="form-label" for="loginPassword">Mật khẩu</label>
-              <span style="font-size:11px; color:#64748b; cursor:pointer;" onclick="const el=document.getElementById('loginPassword'); if(el.type==='password'){el.type='text'; this.innerHTML='<i class=\'fa-solid fa-eye-slash\'></i> Ẩn';}else{el.type='password'; this.innerHTML='<i class=\'fa-solid fa-eye\'></i> Hiện';}"><i class="fa-solid fa-eye"></i> Hiện</span>
+
+          <!-- Minimalist Tabs Navigation -->
+          <div class="auth-tabs-nav" id="authTabsNav">
+            <button type="button" class="auth-tab-link active" id="tabBtnLogin" onclick="switchAuthTab('login')">
+              Đăng Nhập
+            </button>
+            <button type="button" class="auth-tab-link" id="tabBtnRegister" onclick="switchAuthTab('register')">
+              Đăng Ký Hội Viên
+            </button>
+          </div>
+
+          <!-- Social Quick Login -->
+          <div class="auth-social-block" id="authSocialWrapper">
+            <button type="button" class="google-auth-btn-clean" onclick="handleGoogleLoginClick()">
+              <svg viewBox="0 0 24 24" width="20" height="20">
+                <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.8-2.4 3.66v3.05h3.88c2.27-2.09 3.66-5.17 3.66-9.15z"/>
+                <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.24v3.15C3.26 21.36 7.33 24 12 24z"/>
+                <path fill="#FBBC05" d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.24C.45 8.15 0 9.99 0 12s.45 3.85 1.24 5.42l4.04-3.15z"/>
+                <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.33 0 3.26 2.64 1.24 6.58l4.04 3.15c.95-2.83 3.6-4.98 6.72-4.98z"/>
+              </svg>
+              <span>Tiếp tục với tài khoản Google</span>
+            </button>
+            <div class="auth-divider-clean">
+              <span>hoặc đăng nhập bằng email / số điện thoại</span>
             </div>
-            <input type="password" id="loginPassword" class="form-input" placeholder="••••••••" required>
           </div>
-          <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 10px;">
-            Đăng Nhập
-          </button>
-        </form>
 
-        <form id="authFormRegister" style="display: none;" onsubmit="handleLocalRegister(event)">
-          <div class="form-group">
-            <label class="form-label" for="regFullName">Họ và Tên</label>
-            <input type="text" id="regFullName" class="form-input" placeholder="Nguyễn Văn A" required>
-          </div>
-          <div class="form-group">
-            <label class="form-label" for="regEmail">Email / Gmail</label>
-            <input type="email" id="regEmail" class="form-input" placeholder="vidu@gmail.com" required>
-          </div>
-          <div class="form-group">
-            <label class="form-label" for="regPhone">Số điện thoại</label>
-            <input type="tel" id="regPhone" class="form-input" placeholder="0912 345 678">
-          </div>
-          <div class="form-group">
-            <label class="form-label" for="regPassword">Mật khẩu mới</label>
-            <input type="password" id="regPassword" class="form-input" placeholder="Tối thiểu 6 ký tự" required>
-          </div>
-          <div style="font-size:11.5px; color:#64748b; margin-bottom:8px; display:flex; align-items:center; gap:8px;">
-            <img src="image/anh-clone.jpg" alt="Avatar mặc định" style="width:26px; height:26px; border-radius:50%; object-fit:cover; border:1px solid #cbd5e1;">
-            <span>Ảnh đại diện mặc định cho tài khoản mới: <code>anh-clone.jpg</code></span>
-          </div>
-          <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 6px;">
-            Tạo Tài Khoản
-          </button>
-        </form>
+          <!-- 1. FORM ĐĂNG NHẬP -->
+          <form id="authFormLogin" class="auth-form-clean" onsubmit="handleLocalLogin(event)">
+            <div class="form-field">
+              <label class="form-field-label" for="loginEmail">Email hoặc Số điện thoại</label>
+              <div class="form-input-wrap">
+                <i class="fa-regular fa-envelope field-icon"></i>
+                <input type="text" id="loginEmail" class="form-field-input" placeholder="Ví dụ: collector@gmail.com hoặc 0988xxxxxx" required autocomplete="username">
+              </div>
+              <div class="field-error-text" id="loginEmailError"></div>
+            </div>
+
+            <div class="form-field">
+              <div class="field-label-row">
+                <label class="form-field-label" for="loginPassword">Mật khẩu</label>
+                <a href="javascript:void(0)" class="forgot-pass-btn" onclick="switchAuthTab('forgot')">Quên mật khẩu?</a>
+              </div>
+              <div class="form-input-wrap">
+                <i class="fa-solid fa-lock field-icon"></i>
+                <input type="password" id="loginPassword" class="form-field-input" placeholder="Nhập mật khẩu..." required autocomplete="current-password">
+                <button type="button" class="pwd-toggle-btn" onclick="toggleAuthPasswordVisibility('loginPassword', this)" aria-label="Xem mật khẩu">
+                  <i class="fa-regular fa-eye"></i>
+                </button>
+              </div>
+              <div class="field-error-text" id="loginPasswordError"></div>
+            </div>
+
+            <div class="form-meta-row">
+              <label class="clean-checkbox">
+                <input type="checkbox" id="loginRemember" checked>
+                <span>Ghi nhớ đăng nhập</span>
+              </label>
+
+              <!-- Discreet quick fill demo for evaluation & testing -->
+              <span class="demo-acc-hint" onclick="fillDemoAccount('collector@gmail.com', '123456')">
+                <i class="fa-solid fa-bolt"></i> Điền tài khoản mẫu
+              </span>
+            </div>
+
+            <button type="submit" class="btn-auth-primary" id="btnLoginSubmit">
+              <span>ĐĂNG NHẬP</span>
+              <i class="fa-solid fa-arrow-right"></i>
+            </button>
+
+            <div class="auth-switch-note">
+              Chưa có tài khoản hội viên?
+              <a href="javascript:void(0)" onclick="switchAuthTab('register')">Đăng ký thành viên mới</a>
+            </div>
+          </form>
+
+          <!-- 2. FORM ĐĂNG KÝ HỘI VIÊN -->
+          <form id="authFormRegister" class="auth-form-clean" style="display: none;" onsubmit="handleLocalRegister(event)">
+            <div class="reg-welcome-callout">
+              <i class="fa-solid fa-shield-heart"></i>
+              <span>Tài khoản hội viên giúp tự động lưu địa chỉ nhận hàng SPX và tra cứu biên lai đặt cọc xe.</span>
+            </div>
+
+            <div class="form-field">
+              <label class="form-field-label" for="regFullName">Họ và tên người nhận hàng <span class="req">*</span></label>
+              <div class="form-input-wrap">
+                <i class="fa-solid fa-user field-icon"></i>
+                <input type="text" id="regFullName" class="form-field-input" placeholder="Ví dụ: Đỗ Quốc Thịnh" required autocomplete="name">
+              </div>
+            </div>
+
+            <div class="form-row-grid">
+              <div class="form-field">
+                <label class="form-field-label" for="regPhone">Số điện thoại nhận hàng SPX <span class="req">*</span></label>
+                <div class="form-input-wrap">
+                  <i class="fa-solid fa-phone field-icon"></i>
+                  <input type="tel" id="regPhone" class="form-field-input" placeholder="0912 345 678" required pattern="[0-9]{10,11}" autocomplete="tel">
+                </div>
+              </div>
+              <div class="form-field">
+                <label class="form-field-label" for="regEmail">Email nhận biên lai cọc <span class="req">*</span></label>
+                <div class="form-input-wrap">
+                  <i class="fa-regular fa-envelope field-icon"></i>
+                  <input type="email" id="regEmail" class="form-field-input" placeholder="name@gmail.com" required autocomplete="email">
+                </div>
+              </div>
+            </div>
+
+            <div class="form-field">
+              <label class="form-field-label" for="regAddress">Địa chỉ giao hàng (Tự động điền khi mua hàng)</label>
+              <div class="form-input-wrap">
+                <i class="fa-solid fa-location-dot field-icon"></i>
+                <input type="text" id="regAddress" class="form-field-input" placeholder="Số nhà, tên đường, P/Xã, TP. Biên Hòa..." autocomplete="street-address">
+              </div>
+            </div>
+
+            <div class="form-row-grid">
+              <div class="form-field">
+                <label class="form-field-label" for="regPassword">Mật khẩu <span class="req">*</span></label>
+                <div class="form-input-wrap">
+                  <i class="fa-solid fa-lock field-icon"></i>
+                  <input type="password" id="regPassword" class="form-field-input" placeholder="Tối thiểu 6 ký tự" minlength="6" oninput="updatePasswordStrength(this.value)">
+                  <button type="button" class="pwd-toggle-btn" onclick="toggleAuthPasswordVisibility('regPassword', this)" aria-label="Xem mật khẩu">
+                    <i class="fa-regular fa-eye"></i>
+                  </button>
+                </div>
+              </div>
+              <div class="form-field">
+                <label class="form-field-label" for="regConfirmPassword">Nhập lại mật khẩu <span class="req">*</span></label>
+                <div class="form-input-wrap">
+                  <i class="fa-solid fa-shield-halved field-icon"></i>
+                  <input type="password" id="regConfirmPassword" class="form-field-input" placeholder="Khớp với mật khẩu trên" required minlength="6" oninput="checkPasswordMatch()">
+                  <button type="button" class="pwd-toggle-btn" onclick="toggleAuthPasswordVisibility('regConfirmPassword', this)" aria-label="Xem mật khẩu">
+                    <i class="fa-regular fa-eye"></i>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Password strength indicator line -->
+            <div class="pwd-strength-line" id="regPwdMeter">
+              <div class="pwd-strength-track">
+                <span class="pwd-strength-fill" id="pwdBarFill"></span>
+              </div>
+              <span class="pwd-strength-text" id="pwdMeterLabel">Độ bảo mật: Tối thiểu 6 ký tự</span>
+            </div>
+
+            <div class="form-meta-row" style="margin-top:6px;">
+              <label class="clean-checkbox">
+                <input type="checkbox" id="regTerms" required checked>
+                <span>Tôi đồng ý với Quy định mua hàng &amp; Chính sách bảo vệ kiện hàng tại MINI GT Biên Hòa</span>
+              </label>
+            </div>
+
+            <button type="submit" class="btn-auth-primary" id="btnRegisterSubmit">
+              <span>ĐĂNG KÝ HỘI VIÊN NGAY</span>
+              <i class="fa-solid fa-check"></i>
+            </button>
+
+            <div class="auth-switch-note">
+              Đã có tài khoản?
+              <a href="javascript:void(0)" onclick="switchAuthTab('login')">Đăng nhập ngay</a>
+            </div>
+          </form>
+
+          <!-- 3. FORM QUÊN MẬT KHẨU -->
+          <form id="authFormForgot" class="auth-form-clean" style="display: none;" onsubmit="handleForgotPassword(event)">
+            <div class="forgot-hero-box">
+              <div class="forgot-hero-icon"><i class="fa-solid fa-key"></i></div>
+              <div class="forgot-hero-text">
+                <strong>Khôi phục mật khẩu tài khoản</strong>
+                <p>Nhập email hoặc số điện thoại đã đăng ký, hệ thống sẽ cấp mã OTP xác thực tức thì.</p>
+              </div>
+            </div>
+
+            <div class="form-field">
+              <label class="form-field-label" for="forgotEmail">Email hoặc Số điện thoại <span class="req">*</span></label>
+              <div class="form-input-wrap">
+                <i class="fa-regular fa-envelope field-icon"></i>
+                <input type="text" id="forgotEmail" class="form-field-input" placeholder="Nhập email hoặc SĐT đã đăng ký..." required>
+              </div>
+            </div>
+
+            <div id="forgotStepOtpArea" style="display: none;">
+              <div class="otp-notice-pill">
+                <i class="fa-solid fa-circle-check"></i>
+                <span>Mã OTP xác thực đã cấp: <strong id="forgotSimulatedOtp">6868</strong></span>
+              </div>
+
+              <div class="form-row-grid">
+                <div class="form-field">
+                  <label class="form-field-label" for="forgotOtpInput">Mã OTP (6868) <span class="req">*</span></label>
+                  <div class="form-input-wrap">
+                    <i class="fa-solid fa-shield field-icon"></i>
+                    <input type="text" id="forgotOtpInput" class="form-field-input" placeholder="6868" maxlength="6">
+                  </div>
+                </div>
+                <div class="form-field">
+                  <label class="form-field-label" for="forgotNewPassword">Mật khẩu mới <span class="req">*</span></label>
+                  <div class="form-input-wrap">
+                    <i class="fa-solid fa-lock field-icon"></i>
+                    <input type="password" id="forgotNewPassword" class="form-field-input" placeholder="Tối thiểu 6 ký tự" minlength="6">
+                    <button type="button" class="pwd-toggle-btn" onclick="toggleAuthPasswordVisibility('forgotNewPassword', this)" aria-label="Xem mật khẩu">
+                      <i class="fa-regular fa-eye"></i>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <button type="submit" class="btn-auth-primary" id="btnForgotSubmit">
+              <span id="btnForgotSubmitText">GỬI MÃ KHÔI PHỤC OTP</span>
+              <i class="fa-solid fa-paper-plane"></i>
+            </button>
+
+            <div class="auth-switch-note">
+              <a href="javascript:void(0)" onclick="switchAuthTab('login')">
+                <i class="fa-solid fa-arrow-left"></i> Quay lại Đăng nhập
+              </a>
+            </div>
+          </form>
+
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- USER PROFILE MODAL (HỒ SƠ HỘI VIÊN & ĐỊA CHỈ NHẬN HÀNG) -->
+  <div class="modal-overlay" id="userProfileModal" role="dialog" aria-modal="true" aria-label="Hồ sơ tài khoản hội viên">
+    <div class="modal-container user-profile-modal-container">
+      <button type="button" class="modal-close-btn" onclick="closeModal('userProfileModal')" aria-label="Đóng">✕</button>
+      <div class="modal-body" id="userProfileModalBody">
+        <!-- Rendered dynamically by renderUserProfileModal() -->
       </div>
     </div>
   </div>

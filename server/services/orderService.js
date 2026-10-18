@@ -1,608 +1,658 @@
 /**
- * ORDER SERVICE — tạo đơn (transaction + giữ kho), state machine trạng thái, mapper
+ * ORDER SERVICE — MÁY TRẠNG THÁI ĐƠN HÀNG & QUẢN LÝ TỒN KHO TRANSACTIONAL (SQL SERVER 2026)
  *
- * Trạng thái đơn:   PENDING → CONFIRMED → PREPARING → SHIPPING → DELIVERED
- *                   (PENDING | CONFIRMED | PREPARING | SHIPPING) → CANCELLED
- * Thanh toán:       UNPAID → PARTIALLY_PAID (đã nhận cọc) → PAID
- *                   Hủy khi đã thu tiền → REFUND_PENDING → REFUNDED
- * Phương thức:      COD | DEPOSIT (cọc qua chuyển khoản, phần còn lại COD) | BANK_TRANSFER (100%)
+ *  - Hỗ trợ Giá Bản Box & Bản Card (Blister), % Giảm giá trực tiếp, Box Saver, PVC Protector & Voucher
+ *  - State machine chặt chẽ: PENDING → CONFIRMED → PREPARING → SHIPPING → DELIVERED (hoặc CANCELLED)
+ *  - Trừ tồn kho ngay khi đặt đơn giữ suất trong SQL Transaction với UPDLOCK, HOLDLOCK
  */
-const crypto = require('crypto');
-const db = require('../config/db');
-const settingsService = require('./settingsService');
-const { badRequest, conflict, notFound } = require('../utils/http');
-const v = require('../utils/validators');
+const { sql, getPool, query } = require('../config/db');
+const { getSettings } = require('./settingsService');
+const { calcDiscountedPrice } = require('./productService');
+const { badRequest, notFound, conflict } = require('../utils/http');
+const v = require('../utils/validate');
 
-const ORDER_STATUSES = ['PENDING', 'CONFIRMED', 'PREPARING', 'SHIPPING', 'DELIVERED', 'CANCELLED'];
-const PAYMENT_METHODS = ['COD', 'DEPOSIT', 'BANK_TRANSFER'];
-const SHIPPING_METHODS = ['SPX', 'PICKUP'];
-const CANCELLABLE = ['PENDING', 'CONFIRMED', 'PREPARING'];
-
-const STATUS_LABELS = {
-  PENDING: 'Chờ duyệt đơn',
-  CONFIRMED: 'Admin đã duyệt đơn',
-  PREPARING: 'Đang đóng gói chống sốc',
-  SHIPPING: 'Đang giao hàng (SPX Express)',
-  DELIVERED: 'Đã giao thành công',
-  CANCELLED: 'Đã hủy đơn'
+const ALLOWED_TRANSITIONS = {
+  PENDING:   ['CONFIRMED', 'PREPARING', 'SHIPPING', 'CANCELLED'],
+  CONFIRMED: ['PREPARING', 'SHIPPING', 'DELIVERED', 'CANCELLED'],
+  PREPARING: ['SHIPPING', 'DELIVERED', 'CANCELLED'],
+  SHIPPING:  ['DELIVERED', 'CANCELLED'],
+  DELIVERED: [],
+  CANCELLED: []
 };
 
-function nextStatuses(order) {
-  switch (order.Status) {
-    case 'PENDING': return ['CONFIRMED', 'PREPARING', 'SHIPPING', 'DELIVERED', 'CANCELLED'];
-    case 'CONFIRMED': return ['PREPARING', 'SHIPPING', 'DELIVERED', 'CANCELLED'];
-    case 'PREPARING': return ['CONFIRMED', 'SHIPPING', 'DELIVERED', 'CANCELLED'];
-    case 'SHIPPING': return ['DELIVERED', 'CANCELLED'];
-    default: return [];
-  }
-}
-
-function amountDue(o) {
-  const total = Number(o.Total) || 0;
-  if (o.PaymentStatus === 'PAID' || o.PaymentStatus === 'REFUNDED' || o.PaymentStatus === 'REFUND_PENDING') return 0;
-  if (o.PaymentStatus === 'PARTIALLY_PAID') return Math.max(0, total - (Number(o.DepositAmount) || 0));
-  return total;
-}
-
-function amountPaid(o) {
-  const total = Number(o.Total) || 0;
-  if (o.PaymentStatus === 'PAID') return total;
-  if (o.PaymentStatus === 'PARTIALLY_PAID') return Number(o.DepositAmount) || 0;
-  return 0;
-}
-
-/** Số tiền khách cần chuyển khoản trước (0 nếu COD) */
-function transferAmount(o) {
-  if (o.PaymentMethod === 'BANK_TRANSFER') return Number(o.Total) || 0;
-  if (o.PaymentMethod === 'DEPOSIT') return Number(o.DepositAmount) || 0;
-  return 0;
-}
-
-function mapItem(it) {
-  const lineTotal = Number(it.LineTotal != null ? it.LineTotal : it.UnitPrice * it.Quantity) || 0;
-  return {
-    id: Number(it.OrderItemId),
-    productId: Number(it.ProductId),
-    ProductId: Number(it.ProductId),
-    name: it.ProductName,
-    ProductName: it.ProductName,
-    sku: it.Sku || null,
-    Sku: it.Sku || null,
-    image: it.ImageUrl || null,
-    ImageUrl: it.ImageUrl || null,
-    slug: it.Slug || null,
-    unitPrice: Number(it.UnitPrice) || 0,
-    UnitPrice: Number(it.UnitPrice) || 0,
-    quantity: Number(it.Quantity) || 0,
-    Quantity: Number(it.Quantity) || 0,
-    lineTotal,
-    LineTotal: lineTotal
-  };
-}
-
-function mapOrder(o, { items, history, admin = false } = {}) {
-  const isApproved = ['CONFIRMED', 'PREPARING', 'SHIPPING', 'DELIVERED'].includes(o.Status);
-  const hasTracking = !!(o.TrackingCode && String(o.TrackingCode).trim());
-  const depositVal = Number(o.DepositAmount) || 0;
-  const totalVal = Number(o.Total) || 0;
-  const codVal = o.PaymentStatus === 'PAID'
-    ? 0
-    : (o.PaymentMethod === 'DEPOSIT'
-      ? Math.max(0, totalVal - depositVal)
-      : (o.PaymentMethod === 'BANK_TRANSFER' ? 0 : totalVal));
-
-  let approvalNotice = null;
-  if (o.Status === 'CANCELLED') {
-    approvalNotice = `Đơn hàng đã hủy${o.CancelReason ? ': ' + o.CancelReason : ''}`;
-  } else if (o.Status === 'DELIVERED') {
-    approvalNotice = 'Đơn hàng đã được giao thành công đến tay bạn!';
-  } else if (hasTracking) {
-    approvalNotice = `Admin đã duyệt đơn & gửi mã vận đơn SPX Express: ${o.TrackingCode}`;
-  } else if (isApproved) {
-    approvalNotice = 'Admin đã duyệt đơn hàng của bạn! Kiện hàng đang được đóng gói bọc chống sốc 4 lớp để bàn giao SPX Express.';
-  }
-
-  const out = {
-    id: Number(o.OrderId),
-    OrderId: Number(o.OrderId),
-    code: o.OrderCode,
-    orderCode: o.OrderCode,
-    OrderCode: o.OrderCode,
-    status: o.Status,
-    Status: o.Status,
-    statusLabel: STATUS_LABELS[o.Status] || o.Status,
-    StatusLabel: STATUS_LABELS[o.Status] || o.Status,
-    paymentMethod: o.PaymentMethod,
-    PaymentMethod: o.PaymentMethod,
-    paymentStatus: o.PaymentStatus,
-    PaymentStatus: o.PaymentStatus,
-    shippingMethod: o.ShippingMethod || 'SPX',
-    ShippingMethod: o.ShippingMethod || 'SPX',
-    customer: {
-      userId: o.UserId != null ? Number(o.UserId) : null,
-      fullName: o.FullName,
-      phone: o.Phone,
-      email: o.Email || o.CustomerEmail || null,
-      address: o.Address
-    },
-    FullName: o.FullName,
-    Phone: o.Phone,
-    Email: o.Email || o.CustomerEmail || null,
-    Address: o.Address,
-    note: o.Note || '',
-    Note: o.Note || '',
-    subtotal: Number(o.Subtotal) || 0,
-    Subtotal: Number(o.Subtotal) || 0,
-    shippingFee: Number(o.ShippingFee) || 0,
-    ShippingFee: Number(o.ShippingFee) || 0,
-    total: totalVal,
-    Total: totalVal,
-    depositAmount: depositVal,
-    totalDeposit: depositVal,
-    DepositAmount: depositVal,
-    amountPaid: amountPaid(o),
-    AmountPaid: amountPaid(o),
-    amountDue: amountDue(o),
-    AmountDue: amountDue(o),
-    transferAmount: transferAmount(o),
-    TransferAmount: transferAmount(o),
-    trackingCode: o.TrackingCode ? String(o.TrackingCode).trim() : null,
-    TrackingCode: o.TrackingCode ? String(o.TrackingCode).trim() : null,
-    trackingCarrier: o.TrackingCarrier || 'SPX Express',
-    TrackingCarrier: o.TrackingCarrier || 'SPX Express',
-    cancelReason: o.CancelReason || null,
-    CancelReason: o.CancelReason || null,
-    hasReceipt: !!o.ReceiptImage,
-    receiptImage: o.ReceiptImage || null,
-    ReceiptImage: o.ReceiptImage || null,
-    createdAt: o.CreatedAt,
-    CreatedAt: o.CreatedAt,
-    updatedAt: o.UpdatedAt || null,
-    UpdatedAt: o.UpdatedAt || null,
-    codAmount: codVal,
-    CodAmount: codVal,
-    paymentMemo: `MINI GT ${o.OrderCode}`,
-    PaymentMemo: `MINI GT ${o.OrderCode}`,
-    spxTrackingUrl: 'https://spx.vn/vi',
-    isApproved,
-    hasTracking,
-    approvalNotice
-  };
-  if (admin) {
-    out.allowedTransitions = nextStatuses(o);
-    out.stockReserved = !!o.StockReserved;
-  }
-  if (items) out.items = items.map(mapItem);
-  if (history) {
-    out.history = history.map((h) => ({
-      from: h.FromStatus, to: h.ToStatus, note: h.Note, createdAt: h.CreatedAt,
-      by: h.ChangedByName || null
-    }));
-  }
-  return out;
-}
-
-async function getItems(orderIds) {
-  if (!orderIds.length) return {};
-  const ids = orderIds.map(Number).filter(Number.isInteger);
-  if (!ids.length) return {};
-  const r = await db.query(`
-    SELECT oi.OrderItemId, oi.OrderId, oi.ProductId, oi.ProductName, oi.UnitPrice, oi.Quantity, oi.LineTotal,
-           p.Sku, p.ImageUrl, p.Slug
-    FROM OrderItems oi LEFT JOIN Products p ON p.ProductId = oi.ProductId
-    WHERE oi.OrderId IN (${ids.join(',')})
-    ORDER BY oi.OrderItemId`);
-  const grouped = {};
-  for (const it of r.recordset) (grouped[Number(it.OrderId)] = grouped[Number(it.OrderId)] || []).push(it);
-  return grouped;
-}
-
-async function getHistory(orderId) {
-  const r = await db.query(`
-    SELECT h.FromStatus, h.ToStatus, h.Note, h.CreatedAt, u.FullName AS ChangedByName
-    FROM OrderStatusHistory h LEFT JOIN Users u ON u.UserId = h.ChangedBy
-    WHERE h.OrderId = @id ORDER BY h.CreatedAt ASC, h.HistoryId ASC`, { id: orderId });
-  return r.recordset;
-}
-
-async function loadOrderRow(where, params) {
-  const r = await db.query(`
-    SELECT o.*, u.Email AS CustomerEmail FROM Orders o
-    LEFT JOIN Users u ON u.UserId = o.UserId
-    WHERE ${where}`, params);
-  return r.recordset[0] || null;
-}
-
-async function getFullOrder(orderRow, { admin = false } = {}) {
-  const id = Number(orderRow.OrderId);
-  const items = (await getItems([id]))[id] || [];
-  const history = await getHistory(id);
-  return mapOrder(orderRow, { items, history, admin });
-}
-
-function genOrderCode() {
-  const year = new Date().getFullYear();
-  const rnd = crypto.randomInt(100000, 999999);
-  return `MGT-${year}-${rnd}`;
-}
-
-/* ------------------------------------------------------------------ */
-/* TẠO ĐƠN                                                             */
-/* ------------------------------------------------------------------ */
-async function createOrder(body, userId) {
-  const cust = body.customer && typeof body.customer === 'object' ? body.customer : {};
-  const fullName = v.str(body.fullName || cust.fullName || cust.name, 100);
-  const phone = v.normalizePhone(body.phone || cust.phone);
-  const email = v.optStr(body.email || cust.email, 150);
-  const rawShip = String(body.shippingMethod || 'SPX').toUpperCase();
-  const shippingMethod = SHIPPING_METHODS.includes(rawShip) ? rawShip : 'SPX';
-
-  // Chuẩn hóa phương thức thanh toán: chấp nhận cả FULL_TRANSFER -> BANK_TRANSFER
-  let rawPm = String(body.paymentMethod || 'DEPOSIT').toUpperCase().trim();
-  if (rawPm === 'FULL_TRANSFER' || rawPm === 'FULL') rawPm = 'BANK_TRANSFER';
-  const paymentMethod = PAYMENT_METHODS.includes(rawPm) ? rawPm : 'DEPOSIT';
-
-  const note = v.str(body.note || cust.note, 500);
-  const settings = await settingsService.getAll();
-
-  const errors = {};
-  if (fullName.length < 2) errors.fullName = 'Vui lòng nhập họ tên người nhận (tối thiểu 2 ký tự)';
-  if (!phone || phone.length < 8) errors.phone = 'Vui lòng nhập số điện thoại liên hệ hợp lệ';
-
-  let address = v.str(body.address || cust.address, 255);
-  if (shippingMethod === 'PICKUP') address = `[Nhận tại cửa hàng] ${settings.store_address || ''}`.slice(0, 255);
-  else if (address.length < 3) errors.address = 'Vui lòng nhập địa chỉ nhận hàng';
-
-  if (!Array.isArray(body.items) || body.items.length === 0) errors.items = 'Giỏ hàng đang trống';
-  if (Object.keys(errors).length) throw badRequest('Thông tin đặt hàng chưa đầy đủ', errors);
-
-  // Gộp dòng trùng sản phẩm
-  const qtyMap = new Map();
-  for (const it of body.items.slice(0, 50)) {
-    const pid = v.int(it.productId || it.ProductId || it.id || it.Id, { min: 1 });
-    const qty = v.int(it.quantity || it.Quantity || 1, { min: 1, max: 99 });
-    if (!pid || !qty) continue;
-    qtyMap.set(pid, Math.min(99, (qtyMap.get(pid) || 0) + qty));
-  }
-  const ids = [...qtyMap.keys()];
-  if (!ids.length) throw badRequest('Sản phẩm trong giỏ hàng không hợp lệ');
-
-  const pr = await db.query(
-    `SELECT ProductId, Name, Sku, Price, DepositAmount, Stock, Status, IsActive FROM Products WHERE ProductId IN (${ids.join(',')})`
-  );
-  const products = new Map(pr.recordset.map((p) => [Number(p.ProductId), p]));
-
-  const depositRate = Number(settings.deposit_rate) || 0.3;
-  const lines = [];
-  let subtotal = 0;
-  let deposit = 0;
-
-  for (const [pid, qty] of qtyMap) {
-    const p = products.get(pid);
-    if (!p) continue;
-    // Tự động bổ sung tồn kho nếu sản phẩm trong kho đang < qty để không bao giờ lỗi kẹt đơn của khách
-    if (Number(p.Stock) < qty || !p.IsActive || p.Status === 'sold_out') {
-      await db.query(
-        `UPDATE Products SET Stock = CASE WHEN Stock < @qty THEN @qty + 15 ELSE Stock END, IsActive = 1, Status = CASE WHEN Status = 'sold_out' THEN 'in_stock' ELSE Status END WHERE ProductId = @id`,
-        { id: pid, qty }
-      );
-      p.Stock = Math.max(Number(p.Stock) || 0, qty + 15);
-    }
-    const unit = Number(p.Price);
-    const dep = Math.min(unit, p.DepositAmount != null ? Number(p.DepositAmount) : Math.round(unit * depositRate));
-    subtotal += unit * qty;
-    deposit += dep * qty;
-    lines.push({ productId: pid, name: p.Name, unitPrice: unit, quantity: qty });
-  }
-
-  if (!lines.length) throw badRequest('Không tìm thấy sản phẩm hợp lệ để tạo đơn');
-
-  const shippingFee = settingsService.shippingFeeFor(settings, shippingMethod, subtotal) || 11000;
-  const total = subtotal + shippingFee;
-  const depositAmount = paymentMethod === 'DEPOSIT' ? Math.min(total, deposit) : 0;
-
-  // Nếu chưa có userId nhưng email khớp với tài khoản khách hàng, tự động gắn userId để đồng bộ
-  let resolvedUserId = userId || null;
-  if (!resolvedUserId && email) {
-    const uCheck = await db.query('SELECT TOP 1 UserId FROM Users WHERE Email = @email', { email });
-    if (uCheck.recordset.length > 0) {
-      resolvedUserId = Number(uCheck.recordset[0].UserId);
-    }
-  }
-
-  const orderId = await db.withTransaction(async (q) => {
-    for (const ln of lines) {
-      await q(
-        'UPDATE Products SET Stock = CASE WHEN Stock >= @qty THEN Stock - @qty ELSE 0 END WHERE ProductId = @id',
-        { id: ln.productId, qty: ln.quantity }
-      );
-    }
-
-    let code;
-    for (let i = 0; i < 5; i++) {
-      code = genOrderCode();
-      const ex = await q('SELECT 1 AS x FROM Orders WHERE OrderCode = @c', { c: code });
-      if (!ex.recordset.length) break;
-    }
-
-    const ins = await q(`
-      INSERT INTO Orders (OrderCode, UserId, FullName, Phone, Email, Address, Note, PaymentMethod, PaymentStatus,
-                          ShippingMethod, Subtotal, ShippingFee, Total, DepositAmount, Status, StockReserved, CreatedAt, UpdatedAt)
-      OUTPUT INSERTED.OrderId
-      VALUES (@code, @userId, @fullName, @phone, @email, @address, @note, @pm, 'UNPAID',
-              @sm, @subtotal, @shippingFee, @total, @deposit, 'PENDING', 1, SYSDATETIME(), SYSDATETIME())`, {
-      code, userId: resolvedUserId, fullName, phone, email, address, note,
-      pm: paymentMethod, sm: shippingMethod, subtotal, shippingFee, total, deposit: depositAmount
-    });
-    const id = Number(ins.recordset[0].OrderId);
-
-    for (const ln of lines) {
-      await q(`INSERT INTO OrderItems (OrderId, ProductId, ProductName, UnitPrice, Quantity)
-               VALUES (@oid, @pid, @name, @price, @qty)`,
-      { oid: id, pid: ln.productId, name: ln.name, price: ln.unitPrice, qty: ln.quantity });
-    }
-    await q(`INSERT INTO OrderStatusHistory (OrderId, FromStatus, ToStatus, Note, ChangedBy)
-             VALUES (@id, NULL, 'PENDING', N'Khách hàng đặt đơn thành công — Chờ Admin duyệt', @uid)`, { id, uid: resolvedUserId });
-    return id;
-  });
-
-  const row = await loadOrderRow('o.OrderId = @id', { id: orderId });
-  const order = await getFullOrder(row);
-  order.payment = order.transferAmount > 0 ? settingsService.buildVietQr(settings, order.transferAmount, order.code) : null;
-  return order;
-}
-
-/* ------------------------------------------------------------------ */
-/* CHUYỂN TRẠNG THÁI & CẬP NHẬT VẬN ĐƠN SPX (ADMIN)                   */
-/* ------------------------------------------------------------------ */
-async function addHistory(q, orderId, from, to, note, by) {
-  await q(`INSERT INTO OrderStatusHistory (OrderId, FromStatus, ToStatus, Note, ChangedBy)
-           VALUES (@id, @from, @to, @note, @by)`, { id: orderId, from, to, note: note || null, by: by || null });
-}
-
-async function restoreStock(q, orderId) {
-  const items = await q('SELECT ProductId, Quantity FROM OrderItems WHERE OrderId = @id', { id: orderId });
-  for (const it of items.recordset) {
-    await q('UPDATE Products SET Stock = Stock + @qty WHERE ProductId = @pid', { pid: it.ProductId, qty: it.Quantity });
-  }
-  await q('UPDATE Orders SET StockReserved = 0 WHERE OrderId = @id', { id: orderId });
-}
-
-async function reserveStock(q, orderId) {
-  const items = await q(`SELECT oi.ProductId, oi.Quantity, oi.ProductName FROM OrderItems oi WHERE oi.OrderId = @id`, { id: orderId });
-  for (const it of items.recordset) {
-    await q('UPDATE Products SET Stock = CASE WHEN Stock >= @qty THEN Stock - @qty ELSE 0 END WHERE ProductId = @pid', { pid: it.ProductId, qty: it.Quantity });
-  }
-  await q('UPDATE Orders SET StockReserved = 1 WHERE OrderId = @id', { id: orderId });
-}
-
-async function changeStatus(orderId, toStatus, { note, trackingCode, carrier, cancelReason } = {}, actorId) {
-  toStatus = String(toStatus || '').toUpperCase();
-  if (!ORDER_STATUSES.includes(toStatus)) throw badRequest('Trạng thái đơn hàng không hợp lệ');
-
-  const o = await loadOrderRow('o.OrderId = @id', { id: orderId });
-  if (!o) throw notFound('Không tìm thấy đơn hàng');
-
-  if (o.Status === toStatus && !trackingCode) {
-    return getFullOrder(o, { admin: true });
-  }
-
-  const allowed = nextStatuses(o);
-  if (!allowed.includes(toStatus) && o.Status !== toStatus) {
-    throw badRequest(`Không thể chuyển đơn từ "${STATUS_LABELS[o.Status]}" sang "${STATUS_LABELS[toStatus]}"`, { allowed });
-  }
-
-  const sets = ['Status = @to', 'UpdatedAt = SYSDATETIME()'];
-  const params = { id: orderId, to: toStatus };
-  let historyNote = v.str(note, 500) || null;
-
-  // Khi Admin duyệt đơn (CONFIRMED / PREPARING / SHIPPING): tự động xác nhận trạng thái thanh toán cọc/chuyển khoản nếu đang UNPAID
-  if (['CONFIRMED', 'PREPARING', 'SHIPPING'].includes(toStatus)) {
-    if (o.PaymentStatus === 'UNPAID') {
-      if (o.PaymentMethod === 'DEPOSIT') {
-        sets.push("PaymentStatus = 'PARTIALLY_PAID'");
-      } else if (o.PaymentMethod === 'BANK_TRANSFER') {
-        sets.push("PaymentStatus = 'PAID'");
-      }
-    }
-    if (toStatus === 'CONFIRMED' && !historyNote) {
-      historyNote = 'Admin đã duyệt đơn hàng & xác nhận xử lý';
-    }
-    if (toStatus === 'PREPARING' && !historyNote) {
-      historyNote = 'Đang đóng gói bọc xốp chống sốc 4 lớp chuẩn bị giao SPX Express';
-    }
-  }
-
-  // Cho phép gắn mã vận đơn SPX ở bất kỳ bước duyệt/đóng gói/giao hàng nào
-  const cleanCode = v.str(trackingCode, 100).toUpperCase();
-  if (cleanCode) {
-    sets.push('TrackingCode = @tc', 'TrackingCarrier = @carrier');
-    params.tc = cleanCode;
-    params.carrier = v.str(carrier, 50) || o.TrackingCarrier || 'SPX Express';
-    historyNote = historyNote || `Đã gắn mã vận đơn ${params.carrier}: ${cleanCode}`;
-  } else if (toStatus === 'SHIPPING') {
-    const existingCode = o.TrackingCode ? String(o.TrackingCode).trim() : '';
-    if (!existingCode) throw badRequest('Vui lòng nhập hoặc dán mã vận đơn SPX trước khi chuyển sang "Đang giao"');
-    historyNote = historyNote || `Bàn giao SPX Express — Mã vận đơn: ${existingCode}`;
-  }
-
-  if (toStatus === 'DELIVERED') {
-    sets.push("PaymentStatus = 'PAID'");
-    historyNote = historyNote || (o.PaymentStatus === 'PAID' ? 'Giao hàng thành công' : 'Giao hàng thành công & đã thu đủ tiền COD');
-  }
-
-  let refundPending = false;
-  if (toStatus === 'CANCELLED') {
-    const reason = v.str(cancelReason || note, 255) || 'Admin hủy đơn hàng';
-    sets.push('CancelReason = @reason');
-    params.reason = reason;
-    if (['PAID', 'PARTIALLY_PAID'].includes(o.PaymentStatus)) {
-      sets.push("PaymentStatus = 'REFUND_PENDING'");
-      refundPending = true;
-    }
-    historyNote = 'Hủy đơn: ' + reason;
-  }
-
-  await db.withTransaction(async (q) => {
-    if (['CONFIRMED', 'PREPARING', 'SHIPPING'].includes(toStatus) && !o.StockReserved) await reserveStock(q, orderId);
-    if (toStatus === 'CANCELLED' && o.StockReserved) await restoreStock(q, orderId);
-    await q(`UPDATE Orders SET ${sets.join(', ')} WHERE OrderId = @id`, params);
-    await addHistory(q, orderId, o.Status, toStatus, historyNote, actorId);
-  });
-
-  const row = await loadOrderRow('o.OrderId = @id', { id: orderId });
-  const order = await getFullOrder(row, { admin: true });
-  order._refundPending = refundPending;
-  return order;
-}
-
-async function confirmPayment(orderId, kind, actorId) {
-  const o = await loadOrderRow('o.OrderId = @id', { id: orderId });
-  if (!o) throw notFound('Không tìm thấy đơn hàng');
-  if (o.Status === 'CANCELLED') throw badRequest('Đơn đã hủy, không thể xác nhận thanh toán');
-  if (o.PaymentStatus === 'PAID') return getFullOrder(o, { admin: true });
-
-  let next;
-  let label;
-  if (kind === 'deposit' && o.PaymentMethod === 'DEPOSIT') {
-    next = 'PARTIALLY_PAID';
-    label = 'Đã nhận tiền cọc giữ mẫu';
-  } else {
-    next = 'PAID';
-    label = 'Đã nhận đủ 100% thanh toán';
-  }
-
-  // Khi xác nhận thanh toán cho đơn đang PENDING, tự động duyệt đơn sang CONFIRMED luôn để khách nhận thông báo ngay
-  const nextOrderStatus = o.Status === 'PENDING' ? 'CONFIRMED' : o.Status;
-
-  await db.withTransaction(async (q) => {
-    await q(
-      'UPDATE Orders SET PaymentStatus = @ps, Status = @st, UpdatedAt = SYSDATETIME() WHERE OrderId = @id',
-      { id: orderId, ps: next, st: nextOrderStatus }
-    );
-    await addHistory(
-      q,
-      orderId,
-      o.Status,
-      nextOrderStatus,
-      nextOrderStatus !== o.Status
-        ? `Thanh toán: ${label} & Admin đã duyệt đơn hàng`
-        : `Thanh toán: ${label}`,
-      actorId
-    );
-  });
-  return getFullOrder(await loadOrderRow('o.OrderId = @id', { id: orderId }), { admin: true });
-}
-
-async function markRefunded(orderId, note, actorId) {
-  const o = await loadOrderRow('o.OrderId = @id', { id: orderId });
-  if (!o) throw notFound('Không tìm thấy đơn hàng');
-  if (o.PaymentStatus !== 'REFUND_PENDING') throw badRequest('Đơn hàng không ở trạng thái chờ hoàn tiền');
-  await db.withTransaction(async (q) => {
-    await q("UPDATE Orders SET PaymentStatus = 'REFUNDED', UpdatedAt = SYSDATETIME() WHERE OrderId = @id", { id: orderId });
-    await addHistory(q, orderId, o.Status, o.Status, 'Đã hoàn tiền cho khách' + (note ? ': ' + v.str(note, 300) : ''), actorId);
-  });
-  return getFullOrder(await loadOrderRow('o.OrderId = @id', { id: orderId }), { admin: true });
+function generateOrderCode() {
+  const d = new Date();
+  const ymd = d.getFullYear().toString()
+    + String(d.getMonth() + 1).padStart(2, '0')
+    + String(d.getDate()).padStart(2, '0');
+  const rnd = Math.floor(1000 + Math.random() * 9000);
+  return `MGT-${ymd}-${rnd}`;
 }
 
 /**
- * Lưu mã vận đơn SPX Express:
- * - Cho phép lưu mã ở mọi trạng thái (trừ CANCELLED).
- * - Nếu đơn đang ở trạng thái PENDING, tự động duyệt đơn (chuyển sang CONFIRMED hoặc SHIPPING)
- *   và xác nhận thanh toán cọc/chuyển khoản để khách hàng thấy ngay thông báo Admin đã duyệt + Mã vận đơn SPX!
+ * Tạo đơn hàng mới từ giỏ hàng.
+ * Toàn bộ: kiểm tra tồn kho, trừ kho, tính giá Box/Card thực tế, tạo Orders + OrderItems + OrderStatusHistory
+ * chạy trong 1 SQL Transaction.
  */
-async function updateTracking(orderId, trackingCode, carrier, actorId, autoShip = false) {
-  const o = await loadOrderRow('o.OrderId = @id', { id: orderId });
-  if (!o) throw notFound('Không tìm thấy đơn hàng');
-  if (o.Status === 'CANCELLED') {
-    throw badRequest('Đơn hàng đã hủy, không thể cập nhật mã vận đơn');
+async function createOrder(payload, authUser = null) {
+  const fullName = v.cleanStr(payload.fullName, 100);
+  const phone = v.cleanStr(payload.phone, 20);
+  const email = v.cleanStr(payload.email, 150);
+  const address = v.cleanStr(payload.address, 255);
+  const note = v.cleanStr(payload.note, 500);
+
+  const rawPay = String(payload.paymentMethod || 'BANK_TRANSFER').toUpperCase();
+  const paymentMethod = ['COD', 'BANK_TRANSFER', 'DEPOSIT'].includes(rawPay)
+    ? rawPay
+    : (rawPay === 'VIETQR' || rawPay === 'BANK' || rawPay === 'FULL_TRANSFER' ? 'BANK_TRANSFER' : 'COD');
+
+  const rawShip = String(payload.shippingMethod || 'SPX').toUpperCase();
+  const shippingMethod = rawShip.includes('PICKUP')
+    ? 'PICKUP'
+    : (rawShip.includes('BOX_SAVER') ? 'BOX_SAVER' : 'SPX');
+
+  if (fullName.length < 2) throw badRequest('Vui lòng nhập họ tên người nhận (tối thiểu 2 ký tự)');
+  if (!v.isVNPhone(phone)) throw badRequest('Số điện thoại không đúng định dạng Việt Nam (10–11 số, bắt đầu bằng 0)');
+  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw badRequest('Địa chỉ Email không hợp lệ');
+  if (shippingMethod === 'SPX' && address.length < 5) {
+    throw badRequest('Vui lòng nhập địa chỉ nhận hàng chi tiết');
   }
-  const code = v.str(trackingCode, 100).toUpperCase();
-  if (code.length < 3) throw badRequest('Vui lòng nhập mã vận đơn SPX hợp lệ (tối thiểu 3 ký tự)');
-  const c = v.str(carrier, 50) || o.TrackingCarrier || 'SPX Express';
 
-  // Nếu đơn đang PENDING -> tự động duyệt đơn (hoặc chuyển sang SHIPPING nếu autoShip)
-  let nextStatus = o.Status;
-  if (autoShip && o.Status !== 'DELIVERED') {
-    nextStatus = 'SHIPPING';
-  } else if (o.Status === 'PENDING') {
-    nextStatus = 'CONFIRMED';
+  const reqItems = Array.isArray(payload.items) ? payload.items : [];
+  if (reqItems.length === 0) throw badRequest('Giỏ hàng đang trống');
+
+  const merged = new Map();
+  for (const raw of reqItems) {
+    const pid = v.posInt(raw.productId || raw.ProductId || raw.id, 0);
+    const qty = v.posInt(raw.quantity || raw.Quantity, 0);
+    const packType = String(raw.packType || raw.packagingOption || 'box').toLowerCase() === 'card' ? 'card' : 'box';
+    if (!pid || !qty) throw badRequest('Sản phẩm hoặc số lượng trong giỏ không hợp lệ');
+    const key = `${pid}_${packType}`;
+    const prev = merged.get(key);
+    merged.set(key, {
+      productId: pid,
+      packType,
+      quantity: (prev ? prev.quantity : 0) + qty
+    });
+  }
+  if (merged.size > 50) throw badRequest('Đơn hàng vượt quá số dòng sản phẩm cho phép');
+
+  const cfg = await getSettings();
+  const pool = await getPool();
+  if (!pool) throw new Error('Không kết nối được SQL Server');
+
+  const tx = new sql.Transaction(pool);
+  await tx.begin(sql.ISOLATION_LEVEL.REPEATABLE_READ);
+
+  try {
+    const lineItems = [];
+    let subtotal = 0;
+    let depositRequired = 0;
+    let hasPreOrder = false;
+    let preOrderExpected = null;
+
+    for (const entry of merged.values()) {
+      const { productId, packType, quantity } = entry;
+      const rReq = new sql.Request(tx);
+      rReq.input('pid', sql.Int, productId);
+      const pRes = await rReq.query(`
+        SELECT ProductId, Sku, Name, Price, OldPrice, PriceBox, PriceCard, DiscountPercent,
+               PackagingType, DepositAmount, DepositPercent, ExpectedDelivery, ReleaseDate,
+               Stock, Status, IsActive
+        FROM dbo.Products WITH (UPDLOCK, HOLDLOCK)
+        WHERE ProductId = @pid
+      `);
+
+      if (pRes.recordset.length === 0 || !pRes.recordset[0].IsActive) {
+        throw badRequest(`Sản phẩm #${productId} không tồn tại hoặc đã ngừng kinh doanh`);
+      }
+      const p = pRes.recordset[0];
+      const isPreOrder = p.Status === 'pre_order';
+      if (isPreOrder) {
+        hasPreOrder = true;
+        if (p.ExpectedDelivery && !preOrderExpected) {
+          preOrderExpected = p.ExpectedDelivery;
+        } else if (p.ReleaseDate && !preOrderExpected) {
+          preOrderExpected = `Tháng ${new Date(p.ReleaseDate).getMonth() + 1}/${new Date(p.ReleaseDate).getFullYear()}`;
+        }
+      }
+
+      if (p.Status === 'sold_out' || (!isPreOrder && p.Stock < quantity)) {
+        throw conflict(`"${p.Name}" chỉ còn ${p.Stock} sản phẩm trong kho (bạn chọn ${quantity})`);
+      }
+
+      const uReq = new sql.Request(tx);
+      uReq.input('pid', sql.Int, productId);
+      uReq.input('qty', sql.Int, quantity);
+      await uReq.query(`
+        UPDATE dbo.Products
+        SET Stock = CASE WHEN Stock >= @qty THEN Stock - @qty ELSE 0 END,
+            Status = CASE WHEN Stock - @qty <= 0 AND Status = 'in_stock' THEN 'sold_out' ELSE Status END,
+            UpdatedAt = SYSDATETIME()
+        WHERE ProductId = @pid
+      `);
+
+      const effectivePack = p.PackagingType === 'card_only'
+        ? 'card'
+        : (p.PackagingType === 'box_only' ? 'box' : packType);
+
+      const disc = Math.min(80, Math.max(0, Number(p.DiscountPercent || 0)));
+      const baseBox = Number(p.PriceBox || 0) > 0 ? Number(p.PriceBox) : Number(p.Price);
+      const baseCard = Number(p.PriceCard || 0) > 0 ? Number(p.PriceCard) : (p.PackagingType === 'box_only' ? baseBox : baseBox + 60000);
+      const finalBox = disc > 0 ? calcDiscountedPrice(baseBox, disc) : Number(p.Price || baseBox);
+      const finalCard = disc > 0 ? calcDiscountedPrice(baseCard, disc) : baseCard;
+
+      const unitPrice = effectivePack === 'card' ? finalCard : finalBox;
+      const lineTotal = unitPrice * quantity;
+      subtotal += lineTotal;
+
+      const depPct = Number(p.DepositPercent || 30);
+      const unitDeposit = p.DepositAmount && Number(p.DepositAmount) > 0
+        ? Number(p.DepositAmount)
+        : Math.round((unitPrice * (depPct / 100)) / 1000) * 1000;
+      depositRequired += unitDeposit * quantity;
+
+      lineItems.push({
+        productId: p.ProductId,
+        productName: p.Name,
+        packagingOption: effectivePack,
+        unitPrice,
+        quantity,
+        lineTotal,
+        isPreOrder,
+        expectedDelivery: p.ExpectedDelivery || null
+      });
+    }
+
+    const baseShipping = Number(cfg.shipping_fee) || 11000;
+    const freeThreshold = Number(cfg.free_shipping_threshold) || 0;
+    let shippingFee = (shippingMethod === 'PICKUP' || shippingMethod === 'BOX_SAVER')
+      ? 0
+      : (freeThreshold > 0 && subtotal >= freeThreshold ? 0 : baseShipping);
+
+    const protectorFee = (payload.boxProtector || Number(payload.protectorFee) > 0) ? 15000 : 0;
+    const voucherCode = String(payload.voucherCode || '').trim().toUpperCase();
+    let voucherDiscount = 0;
+    if (voucherCode === 'MINIGT2026') voucherDiscount = 20000;
+    else if (voucherCode === 'FREESHIP') voucherDiscount = shippingFee;
+    else if (voucherCode === 'LBWK50K' && subtotal >= 850000) voucherDiscount = 50000;
+    else if (Number(payload.voucherDiscount) > 0) voucherDiscount = Math.min(50000, Number(payload.voucherDiscount));
+
+    const total = Math.max(0, subtotal + shippingFee + protectorFee - voucherDiscount);
+
+    // QUY TẮC BẮT BUỘC PRE-ORDER: Không áp dụng thanh toán Full 100% hay COD!
+    // Bắt buộc chuyển sang hình thức Đặt cọc giữ xe qua MB Bank!
+    let finalPaymentMethod = paymentMethod;
+    if (hasPreOrder) {
+      finalPaymentMethod = 'DEPOSIT';
+    }
+
+    const depositAmount = finalPaymentMethod === 'DEPOSIT'
+      ? Math.min(total, depositRequired || Math.round(total * 0.3))
+      : (finalPaymentMethod === 'BANK_TRANSFER' ? total : 0);
+
+    const orderCode = generateOrderCode();
+    const oReq = new sql.Request(tx);
+    oReq.input('code', sql.VarChar(30), orderCode);
+    oReq.input('uid', sql.Int, authUser ? authUser.userId : null);
+    oReq.input('name', sql.NVarChar(100), fullName);
+    oReq.input('phone', sql.VarChar(20), phone);
+    oReq.input('email', sql.VarChar(150), email || null);
+    oReq.input('addr', sql.NVarChar(255), shippingMethod === 'PICKUP' && !address ? 'Nhận tại cửa hàng' : address);
+    oReq.input('note', sql.NVarChar(500), note || null);
+    oReq.input('shipMethod', sql.VarChar(20), shippingMethod);
+    oReq.input('payMethod', sql.VarChar(30), finalPaymentMethod);
+    oReq.input('sub', sql.Decimal(18, 2), subtotal);
+    oReq.input('ship', sql.Decimal(18, 2), shippingFee);
+    oReq.input('tot', sql.Decimal(18, 2), total);
+    oReq.input('dep', sql.Decimal(18, 2), depositAmount);
+    oReq.input('hasPre', sql.Bit, hasPreOrder ? 1 : 0);
+    oReq.input('preExp', sql.NVarChar(100), preOrderExpected || (hasPreOrder ? 'Tháng 11/2026' : null));
+
+    const oIns = await oReq.query(`
+      INSERT INTO dbo.Orders
+        (OrderCode, UserId, FullName, Phone, Email, Address, Note,
+         ShippingMethod, PaymentMethod, PaymentStatus,
+         Subtotal, ShippingFee, Total, DepositAmount, StockReserved,
+         HasPreOrder, PreOrderExpected, Status)
+      OUTPUT INSERTED.*
+      VALUES
+        (@code, @uid, @name, @phone, @email, @addr, @note,
+         @shipMethod, @payMethod, 'UNPAID',
+         @sub, @ship, @tot, @dep, 1,
+         @hasPre, @preExp, 'PENDING')
+    `);
+    const order = oIns.recordset[0];
+
+    for (const it of lineItems) {
+      const iReq = new sql.Request(tx);
+      iReq.input('oid', sql.Int, order.OrderId);
+      iReq.input('pid', sql.Int, it.productId);
+      iReq.input('pname', sql.NVarChar(200), it.productName);
+      iReq.input('pack', sql.VarChar(20), it.packagingOption);
+      iReq.input('uprice', sql.Decimal(18, 2), it.unitPrice);
+      iReq.input('qty', sql.Int, it.quantity);
+      await iReq.query(`
+        INSERT INTO dbo.OrderItems (OrderId, ProductId, ProductName, PackagingOption, UnitPrice, Quantity)
+        VALUES (@oid, @pid, @pname, @pack, @uprice, @qty)
+      `);
+    }
+
+    const hReq = new sql.Request(tx);
+    hReq.input('oid', sql.Int, order.OrderId);
+    hReq.input('by', sql.Int, authUser ? authUser.userId : null);
+    await hReq.query(`
+      INSERT INTO dbo.OrderStatusHistory (OrderId, FromStatus, ToStatus, Note, ChangedBy)
+      VALUES (@oid, NULL, 'PENDING', N'Khách tạo đơn và giữ hàng', @by)
+    `);
+
+    await tx.commit();
+    return mapOrder(order, lineItems);
+  } catch (err) {
+    try { await tx.rollback(); } catch (_) {}
+    throw err;
+  }
+}
+
+/**
+ * Chuyển trạng thái đơn hàng (dùng cho cả Admin và khách hủy đơn).
+ */
+async function transitionOrderStatus(orderIdOrCode, toStatus, { note, cancelReason, actorId = null, isAdmin = false, trackingCode = null, trackingCarrier = null } = {}) {
+  const target = String(toStatus || '').toUpperCase();
+  if (!ALLOWED_TRANSITIONS[target] && target !== 'DELIVERED' && target !== 'CANCELLED') {
+    throw badRequest(`Trạng thái "${toStatus}" không hợp lệ`);
   }
 
-  let nextPaymentStatus = o.PaymentStatus;
-  if (o.PaymentStatus === 'UNPAID') {
-    if (o.PaymentMethod === 'DEPOSIT') nextPaymentStatus = 'PARTIALLY_PAID';
-    else if (o.PaymentMethod === 'BANK_TRANSFER') nextPaymentStatus = 'PAID';
+  const pool = await getPool();
+  const tx = new sql.Transaction(pool);
+  await tx.begin(sql.ISOLATION_LEVEL.REPEATABLE_READ);
+
+  try {
+    const fReq = new sql.Request(tx);
+    const isNum = /^\d+$/.test(String(orderIdOrCode));
+    fReq.input('val', isNum ? sql.Int : sql.VarChar(30), isNum ? parseInt(orderIdOrCode, 10) : String(orderIdOrCode));
+    const oRes = await fReq.query(`
+      SELECT * FROM dbo.Orders WITH (UPDLOCK, HOLDLOCK)
+      WHERE ${isNum ? 'OrderId = @val' : 'OrderCode = @val'}
+    `);
+    if (oRes.recordset.length === 0) throw notFound('Không tìm thấy đơn hàng');
+    const order = oRes.recordset[0];
+
+    const fromStatus = String(order.Status).toUpperCase();
+    if (fromStatus === target) {
+      await tx.rollback();
+      return getOrderByCodeOrId(order.OrderId);
+    }
+
+    const allowed = ALLOWED_TRANSITIONS[fromStatus] || [];
+    if (!allowed.includes(target)) {
+      throw conflict(`Không thể chuyển đơn từ "${fromStatus}" sang "${target}"`);
+    }
+
+    if (!isAdmin && !(fromStatus === 'PENDING' && target === 'CANCELLED')) {
+      throw conflict('Bạn chỉ có thể hủy đơn khi đơn đang ở trạng thái Chờ xác nhận');
+    }
+
+    if (target === 'CANCELLED' && order.StockReserved) {
+      const itemsRes = await new sql.Request(tx)
+        .input('oid', sql.Int, order.OrderId)
+        .query('SELECT ProductId, Quantity FROM dbo.OrderItems WHERE OrderId = @oid');
+
+      for (const it of itemsRes.recordset) {
+        await new sql.Request(tx)
+          .input('pid', sql.Int, it.ProductId)
+          .input('qty', sql.Int, it.Quantity)
+          .query(`
+            UPDATE dbo.Products
+            SET Stock = Stock + @qty,
+                Status = CASE WHEN Status = 'sold_out' AND Stock + @qty > 0 THEN 'in_stock' ELSE Status END,
+                UpdatedAt = SYSDATETIME()
+            WHERE ProductId = @pid
+          `);
+      }
+    }
+
+    if (target !== 'CANCELLED' && !order.StockReserved) {
+      const itemsRes = await new sql.Request(tx)
+        .input('oid', sql.Int, order.OrderId)
+        .query('SELECT ProductId, Quantity FROM dbo.OrderItems WHERE OrderId = @oid');
+      for (const it of itemsRes.recordset) {
+        await new sql.Request(tx)
+          .input('pid', sql.Int, it.ProductId)
+          .input('qty', sql.Int, it.Quantity)
+          .query('UPDATE dbo.Products SET Stock = CASE WHEN Stock >= @qty THEN Stock - @qty ELSE 0 END WHERE ProductId = @pid');
+      }
+    }
+
+    let newPayStatus = order.PaymentStatus;
+    if (target === 'DELIVERED' && order.PaymentMethod === 'COD') {
+      newPayStatus = 'PAID';
+    } else if (target === 'CANCELLED' && (order.PaymentStatus === 'PAID' || order.PaymentStatus === 'PARTIALLY_PAID')) {
+      newPayStatus = 'REFUND_PENDING';
+    } else if (['CONFIRMED', 'PREPARING', 'SHIPPING'].includes(target) && order.PaymentStatus === 'UNPAID') {
+      if (order.PaymentMethod === 'DEPOSIT') newPayStatus = 'PARTIALLY_PAID';
+      else if (order.PaymentMethod === 'BANK_TRANSFER') newPayStatus = 'PAID';
+    }
+
+    const newReserved = target === 'CANCELLED' ? 0 : 1;
+    const uReq = new sql.Request(tx);
+    uReq.input('oid', sql.Int, order.OrderId);
+    uReq.input('st', sql.VarChar(30), target);
+    uReq.input('pst', sql.VarChar(20), newPayStatus);
+    uReq.input('res', sql.Bit, newReserved);
+    uReq.input('reason', sql.NVarChar(255), target === 'CANCELLED' ? (cancelReason || note || 'Đã hủy') : order.CancelReason);
+    uReq.input('tCode', sql.NVarChar(100), trackingCode ? v.cleanStr(trackingCode, 100) : order.TrackingCode);
+    uReq.input('tCarrier', sql.NVarChar(50), trackingCarrier ? v.cleanStr(trackingCarrier, 50) : (trackingCode ? (order.TrackingCarrier || 'SPX Express') : order.TrackingCarrier));
+
+    await uReq.query(`
+      UPDATE dbo.Orders
+      SET Status = @st,
+          PaymentStatus = @pst,
+          StockReserved = @res,
+          CancelReason = @reason,
+          TrackingCode = @tCode,
+          TrackingCarrier = @tCarrier,
+          UpdatedAt = SYSDATETIME()
+      WHERE OrderId = @oid
+    `);
+
+    const hReq = new sql.Request(tx);
+    hReq.input('oid', sql.Int, order.OrderId);
+    hReq.input('from', sql.VarChar(30), fromStatus);
+    hReq.input('to', sql.VarChar(30), target);
+    hReq.input('note', sql.NVarChar(500), v.cleanStr(cancelReason || note || '', 500) || null);
+    hReq.input('by', sql.Int, actorId);
+    await hReq.query(`
+      INSERT INTO dbo.OrderStatusHistory (OrderId, FromStatus, ToStatus, Note, ChangedBy)
+      VALUES (@oid, @from, @to, @note, @by)
+    `);
+
+    await tx.commit();
+    return getOrderByCodeOrId(order.OrderId);
+  } catch (err) {
+    try { await tx.rollback(); } catch (_) {}
+    throw err;
   }
+}
 
-  const historyNote = nextStatus !== o.Status
-    ? `Admin đã duyệt đơn & cập nhật mã vận đơn ${c}: ${code}`
-    : `Admin đã cập nhật mã vận đơn ${c}: ${code}`;
+async function updatePaymentStatus(orderId, paymentStatus, { actorId = null, note = null } = {}) {
+  const allowed = ['UNPAID', 'PARTIALLY_PAID', 'PAID', 'REFUND_PENDING', 'REFUNDED'];
+  const target = String(paymentStatus || '').toUpperCase();
+  if (!allowed.includes(target)) throw badRequest('Trạng thái thanh toán không hợp lệ');
 
-  await db.withTransaction(async (q) => {
-    await q(
-      `UPDATE Orders 
-       SET TrackingCode = @tc, TrackingCarrier = @c, Status = @st, PaymentStatus = @ps, UpdatedAt = SYSDATETIME() 
-       WHERE OrderId = @id`,
-      { id: orderId, tc: code, c, st: nextStatus, ps: nextPaymentStatus }
-    );
-    await addHistory(q, orderId, o.Status, nextStatus, historyNote, actorId);
+  const cur = await query('SELECT OrderId, Status, PaymentStatus FROM dbo.Orders WHERE OrderId = @id', { id: Number(orderId) });
+  if (!cur.recordset.length) throw notFound('Không tìm thấy đơn hàng');
+
+  const currentStatus = cur.recordset[0].Status;
+  const nextStatus = (currentStatus === 'PENDING' && (target === 'PAID' || target === 'PARTIALLY_PAID'))
+    ? 'CONFIRMED'
+    : currentStatus;
+
+  await query(`
+    UPDATE dbo.Orders
+    SET PaymentStatus = @pst, Status = @st, UpdatedAt = SYSDATETIME()
+    WHERE OrderId = @id
+  `, { id: Number(orderId), pst: target, st: nextStatus });
+
+  await query(`
+    INSERT INTO dbo.OrderStatusHistory (OrderId, FromStatus, ToStatus, Note, ChangedBy)
+    VALUES (@id, @st, @nextSt, @note, @by)
+  `, {
+    id: Number(orderId),
+    st: currentStatus,
+    nextSt: nextStatus,
+    note: note || `Cập nhật thanh toán → ${target}`,
+    by: actorId
   });
-  return getFullOrder(await loadOrderRow('o.OrderId = @id', { id: orderId }), { admin: true });
+
+  return getOrderByCodeOrId(orderId);
 }
 
-/** Khách tự hủy đơn của mình khi còn ở trạng thái PENDING */
-async function customerCancel(code, userId, reason) {
-  const o = await loadOrderRow('o.OrderCode = @code', { code });
-  if (!o) throw notFound('Không tìm thấy đơn hàng của bạn');
-  if (o.Status !== 'PENDING') throw badRequest('Chỉ có thể tự hủy khi đơn đang chờ xác nhận. Vui lòng liên hệ cửa hàng.');
-  return changeStatus(Number(o.OrderId), 'CANCELLED', { cancelReason: v.str(reason, 200) || 'Khách hàng tự hủy đơn' }, userId || o.UserId || null);
+function mapOrder(o, items = [], history = []) {
+  const mappedHistory = (history || []).map(h => ({
+    historyId: h.HistoryId || h.historyId,
+    from: h.FromStatus || h.from || null,
+    to: h.ToStatus || h.to || h.newStatus || 'PENDING',
+    newStatus: h.ToStatus || h.to || h.newStatus || 'PENDING',
+    note: h.Note || h.note || '',
+    createdAt: h.CreatedAt || h.createdAt,
+    by: h.ChangedByName || h.by || null,
+    HistoryId: h.HistoryId || h.historyId,
+    FromStatus: h.FromStatus || h.from || null,
+    ToStatus: h.ToStatus || h.to || h.newStatus || 'PENDING',
+    Note: h.Note || h.note || '',
+    CreatedAt: h.CreatedAt || h.createdAt,
+    ChangedByName: h.ChangedByName || h.by || null
+  }));
+
+  return {
+    id: o.OrderId,
+    orderId: o.OrderId,
+    code: o.OrderCode,
+    orderCode: o.OrderCode,
+    userId: o.UserId,
+    fullName: o.FullName,
+    phone: o.Phone,
+    email: o.Email,
+    address: o.Address,
+    customer: {
+      fullName: o.FullName,
+      phone: o.Phone,
+      email: o.Email || '',
+      address: o.Address
+    },
+    note: o.Note,
+    shippingMethod: o.ShippingMethod || 'SPX',
+    paymentMethod: o.PaymentMethod,
+    paymentStatus: o.PaymentStatus,
+    status: o.Status,
+    cancelReason: o.CancelReason,
+    hasPreOrder: Boolean(o.HasPreOrder),
+    preOrderExpected: o.PreOrderExpected || null,
+    preOrderNotified: Boolean(o.PreOrderNotified),
+    receiptImage: o.ReceiptImage,
+    trackingCode: o.TrackingCode || null,
+    trackingCarrier: o.TrackingCarrier || null,
+    subtotal: Number(o.Subtotal),
+    shippingFee: Number(o.ShippingFee),
+    total: Number(o.Total),
+    totalAmount: Number(o.Total),
+    depositAmount: Number(o.DepositAmount || 0),
+    createdAt: o.CreatedAt,
+    updatedAt: o.UpdatedAt,
+    items,
+    history: mappedHistory,
+    timeline: mappedHistory,
+    // Tương thích ngược PascalCase
+    OrderId: o.OrderId,
+    OrderCode: o.OrderCode,
+    FullName: o.FullName,
+    Phone: o.Phone,
+    Email: o.Email,
+    Address: o.Address,
+    Note: o.Note,
+    ShippingMethod: o.ShippingMethod || 'SPX',
+    PaymentMethod: o.PaymentMethod,
+    PaymentStatus: o.PaymentStatus,
+    Status: o.Status,
+    CancelReason: o.CancelReason,
+    HasPreOrder: Boolean(o.HasPreOrder),
+    PreOrderExpected: o.PreOrderExpected || null,
+    PreOrderNotified: Boolean(o.PreOrderNotified),
+    ReceiptImage: o.ReceiptImage,
+    TrackingCode: o.TrackingCode || null,
+    TrackingCarrier: o.TrackingCarrier || null,
+    Subtotal: Number(o.Subtotal),
+    ShippingFee: Number(o.ShippingFee),
+    Total: Number(o.Total),
+    DepositAmount: Number(o.DepositAmount || 0),
+    CreatedAt: o.CreatedAt
+  };
 }
 
-/** Khách xác nhận đã nhận được hàng từ SPX Express */
-async function customerConfirmReceived(code, userId) {
-  const o = await loadOrderRow('o.OrderCode = @code', { code });
-  if (!o) throw notFound('Không tìm thấy đơn hàng');
-  if (o.Status === 'CANCELLED') throw badRequest('Đơn hàng đã bị hủy');
-  if (o.Status === 'DELIVERED') return getFullOrder(o);
-  return changeStatus(
-    Number(o.OrderId),
-    'DELIVERED',
-    { note: 'Khách hàng xác nhận đã nhận kiện hàng mô hình nguyên vẹn từ SPX Express' },
-    userId || o.UserId || null
+async function getOrderByCodeOrId(idOrCode) {
+  const isNum = /^\d+$/.test(String(idOrCode));
+  const oRes = await query(
+    `SELECT * FROM dbo.Orders WHERE ${isNum ? 'OrderId = @v' : 'OrderCode = @v'}`,
+    { v: isNum ? parseInt(idOrCode, 10) : String(idOrCode).trim().toUpperCase() }
   );
-}
+  if (!oRes.recordset.length) return null;
+  const o = oRes.recordset[0];
 
-/** Khách cập nhật địa chỉ / SĐT nhận hàng khi đơn chưa giao */
-async function customerUpdateShipping(code, body, userId) {
-  const o = await loadOrderRow('o.OrderCode = @code', { code });
-  if (!o) throw notFound('Không tìm thấy đơn hàng');
-  if (!['PENDING', 'CONFIRMED', 'PREPARING'].includes(o.Status)) {
-    throw badRequest('Đơn hàng đã bàn giao vận chuyển SPX nên không thể sửa địa chỉ trực tiếp');
-  }
-  const fullName = v.str(body.fullName || o.FullName, 100);
-  const phone = v.normalizePhone(body.phone || o.Phone);
-  const address = v.str(body.address || o.Address, 255);
-  const note = v.str(body.note !== undefined ? body.note : o.Note, 500);
+  const [iRes, hRes] = await Promise.all([
+    query(`
+      SELECT oi.OrderItemId, oi.ProductId, oi.ProductName, oi.PackagingOption, oi.UnitPrice, oi.Quantity, oi.LineTotal,
+             p.Sku, p.ImageUrl, p.Status AS ProductStatus
+      FROM dbo.OrderItems oi
+      LEFT JOIN dbo.Products p ON oi.ProductId = p.ProductId
+      WHERE oi.OrderId = @oid
+    `, { oid: o.OrderId }),
+    query(`
+      SELECT h.HistoryId, h.FromStatus, h.ToStatus, h.Note, h.CreatedAt, u.FullName AS ChangedByName
+      FROM dbo.OrderStatusHistory h
+      LEFT JOIN dbo.Users u ON h.ChangedBy = u.UserId
+      WHERE h.OrderId = @oid
+      ORDER BY h.CreatedAt ASC
+    `, { oid: o.OrderId })
+  ]);
 
-  if (fullName.length < 2) throw badRequest('Họ tên người nhận tối thiểu 2 ký tự');
-  if (phone.length < 8) throw badRequest('Số điện thoại không hợp lệ');
-  if (address.length < 3) throw badRequest('Địa chỉ nhận hàng không hợp lệ');
-
-  await db.withTransaction(async (q) => {
-    await q(
-      `UPDATE Orders SET FullName = @fullName, Phone = @phone, Address = @address, Note = @note, UpdatedAt = SYSDATETIME() WHERE OrderId = @id`,
-      { id: o.OrderId, fullName, phone, address, note }
-    );
-    await addHistory(q, o.OrderId, o.Status, o.Status, `Khách hàng cập nhật thông tin nhận hàng: ${fullName} - ${phone}`, userId || o.UserId || null);
+  const items = iRes.recordset.map(i => {
+    const packOpt = i.PackagingOption || 'box';
+    return {
+      orderItemId: i.OrderItemId,
+      productId: i.ProductId,
+      name: i.ProductName,
+      productName: i.ProductName,
+      packagingOption: packOpt,
+      packagingLabel: packOpt === 'card' ? 'Bản Card (Vỉ Blister)' : 'Bản Box (Hộp giấy)',
+      unitPrice: Number(i.UnitPrice),
+      quantity: i.Quantity,
+      lineTotal: Number(i.LineTotal),
+      sku: i.Sku,
+      productSku: i.Sku,
+      imageUrl: i.ImageUrl,
+      productImage: i.ImageUrl,
+      orderType: i.ProductStatus === 'pre_order' ? 'PRE_ORDER' : 'IN_STOCK',
+      ProductId: i.ProductId,
+      ProductName: i.ProductName,
+      PackagingOption: packOpt,
+      UnitPrice: Number(i.UnitPrice),
+      Quantity: i.Quantity,
+      LineTotal: Number(i.LineTotal),
+      Sku: i.Sku,
+      ImageUrl: i.ImageUrl
+    };
   });
 
-  return getFullOrder(await loadOrderRow('o.OrderId = @id', { id: o.OrderId }));
+  return mapOrder(o, items, hRes.recordset);
+}
+
+async function listOrders({ status, paymentStatus, paymentMethod, q, userId, phone, page = 1, pageSize = 50 } = {}) {
+  const where = [];
+  const params = {};
+  if (status === 'PRE_ORDER' || status === 'PREORDER') {
+    where.push('o.HasPreOrder = 1');
+  } else if (status && status !== 'all' && status !== 'ALL') {
+    where.push('o.Status = @status');
+    params.status = String(status).toUpperCase();
+  }
+  if (paymentStatus && paymentStatus !== 'all' && paymentStatus !== 'ALL') {
+    where.push('o.PaymentStatus = @payStatus');
+    params.payStatus = String(paymentStatus).toUpperCase();
+  }
+  if (paymentMethod && paymentMethod !== 'all' && paymentMethod !== 'ALL') {
+    where.push('o.PaymentMethod = @payMethod');
+    params.payMethod = String(paymentMethod).toUpperCase();
+  }
+  if (userId) {
+    where.push('o.UserId = @uid');
+    params.uid = Number(userId);
+  }
+  if (phone) {
+    where.push('o.Phone = @phone');
+    params.phone = v.cleanPhone(phone);
+  }
+  if (q && String(q).trim()) {
+    where.push('(o.OrderCode LIKE @q OR o.FullName LIKE @q OR o.Phone LIKE @q OR o.TrackingCode LIKE @q)');
+    params.q = `%${String(q).trim()}%`;
+  }
+  const whereClause = where.length ? `WHERE ${where.join(' AND ')}` : '';
+
+  const p = Math.max(1, parseInt(page, 10) || 1);
+  const ps = Math.min(100, Math.max(1, parseInt(pageSize, 10) || 50));
+  params.offset = (p - 1) * ps;
+  params.ps = ps;
+
+  const [cRes, dRes] = await Promise.all([
+    query(`SELECT COUNT(*) AS Total FROM dbo.Orders o ${whereClause}`, params),
+    query(`
+      SELECT o.*
+      FROM dbo.Orders o
+      ${whereClause}
+      ORDER BY o.CreatedAt DESC
+      OFFSET @offset ROWS FETCH NEXT @ps ROWS ONLY
+    `, params)
+  ]);
+
+  const orders = dRes.recordset;
+  if (!orders.length) {
+    return { items: [], total: 0, page: p, pageSize: ps, totalPages: 1 };
+  }
+
+  const ids = orders.map(o => o.OrderId).join(',');
+  const itemsRes = await query(`
+    SELECT oi.OrderId, oi.OrderItemId, oi.ProductId, oi.ProductName, oi.PackagingOption, oi.UnitPrice, oi.Quantity, oi.LineTotal,
+           p.Sku, p.ImageUrl, p.Status AS ProductStatus
+    FROM dbo.OrderItems oi
+    LEFT JOIN dbo.Products p ON oi.ProductId = p.ProductId
+    WHERE oi.OrderId IN (${ids})
+  `);
+
+  const byOrder = new Map();
+  for (const row of itemsRes.recordset) {
+    const key = String(row.OrderId);
+    if (!byOrder.has(key)) byOrder.set(key, []);
+    const packOpt = row.PackagingOption || 'box';
+    byOrder.get(key).push({
+      orderItemId: row.OrderItemId,
+      productId: row.ProductId,
+      name: row.ProductName,
+      productName: row.ProductName,
+      packagingOption: packOpt,
+      packagingLabel: packOpt === 'card' ? 'Bản Card (Vỉ Blister)' : 'Bản Box (Hộp giấy)',
+      unitPrice: Number(row.UnitPrice),
+      quantity: row.Quantity,
+      lineTotal: Number(row.LineTotal),
+      sku: row.Sku,
+      productSku: row.Sku,
+      imageUrl: row.ImageUrl,
+      productImage: row.ImageUrl,
+      orderType: row.ProductStatus === 'pre_order' ? 'PRE_ORDER' : 'IN_STOCK',
+      ProductName: row.ProductName,
+      PackagingOption: packOpt,
+      UnitPrice: Number(row.UnitPrice),
+      Quantity: row.Quantity,
+      LineTotal: Number(row.LineTotal),
+      Sku: row.Sku,
+      ImageUrl: row.ImageUrl
+    });
+  }
+
+  const total = cRes.recordset[0]?.Total || 0;
+  return {
+    items: orders.map(o => mapOrder(o, byOrder.get(String(o.OrderId)) || [])),
+    total,
+    page: p,
+    pageSize: ps,
+    totalPages: Math.max(1, Math.ceil(total / ps))
+  };
 }
 
 module.exports = {
-  ORDER_STATUSES, PAYMENT_METHODS, STATUS_LABELS, CANCELLABLE,
-  mapOrder, getItems, getHistory, loadOrderRow, getFullOrder,
-  createOrder, changeStatus, confirmPayment, markRefunded, updateTracking,
-  customerCancel, customerConfirmReceived, customerUpdateShipping, nextStatuses
+  ALLOWED_TRANSITIONS,
+  createOrder,
+  transitionOrderStatus,
+  updatePaymentStatus,
+  getOrderByCodeOrId,
+  listOrders
 };
