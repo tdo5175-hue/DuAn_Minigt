@@ -1,11 +1,7 @@
 /**
- * ORDER SERVICE — MÁY TRẠNG THÁI ĐƠN HÀNG & QUẢN LÝ TỒN KHO TRANSACTIONAL (SQL SERVER 2026)
- *
- *  - Hỗ trợ Giá Bản Box & Bản Card (Blister), % Giảm giá trực tiếp, Box Saver, PVC Protector & Voucher
- *  - State machine chặt chẽ: PENDING → CONFIRMED → PREPARING → SHIPPING → DELIVERED (hoặc CANCELLED)
- *  - Trừ tồn kho ngay khi đặt đơn giữ suất trong SQL Transaction với UPDLOCK, HOLDLOCK
+ * ORDER SERVICE — MÁY TRẠNG THÁI ĐƠN HÀNG & QUẢN LÝ TỒN KHO TRANSACTIONAL (SUPABASE POSTGRESQL)
  */
-const { sql, getPool, query } = require('../config/db');
+const db = require('../config/db');
 const { getSettings } = require('./settingsService');
 const { calcDiscountedPrice } = require('./productService');
 const { badRequest, notFound, conflict } = require('../utils/http');
@@ -29,11 +25,6 @@ function generateOrderCode() {
   return `MGT-${ymd}-${rnd}`;
 }
 
-/**
- * Tạo đơn hàng mới từ giỏ hàng.
- * Toàn bộ: kiểm tra tồn kho, trừ kho, tính giá Box/Card thực tế, tạo Orders + OrderItems + OrderStatusHistory
- * chạy trong 1 SQL Transaction.
- */
 async function createOrder(payload, authUser = null) {
   const fullName = v.cleanStr(payload.fullName, 100);
   const phone = v.cleanStr(payload.phone, 20);
@@ -52,7 +43,7 @@ async function createOrder(payload, authUser = null) {
     : (rawShip.includes('BOX_SAVER') ? 'BOX_SAVER' : 'SPX');
 
   if (fullName.length < 2) throw badRequest('Vui lòng nhập họ tên người nhận (tối thiểu 2 ký tự)');
-  if (!v.isVNPhone(phone)) throw badRequest('Số điện thoại không đúng định dạng Việt Nam (10–11 số, bắt đầu bằng 0)');
+  if (!v.isVNPhone(phone)) throw badRequest('Số điện thoại không đúng định dạng Việt Nam');
   if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw badRequest('Địa chỉ Email không hợp lệ');
   if (shippingMethod === 'SPX' && address.length < 5) {
     throw badRequest('Vui lòng nhập địa chỉ nhận hàng chi tiết');
@@ -75,16 +66,10 @@ async function createOrder(payload, authUser = null) {
       quantity: (prev ? prev.quantity : 0) + qty
     });
   }
-  if (merged.size > 50) throw badRequest('Đơn hàng vượt quá số dòng sản phẩm cho phép');
 
   const cfg = await getSettings();
-  const pool = await getPool();
-  if (!pool) throw new Error('Không kết nối được SQL Server');
 
-  const tx = new sql.Transaction(pool);
-  await tx.begin(sql.ISOLATION_LEVEL.REPEATABLE_READ);
-
-  try {
+  return await db.withTransaction(async (q) => {
     const lineItems = [];
     let subtotal = 0;
     let depositRequired = 0;
@@ -93,15 +78,13 @@ async function createOrder(payload, authUser = null) {
 
     for (const entry of merged.values()) {
       const { productId, packType, quantity } = entry;
-      const rReq = new sql.Request(tx);
-      rReq.input('pid', sql.Int, productId);
-      const pRes = await rReq.query(`
+      const pRes = await q(`
         SELECT ProductId, Sku, Name, Price, OldPrice, PriceBox, PriceCard, DiscountPercent,
                PackagingType, DepositAmount, DepositPercent, ExpectedDelivery, ReleaseDate,
                Stock, Status, IsActive
-        FROM dbo.Products WITH (UPDLOCK, HOLDLOCK)
+        FROM Products
         WHERE ProductId = @pid
-      `);
+      `, { pid: productId });
 
       if (pRes.recordset.length === 0 || !pRes.recordset[0].IsActive) {
         throw badRequest(`Sản phẩm #${productId} không tồn tại hoặc đã ngừng kinh doanh`);
@@ -121,16 +104,13 @@ async function createOrder(payload, authUser = null) {
         throw conflict(`"${p.Name}" chỉ còn ${p.Stock} sản phẩm trong kho (bạn chọn ${quantity})`);
       }
 
-      const uReq = new sql.Request(tx);
-      uReq.input('pid', sql.Int, productId);
-      uReq.input('qty', sql.Int, quantity);
-      await uReq.query(`
-        UPDATE dbo.Products
+      await q(`
+        UPDATE Products
         SET Stock = CASE WHEN Stock >= @qty THEN Stock - @qty ELSE 0 END,
             Status = CASE WHEN Stock - @qty <= 0 AND Status = 'in_stock' THEN 'sold_out' ELSE Status END,
-            UpdatedAt = SYSDATETIME()
+            UpdatedAt = NOW()
         WHERE ProductId = @pid
-      `);
+      `, { pid: productId, qty: quantity });
 
       const effectivePack = p.PackagingType === 'card_only'
         ? 'card'
@@ -179,108 +159,89 @@ async function createOrder(payload, authUser = null) {
     else if (Number(payload.voucherDiscount) > 0) voucherDiscount = Math.min(50000, Number(payload.voucherDiscount));
 
     const total = Math.max(0, subtotal + shippingFee + protectorFee - voucherDiscount);
-
-    // QUY TẮC BẮT BUỘC PRE-ORDER: Không áp dụng thanh toán Full 100% hay COD!
-    // Bắt buộc chuyển sang hình thức Đặt cọc giữ xe qua MB Bank!
     let finalPaymentMethod = paymentMethod;
-    if (hasPreOrder) {
-      finalPaymentMethod = 'DEPOSIT';
-    }
+    if (hasPreOrder) finalPaymentMethod = 'DEPOSIT';
 
     const depositAmount = finalPaymentMethod === 'DEPOSIT'
       ? Math.min(total, depositRequired || Math.round(total * 0.3))
       : (finalPaymentMethod === 'BANK_TRANSFER' ? total : 0);
 
     const orderCode = generateOrderCode();
-    const oReq = new sql.Request(tx);
-    oReq.input('code', sql.VarChar(30), orderCode);
-    oReq.input('uid', sql.Int, authUser ? authUser.userId : null);
-    oReq.input('name', sql.NVarChar(100), fullName);
-    oReq.input('phone', sql.VarChar(20), phone);
-    oReq.input('email', sql.VarChar(150), email || null);
-    oReq.input('addr', sql.NVarChar(255), shippingMethod === 'PICKUP' && !address ? 'Nhận tại cửa hàng' : address);
-    oReq.input('note', sql.NVarChar(500), note || null);
-    oReq.input('shipMethod', sql.VarChar(20), shippingMethod);
-    oReq.input('payMethod', sql.VarChar(30), finalPaymentMethod);
-    oReq.input('sub', sql.Decimal(18, 2), subtotal);
-    oReq.input('ship', sql.Decimal(18, 2), shippingFee);
-    oReq.input('tot', sql.Decimal(18, 2), total);
-    oReq.input('dep', sql.Decimal(18, 2), depositAmount);
-    oReq.input('hasPre', sql.Bit, hasPreOrder ? 1 : 0);
-    oReq.input('preExp', sql.NVarChar(100), preOrderExpected || (hasPreOrder ? 'Tháng 11/2026' : null));
-
-    const oIns = await oReq.query(`
-      INSERT INTO dbo.Orders
+    const oIns = await q(`
+      INSERT INTO Orders
         (OrderCode, UserId, FullName, Phone, Email, Address, Note,
          ShippingMethod, PaymentMethod, PaymentStatus,
          Subtotal, ShippingFee, Total, DepositAmount, StockReserved,
          HasPreOrder, PreOrderExpected, Status)
-      OUTPUT INSERTED.*
       VALUES
         (@code, @uid, @name, @phone, @email, @addr, @note,
          @shipMethod, @payMethod, 'UNPAID',
-         @sub, @ship, @tot, @dep, 1,
+         @sub, @ship, @tot, @dep, TRUE,
          @hasPre, @preExp, 'PENDING')
-    `);
+      RETURNING *
+    `, {
+      code: orderCode,
+      uid: authUser ? authUser.userId : null,
+      name: fullName,
+      phone: phone,
+      email: email || null,
+      addr: shippingMethod === 'PICKUP' && !address ? 'Nhận tại cửa hàng' : address,
+      note: note || null,
+      shipMethod: shippingMethod,
+      payMethod: finalPaymentMethod,
+      sub: subtotal,
+      ship: shippingFee,
+      tot: total,
+      dep: depositAmount,
+      hasPre: hasPreOrder,
+      preExp: preOrderExpected || (hasPreOrder ? 'Tháng 11/2026' : null)
+    });
     const order = oIns.recordset[0];
 
     for (const it of lineItems) {
-      const iReq = new sql.Request(tx);
-      iReq.input('oid', sql.Int, order.OrderId);
-      iReq.input('pid', sql.Int, it.productId);
-      iReq.input('pname', sql.NVarChar(200), it.productName);
-      iReq.input('pack', sql.VarChar(20), it.packagingOption);
-      iReq.input('uprice', sql.Decimal(18, 2), it.unitPrice);
-      iReq.input('qty', sql.Int, it.quantity);
-      await iReq.query(`
-        INSERT INTO dbo.OrderItems (OrderId, ProductId, ProductName, PackagingOption, UnitPrice, Quantity)
+      await q(`
+        INSERT INTO OrderItems (OrderId, ProductId, ProductName, PackagingOption, UnitPrice, Quantity)
         VALUES (@oid, @pid, @pname, @pack, @uprice, @qty)
-      `);
+      `, {
+        oid: order.OrderId,
+        pid: it.productId,
+        pname: it.productName,
+        pack: it.packagingOption,
+        uprice: it.unitPrice,
+        qty: it.quantity
+      });
     }
 
-    const hReq = new sql.Request(tx);
-    hReq.input('oid', sql.Int, order.OrderId);
-    hReq.input('by', sql.Int, authUser ? authUser.userId : null);
-    await hReq.query(`
-      INSERT INTO dbo.OrderStatusHistory (OrderId, FromStatus, ToStatus, Note, ChangedBy)
-      VALUES (@oid, NULL, 'PENDING', N'Khách tạo đơn và giữ hàng', @by)
-    `);
+    await q(`
+      INSERT INTO OrderStatusHistory (OrderId, FromStatus, ToStatus, Note, ChangedBy)
+      VALUES (@oid, NULL, 'PENDING', 'Khách tạo đơn và giữ hàng', @by)
+    `, {
+      oid: order.OrderId,
+      by: authUser ? authUser.userId : null
+    });
 
-    await tx.commit();
     return mapOrder(order, lineItems);
-  } catch (err) {
-    try { await tx.rollback(); } catch (_) {}
-    throw err;
-  }
+  });
 }
 
-/**
- * Chuyển trạng thái đơn hàng (dùng cho cả Admin và khách hủy đơn).
- */
 async function transitionOrderStatus(orderIdOrCode, toStatus, { note, cancelReason, actorId = null, isAdmin = false, trackingCode = null, trackingCarrier = null } = {}) {
   const target = String(toStatus || '').toUpperCase();
   if (!ALLOWED_TRANSITIONS[target] && target !== 'DELIVERED' && target !== 'CANCELLED') {
     throw badRequest(`Trạng thái "${toStatus}" không hợp lệ`);
   }
 
-  const pool = await getPool();
-  const tx = new sql.Transaction(pool);
-  await tx.begin(sql.ISOLATION_LEVEL.REPEATABLE_READ);
-
-  try {
-    const fReq = new sql.Request(tx);
+  return await db.withTransaction(async (q) => {
     const isNum = /^\d+$/.test(String(orderIdOrCode));
-    fReq.input('val', isNum ? sql.Int : sql.VarChar(30), isNum ? parseInt(orderIdOrCode, 10) : String(orderIdOrCode));
-    const oRes = await fReq.query(`
-      SELECT * FROM dbo.Orders WITH (UPDLOCK, HOLDLOCK)
+    const oRes = await q(`
+      SELECT * FROM Orders
       WHERE ${isNum ? 'OrderId = @val' : 'OrderCode = @val'}
-    `);
+    `, { val: isNum ? parseInt(orderIdOrCode, 10) : String(orderIdOrCode) });
+
     if (oRes.recordset.length === 0) throw notFound('Không tìm thấy đơn hàng');
     const order = oRes.recordset[0];
 
     const fromStatus = String(order.Status).toUpperCase();
     if (fromStatus === target) {
-      await tx.rollback();
       return getOrderByCodeOrId(order.OrderId);
     }
 
@@ -294,33 +255,22 @@ async function transitionOrderStatus(orderIdOrCode, toStatus, { note, cancelReas
     }
 
     if (target === 'CANCELLED' && order.StockReserved) {
-      const itemsRes = await new sql.Request(tx)
-        .input('oid', sql.Int, order.OrderId)
-        .query('SELECT ProductId, Quantity FROM dbo.OrderItems WHERE OrderId = @oid');
-
+      const itemsRes = await q('SELECT ProductId, Quantity FROM OrderItems WHERE OrderId = @oid', { oid: order.OrderId });
       for (const it of itemsRes.recordset) {
-        await new sql.Request(tx)
-          .input('pid', sql.Int, it.ProductId)
-          .input('qty', sql.Int, it.Quantity)
-          .query(`
-            UPDATE dbo.Products
-            SET Stock = Stock + @qty,
-                Status = CASE WHEN Status = 'sold_out' AND Stock + @qty > 0 THEN 'in_stock' ELSE Status END,
-                UpdatedAt = SYSDATETIME()
-            WHERE ProductId = @pid
-          `);
+        await q(`
+          UPDATE Products
+          SET Stock = Stock + @qty,
+              Status = CASE WHEN Status = 'sold_out' AND Stock + @qty > 0 THEN 'in_stock' ELSE Status END,
+              UpdatedAt = NOW()
+          WHERE ProductId = @pid
+        `, { pid: it.ProductId, qty: it.Quantity });
       }
     }
 
     if (target !== 'CANCELLED' && !order.StockReserved) {
-      const itemsRes = await new sql.Request(tx)
-        .input('oid', sql.Int, order.OrderId)
-        .query('SELECT ProductId, Quantity FROM dbo.OrderItems WHERE OrderId = @oid');
+      const itemsRes = await q('SELECT ProductId, Quantity FROM OrderItems WHERE OrderId = @oid', { oid: order.OrderId });
       for (const it of itemsRes.recordset) {
-        await new sql.Request(tx)
-          .input('pid', sql.Int, it.ProductId)
-          .input('qty', sql.Int, it.Quantity)
-          .query('UPDATE dbo.Products SET Stock = CASE WHEN Stock >= @qty THEN Stock - @qty ELSE 0 END WHERE ProductId = @pid');
+        await q('UPDATE Products SET Stock = CASE WHEN Stock >= @qty THEN Stock - @qty ELSE 0 END WHERE ProductId = @pid', { pid: it.ProductId, qty: it.Quantity });
       }
     }
 
@@ -334,45 +284,40 @@ async function transitionOrderStatus(orderIdOrCode, toStatus, { note, cancelReas
       else if (order.PaymentMethod === 'BANK_TRANSFER') newPayStatus = 'PAID';
     }
 
-    const newReserved = target === 'CANCELLED' ? 0 : 1;
-    const uReq = new sql.Request(tx);
-    uReq.input('oid', sql.Int, order.OrderId);
-    uReq.input('st', sql.VarChar(30), target);
-    uReq.input('pst', sql.VarChar(20), newPayStatus);
-    uReq.input('res', sql.Bit, newReserved);
-    uReq.input('reason', sql.NVarChar(255), target === 'CANCELLED' ? (cancelReason || note || 'Đã hủy') : order.CancelReason);
-    uReq.input('tCode', sql.NVarChar(100), trackingCode ? v.cleanStr(trackingCode, 100) : order.TrackingCode);
-    uReq.input('tCarrier', sql.NVarChar(50), trackingCarrier ? v.cleanStr(trackingCarrier, 50) : (trackingCode ? (order.TrackingCarrier || 'SPX Express') : order.TrackingCarrier));
-
-    await uReq.query(`
-      UPDATE dbo.Orders
+    const newReserved = target === 'CANCELLED' ? false : true;
+    await q(`
+      UPDATE Orders
       SET Status = @st,
           PaymentStatus = @pst,
           StockReserved = @res,
           CancelReason = @reason,
           TrackingCode = @tCode,
           TrackingCarrier = @tCarrier,
-          UpdatedAt = SYSDATETIME()
+          UpdatedAt = NOW()
       WHERE OrderId = @oid
-    `);
+    `, {
+      oid: order.OrderId,
+      st: target,
+      pst: newPayStatus,
+      res: newReserved,
+      reason: target === 'CANCELLED' ? (cancelReason || note || 'Đã hủy') : order.CancelReason,
+      tCode: trackingCode ? v.cleanStr(trackingCode, 100) : order.TrackingCode,
+      tCarrier: trackingCarrier ? v.cleanStr(trackingCarrier, 50) : (trackingCode ? (order.TrackingCarrier || 'SPX Express') : order.TrackingCarrier)
+    });
 
-    const hReq = new sql.Request(tx);
-    hReq.input('oid', sql.Int, order.OrderId);
-    hReq.input('from', sql.VarChar(30), fromStatus);
-    hReq.input('to', sql.VarChar(30), target);
-    hReq.input('note', sql.NVarChar(500), v.cleanStr(cancelReason || note || '', 500) || null);
-    hReq.input('by', sql.Int, actorId);
-    await hReq.query(`
-      INSERT INTO dbo.OrderStatusHistory (OrderId, FromStatus, ToStatus, Note, ChangedBy)
+    await q(`
+      INSERT INTO OrderStatusHistory (OrderId, FromStatus, ToStatus, Note, ChangedBy)
       VALUES (@oid, @from, @to, @note, @by)
-    `);
+    `, {
+      oid: order.OrderId,
+      from: fromStatus,
+      to: target,
+      note: v.cleanStr(cancelReason || note || '', 500) || null,
+      by: actorId
+    });
 
-    await tx.commit();
     return getOrderByCodeOrId(order.OrderId);
-  } catch (err) {
-    try { await tx.rollback(); } catch (_) {}
-    throw err;
-  }
+  });
 }
 
 async function updatePaymentStatus(orderId, paymentStatus, { actorId = null, note = null } = {}) {
@@ -380,7 +325,7 @@ async function updatePaymentStatus(orderId, paymentStatus, { actorId = null, not
   const target = String(paymentStatus || '').toUpperCase();
   if (!allowed.includes(target)) throw badRequest('Trạng thái thanh toán không hợp lệ');
 
-  const cur = await query('SELECT OrderId, Status, PaymentStatus FROM dbo.Orders WHERE OrderId = @id', { id: Number(orderId) });
+  const cur = await db.query('SELECT OrderId, Status, PaymentStatus FROM Orders WHERE OrderId = @id', { id: Number(orderId) });
   if (!cur.recordset.length) throw notFound('Không tìm thấy đơn hàng');
 
   const currentStatus = cur.recordset[0].Status;
@@ -388,14 +333,14 @@ async function updatePaymentStatus(orderId, paymentStatus, { actorId = null, not
     ? 'CONFIRMED'
     : currentStatus;
 
-  await query(`
-    UPDATE dbo.Orders
-    SET PaymentStatus = @pst, Status = @st, UpdatedAt = SYSDATETIME()
+  await db.query(`
+    UPDATE Orders
+    SET PaymentStatus = @pst, Status = @st, UpdatedAt = NOW()
     WHERE OrderId = @id
   `, { id: Number(orderId), pst: target, st: nextStatus });
 
-  await query(`
-    INSERT INTO dbo.OrderStatusHistory (OrderId, FromStatus, ToStatus, Note, ChangedBy)
+  await db.query(`
+    INSERT INTO OrderStatusHistory (OrderId, FromStatus, ToStatus, Note, ChangedBy)
     VALUES (@id, @st, @nextSt, @note, @by)
   `, {
     id: Number(orderId),
@@ -410,137 +355,100 @@ async function updatePaymentStatus(orderId, paymentStatus, { actorId = null, not
 
 function mapOrder(o, items = [], history = []) {
   const mappedHistory = (history || []).map(h => ({
-    historyId: h.HistoryId || h.historyId,
-    from: h.FromStatus || h.from || null,
-    to: h.ToStatus || h.to || h.newStatus || 'PENDING',
-    newStatus: h.ToStatus || h.to || h.newStatus || 'PENDING',
+    historyId: h.HistoryId || h.historyid,
+    from: h.FromStatus || h.from || h.fromstatus || null,
+    to: h.ToStatus || h.to || h.tostatus || h.newStatus || 'PENDING',
+    newStatus: h.ToStatus || h.to || h.tostatus || h.newStatus || 'PENDING',
     note: h.Note || h.note || '',
-    createdAt: h.CreatedAt || h.createdAt,
-    by: h.ChangedByName || h.by || null,
-    HistoryId: h.HistoryId || h.historyId,
-    FromStatus: h.FromStatus || h.from || null,
-    ToStatus: h.ToStatus || h.to || h.newStatus || 'PENDING',
-    Note: h.Note || h.note || '',
-    CreatedAt: h.CreatedAt || h.createdAt,
-    ChangedByName: h.ChangedByName || h.by || null
+    createdAt: h.CreatedAt || h.createdat,
+    by: h.ChangedByName || h.by || null
   }));
 
   return {
-    id: o.OrderId,
-    orderId: o.OrderId,
-    code: o.OrderCode,
-    orderCode: o.OrderCode,
-    userId: o.UserId,
-    fullName: o.FullName,
-    phone: o.Phone,
-    email: o.Email,
-    address: o.Address,
+    id: o.OrderId || o.orderid,
+    orderId: o.OrderId || o.orderid,
+    code: o.OrderCode || o.ordercode,
+    orderCode: o.OrderCode || o.ordercode,
+    userId: o.UserId || o.userid,
+    fullName: o.FullName || o.fullname,
+    phone: o.Phone || o.phone,
+    email: o.Email || o.email,
+    address: o.Address || o.address,
     customer: {
-      fullName: o.FullName,
-      phone: o.Phone,
-      email: o.Email || '',
-      address: o.Address
+      fullName: o.FullName || o.fullname,
+      phone: o.Phone || o.phone,
+      email: o.Email || o.email || '',
+      address: o.Address || o.address
     },
-    note: o.Note,
-    shippingMethod: o.ShippingMethod || 'SPX',
-    paymentMethod: o.PaymentMethod,
-    paymentStatus: o.PaymentStatus,
-    status: o.Status,
-    cancelReason: o.CancelReason,
-    hasPreOrder: Boolean(o.HasPreOrder),
-    preOrderExpected: o.PreOrderExpected || null,
-    preOrderNotified: Boolean(o.PreOrderNotified),
-    receiptImage: o.ReceiptImage,
-    trackingCode: o.TrackingCode || null,
-    trackingCarrier: o.TrackingCarrier || null,
-    subtotal: Number(o.Subtotal),
-    shippingFee: Number(o.ShippingFee),
-    total: Number(o.Total),
-    totalAmount: Number(o.Total),
-    depositAmount: Number(o.DepositAmount || 0),
-    createdAt: o.CreatedAt,
-    updatedAt: o.UpdatedAt,
+    note: o.Note || o.note,
+    shippingMethod: o.ShippingMethod || o.shippingmethod || 'SPX',
+    paymentMethod: o.PaymentMethod || o.paymentmethod,
+    paymentStatus: o.PaymentStatus || o.paymentstatus,
+    status: o.Status || o.status,
+    cancelReason: o.CancelReason || o.cancelreason,
+    hasPreOrder: Boolean(o.HasPreOrder ?? o.haspreorder),
+    preOrderExpected: o.PreOrderExpected || o.preorderexpected || null,
+    preOrderNotified: Boolean(o.PreOrderNotified ?? o.preordernotified),
+    receiptImage: o.ReceiptImage || o.receiptimage,
+    trackingCode: o.TrackingCode || o.trackingcode || null,
+    trackingCarrier: o.TrackingCarrier || o.trackingcarrier || null,
+    subtotal: Number(o.Subtotal || o.subtotal || 0),
+    shippingFee: Number(o.ShippingFee || o.shippingfee || 0),
+    total: Number(o.Total || o.total || 0),
+    totalAmount: Number(o.Total || o.total || 0),
+    depositAmount: Number(o.DepositAmount || o.depositamount || 0),
+    createdAt: o.CreatedAt || o.createdat,
+    updatedAt: o.UpdatedAt || o.updatedat,
     items,
     history: mappedHistory,
-    timeline: mappedHistory,
-    // Tương thích ngược PascalCase
-    OrderId: o.OrderId,
-    OrderCode: o.OrderCode,
-    FullName: o.FullName,
-    Phone: o.Phone,
-    Email: o.Email,
-    Address: o.Address,
-    Note: o.Note,
-    ShippingMethod: o.ShippingMethod || 'SPX',
-    PaymentMethod: o.PaymentMethod,
-    PaymentStatus: o.PaymentStatus,
-    Status: o.Status,
-    CancelReason: o.CancelReason,
-    HasPreOrder: Boolean(o.HasPreOrder),
-    PreOrderExpected: o.PreOrderExpected || null,
-    PreOrderNotified: Boolean(o.PreOrderNotified),
-    ReceiptImage: o.ReceiptImage,
-    TrackingCode: o.TrackingCode || null,
-    TrackingCarrier: o.TrackingCarrier || null,
-    Subtotal: Number(o.Subtotal),
-    ShippingFee: Number(o.ShippingFee),
-    Total: Number(o.Total),
-    DepositAmount: Number(o.DepositAmount || 0),
-    CreatedAt: o.CreatedAt
+    timeline: mappedHistory
   };
 }
 
 async function getOrderByCodeOrId(idOrCode) {
   const isNum = /^\d+$/.test(String(idOrCode));
-  const oRes = await query(
-    `SELECT * FROM dbo.Orders WHERE ${isNum ? 'OrderId = @v' : 'OrderCode = @v'}`,
+  const oRes = await db.query(
+    `SELECT * FROM Orders WHERE ${isNum ? 'OrderId = @v' : 'OrderCode = @v'}`,
     { v: isNum ? parseInt(idOrCode, 10) : String(idOrCode).trim().toUpperCase() }
   );
   if (!oRes.recordset.length) return null;
   const o = oRes.recordset[0];
+  const oid = o.OrderId || o.orderid;
 
   const [iRes, hRes] = await Promise.all([
-    query(`
+    db.query(`
       SELECT oi.OrderItemId, oi.ProductId, oi.ProductName, oi.PackagingOption, oi.UnitPrice, oi.Quantity, oi.LineTotal,
              p.Sku, p.ImageUrl, p.Status AS ProductStatus
-      FROM dbo.OrderItems oi
-      LEFT JOIN dbo.Products p ON oi.ProductId = p.ProductId
+      FROM OrderItems oi
+      LEFT JOIN Products p ON oi.ProductId = p.ProductId
       WHERE oi.OrderId = @oid
-    `, { oid: o.OrderId }),
-    query(`
+    `, { oid }),
+    db.query(`
       SELECT h.HistoryId, h.FromStatus, h.ToStatus, h.Note, h.CreatedAt, u.FullName AS ChangedByName
-      FROM dbo.OrderStatusHistory h
-      LEFT JOIN dbo.Users u ON h.ChangedBy = u.UserId
+      FROM OrderStatusHistory h
+      LEFT JOIN Users u ON h.ChangedBy = u.UserId
       WHERE h.OrderId = @oid
       ORDER BY h.CreatedAt ASC
-    `, { oid: o.OrderId })
+    `, { oid })
   ]);
 
   const items = iRes.recordset.map(i => {
-    const packOpt = i.PackagingOption || 'box';
+    const packOpt = i.PackagingOption || i.packagingoption || 'box';
     return {
-      orderItemId: i.OrderItemId,
-      productId: i.ProductId,
-      name: i.ProductName,
-      productName: i.ProductName,
+      orderItemId: i.OrderItemId || i.orderitemid,
+      productId: i.ProductId || i.productid,
+      name: i.ProductName || i.productname,
+      productName: i.ProductName || i.productname,
       packagingOption: packOpt,
       packagingLabel: packOpt === 'card' ? 'Bản Card (Vỉ Blister)' : 'Bản Box (Hộp giấy)',
-      unitPrice: Number(i.UnitPrice),
-      quantity: i.Quantity,
-      lineTotal: Number(i.LineTotal),
-      sku: i.Sku,
-      productSku: i.Sku,
-      imageUrl: i.ImageUrl,
-      productImage: i.ImageUrl,
-      orderType: i.ProductStatus === 'pre_order' ? 'PRE_ORDER' : 'IN_STOCK',
-      ProductId: i.ProductId,
-      ProductName: i.ProductName,
-      PackagingOption: packOpt,
-      UnitPrice: Number(i.UnitPrice),
-      Quantity: i.Quantity,
-      LineTotal: Number(i.LineTotal),
-      Sku: i.Sku,
-      ImageUrl: i.ImageUrl
+      unitPrice: Number(i.UnitPrice || i.unitprice || 0),
+      quantity: i.Quantity || i.quantity || 1,
+      lineTotal: Number(i.LineTotal || i.linetotal || 0),
+      sku: i.Sku || i.sku,
+      productSku: i.Sku || i.sku,
+      imageUrl: i.ImageUrl || i.imageurl,
+      productImage: i.ImageUrl || i.imageurl,
+      orderType: (i.ProductStatus || i.productstatus) === 'pre_order' ? 'PRE_ORDER' : 'IN_STOCK'
     };
   });
 
@@ -551,7 +459,7 @@ async function listOrders({ status, paymentStatus, paymentMethod, q, userId, pho
   const where = [];
   const params = {};
   if (status === 'PRE_ORDER' || status === 'PREORDER') {
-    where.push('o.HasPreOrder = 1');
+    where.push('o.HasPreOrder = TRUE');
   } else if (status && status !== 'all' && status !== 'ALL') {
     where.push('o.Status = @status');
     params.status = String(status).toUpperCase();
@@ -573,7 +481,7 @@ async function listOrders({ status, paymentStatus, paymentMethod, q, userId, pho
     params.phone = v.cleanPhone(phone);
   }
   if (q && String(q).trim()) {
-    where.push('(o.OrderCode LIKE @q OR o.FullName LIKE @q OR o.Phone LIKE @q OR o.TrackingCode LIKE @q)');
+    where.push('(o.OrderCode ILIKE @q OR o.FullName ILIKE @q OR o.Phone ILIKE @q OR o.TrackingCode ILIKE @q)');
     params.q = `%${String(q).trim()}%`;
   }
   const whereClause = where.length ? `WHERE ${where.join(' AND ')}` : '';
@@ -584,13 +492,13 @@ async function listOrders({ status, paymentStatus, paymentMethod, q, userId, pho
   params.ps = ps;
 
   const [cRes, dRes] = await Promise.all([
-    query(`SELECT COUNT(*) AS Total FROM dbo.Orders o ${whereClause}`, params),
-    query(`
+    db.query(`SELECT COUNT(*) AS Total FROM Orders o ${whereClause}`, params),
+    db.query(`
       SELECT o.*
-      FROM dbo.Orders o
+      FROM Orders o
       ${whereClause}
       ORDER BY o.CreatedAt DESC
-      OFFSET @offset ROWS FETCH NEXT @ps ROWS ONLY
+      LIMIT @ps OFFSET @offset
     `, params)
   ]);
 
@@ -599,48 +507,41 @@ async function listOrders({ status, paymentStatus, paymentMethod, q, userId, pho
     return { items: [], total: 0, page: p, pageSize: ps, totalPages: 1 };
   }
 
-  const ids = orders.map(o => o.OrderId).join(',');
-  const itemsRes = await query(`
+  const ids = orders.map(o => o.OrderId || o.orderid).join(',');
+  const itemsRes = await db.query(`
     SELECT oi.OrderId, oi.OrderItemId, oi.ProductId, oi.ProductName, oi.PackagingOption, oi.UnitPrice, oi.Quantity, oi.LineTotal,
            p.Sku, p.ImageUrl, p.Status AS ProductStatus
-    FROM dbo.OrderItems oi
-    LEFT JOIN dbo.Products p ON oi.ProductId = p.ProductId
+    FROM OrderItems oi
+    LEFT JOIN Products p ON oi.ProductId = p.ProductId
     WHERE oi.OrderId IN (${ids})
   `);
 
   const byOrder = new Map();
   for (const row of itemsRes.recordset) {
-    const key = String(row.OrderId);
+    const key = String(row.OrderId || row.orderid);
     if (!byOrder.has(key)) byOrder.set(key, []);
-    const packOpt = row.PackagingOption || 'box';
+    const packOpt = row.PackagingOption || row.packagingoption || 'box';
     byOrder.get(key).push({
-      orderItemId: row.OrderItemId,
-      productId: row.ProductId,
-      name: row.ProductName,
-      productName: row.ProductName,
+      orderItemId: row.OrderItemId || row.orderitemid,
+      productId: row.ProductId || row.productid,
+      name: row.ProductName || row.productname,
+      productName: row.ProductName || row.productname,
       packagingOption: packOpt,
       packagingLabel: packOpt === 'card' ? 'Bản Card (Vỉ Blister)' : 'Bản Box (Hộp giấy)',
-      unitPrice: Number(row.UnitPrice),
-      quantity: row.Quantity,
-      lineTotal: Number(row.LineTotal),
-      sku: row.Sku,
-      productSku: row.Sku,
-      imageUrl: row.ImageUrl,
-      productImage: row.ImageUrl,
-      orderType: row.ProductStatus === 'pre_order' ? 'PRE_ORDER' : 'IN_STOCK',
-      ProductName: row.ProductName,
-      PackagingOption: packOpt,
-      UnitPrice: Number(row.UnitPrice),
-      Quantity: row.Quantity,
-      LineTotal: Number(row.LineTotal),
-      Sku: row.Sku,
-      ImageUrl: row.ImageUrl
+      unitPrice: Number(row.UnitPrice || row.unitprice || 0),
+      quantity: row.Quantity || row.quantity || 1,
+      lineTotal: Number(row.LineTotal || row.linetotal || 0),
+      sku: row.Sku || row.sku,
+      productSku: row.Sku || row.sku,
+      imageUrl: row.ImageUrl || row.imageurl,
+      productImage: row.ImageUrl || row.imageurl,
+      orderType: (row.ProductStatus || row.productstatus) === 'pre_order' ? 'PRE_ORDER' : 'IN_STOCK'
     });
   }
 
-  const total = cRes.recordset[0]?.Total || 0;
+  const total = Number(cRes.recordset[0]?.Total || cRes.recordset[0]?.total || 0);
   return {
-    items: orders.map(o => mapOrder(o, byOrder.get(String(o.OrderId)) || [])),
+    items: orders.map(o => mapOrder(o, byOrder.get(String(o.OrderId || o.orderid)) || [])),
     total,
     page: p,
     pageSize: ps,
