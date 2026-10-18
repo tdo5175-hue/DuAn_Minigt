@@ -8,15 +8,16 @@
  */
 (function (global) {
   'use strict';
-
-  const getApiBase = () => {
+const getApiBase = () => {
     if (global.MINIGT_API_BASE) return global.MINIGT_API_BASE.replace(/\/+$/, '');
-    if (global.location) {
-      if (global.location.protocol === 'file:' || (global.location.port && global.location.port !== '5000')) {
-        return 'http://localhost:5000';
-      }
+    
+    // Nếu chạy trên Vercel hoặc môi trường production (không phải localhost)
+    if (global.location && !global.location.hostname.includes('localhost') && global.location.protocol !== 'file:') {
+      return 'https://duan-nhom2.onrender.com'; // <-- Thay chính xác link Render của bạn vào đây
     }
-    return '';
+
+    // Khi chạy thử ở máy cá nhân
+    return 'http://localhost:5000';
   };
 
   const API_BASE = getApiBase();
