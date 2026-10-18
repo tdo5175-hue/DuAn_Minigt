@@ -1,5 +1,5 @@
 /**
- * AUTH ROUTES (/api/auth) — ĐỒNG BỘ HOÀN TOÀN VỚI SQL SERVER (dbo.Users)
+ * AUTH ROUTES (/api/auth) — ĐỒNG BỘ VỚI SUPABASE POSTGRESQL
  */
 const express = require('express');
 const router = express.Router();
@@ -14,7 +14,27 @@ const v = {
   isVNPhone: (val) => /^(0|\+?84)\d{8,10}$/.test(String(val || '').replace(/[\s.\-()]/g, ''))
 };
 
-function publicUser(u) {
+function normalizeUserRow(u) {
+  if (!u) return null;
+  return {
+    UserId: u.UserId ?? u.userid,
+    FullName: u.FullName ?? u.fullname,
+    Email: u.Email ?? u.email,
+    PasswordHash: u.PasswordHash ?? u.passwordhash,
+    GoogleId: u.GoogleId ?? u.googleid,
+    AvatarUrl: u.AvatarUrl ?? u.avatarurl,
+    Phone: u.Phone ?? u.phone,
+    Address: u.Address ?? u.address,
+    AuthProvider: u.AuthProvider ?? u.authprovider,
+    Role: u.Role ?? u.role,
+    IsActive: u.IsActive ?? u.isactive ?? true,
+    CreatedAt: u.CreatedAt ?? u.createdat,
+    LastLoginAt: u.LastLoginAt ?? u.lastloginat
+  };
+}
+
+function publicUser(raw) {
+  const u = normalizeUserRow(raw);
   return {
     id: u.UserId,
     userId: u.UserId,
@@ -57,7 +77,7 @@ router.post('/register', async (req, res, next) => {
     if (phone && !v.isVNPhone(phone)) throw badRequest('Số điện thoại không đúng định dạng Việt Nam');
 
     const checkUser = await db.query(
-      'SELECT UserId FROM dbo.Users WHERE LOWER(Email) = @email',
+      'SELECT UserId FROM Users WHERE LOWER(Email) = @email',
       { email }
     );
     if (checkUser.recordset.length > 0) {
@@ -66,12 +86,12 @@ router.post('/register', async (req, res, next) => {
 
     const passwordHash = await bcrypt.hash(password, 10);
     const insertRes = await db.query(`
-      INSERT INTO dbo.Users (FullName, Email, PasswordHash, Phone, Address, AuthProvider, Role, IsActive)
-      OUTPUT INSERTED.*
-      VALUES (@fullName, @email, @passwordHash, @phone, @address, 'local', 'customer', 1)
+      INSERT INTO Users (FullName, Email, PasswordHash, Phone, Address, AuthProvider, Role, IsActive)
+      VALUES (@fullName, @email, @passwordHash, @phone, @address, 'local', 'customer', TRUE)
+      RETURNING *
     `, { fullName, email, passwordHash, phone: phone || null, address: address || null });
 
-    const newUser = insertRes.recordset[0];
+    const newUser = normalizeUserRow(insertRes.recordset[0]);
     const token = signToken(newUser);
     const clean = publicUser(newUser);
 
@@ -96,16 +116,16 @@ router.post('/login', async (req, res, next) => {
     const cleanPhone = identifier.replace(/\D/g, '');
     const result = await db.query(`
       SELECT *
-      FROM dbo.Users
+      FROM Users
       WHERE LOWER(Email) = @identifier
-         OR (@cleanPhone <> '' AND REPLACE(REPLACE(ISNULL(Phone, ''), ' ', ''), '.', '') = @cleanPhone)
+         OR (@cleanPhone <> '' AND REPLACE(REPLACE(COALESCE(Phone, ''), ' ', ''), '.', '') = @cleanPhone)
     `, { identifier, cleanPhone });
 
     if (result.recordset.length === 0) {
       throw unauthorized('Tài khoản chưa tồn tại! Vui lòng đăng ký hội viên hoặc dùng tài khoản mẫu.', 'USER_NOT_FOUND');
     }
 
-    const user = result.recordset[0];
+    const user = normalizeUserRow(result.recordset[0]);
     if (!user.IsActive) {
       throw forbidden('Tài khoản của bạn đã bị khóa. Vui lòng liên hệ cửa hàng.');
     }
@@ -119,7 +139,7 @@ router.post('/login', async (req, res, next) => {
       }
     }
 
-    await db.query('UPDATE dbo.Users SET LastLoginAt = SYSDATETIME() WHERE UserId = @id', { id: user.UserId });
+    await db.query('UPDATE Users SET LastLoginAt = NOW() WHERE UserId = @id', { id: user.UserId });
 
     const token = signToken(user);
     const clean = publicUser(user);
@@ -147,28 +167,28 @@ router.post('/google', async (req, res, next) => {
     const googleId = v.cleanStr(userInfo.sub || userInfo.id, 100);
     const avatarUrl = v.cleanStr(userInfo.picture, 500) || 'image/anh-clone.jpg';
 
-    const existing = await db.query('SELECT * FROM dbo.Users WHERE LOWER(Email) = @email', { email });
+    const existing = await db.query('SELECT * FROM Users WHERE LOWER(Email) = @email', { email });
     let user;
 
     if (existing.recordset.length > 0) {
-      user = existing.recordset[0];
+      user = normalizeUserRow(existing.recordset[0]);
       if (!user.IsActive) throw forbidden('Tài khoản của bạn đã bị khóa.');
       const up = await db.query(`
-        UPDATE dbo.Users
+        UPDATE Users
         SET GoogleId = COALESCE(@googleId, GoogleId),
             AvatarUrl = COALESCE(@avatarUrl, AvatarUrl),
-            LastLoginAt = SYSDATETIME()
-        OUTPUT INSERTED.*
+            LastLoginAt = NOW()
         WHERE UserId = @userId
+        RETURNING *
       `, { googleId: googleId || null, avatarUrl, userId: user.UserId });
-      user = up.recordset[0];
+      user = normalizeUserRow(up.recordset[0]);
     } else {
       const ins = await db.query(`
-        INSERT INTO dbo.Users (FullName, Email, GoogleId, AvatarUrl, AuthProvider, Role, IsActive, LastLoginAt)
-        OUTPUT INSERTED.*
-        VALUES (@fullName, @email, @googleId, @avatarUrl, 'google', 'customer', 1, SYSDATETIME())
+        INSERT INTO Users (FullName, Email, GoogleId, AvatarUrl, AuthProvider, Role, IsActive, LastLoginAt)
+        VALUES (@fullName, @email, @googleId, @avatarUrl, 'google', 'customer', TRUE, NOW())
+        RETURNING *
       `, { fullName, email, googleId: googleId || null, avatarUrl });
-      user = ins.recordset[0];
+      user = normalizeUserRow(ins.recordset[0]);
     }
 
     const token = signToken(user);
@@ -192,16 +212,16 @@ router.post('/forgot', async (req, res, next) => {
     const cleanPhone = identifier.replace(/\D/g, '');
     const result = await db.query(`
       SELECT UserId, Email, FullName
-      FROM dbo.Users
+      FROM Users
       WHERE LOWER(Email) = @identifier
-         OR (@cleanPhone <> '' AND REPLACE(REPLACE(ISNULL(Phone, ''), ' ', ''), '.', '') = @cleanPhone)
+         OR (@cleanPhone <> '' AND REPLACE(REPLACE(COALESCE(Phone, ''), ' ', ''), '.', '') = @cleanPhone)
     `, { identifier, cleanPhone });
 
     if (result.recordset.length === 0) {
       throw badRequest('Không tìm thấy tài khoản với Email hoặc Số điện thoại này trong hệ thống!');
     }
 
-    const u = result.recordset[0];
+    const u = normalizeUserRow(result.recordset[0]);
     return res.status(200).json({
       success: true,
       otp: '6868',
@@ -224,11 +244,11 @@ router.post('/reset-password', async (req, res, next) => {
     const passwordHash = await bcrypt.hash(newPassword, 10);
 
     const up = await db.query(`
-      UPDATE dbo.Users
+      UPDATE Users
       SET PasswordHash = @passwordHash
-      OUTPUT INSERTED.UserId, INSERTED.Email
       WHERE LOWER(Email) = @identifier
-         OR (@cleanPhone <> '' AND REPLACE(REPLACE(ISNULL(Phone, ''), ' ', ''), '.', '') = @cleanPhone)
+         OR (@cleanPhone <> '' AND REPLACE(REPLACE(COALESCE(Phone, ''), ' ', ''), '.', '') = @cleanPhone)
+      RETURNING UserId, Email
     `, { identifier, cleanPhone, passwordHash });
 
     if (up.recordset.length === 0) {
@@ -252,12 +272,12 @@ router.put('/profile', async (req, res, next) => {
     const address = v.cleanStr(req.body.address, 255);
 
     const up = await db.query(`
-      UPDATE dbo.Users
+      UPDATE Users
       SET FullName = COALESCE(NULLIF(@fullName, ''), FullName),
           Phone = COALESCE(NULLIF(@phone, ''), Phone),
           Address = COALESCE(NULLIF(@address, ''), Address)
-      OUTPUT INSERTED.*
       WHERE (UserId = @userId AND @userId > 0) OR (LOWER(Email) = @email AND @email <> '')
+      RETURNING *
     `, { userId, email, fullName, phone, address });
 
     if (up.recordset.length === 0) {
@@ -269,7 +289,7 @@ router.put('/profile', async (req, res, next) => {
       success: true,
       user: clean,
       data: clean,
-      message: 'Cập nhật hồ sơ tài khoản vào CSDL SQL Server thành công!'
+      message: 'Cập nhật hồ sơ tài khoản thành công!'
     });
   } catch (err) { next(err); }
 });
