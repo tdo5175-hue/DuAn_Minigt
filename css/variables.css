@@ -105,4 +105,59 @@
   --transition-fast: 0.18s ease-in-out;
   --transition-normal: 0.28s cubic-bezier(0.4, 0, 0.2, 1);
   --transition-slow: 0.45s cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* --- BIẾN GIAO DIỆN ĐỘNG (LIGHT / DARK THEME) --- */
+  --bg-page: #f8fafc;
+  --bg-surface: #ffffff;
+  --bg-surface-alt: #f1f5f9;
+  --bg-elevated: #ffffff;
+  --bg-glass: rgba(255, 255, 255, 0.92);
+  --text-primary: #0b132b;
+  --text-secondary: #475569;
+  --text-muted: #64748b;
+  --border-subtle: #e2e8f0;
+  --border-strong: #cbd5e1;
+  --card-stage-bg: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
 }
+
+/* =====================================================================
+   DARK MODE THEME ([data-theme="dark"] / body.dark-mode)
+   Phong cách Showroom Paddock Đêm Carbon Cao Cấp
+   ===================================================================== */
+[data-theme="dark"],
+body.dark-mode {
+  --color-navy: #f8fafc;
+  --color-navy-dark: #ffffff;
+  --color-navy-light: #e2e8f0;
+  --color-dark: #f1f5f9;
+
+  --color-gray-900: #f8fafc;
+  --color-gray-800: #e2e8f0;
+  --color-gray-700: #cbd5e1;
+  --color-gray-600: #94a3b8;
+  --color-gray-500: #94a3b8;
+  --color-gray-400: #64748b;
+  --color-gray-300: #334155;
+  --color-gray-200: #1e293b;
+  --color-gray-100: #131c31;
+  --color-gray-50:  #0b1120;
+  --color-white:    #0f172a;
+
+  --color-primary-light: rgba(225, 6, 0, 0.18);
+
+  --bg-page: #070b14;
+  --bg-surface: #0f172a;
+  --bg-surface-alt: #131d35;
+  --bg-elevated: #17233f;
+  --bg-glass: rgba(15, 23, 42, 0.92);
+  --text-primary: #f8fafc;
+  --text-secondary: #cbd5e1;
+  --text-muted: #94a3b8;
+  --border-subtle: #1e293b;
+  --border-strong: #334155;
+  --card-stage-bg: radial-gradient(circle at 50% 35%, #1e293b 0%, #0b132b 100%);
+
+  --shadow-card: 0 6px 22px rgba(0, 0, 0, 0.45);
+  --shadow-card-hover: 0 18px 38px rgba(0, 0, 0, 0.65), 0 0 22px rgba(225, 6, 0, 0.2);
+}
+

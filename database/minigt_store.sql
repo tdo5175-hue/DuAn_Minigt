@@ -87,7 +87,7 @@ BEGIN
         Email VARCHAR(150) NOT NULL UNIQUE,
         PasswordHash VARCHAR(255) NULL,
         GoogleId VARCHAR(100) NULL,
-        AvatarUrl NVARCHAR(500) NULL,
+        AvatarUrl NVARCHAR(500) NULL DEFAULT 'image/anh-clone.jpg',
         Phone VARCHAR(20) NULL,
         Address NVARCHAR(255) NULL,
         AuthProvider VARCHAR(20) NOT NULL DEFAULT 'local', -- 'local', 'google'

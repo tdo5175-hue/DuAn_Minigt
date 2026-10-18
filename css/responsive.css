@@ -109,30 +109,30 @@
 
   /* Product grid */
   .product-grid {
-    grid-template-columns: repeat(2, 1fr);
-    gap: var(--space-3);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
   }
 
   .product-card {
-    border-radius: var(--radius-md);
+    border-radius: 14px !important;
+  }
+
+  .card-image-box {
+    height: 205px;
+    padding: 0.85rem 0.85rem 1.65rem;
   }
 
   .card-body {
-    padding: 0.75rem;
+    padding: 0.95rem 1rem 1.05rem;
   }
 
   .product-title {
-    font-size: var(--text-xs);
-    min-height: 2.4em;
+    font-size: 14.5px;
+    min-height: 2.6em;
   }
 
   .current-price {
-    font-size: var(--text-sm);
-  }
-
-  .card-order-btn {
-    padding: 0.35rem 0.65rem;
-    font-size: 11px;
+    font-size: 17px;
   }
 
   /* Filter pills */
@@ -141,6 +141,7 @@
     overflow-x: auto;
     flex-wrap: nowrap;
     padding-bottom: 8px;
+    -webkit-overflow-scrolling: touch;
   }
 
   .filter-pill {
@@ -172,8 +173,8 @@
 
   /* Quick contact FAB */
   .quick-contact-fab {
-    bottom: 16px;
-    left: 16px;
+    bottom: 76px;
+    left: 14px;
   }
 
   .fab-btn {
@@ -200,36 +201,52 @@
     flex: 1;
     max-width: none !important;
   }
-}
 
-@media (max-width: 480px) {
+  /* On mobile phones <= 600px, 1 large clear collector card per row or 2 clean cards */
   .product-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 10px;
+    grid-template-columns: 1fr;
+    gap: 16px;
   }
 
   .card-image-box {
-    padding-top: 65%;
+    height: 220px;
+    padding: 0.9rem 1rem 1.75rem;
   }
 
+  .product-title {
+    font-size: 15.5px;
+    min-height: auto;
+  }
+}
+
+@media (max-width: 480px) {
   .section-title {
-    font-size: var(--text-lg);
+    font-size: 1.35rem;
   }
 
   .modal-body {
-    padding: 1rem;
+    padding: 1.1rem;
   }
 
   .modal-container {
-    border-radius: var(--radius-lg);
-    width: 95% !important;
-    max-width: 95% !important;
+    border-radius: 16px;
+    width: 96% !important;
+    max-width: 96% !important;
+  }
+
+  #checkoutModal .checkout-stepper-container > .modal-body {
+    padding: 1.1rem 1rem 1rem;
+  }
+
+  #checkoutModal .checkout-stepper-container .stepper-actions {
+    margin-left: -1rem;
+    margin-right: -1rem;
+    padding: 12px 1rem max(12px, env(safe-area-inset-bottom));
+  }
+
+  .header-prefs-group .pref-label-text {
+    display: none;
   }
 }
 
-@media (max-width: 360px) {
-  .product-grid {
-    grid-template-columns: 1fr;
-  }
-}
 

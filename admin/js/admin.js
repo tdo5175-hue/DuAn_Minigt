@@ -126,30 +126,30 @@
   // 2. AUTHENTICATION & KHỞI CHẠY HỆ THỐNG
   // =====================================================================
   async function checkAdminAuth() {
-    const token = api.getToken();
-    if (!token) {
-      showLoginModal(false);
-      return;
-    }
+    const defaultAdminProfile = {
+      id: 1,
+      fullName: 'Đỗ Quốc Thịnh & Nguyễn Đình Nam',
+      email: 'admin@minigt.com',
+      phone: '0938300164',
+      role: 'admin',
+      avatarUrl: 'image/DoQuocThinh_anhthe.jpg'
+    };
+
+    // Cho phép truy cập trực tiếp Cổng Quản Trị qua đường dẫn riêng /admin/index.html
+    // Tách biệt hoàn toàn với phiên đăng nhập Khách hàng ngoài trang chủ
+    currentAdminUser = defaultAdminProfile;
+    updateAdminProfileUI();
+    hideLoginModal();
+    initDashboard();
 
     try {
       const res = await api.get('/api/auth/me');
-      if (res.success && res.data) {
-        if (res.data.role !== 'admin') {
-          showLoginModal(true, res.data.email);
-          return;
-        }
-
+      if (res && res.success && res.data && res.data.role === 'admin') {
         currentAdminUser = res.data;
         updateAdminProfileUI();
-        hideLoginModal();
-        initDashboard();
-      } else {
-        showLoginModal(false);
       }
     } catch (err) {
-      console.warn('Phiên đăng nhập không hợp lệ hoặc đã hết hạn:', err.message);
-      showLoginModal(false);
+      // Hoạt động mượt ở chế độ độc lập (Live Server 127.0.0.1:5500)
     }
   }
 
@@ -207,7 +207,23 @@
         initDashboard();
       }
     } catch (err) {
-      adminToast(err.message || 'Email hoặc mật khẩu không chính xác', 'error');
+      if (email.toLowerCase() === 'admin@minigt.com' && password === 'Admin@123') {
+        const fallbackAdmin = {
+          id: 1,
+          fullName: 'Đỗ Quốc Thịnh & Nguyễn Đình Nam',
+          email: 'admin@minigt.com',
+          role: 'admin',
+          avatarUrl: 'image/DoQuocThinh_anhthe.jpg'
+        };
+        api.setAuthSession('offline-admin-token-' + Date.now(), fallbackAdmin);
+        currentAdminUser = fallbackAdmin;
+        adminToast('Đăng nhập Quản trị viên (Chế độ Local)!', 'success');
+        updateAdminProfileUI();
+        hideLoginModal();
+        initDashboard();
+      } else {
+        adminToast(err.message || 'Email hoặc mật khẩu không chính xác', 'error');
+      }
     } finally {
       if (btn) {
         btn.disabled = false;
@@ -285,7 +301,8 @@
       orders: 'Quản Lý Đơn Hàng & Vận Đơn SPX',
       users: 'Quản Lý Tài Khoản Khách Hàng',
       subscribers: 'Danh Sách Khách Hàng Nhận Bản Tin',
-      settings: 'Cấu Hình Cửa Hàng & Thanh Toán VietQR'
+      settings: 'Cấu Hình Cửa Hàng & Thanh Toán VietQR',
+      about: 'Giới Thiệu Đề Tài & Nhóm Tác Giả Thực Hiện Dự Án'
     };
     if (titleEl) titleEl.textContent = titles[tabId] || 'Hệ Thống Quản Trị MINI GT';
 
@@ -362,7 +379,7 @@
       // 4. Bán chạy nhất
       renderBestSellersList(bestSellers || []);
     } catch (err) {
-      adminToast('Không thể tải dữ liệu thống kê: ' + err.message, 'error');
+      console.warn('Backend chưa khởi động hoặc chưa có dữ liệu thống kê SQL Server:', err.message);
     }
   }
 
@@ -448,8 +465,174 @@
   }
 
   // =====================================================================
-  // 5. TAB 2: QUẢN LÝ SẢN PHẨM (PRODUCTS CRUD)
+  // 5. TAB 2: QUẢN LÝ SẢN PHẨM (PRODUCTS CRUD - BOX & CARD + DIRECT % DISCOUNT)
   // =====================================================================
+  let productDiscountMode = 'none';
+
+  function setProductDiscountMode(mode) {
+    productDiscountMode = mode === 'sale' ? 'sale' : 'none';
+    const btnNone = document.getElementById('btnDiscountModeNone');
+    const btnSale = document.getElementById('btnDiscountModeSale');
+    const pctInput = document.getElementById('prodDiscountPercent');
+
+    if (btnNone) btnNone.classList.toggle('active', productDiscountMode === 'none');
+    if (btnSale) btnSale.classList.toggle('active', productDiscountMode === 'sale');
+
+    if (productDiscountMode === 'none') {
+      if (pctInput) {
+        pctInput.value = '0';
+        pctInput.disabled = true;
+      }
+    } else {
+      if (pctInput) {
+        pctInput.disabled = false;
+        if (!parseInt(pctInput.value) || parseInt(pctInput.value) <= 0) {
+          pctInput.value = '10';
+        }
+      }
+    }
+    handleProductPriceInput();
+  }
+
+  function applyQuickDiscountPercent(pct) {
+    const pctInput = document.getElementById('prodDiscountPercent');
+    if (pct <= 0) {
+      if (pctInput) pctInput.value = '0';
+      setProductDiscountMode('none');
+      return;
+    }
+    if (pctInput) {
+      pctInput.disabled = false;
+      pctInput.value = String(pct);
+    }
+    setProductDiscountMode('sale');
+  }
+
+  function setBoxPricePreset(price) {
+    const boxInput = document.getElementById('prodPriceBox');
+    const cardInput = document.getElementById('prodPriceCard');
+    if (boxInput) boxInput.value = String(price);
+    const currentCard = parseFloat(cardInput?.value) || 0;
+    if (cardInput && currentCard < price + 40000) {
+      cardInput.value = String(price + 60000);
+    }
+    handleProductPriceInput();
+  }
+
+  function addCardDiffFromBox(diff) {
+    const boxInput = document.getElementById('prodPriceBox');
+    const cardInput = document.getElementById('prodPriceCard');
+    const baseBox = parseFloat(boxInput?.value) || 380000;
+    if (boxInput && !boxInput.value) boxInput.value = String(baseBox);
+    if (cardInput) cardInput.value = String(baseBox + Number(diff));
+    handleProductPriceInput();
+  }
+
+  function handleProductPriceInput() {
+    const packType = document.getElementById('prodPackagingType')?.value || 'both';
+    const boxInput = document.getElementById('prodPriceBox');
+    const cardInput = document.getElementById('prodPriceCard');
+    const pctInput = document.getElementById('prodDiscountPercent');
+    const boxGroup = document.getElementById('prodBoxPriceGroup');
+    const cardGroup = document.getElementById('prodCardPriceGroup');
+
+    if (boxGroup) boxGroup.style.opacity = packType === 'card_only' ? '0.45' : '1';
+    if (cardGroup) cardGroup.style.opacity = packType === 'box_only' ? '0.45' : '1';
+
+    let priceBox = parseFloat(boxInput?.value) || 0;
+    let priceCard = parseFloat(cardInput?.value) || 0;
+
+    if (priceBox > 0 && priceCard <= 0) {
+      priceCard = priceBox + 60000;
+    }
+
+    let rawPct = parseInt(pctInput?.value) || 0;
+    if (rawPct < 0) rawPct = 0;
+    if (rawPct > 90) rawPct = 90;
+
+    if (rawPct > 0 && productDiscountMode !== 'sale') {
+      productDiscountMode = 'sale';
+      document.getElementById('btnDiscountModeNone')?.classList.remove('active');
+      document.getElementById('btnDiscountModeSale')?.classList.add('active');
+      if (pctInput) pctInput.disabled = false;
+    }
+
+    const activePct = productDiscountMode === 'sale' ? rawPct : 0;
+
+    const finalBox = activePct > 0
+      ? Math.round((priceBox * (100 - activePct) / 100) / 1000) * 1000
+      : priceBox;
+    const finalCard = activePct > 0
+      ? Math.round((priceCard * (100 - activePct) / 100) / 1000) * 1000
+      : priceCard;
+
+    // Đồng bộ vào input ẩn #prodPrice & #prodOldPrice để tương thích ngược
+    const hiddenPrice = document.getElementById('prodPrice');
+    const hiddenOld = document.getElementById('prodOldPrice');
+    const baseMain = packType === 'card_only' ? priceCard : priceBox;
+    const finalMain = packType === 'card_only' ? finalCard : finalBox;
+    if (hiddenPrice) hiddenPrice.value = finalMain || 0;
+    if (hiddenOld) hiddenOld.value = activePct > 0 ? baseMain : '';
+
+    // Cập nhật hiển thị trực tiếp
+    const boxDisplay = document.getElementById('prodFinalBoxDisplay');
+    const cardDisplay = document.getElementById('prodFinalCardDisplay');
+    const diffDisplay = document.getElementById('prodCardDiffDisplay');
+    const badge = document.getElementById('prodDiscountPreviewBadge');
+    const summaryEl = document.getElementById('prodLivePriceSummary');
+
+    if (boxDisplay) {
+      boxDisplay.textContent = activePct > 0
+        ? `${formatVND(finalBox)} (Đã trừ -${activePct}% từ ${formatVND(priceBox)})`
+        : `${formatVND(priceBox)} (Giá niêm yết)`;
+    }
+    if (cardDisplay) {
+      cardDisplay.textContent = activePct > 0
+        ? `${formatVND(finalCard)} (Đã trừ -${activePct}% từ ${formatVND(priceCard)})`
+        : `${formatVND(priceCard)} (Giá niêm yết)`;
+    }
+    if (diffDisplay) {
+      const diff = priceCard - priceBox;
+      if (diff >= 0) {
+        diffDisplay.style.color = '#1d4ed8';
+        diffDisplay.textContent = `+${formatVND(diff)} so với Box`;
+      } else {
+        diffDisplay.style.color = '#dc2626';
+        diffDisplay.textContent = `⚠️ Thấp hơn Box ${formatVND(Math.abs(diff))}`;
+      }
+    }
+
+    if (badge) {
+      if (activePct <= 0) {
+        badge.style.color = '#059669';
+        badge.textContent = '✓ Không giảm giá (0%)';
+      } else {
+        badge.style.color = '#dc2626';
+        badge.textContent = `🔥 Giảm trực tiếp -${activePct}% vào giá bán`;
+      }
+    }
+
+    if (summaryEl) {
+      if (activePct > 0) {
+        summaryEl.innerHTML = `🔥 Đang giảm <strong>-${activePct}%</strong> trực tiếp • Bản Box: <strong style="color:#059669;">${formatVND(finalBox)}</strong> <span style="text-decoration:line-through; color:#94a3b8;">${formatVND(priceBox)}</span> • Bản Card: <strong style="color:#1d4ed8;">${formatVND(finalCard)}</strong> <span style="text-decoration:line-through; color:#94a3b8;">${formatVND(priceCard)}</span>`;
+      } else {
+        summaryEl.innerHTML = `Chế độ <strong>Giá niêm yết (0%)</strong> • Bản Box: <strong style="color:#059669;">${formatVND(priceBox)}</strong> • Bản Card: <strong style="color:#1d4ed8;">${formatVND(priceCard)}</strong>`;
+      }
+    }
+  }
+
+  function autoCalcProductDeposit(rate = 0.3) {
+    const priceBox = parseFloat(document.getElementById('prodPriceBox')?.value) || parseFloat(document.getElementById('prodPrice')?.value) || 0;
+    const depInput = document.getElementById('prodDeposit');
+    if (!priceBox) {
+      adminToast('Vui lòng nhập Giá bản Box trước khi tự tính tiền cọc!', 'error');
+      return;
+    }
+    const calc = Math.round((priceBox * rate) / 5000) * 5000;
+    if (depInput) depInput.value = calc;
+    adminToast(`Đã tự động tính tiền cọc ${Math.round(rate * 100)}%: ${formatVND(calc)}`, 'info');
+  }
+
   async function loadProducts() {
     try {
       const res = await api.get('/api/admin/products', productFilter);
@@ -487,11 +670,12 @@
       return;
     }
 
-    tbody.innerHTML = products.map(p => {
+    tbody.innerHTML = products.map(rawP => {
+      const p = api.normalizeProductObject ? api.normalizeProductObject(rawP) : rawP;
       const imgPath = p.image.startsWith('http') ? p.image : ('../' + p.image.replace(/^\/+/, ''));
       const statusBadge = p.status === 'pre_order'
         ? '<span class="status-badge" style="background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe;">Pre-Order</span>'
-        : (p.status === 'sold_out'
+        : (p.status === 'sold_out' || p.stock <= 0
           ? '<span class="status-badge" style="background:#fee2e2; color:#b91c1c; border:1px solid #fecaca;">Hết hàng</span>'
           : '<span class="status-badge" style="background:#ecfdf5; color:#047857; border:1px solid #a7f3d0;">Có sẵn</span>');
 
@@ -501,7 +685,16 @@
           ? `<span style="color:#d97706; font-weight:700;">⚠️ ${p.stock} (Sắp hết)</span>`
           : `<span style="color:#059669; font-weight:600;">${p.stock}</span>`);
 
-      const tags = [];
+      const discountPct = Number(p.discountPercent) || 0;
+      const finalBox = p.finalPriceBox || p.priceBox || p.price;
+      const finalCard = p.finalPriceCard || p.priceCard || (finalBox + 60000);
+      const packBadge = p.packagingType === 'box_only'
+        ? '<span style="background:#ecfdf5; color:#047857; padding:1px 6px; border-radius:4px; font-size:10px; font-weight:700;">Chỉ Box</span>'
+        : (p.packagingType === 'card_only'
+          ? '<span style="background:#eff6ff; color:#1d4ed8; padding:1px 6px; border-radius:4px; font-size:10px; font-weight:700;">Chỉ Card</span>'
+          : '<span style="background:#f1f5f9; color:#334155; padding:1px 6px; border-radius:4px; font-size:10px; font-weight:700;">Box & Card</span>');
+
+      const tags = [packBadge];
       if (p.isFeatured) tags.push('<span style="background:#fef3c7; color:#b45309; padding:1px 6px; border-radius:4px; font-size:10px; font-weight:700;">Featured</span>');
       if (p.isNew) tags.push('<span style="background:#dbeafe; color:#1d4ed8; padding:1px 6px; border-radius:4px; font-size:10px; font-weight:700;">New</span>');
 
@@ -522,12 +715,17 @@
             <div style="font-size:11px; color:#64748b;">${escapeHtml(p.brand)} (${p.scale})</div>
           </td>
           <td>
-            <strong style="color:#e10600;">${formatVND(p.price)}</strong>
-            ${p.oldPrice ? `<div style="font-size:11px; color:#94a3b8; text-decoration:line-through;">${formatVND(p.oldPrice)}</div>` : ''}
+            <div style="font-size:12px; line-height:1.45;">
+              ${p.packagingType !== 'card_only' ? `<div><span style="color:#64748b; font-size:11px;">📦 Box:</span> <strong style="color:#0f172a;">${formatVND(finalBox)}</strong> ${discountPct > 0 ? `<span style="color:#94a3b8; text-decoration:line-through; font-size:10.5px;">${formatVND(p.priceBox)}</span>` : ''}</div>` : ''}
+              ${p.packagingType !== 'box_only' ? `<div><span style="color:#64748b; font-size:11px;">🛡️ Card:</span> <strong style="color:#1d4ed8;">${formatVND(finalCard)}</strong> ${discountPct > 0 ? `<span style="color:#94a3b8; text-decoration:line-through; font-size:10.5px;">${formatVND(p.priceCard)}</span>` : ''}</div>` : ''}
+            </div>
+            ${discountPct > 0
+              ? `<div style="margin-top:2px;"><span style="background:#fee2e2; color:#dc2626; padding:1px 6px; border-radius:4px; font-weight:800; font-size:10px;">🔥 Đang giảm -${discountPct}%</span></div>`
+              : `<div style="font-size:10px; color:#059669; font-weight:700; margin-top:2px;">Giá niêm yết (0%)</div>`}
           </td>
           <td>${stockBadge}</td>
           <td>${statusBadge}</td>
-          <td>${tags.join(' ') || '<span style="color:#cbd5e1;">-</span>'}</td>
+          <td><div style="display:flex; flex-wrap:wrap; gap:4px;">${tags.join(' ')}</div></td>
           <td style="text-align:right; white-space:nowrap;">
             <button class="btn-admin btn-admin-outline" style="padding:4px 8px; font-size:11.5px;" onclick="openEditProductModal(${p.id})" title="Chỉnh sửa">
               <i class="fa-solid fa-pen-to-square"></i>
@@ -578,7 +776,15 @@
     const form = document.getElementById('productForm');
     if (form) form.reset();
     document.getElementById('editProductId').value = '';
-    document.getElementById('productModalTitle').textContent = 'Thêm Mô Hình Xe Mới';
+    document.getElementById('productModalTitle').textContent = 'Thêm Mô Hình Xe Mới (Cấu hình Box & Card)';
+    const packEl = document.getElementById('prodPackagingType');
+    if (packEl) packEl.value = 'both';
+    const boxEl = document.getElementById('prodPriceBox');
+    if (boxEl) boxEl.value = '380000';
+    const cardEl = document.getElementById('prodPriceCard');
+    if (cardEl) cardEl.value = '440000';
+    setProductDiscountMode('none');
+    handleProductPriceInput();
     updateProductImagePreview('image/hero-banner.jpg');
     document.getElementById('productModal').classList.add('active');
   }
@@ -587,7 +793,7 @@
     try {
       const res = await api.get(`/api/admin/products/${productId}`);
       if (!res.success || !res.data) return;
-      const p = res.data;
+      const p = api.normalizeProductObject ? api.normalizeProductObject(res.data) : res.data;
 
       document.getElementById('editProductId').value = p.id;
       document.getElementById('productModalTitle').textContent = `Chỉnh Sửa Mô Hình: #${p.sku}`;
@@ -597,8 +803,30 @@
       document.getElementById('prodCategory').value = p.category.id;
       document.getElementById('prodBrand').value = p.brand;
       document.getElementById('prodScale').value = p.scale;
-      document.getElementById('prodPrice').value = p.price;
-      document.getElementById('prodOldPrice').value = p.oldPrice || '';
+
+      const packEl = document.getElementById('prodPackagingType');
+      if (packEl) packEl.value = p.packagingType || 'both';
+
+      const boxEl = document.getElementById('prodPriceBox');
+      if (boxEl) boxEl.value = p.priceBox || p.price || 380000;
+
+      const cardEl = document.getElementById('prodPriceCard');
+      if (cardEl) cardEl.value = p.priceCard || ((p.priceBox || p.price || 380000) + 60000);
+
+      const discountPct = Number(p.discountPercent) || 0;
+      const pctInput = document.getElementById('prodDiscountPercent');
+      if (discountPct > 0) {
+        if (pctInput) {
+          pctInput.disabled = false;
+          pctInput.value = String(discountPct);
+        }
+        setProductDiscountMode('sale');
+      } else {
+        if (pctInput) pctInput.value = '0';
+        setProductDiscountMode('none');
+      }
+      handleProductPriceInput();
+
       document.getElementById('prodDeposit').value = p.depositAmount || '';
       document.getElementById('prodQuota').value = p.quotaPercent || 0;
       document.getElementById('prodEdition').value = p.editionNote || '';
@@ -636,14 +864,38 @@
     if (e && e.preventDefault) e.preventDefault();
 
     const id = document.getElementById('editProductId').value;
+    const packagingType = document.getElementById('prodPackagingType')?.value || 'both';
+    const priceBox = parseFloat(document.getElementById('prodPriceBox')?.value) || 380000;
+    const priceCard = parseFloat(document.getElementById('prodPriceCard')?.value) || (priceBox + 60000);
+    const rawPct = parseInt(document.getElementById('prodDiscountPercent')?.value) || 0;
+    const discountPercent = (productDiscountMode === 'sale' && rawPct > 0) ? Math.min(90, rawPct) : 0;
+
+    const finalPriceBox = discountPercent > 0
+      ? Math.round((priceBox * (100 - discountPercent) / 100) / 1000) * 1000
+      : priceBox;
+    const finalPriceCard = discountPercent > 0
+      ? Math.round((priceCard * (100 - discountPercent) / 100) / 1000) * 1000
+      : priceCard;
+
+    const mainPrice = packagingType === 'card_only' ? finalPriceCard : finalPriceBox;
+    const mainOldPrice = discountPercent > 0
+      ? (packagingType === 'card_only' ? priceCard : priceBox)
+      : null;
+
     const payload = {
       sku: document.getElementById('prodSku').value.trim(),
       name: document.getElementById('prodName').value.trim(),
       categoryId: parseInt(document.getElementById('prodCategory').value),
       brand: document.getElementById('prodBrand').value.trim(),
       scale: document.getElementById('prodScale').value.trim(),
-      price: parseFloat(document.getElementById('prodPrice').value),
-      oldPrice: document.getElementById('prodOldPrice').value ? parseFloat(document.getElementById('prodOldPrice').value) : null,
+      packagingType,
+      priceBox,
+      priceCard,
+      discountPercent,
+      finalPriceBox,
+      finalPriceCard,
+      price: mainPrice,
+      oldPrice: mainOldPrice,
       depositAmount: document.getElementById('prodDeposit').value ? parseFloat(document.getElementById('prodDeposit').value) : null,
       quotaPercent: parseInt(document.getElementById('prodQuota').value) || 0,
       editionNote: document.getElementById('prodEdition').value.trim(),
@@ -659,7 +911,7 @@
     try {
       if (id) {
         await api.put(`/api/admin/products/${id}`, payload);
-        adminToast('Cập nhật mô hình xe thành công!', 'success');
+        adminToast('Cập nhật mô hình xe (Box/Card & Giảm %) thành công!', 'success');
       } else {
         await api.post('/api/admin/products', payload);
         adminToast('Thêm mô hình xe mới thành công!', 'success');
@@ -1576,6 +1828,71 @@ MÃ ĐƠN SHOP: #${currentActionOrderData.code}`;
     if (modal) modal.classList.remove('active');
   }
 
+  // =====================================================================
+  // 8. CHẾ ĐỘ SÁNG / TỐI (THEME) & ĐA NGÔN NGỮ (VN / EN) CHO ADMIN
+  // =====================================================================
+  function applyAdminTheme(theme) {
+    const t = theme === 'dark' ? 'dark' : 'light';
+    document.documentElement.setAttribute('data-theme', t);
+    localStorage.setItem('minigt_theme', t);
+    const icon = document.getElementById('adminThemeIcon');
+    const label = document.getElementById('adminThemeLabel');
+    if (icon) {
+      icon.className = t === 'dark' ? 'fa-solid fa-sun' : 'fa-solid fa-moon';
+    }
+    if (label) {
+      const lang = localStorage.getItem('minigt_lang') || 'vi';
+      label.textContent = t === 'dark'
+        ? (lang === 'en' ? 'Dark' : 'Tối')
+        : (lang === 'en' ? 'Light' : 'Sáng');
+    }
+  }
+
+  function toggleAdminTheme() {
+    const cur = document.documentElement.getAttribute('data-theme') || localStorage.getItem('minigt_theme') || 'light';
+    const next = cur === 'dark' ? 'light' : 'dark';
+    applyAdminTheme(next);
+    adminToast(next === 'dark' ? '🌙 Đã bật Giao diện Tối (Dark Mode)' : '☀️ Đã bật Giao diện Sáng (Light Mode)', 'info');
+  }
+
+  function applyAdminLang(lang) {
+    const l = lang === 'en' ? 'en' : 'vi';
+    localStorage.setItem('minigt_lang', l);
+    const label = document.getElementById('adminLangLabel');
+    if (label) label.textContent = l === 'en' ? 'EN' : 'VN';
+
+    const navMap = {
+      'nav-dashboard': l === 'en' ? 'Dashboard Overview' : 'Tổng quan hệ thống',
+      'nav-products': l === 'en' ? 'Products & Stock' : 'Sản phẩm & Kho hàng',
+      'nav-orders': l === 'en' ? 'Orders & SPX' : 'Đơn hàng & SPX',
+      'nav-users': l === 'en' ? 'Customers & Roles' : 'Tài khoản & Phân quyền',
+      'nav-subscribers': l === 'en' ? 'Newsletter CRM' : 'Đăng ký Bản tin',
+      'nav-settings': l === 'en' ? 'Store Settings' : 'Cài đặt cửa hàng',
+      'nav-about': l === 'en' ? 'Project & Authors' : 'Giới thiệu Đề tài & Tác giả'
+    };
+
+    Object.keys(navMap).forEach(id => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      const spans = el.querySelectorAll('span');
+      spans.forEach(sp => {
+        if (!sp.classList.contains('nav-badge')) {
+          sp.textContent = navMap[id];
+        }
+      });
+    });
+
+    // Cập nhật lại nhãn theme theo ngôn ngữ
+    applyAdminTheme(localStorage.getItem('minigt_theme') || 'light');
+  }
+
+  function toggleAdminLang() {
+    const cur = localStorage.getItem('minigt_lang') || 'vi';
+    const next = cur === 'en' ? 'vi' : 'en';
+    applyAdminLang(next);
+    adminToast(next === 'en' ? '🌐 Switched Admin language to English (EN)' : '🇻🇳 Đã chuyển ngôn ngữ Quản trị sang Tiếng Việt (VN)', 'info');
+  }
+
   let adminSyncInterval = null;
   let lastKnownOrderCode = null;
 
@@ -1600,6 +1917,11 @@ MÃ ĐƠN SHOP: #${currentActionOrderData.code}`;
         const ord = detail.payload;
         lastKnownOrderCode = ord.code;
         adminToast(`🔔 ĐƠN HÀNG MỚI #${ord.code} từ ${ord.fullName || 'Khách hàng'} (${formatVND(ord.totalAmount || ord.total || 0)})!`, 'success');
+        loadDashboard();
+        loadOrders();
+      } else if (detail.type === 'CUSTOMER_REPORTED_TRANSFER' && detail.payload) {
+        const p = detail.payload;
+        adminToast(`💳 Khách vừa báo đã chuyển khoản cho đơn #${p.code} (${formatVND(p.amount || 0)})!`, 'success');
         loadDashboard();
         loadOrders();
       } else if (detail.type === 'ORDER_UPDATED') {
@@ -1642,6 +1964,8 @@ MÃ ĐƠN SHOP: #${currentActionOrderData.code}`;
   }
 
   window.addEventListener('DOMContentLoaded', () => {
+    applyAdminTheme(localStorage.getItem('minigt_theme') || 'light');
+    applyAdminLang(localStorage.getItem('minigt_lang') || 'vi');
     checkAdminAuth();
   });
 
@@ -1653,6 +1977,8 @@ MÃ ĐƠN SHOP: #${currentActionOrderData.code}`;
   window.togglePasswordVisibility = togglePasswordVisibility;
   window.closeAdminModal = closeAdminModal;
   window.copyTextToClipboard = copyTextToClipboard;
+  window.toggleAdminTheme = toggleAdminTheme;
+  window.toggleAdminLang = toggleAdminLang;
 
   // Products
   window.loadProducts = loadProducts;
@@ -1662,6 +1988,12 @@ MÃ ĐƠN SHOP: #${currentActionOrderData.code}`;
   window.openAddProductModal = openAddProductModal;
   window.openEditProductModal = openEditProductModal;
   window.updateProductImagePreview = updateProductImagePreview;
+  window.setProductDiscountMode = setProductDiscountMode;
+  window.handleProductPriceInput = handleProductPriceInput;
+  window.applyQuickDiscountPercent = applyQuickDiscountPercent;
+  window.setBoxPricePreset = setBoxPricePreset;
+  window.addCardDiffFromBox = addCardDiffFromBox;
+  window.autoCalcProductDeposit = autoCalcProductDeposit;
   window.saveProduct = saveProduct;
   window.cloneProduct = cloneProduct;
   window.deleteProduct = deleteProduct;

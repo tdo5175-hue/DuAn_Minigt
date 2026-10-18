@@ -29,20 +29,22 @@
     <div class="container announcement-container">
       <div class="announcement-ticker">
         <span class="badge-fire"><i class="fa-solid fa-circle" style="color:#ef4444; font-size:9px;"></i></span>
-        <span>Đợt mở đặt trước toàn cầu: <strong>Liberty Walk LBWK, F1 Las Vegas & Secret Chase Edition</strong> | <i class="fa-regular fa-clock" style="font-size:11px; margin-left:4px;"></i> Hạn chót đợt cọc: <strong>30/10/2026</strong></span>
+        <span data-i18n="topbar_ticker">Đợt mở đặt trước toàn cầu: <strong>Liberty Walk LBWK, GT3 IMSA, F1 Las Vegas &amp; Secret Chase</strong> | <i class="fa-regular fa-clock" style="font-size:11px; margin-left:4px;"></i> Hạn chót đợt cọc: <strong>30/10/2026</strong></span>
       </div>
       <div class="announcement-links">
-        <a href="admin/index.html" style="color:#f59e0b; font-weight:700;"><i class="fa-solid fa-crown"></i> Quản trị Store</a>
-        <a href="javascript:void(0)" onclick="openTrackingModal()"><i class="fa-solid fa-truck-fast"></i> Tra cứu đơn hàng</a>
-        <a href="#secret-chase" onclick="scrollToSection(event, 'secret-chase')"><i class="fa-solid fa-gem"></i> Săn xe Chase 1/24</a>
+        <!-- <a href="admin/index.html" style="color:#f59e0b; font-weight:700;"><i class="fa-solid fa-crown"></i> <span data-i18n="nav_admin">Quản trị Store</span></a> -->
+        <a href="javascript:void(0)" onclick="openTrackingModal()"><i class="fa-solid fa-truck-fast"></i> <span data-i18n="nav_track">Tra cứu đơn hàng</span></a>
+        <a href="#collector-hub" onclick="scrollToSection(event, 'collector-hub')"><i class="fa-solid fa-ruler-combined"></i> <span data-i18n="nav_guide">Cẩm nang 1:64</span></a>
         <a href="tel:0988164164" class="hotline-link"><i class="fa-solid fa-phone"></i> Hotline: <strong>0988.164.164</strong></a>
-        <div class="lang-switch"><span class="active">VN</span> / <span>EN</span></div>
+        <div class="lang-switch" onclick="toggleSiteLanguage()" title="Chuyển đổi ngôn ngữ VN / EN" style="cursor:pointer;">
+          <span id="topLangVN" class="active">VN</span> / <span id="topLangEN">EN</span>
+        </div>
       </div>
     </div>
   </div>
 
   <!-- =====================================================================
-       2. MAIN SITE HEADER (UNIFIED SINGLE ROW - MATCHING SCREENSHOT 1)
+       2. MAIN SITE HEADER (UNIFIED SINGLE ROW + THEME & LANG SWITCHERS)
        ===================================================================== -->
   <header class="site-header">
     <div class="main-header" id="mainHeader">
@@ -53,36 +55,35 @@
           <span>Menu</span>
         </button>
 
-        <!-- Logo & Scale Badge -->
+        <!-- Logo MINI GT (Enlarged with hover effects, removed overlapping scale badge) -->
         <a href="index.html" class="brand-logo" aria-label="Trang chủ MINI GT STORE">
-          <img src="image/logominigt.png" alt="MINI GT Logo" class="brand-logo-img">
-          <span class="brand-scale-badge">1:64 SCALE</span>
+          <img src="image/logo-minigt.webp" alt="MINI GT Logo" class="brand-logo-img">
         </a>
 
         <!-- Main Navigation Links -->
         <nav aria-label="Điều hướng chính" class="desktop-only">
           <ul class="header-nav">
             <li>
-              <a href="index.html" class="header-nav-link active">Trang chủ</a>
+              <a href="index.html" class="header-nav-link active" data-i18n="nav_home">Trang chủ</a>
             </li>
             <li>
               <a href="#catalog" class="header-nav-link" onclick="filterAndScroll(event, 'pre_order')">
-                Pre-Order 2026 <span class="badge-hot-tag">HOT</span>
+                <span data-i18n="nav_preorder">Pre-Order 2026</span> <span class="badge-hot-tag">HOT</span>
               </a>
             </li>
             <li>
-              <a href="#catalog" class="header-nav-link" onclick="filterAndScroll(event, 'lbwk')">Liberty Walk LBWK</a>
+              <a href="#lbwk-zone" class="header-nav-link" onclick="scrollToSection(event, 'lbwk-zone')" data-i18n="nav_lbwk">Liberty Walk LBWK</a>
+            </li>
+            <li>
+              <a href="#gt3-paddock" class="header-nav-link" onclick="scrollToSection(event, 'gt3-paddock')" data-i18n="nav_gt3">IMSA GT3 &amp; F1</a>
             </li>
             <li>
               <a href="#secret-chase" class="header-nav-link" onclick="scrollToSection(event, 'secret-chase')">
-                <i class="fa-solid fa-gem" style="color:#f59e0b; font-size:12px;"></i> Secret Chase
+                <i class="fa-solid fa-gem" style="color:#f59e0b; font-size:12px;"></i> <span data-i18n="nav_chase">Secret Chase</span>
               </a>
             </li>
             <li>
-              <a href="#benefits" class="header-nav-link" onclick="scrollToSection(event, 'benefits')">Hỏi & Đáp</a>
-            </li>
-            <li>
-              <a href="#preorder-workflow" class="header-nav-link" onclick="scrollToSection(event, 'preorder-workflow')">Quy trình cọc</a>
+              <a href="#collector-hub" class="header-nav-link" onclick="scrollToSection(event, 'collector-hub')" data-i18n="nav_hub">Tiện ích 1:64</a>
             </li>
           </ul>
         </nav>
@@ -91,30 +92,63 @@
         <div class="header-search">
           <div class="search-input-wrapper">
             <span class="search-icon-btn"><i class="fa-solid fa-magnifying-glass"></i></span>
-            <input type="text" id="headerSearchInput" placeholder="Tìm theo MiniGT, LBWK,..." autocomplete="off">
+            <input type="text" id="headerSearchInput" data-i18n-placeholder="search_placeholder" placeholder="Tìm theo tên xe, SKU, hãng..." autocomplete="off">
             <span class="search-kbd-hint"><kbd>/</kbd></span>
           </div>
           <div class="search-results-dropdown" id="searchResultsDropdown"></div>
         </div>
 
-        <!-- Header Actions: Wishlist, Cart, Profile -->
+        <!-- Header Actions: Wishlist, Cart, Settings (Theme & Lang), Login/Profile -->
         <div class="header-actions">
           <!-- Wishlist Button with Badge -->
-          <button class="action-btn" title="Danh sách xe yêu thích" onclick="openWishlistModal()">
+          <button type="button" class="action-btn" title="Danh sách xe yêu thích" aria-label="Danh sách yêu thích" onclick="openWishlistModal()">
             <i class="fa-regular fa-heart"></i>
             <span class="action-badge" id="wishlistBadgeCount">4</span>
           </button>
 
-          <!-- Cart Button with Badge (Default 3) -->
-          <button class="action-btn" title="Giỏ cọc mô hình" onclick="openCartDrawer()">
+          <!-- Cart Button with Badge -->
+          <button type="button" class="action-btn" title="Giỏ hàng mô hình" aria-label="Giỏ hàng" onclick="openCartDrawer()">
             <i class="fa-solid fa-bag-shopping"></i>
             <span class="action-badge" id="cartBadgeCount">3</span>
           </button>
 
-          <!-- User Account / Login Button -->
+          <!-- Combined Settings Dropdown (Theme Dark/Light & Language VN/EN) -->
+          <div class="header-settings-wrap" id="headerSettingsWrap">
+            <button type="button" class="action-btn" id="headerSettingsBtn" title="Cài đặt giao diện & ngôn ngữ" onclick="toggleHeaderSettingsMenu(event)" aria-label="Cài đặt hệ thống">
+              <i class="fa-solid fa-gear"></i>
+            </button>
+            <div class="header-settings-menu" id="headerSettingsMenu">
+              <div class="settings-menu-title" data-i18n="settings_title">
+                <i class="fa-solid fa-sliders"></i> Cài Đặt Hiển Thị
+              </div>
+              <div class="settings-menu-item" onclick="toggleThemeMode()">
+                <div class="settings-item-info">
+                  <i class="fa-solid fa-circle-half-stroke"></i>
+                  <span data-i18n="settings_theme">Giao diện</span>
+                </div>
+                <button type="button" class="settings-pill-btn" id="themeToggleBtn">
+                  <i class="fa-solid fa-moon" id="themeToggleIcon"></i>
+                  <span id="themeToggleLabel">Tối</span>
+                </button>
+              </div>
+              <div class="settings-menu-item" onclick="toggleSiteLanguage()">
+                <div class="settings-item-info">
+                  <i class="fa-solid fa-globe"></i>
+                  <span data-i18n="settings_lang">Ngôn ngữ</span>
+                </div>
+                <button type="button" class="settings-pill-btn" id="langToggleBtn">
+                  <span id="langFlagIcon">🇻🇳</span>
+                  <span id="langCodeLabel">VN</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- User Account / Clean Login Button -->
           <div id="userProfileArea">
-            <button class="btn btn-outline btn-sm" onclick="openAuthModal('login')">
-              <i class="fa-solid fa-user" style="font-size:12px; margin-right:4px;"></i> Đăng nhập
+            <button type="button" class="btn-login-clean" onclick="openAuthModal('login')">
+              <i class="fa-regular fa-user"></i>
+              <span data-i18n="btn_login">Đăng nhập</span>
             </button>
           </div>
         </div>
@@ -128,7 +162,7 @@
   <main>
 
     <!-- =====================================================================
-         3. HERO SHOWROOM CAROUSEL (SLIDER WITH WORKING CONTROLS & HOTSPOTS)
+         3. HERO SHOWROOM CAROUSEL (EQUAL HEIGHT SLIDES + MULTI-LAYER TRANSITIONS)
          ===================================================================== -->
     <section class="hero-section" aria-label="Bộ sưu tập nổi bật">
       <div class="container">
@@ -137,112 +171,215 @@
           <!-- SLIDE 1: MAIN DIECAST FLEET PRE-ORDER -->
           <div class="hero-slide active" data-slide-index="0">
             <div class="hero-image-stage">
+              <div class="hero-hotspot-guide-pill">
+                <span class="guide-pulse-dot"></span>
+                <span data-i18n="hero_hotspot_guide">CHẠM VÀO ĐIỂM [+] ĐỂ XEM CHI TIẾT &amp; CHỌN BẢN BOX / CARD TRÊN BANNER</span>
+              </div>
+
               <img src="image/hero-banner.jpg" alt="Bộ sưu tập MINI GT Pre-Order 2026" class="hero-img-main">
 
               <!-- Hotspot 1: Scania Transporter Truck Set -->
-              <button class="hero-hotspot hotspot-truck" type="button" aria-label="Xem Scania Transporter Truck Set" onclick="openQuickView(1)">
-                <i class="fa-solid fa-plus"></i>
-                <span class="hotspot-tooltip">Scania Transporter Truck &amp; Box Set ➔</span>
+              <button class="hero-hotspot hotspot-truck" type="button" aria-label="Xem Lamborghini Sterrato & Transporter Box Set" onclick="openQuickView(1)">
+                <span class="hero-hotspot-plus">+</span>
+                <span class="hotspot-tooltip">
+                  <span class="hs-tag">#MGTS0026 • BOX SET</span>
+                  <span class="hs-title">Huracán Sterrato All-Terrain Set (4 Xe)</span>
+                  <span class="hs-price"><span>1.850.000đ</span> <span class="hs-cta">Xem ngay ➔</span></span>
+                </span>
               </button>
 
-              <!-- Hotspot 2: LBWK Pink Alphard Van -->
-              <button class="hero-hotspot hotspot-pinkvan" type="button" aria-label="Xem LB-WORKS Pink Van & S15" onclick="openQuickView(10)">
-                <i class="fa-solid fa-plus"></i>
-                <span class="hotspot-tooltip">LB-WORKS Pink Van &amp; S15 Silvia ➔</span>
+              <!-- Hotspot 2: LBWK Pink Alphard Van & S15 -->
+              <button class="hero-hotspot hotspot-pinkvan" type="button" aria-label="Xem LB-Super Silhouette Nissan S15" onclick="openQuickView(10)">
+                <span class="hero-hotspot-plus">+</span>
+                <span class="hotspot-tooltip">
+                  <span class="hs-tag">#MGT00465 • LB★WORKS</span>
+                  <span class="hs-title">LB-Super Silhouette Nissan S15 Silvia</span>
+                  <span class="hs-price"><span>320.000đ</span> <span class="hs-cta">Xem ngay ➔</span></span>
+                </span>
               </button>
 
-              <!-- Hotspot 3: Purple Lamborghini Aventador 2.0 -->
-              <button class="hero-hotspot hotspot-purplelambo" type="button" aria-label="Xem LB★WORKS Lamborghini Aventador 2.0" onclick="openQuickView(11)">
-                <i class="fa-solid fa-plus"></i>
-                <span class="hotspot-tooltip">LB★WORKS Lamborghini Aventador 2.0 ➔</span>
+              <!-- Hotspot 3: Purple Lamborghini Aventador / Huracán LBWK -->
+              <button class="hero-hotspot hotspot-purplelambo" type="button" aria-label="Xem LB★WORKS Lamborghini Huracán GT" onclick="openQuickView(5)">
+                <span class="hero-hotspot-plus">+</span>
+                <span class="hotspot-tooltip">
+                  <span class="hs-tag">#MGT01055 • WIDEBODY</span>
+                  <span class="hs-title">LB★WORKS Lamborghini Huracán GT #5</span>
+                  <span class="hs-price"><span>350.000đ</span> <span class="hs-cta">Sẵn kho ➔</span></span>
+                </span>
               </button>
 
-              <!-- Hotspot 4: Light Blue Supercar (Huracán GT3 EVO) -->
-              <button class="hero-hotspot hotspot-bluelambo" type="button" aria-label="Xem Lamborghini Huracán GT3 EVO" onclick="openQuickView(9)">
-                <i class="fa-solid fa-plus"></i>
-                <span class="hotspot-tooltip">Lamborghini Huracán GT3 EVO Official ➔</span>
+              <!-- Hotspot 4: Light Blue Supercar (Huracán GT3 EVO2) -->
+              <button class="hero-hotspot hotspot-bluelambo" type="button" aria-label="Xem Lamborghini Huracán GT3 EVO2" onclick="openQuickView(9)">
+                <span class="hero-hotspot-plus">+</span>
+                <span class="hotspot-tooltip">
+                  <span class="hs-tag">#MGT01129 • IMSA GT3</span>
+                  <span class="hs-title">Lamborghini Huracán GT3 EVO2 Daytona</span>
+                  <span class="hs-price"><span>330.000đ</span> <span class="hs-cta">Xem ngay ➔</span></span>
+                </span>
               </button>
 
-              <!-- Hotspot 5: Aston Martin AMR24 #18 Lance Stroll F1 -->
-              <button class="hero-hotspot hotspot-f1stroll" type="button" aria-label="Xem Aston Martin AMR24 #18 Lance Stroll" onclick="openQuickView(2)">
-                <i class="fa-solid fa-plus"></i>
-                <span class="hotspot-tooltip">Aston Martin AMR24 #18 Lance Stroll ➔</span>
+              <!-- Hotspot 5: Oracle Red Bull Racing RB19 #1 Max Verstappen -->
+              <button class="hero-hotspot hotspot-f1stroll" type="button" aria-label="Xem Oracle Red Bull Racing RB19" onclick="openQuickView(4)">
+                <span class="hero-hotspot-plus">+</span>
+                <span class="hotspot-tooltip">
+                  <span class="hs-tag">#MGT00550 • WORLD CHAMPION</span>
+                  <span class="hs-title">Oracle Red Bull RB19 #1 Max Verstappen</span>
+                  <span class="hs-price"><span>420.000đ</span> <span class="hs-cta">Xem ngay ➔</span></span>
+                </span>
               </button>
 
-              <!-- Hotspot 6: Aston Martin AMR24 #14 Fernando Alonso F1 -->
-              <button class="hero-hotspot hotspot-f1alonso" type="button" aria-label="Xem Aston Martin AMR24 #14 Fernando Alonso" onclick="openQuickView(3)">
-                <i class="fa-solid fa-plus"></i>
-                <span class="hotspot-tooltip">Aston Martin AMR24 #14 Fernando Alonso ➔</span>
+              <!-- Hotspot 6: Porsche 911 GT3 R AO Racing Rexy -->
+              <button class="hero-hotspot hotspot-f1alonso" type="button" aria-label="Xem Porsche 911 GT3 R Rexy" onclick="openQuickView(8)">
+                <span class="hero-hotspot-plus">+</span>
+                <span class="hotspot-tooltip">
+                  <span class="hs-tag">#MGT00782 • IMSA GT3</span>
+                  <span class="hs-title">Porsche 911 GT3 R Rexy #80 AO Racing</span>
+                  <span class="hs-price"><span>380.000đ</span> <span class="hs-cta">Xem ngay ➔</span></span>
+                </span>
               </button>
 
               <!-- Hotspot 7: Oracle Red Bull Racing RB18 Verstappen F1 -->
               <button class="hero-hotspot hotspot-f1rb18" type="button" aria-label="Xem Red Bull Racing RB18 Verstappen" onclick="openQuickView(4)">
-                <i class="fa-solid fa-plus"></i>
-                <span class="hotspot-tooltip">Oracle Red Bull Racing RB18 Verstappen ➔</span>
+                <span class="hero-hotspot-plus">+</span>
+                <span class="hotspot-tooltip">
+                  <span class="hs-tag">#MGT00550 • MONACO GP</span>
+                  <span class="hs-title">Oracle Red Bull RB18 #1 Max Verstappen</span>
+                  <span class="hs-price"><span>420.000đ</span> <span class="hs-cta">Xem ngay ➔</span></span>
+                </span>
               </button>
             </div>
           </div>
 
-          <!-- SLIDE 2: NISSAN SILVIA S15 LBWK WIDEBODY CARD (MATCHING SCREENSHOT 4) -->
+          <!-- SLIDE 2: NISSAN SILVIA S15 LBWK WIDEBODY (BACKGROUND: s15_lbwk_live.jpg) -->
           <div class="hero-slide" data-slide-index="1">
-            <div class="hero-slide-lbwk">
+            <div class="hero-slide-lbwk" style="background-image: url('image/s15_lbwk_live.jpg');">
+              <div class="hero-slide-backdrop-overlay"></div>
               <div class="hero-lbwk-grid">
                 <div class="hero-lbwk-content">
-                  <div class="hero-lbwk-badge">
+                  <div class="hero-lbwk-badge" data-i18n="s2_badge">
                     <i class="fa-solid fa-shield-halved"></i> LIBERTY WALK OFFICIAL LICENSED
                   </div>
-                  <h2 class="hero-lbwk-title">NISSAN SILVIA S15 LB-SUPER SILHOUETTE</h2>
-                  <p class="hero-lbwk-desc">
-                    Cơn sốt độ thân rộng Widebody từ xưởng độ lừng danh Nhật Bản <strong>LB★WORKS</strong>. Gói khí động học cánh gió kép, cản trước hạ sát sàn và phối màu vàng óng ánh kim huyền thoại của giải đua Formula Drift Japan.
+                  <h2 class="hero-lbwk-title" data-i18n="s2_title">NISSAN SILVIA S15 LB-SUPER SILHOUETTE</h2>
+                  <p class="hero-lbwk-desc" data-i18n="s2_desc">
+                    Phiên bản độ thân rộng Widebody chính thức từ <strong>LB★WORKS Japan</strong>. Thiết kế khí động học Group 5 đặc trưng với vòm bánh tán đinh, cánh gió đuôi lớn và hai tùy chọn đóng gói <strong>Hộp Giấy (Box)</strong> hoặc <strong>Vỉ Nhựa (Blister Card)</strong>.
                   </p>
+                  <div class="hero-pack-preview-pills">
+                    <span class="hero-pack-pill">📦 Bản Box: <strong>320.000đ</strong></span>
+                    <span class="hero-pack-pill card-ver">🛡️ Bản Card: <strong>370.000đ</strong></span>
+                  </div>
                   <div class="hero-lbwk-actions">
-                    <button class="btn-hero-red" onclick="filterAndScroll(event, 'lbwk')">
-                      <i class="fa-solid fa-bolt"></i> Xem dòng xe LBWK ➔
+                    <button class="btn-hero-red" onclick="scrollToSection(event, 'lbwk-zone')">
+                      <i class="fa-solid fa-bolt"></i> <span data-i18n="s2_btn1">Khám phá LB★WORKS ➔</span>
                     </button>
                     <button class="btn-hero-white" onclick="openQuickView(10)">
-                      Chi tiết Nissan S15 LBWK
+                      <span data-i18n="s2_btn2">Xem chi tiết S15 #465</span>
                     </button>
                   </div>
                 </div>
 
                 <div class="hero-lbwk-showcase">
-                  <img src="image/Minigt_s15chop_lbwk.jpg" alt="Nissan Silvia S15 LBWK" class="hero-lbwk-img">
+                  <img src="image/Minigt_S15chop_LBWK.jpg" alt="Nissan Silvia S15 LBWK" class="hero-lbwk-img" onerror="this.src='image/Minigt_s15chop_lbwk.jpg'">
                   <div class="hero-car-code-badge">
-                    <span class="play-icon">▶</span> <strong>465</strong>
-                    <span style="font-size:11px; color:#64748b; font-weight:500; margin-left:6px;">LHD version shown</span>
+                    <span class="play-icon">▶</span> <strong>#MGT00465</strong>
+                    <span style="font-size:11.5px; color:#64748b; font-weight:600; margin-left:6px;">Box &amp; Blister Card 1:64</span>
                   </div>
                 </div>
               </div>
             </div>
           </div>
 
-          <!-- SLIDE 3: FORMULA 1 LAS VEGAS GP 2026 -->
+          <!-- SLIDE 3: FORMULA 1 ORACLE RED BULL RACING WORLD CHAMPION (BACKGROUND: f1-redbull-live.webp) -->
           <div class="hero-slide" data-slide-index="2">
-            <div class="hero-slide-f1">
+            <div class="hero-slide-f1" style="background-image: url('image/f1-redbull-live.webp');">
+              <div class="hero-slide-backdrop-overlay"></div>
               <div class="hero-lbwk-grid">
                 <div class="hero-lbwk-content">
-                  <div class="hero-f1-badge">
-                    <i class="fa-solid fa-flag-checkered"></i> OFFICIAL FORMULA 1 LICENSED
+                  <div class="hero-f1-badge" data-i18n="s3_badge">
+                    <i class="fa-solid fa-flag-checkered"></i> OFFICIAL FORMULA 1 COLLECTION
                   </div>
-                  <h2 class="hero-f1-title">F1 LAS VEGAS GP 2026 &amp; COLLECTOR BOX SETS</h2>
-                  <p class="hero-f1-desc">
-                    Tái hiện những cỗ máy tốc độ đỉnh cao: Aston Martin AMR24 Fernando Alonso #14, Lance Stroll #18 và Oracle Red Bull Racing RB18 Max Verstappen kèm hộp quà Sterrato 4 xe bản quyền.
+                  <h2 class="hero-f1-title" data-i18n="s3_title">ORACLE RED BULL RACING F1 — MAX VERSTAPPEN #1</h2>
+                  <p class="hero-f1-desc" data-i18n="s3_desc">
+                    Tái hiện mẫu xe vô địch thế giới Oracle Red Bull Racing RB18 / RB19 tỷ lệ 1:64 chuẩn xác: Cánh gió trước sau nhiều tầng, lốp Pirelli P-Zero và tem đấu bản quyền chính hãng từ MINI GT.
                   </p>
+                  <div class="hero-pack-preview-pills">
+                    <span class="hero-pack-pill">📦 Bản Box: <strong>378.000đ</strong> (-10%)</span>
+                    <span class="hero-pack-pill card-ver">🛡️ Bản Card: <strong>432.000đ</strong> (-10%)</span>
+                  </div>
                   <div class="hero-lbwk-actions">
-                    <button class="btn-hero-red" onclick="filterAndScroll(event, 'f1')">
-                      <i class="fa-solid fa-flag-checkered"></i> Khám phá Đội Đua F1 ➔
+                    <button class="btn-hero-red" onclick="openQuickView(4)">
+                      <i class="fa-solid fa-flag-checkered"></i> <span data-i18n="s3_btn1">Xem Red Bull RB18 #1 ➔</span>
                     </button>
-                    <button class="btn-hero-white" onclick="filterAndScroll(event, 'box_sets')">
-                      Xem Box Sets &amp; Combo
+                    <button class="btn-hero-white" onclick="filterAndScroll(event, 'f1')">
+                      <span data-i18n="s3_btn2">Bộ sưu tập F1 Series</span>
                     </button>
                   </div>
                 </div>
 
-                <div class="hero-lbwk-showcase" style="background:#0f172a; border-color:rgba(255,255,255,0.15);">
-                  <img src="image/aston-amr24-alonso.png" alt="Aston Martin AMR24 Alonso" class="hero-lbwk-img">
-                  <div class="hero-car-code-badge" style="color:#ffffff;">
-                    <span class="play-icon">▶</span> <strong>1396</strong>
-                    <span style="font-size:11px; color:#94a3b8; font-weight:500; margin-left:6px;">F1 Las Vegas Edition</span>
+                <div class="hero-lbwk-showcase">
+                  <img src="image/f1_redbull.jpg" alt="Oracle Red Bull Racing RB18 F1 Max Verstappen" class="hero-lbwk-img" onerror="this.src='image/f1_redbull.jpg'">
+                  <div class="hero-car-code-badge">
+                    <span class="play-icon">▶</span> <strong>#MGT00550</strong>
+                    <span style="font-size:11.5px; color:#1d4ed8; font-weight:700; margin-left:6px;">Oracle Red Bull Racing #1</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- SLIDE 4: AO RACING PORSCHE 911 GT3 R (BACKGROUND: image/roxy_rexy_minigt.webp + 3 MODELS) -->
+          <div class="hero-slide" data-slide-index="3">
+            <div class="hero-slide-ao" style="background-image: url('image/roxy_rexy_minigt.webp');">
+              <div class="hero-ao-backdrop-overlay"></div>
+              <div class="hero-lbwk-grid hero-ao-grid">
+                <div class="hero-lbwk-content hero-ao-content">
+                  <div class="hero-ao-badge" data-i18n="s4_badge">
+                    <i class="fa-solid fa-trophy"></i> IMSA WEATHERTECH GTD PRO • AO RACING
+                  </div>
+                  <h2 class="hero-ao-title" data-i18n="s4_title">PORSCHE 911 GT3 R: REXY • ROXY • SKELETON</h2>
+                  <p class="hero-ao-desc" data-i18n="s4_desc">
+                    Trọn bộ 3 mẫu Porsche 911 GT3 R được săn đón nhất của đội đua AO Racing: Khủng long xanh <strong>Rexy #80</strong>, Khủng long hồng <strong>Roxy #77</strong> và bản giới hạn <strong>Skeleton #77</strong> Petit Le Mans. Có đầy đủ tùy chọn <strong>Box</strong> và <strong>Blister Card</strong>.
+                  </p>
+                  <div class="hero-lbwk-actions">
+                    <button class="btn-hero-red" onclick="scrollToSection(event, 'gt3-paddock')">
+                      <i class="fa-solid fa-car-side"></i> <span data-i18n="s4_btn1">Xem Bộ 3 AO Racing ➔</span>
+                    </button>
+                    <button class="btn-hero-white" onclick="filterAndScroll(event, 'ao_racing')">
+                      <span data-i18n="s4_btn2">Lọc xe AO Racing</span>
+                    </button>
+                  </div>
+                </div>
+
+                <!-- Right: High-Res Visual Banner (roxy_rexy_minigt.webp) + 3 Quick Model Cards -->
+                <div class="hero-ao-right-wrap">
+                  <div class="hero-ao-main-art" onclick="scrollToSection(event, 'gt3-paddock')">
+                    <img src="image/roxy_rexy_minigt.webp" alt="AO Racing Porsche 911 GT3 R Rexy & Roxy MINI GT">
+                    <span class="hero-ao-art-tag">Official MINI GT x AO Racing 1:64</span>
+                  </div>
+                  <div class="hero-trio-showcase">
+                    <div class="hero-trio-card" onclick="openQuickView(8)" title="Xem Porsche 911 GT3 R Rexy #80">
+                      <img src="image/rexy.jpg" alt="Rexy AO Racing #80">
+                      <div class="hero-trio-meta">
+                        <span class="trio-badge trio-rexy">Rexy #80</span>
+                        <strong class="trio-title">Porsche GT3 R Rexy</strong>
+                        <span class="trio-price">Box 380k • Card 450k</span>
+                      </div>
+                    </div>
+                    <div class="hero-trio-card" onclick="openQuickView(7)" title="Xem Porsche 911 GT3 R Roxy #77">
+                      <img src="image/Roxy.webp" alt="Roxy AO Racing #77" onerror="this.src='image/roxy_rexy_minigt.webp'">
+                      <div class="hero-trio-meta">
+                        <span class="trio-badge trio-roxy">Roxy #77</span>
+                        <strong class="trio-title">Porsche GT3 R Roxy</strong>
+                        <span class="trio-price">Box 342k (-5%)</span>
+                      </div>
+                    </div>
+                    <div class="hero-trio-card" onclick="openQuickView(6)" title="Xem Porsche 911 GT3 R Skeleton #77">
+                      <img src="image/ske.webp" alt="Skeleton AO Racing #77" onerror="this.src='image/roxy_rexy_minigt.webp'">
+                      <div class="hero-trio-meta">
+                        <span class="trio-badge trio-ske">Skeleton #77</span>
+                        <strong class="trio-title">GT3 R Skeleton</strong>
+                        <span class="trio-price">Box 390k • Card 470k</span>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -257,18 +394,19 @@
             <i class="fa-solid fa-chevron-right"></i>
           </button>
 
-          <!-- 3 Indicator Dots -->
+          <!-- 4 Indicator Dots -->
           <div class="hero-dots" id="heroDotsWrap">
             <button type="button" class="hero-dot active" aria-label="Hiện slide 1" aria-current="true" onclick="goToHeroSlide(0)"></button>
             <button type="button" class="hero-dot" aria-label="Hiện slide 2" aria-current="false" onclick="goToHeroSlide(1)"></button>
             <button type="button" class="hero-dot" aria-label="Hiện slide 3" aria-current="false" onclick="goToHeroSlide(2)"></button>
+            <button type="button" class="hero-dot" aria-label="Hiện slide 4" aria-current="false" onclick="goToHeroSlide(3)"></button>
           </div>
         </div>
       </div>
     </section>
 
     <!-- =====================================================================
-         4. PRE-ORDER LIVE COUNTDOWN STRIP BAR (MATCHING SCREENSHOT 1)
+         4. PRE-ORDER LIVE COUNTDOWN STRIP BAR
          ===================================================================== -->
     <section class="container" id="preorder-strip" aria-label="Đồng hồ đếm ngược đặt trước">
       <div class="preorder-strip-container">
@@ -277,8 +415,8 @@
             <i class="fa-solid fa-stopwatch"></i>
           </div>
           <div class="preorder-strip-text">
-            <h4>HỆ THỐNG ĐẶT TRƯỚC TOÀN CẦU TSM-MODEL &amp; POP RACE</h4>
-            <p>Thời hạn đóng cổng cọc đợt này: <strong>30/10/2026</strong></p>
+            <h4 data-i18n="countdown_title">HỆ THỐNG ĐẶT TRƯỚC TOÀN CẦU TSM-MODEL &amp; POP RACE</h4>
+            <p><span data-i18n="countdown_sub">Thời hạn đóng cổng cọc đợt này:</span> <strong>30/10/2026</strong></p>
           </div>
         </div>
 
@@ -286,33 +424,33 @@
         <div class="countdown-clock" id="countdown-clock">
           <div class="countdown-box">
             <div class="countdown-val" id="daysVal">24</div>
-            <div class="countdown-label">NGÀY</div>
+            <div class="countdown-label" data-i18n="cd_days">NGÀY</div>
           </div>
           <span class="countdown-separator">:</span>
           <div class="countdown-box">
             <div class="countdown-val" id="hoursVal">18</div>
-            <div class="countdown-label">GIỜ</div>
+            <div class="countdown-label" data-i18n="cd_hours">GIỜ</div>
           </div>
           <span class="countdown-separator">:</span>
           <div class="countdown-box">
             <div class="countdown-val" id="minsVal">45</div>
-            <div class="countdown-label">PHÚT</div>
+            <div class="countdown-label" data-i18n="cd_mins">PHÚT</div>
           </div>
           <span class="countdown-separator">:</span>
           <div class="countdown-box">
             <div class="countdown-val" id="secsVal">20</div>
-            <div class="countdown-label">GIÂY</div>
+            <div class="countdown-label" data-i18n="cd_secs">GIÂY</div>
           </div>
         </div>
 
         <button class="btn-countdown-cta" onclick="filterAndScroll(event, 'pre_order')">
-          <i class="fa-solid fa-cart-shopping"></i> Đặt cọc giữ mẫu ngay
+          <i class="fa-solid fa-cart-shopping"></i> <span data-i18n="countdown_btn">Đặt cọc giữ mẫu ngay</span>
         </button>
       </div>
     </section>
 
     <!-- =====================================================================
-         4B. BRAND MARQUEE TICKER & ANIMATED COLLECTOR STATS SHOWCASE
+         4B. BRAND MARQUEE TICKER
          ===================================================================== -->
     <section class="collector-marquee-section" aria-label="Đối tác bản quyền & Thống kê Showroom">
       <div class="container">
@@ -322,11 +460,11 @@
             <span class="marquee-dot">•</span>
             <span class="marquee-item"><i class="fa-solid fa-bolt"></i> LIBERTY WALK LBWK JAPAN LICENSED</span>
             <span class="marquee-dot">•</span>
-            <span class="marquee-item"><i class="fa-solid fa-flag-checkered"></i> FORMULA 1 LAS VEGAS GP SERIES</span>
+            <span class="marquee-item"><i class="fa-solid fa-flag-checkered"></i> FORMULA 1 RED BULL RACING SERIES</span>
             <span class="marquee-dot">•</span>
             <span class="marquee-item"><i class="fa-solid fa-gem"></i> POP RACE SECRET CHASE 1/24</span>
             <span class="marquee-dot">•</span>
-            <span class="marquee-item"><i class="fa-solid fa-shield-cat"></i> AO RACING REXY &amp; ROXY GT3</span>
+            <span class="marquee-item"><i class="fa-solid fa-shield-cat"></i> AO RACING REXY • ROXY • SKELETON</span>
             <span class="marquee-dot">•</span>
             <span class="marquee-item"><i class="fa-solid fa-truck-fast"></i> SPX EXPRESS ĐÓNG GÓI CHỐNG SỐC 4 LỚP</span>
             <span class="marquee-dot">•</span>
@@ -334,110 +472,74 @@
             <span class="marquee-dot">•</span>
             <span class="marquee-item"><i class="fa-solid fa-bolt"></i> LIBERTY WALK LBWK JAPAN LICENSED</span>
             <span class="marquee-dot">•</span>
-            <span class="marquee-item"><i class="fa-solid fa-flag-checkered"></i> FORMULA 1 LAS VEGAS GP SERIES</span>
+            <span class="marquee-item"><i class="fa-solid fa-flag-checkered"></i> FORMULA 1 RED BULL RACING SERIES</span>
             <span class="marquee-dot">•</span>
             <span class="marquee-item"><i class="fa-solid fa-gem"></i> POP RACE SECRET CHASE 1/24</span>
-          </div>
-        </div>
-
-        <div class="showroom-stats-grid" id="showroomStatsGrid">
-          <div class="showroom-stat-card">
-            <div class="stat-icon-ring" style="background:rgba(225,6,0,0.1); color:#e10600;">
-              <i class="fa-solid fa-car-side"></i>
-            </div>
-            <div class="stat-info">
-              <div class="stat-number" data-count-target="15800" data-count-suffix="+">15,800+</div>
-              <div class="stat-label">Mô hình Diecast Đã Giao</div>
-            </div>
-          </div>
-          <div class="showroom-stat-card">
-            <div class="stat-icon-ring" style="background:rgba(37,99,235,0.1); color:#2563eb;">
-              <i class="fa-solid fa-shield-halved"></i>
-            </div>
-            <div class="stat-info">
-              <div class="stat-number" data-count-target="100" data-count-suffix="%">100%</div>
-              <div class="stat-label">Nguyên Seal Blister &amp; Box</div>
-            </div>
-          </div>
-          <div class="showroom-stat-card">
-            <div class="stat-icon-ring" style="background:rgba(245,158,11,0.12); color:#d97706;">
-              <i class="fa-solid fa-gem"></i>
-            </div>
-            <div class="stat-info">
-              <div class="stat-number">1/24</div>
-              <div class="stat-label">Cơ Hội Trúng Secret Chase</div>
-            </div>
-          </div>
-          <div class="showroom-stat-card">
-            <div class="stat-icon-ring" style="background:rgba(234,88,12,0.12); color:#ea580c;">
-              <i class="fa-solid fa-truck-fast"></i>
-            </div>
-            <div class="stat-info">
-              <div class="stat-number">SPX 24H</div>
-              <div class="stat-label">Duyệt Đơn &amp; Cấp Mã Vận Đơn</div>
-            </div>
           </div>
         </div>
       </div>
     </section>
 
     <!-- =====================================================================
-         5. CATALOGUE & DANH MỤC SẢN PHẨM (MATCHING SCREENSHOT 2)
+         5. CATALOGUE & DANH MỤC SẢN PHẨM
          ===================================================================== -->
     <section class="section" id="catalog" aria-label="Danh mục và danh sách mô hình">
       <div class="container">
 
-        <!-- Top Pre-Order Quick Highlights Row (Matching Top of Screenshot 2) -->
+        <!-- Top Pre-Order Quick Highlights Row -->
         <div class="preorder-quick-row" id="preorderQuickRow">
           <!-- Rendered dynamically by js/app.js -->
         </div>
 
         <header class="section-header">
-          <span class="section-eyebrow">CATALOGUE ĐẦY ĐỦ 1:64 DIE-CAST</span>
-          <h2 class="section-title">BỘ SƯU TẬP XE MÔ HÌNH CHÍNH HÃNG 2026</h2>
-          <p class="section-desc">
-            Khám phá các siêu phẩm mang tính bản quyền từ MINI GT, Pop Race, TSM-Model và Kaido House với đầy đủ tem seal nhà sản xuất.
+          <span class="section-eyebrow" data-i18n="catalog_eyebrow">CATALOGUE CHÍNH HÃNG 1:64 DIE-CAST (BOX &amp; BLISTER CARD)</span>
+          <h2 class="section-title" data-i18n="catalog_title">BỘ SƯU TẬP XE MÔ HÌNH CHÍNH HÃNG 2026</h2>
+          <p class="section-desc" data-i18n="catalog_desc">
+            Tùy chọn linh hoạt giữa <strong>Bản Box (Hộp giấy tiết kiệm 40k–100k)</strong> và <strong>Bản Card (Vỉ nhựa Blister sưu tầm)</strong>. Giá ưu đãi giảm trực tiếp theo % niêm yết.
           </p>
         </header>
 
-        <!-- Category Filter Pills -->
+        <!-- Category Filter Pills (Including Bán Chạy & Còn Hàng) -->
         <div class="filter-tags-wrapper">
           <button class="filter-pill active" data-filter="all">
-            <i class="fa-solid fa-fire"></i> Tất cả mô hình <span class="pill-count" id="count-all">(12)</span>
+            <i class="fa-solid fa-border-all"></i> <span data-i18n="filter_all">Tất cả mô hình</span> <span class="pill-count" id="count-all">(18)</span>
           </button>
-          <button class="filter-pill" data-filter="pre_order">
-            <i class="fa-solid fa-clock"></i> Pre-Order Đợt Mới <span class="pill-count" id="count-pre_order">(3)</span>
-          </button>
-          <button class="filter-pill" data-filter="lbwk">
-            <i class="fa-solid fa-tags"></i> Liberty Walk LBWK <span class="pill-count" id="count-lbwk">(3)</span>
-          </button>
-          <button class="filter-pill" data-filter="chase">
-            <i class="fa-solid fa-gem"></i> Secret Chase Car <span class="pill-count" id="count-chase">(3)</span>
-          </button>
-          <button class="filter-pill" data-filter="f1">
-            <i class="fa-solid fa-flag-checkered"></i> Formula 1 Series <span class="pill-count" id="count-f1">(3)</span>
-          </button>
-          <button class="filter-pill" data-filter="box_sets">
-            <i class="fa-solid fa-boxes-stacked"></i> Box Sets &amp; Combo <span class="pill-count" id="count-box_sets">(3)</span>
-          </button>
-          <button class="filter-pill" data-filter="ao_racing">
-            <i class="fa-solid fa-shield-cat"></i> AO Racing GT3 <span class="pill-count" id="count-ao_racing">(3)</span>
+          <button class="filter-pill" data-filter="bestseller">
+            <i class="fa-solid fa-fire" style="color:#e10600;"></i> <span data-i18n="filter_bestseller">Bán chạy nhất</span> <span class="pill-count" id="count-bestseller">(6)</span>
           </button>
           <button class="filter-pill" data-filter="in_stock">
-            <i class="fa-solid fa-box-open"></i> Có sẵn giao ngay <span class="pill-count" id="count-in_stock">(7)</span>
+            <i class="fa-solid fa-circle-check" style="color:#10b981;"></i> <span data-i18n="filter_instock">Còn hàng</span> <span class="pill-count" id="count-in_stock">(12)</span>
+          </button>
+          <button class="filter-pill" data-filter="pre_order">
+            <i class="fa-solid fa-clock"></i> <span data-i18n="filter_preorder">Pre-Order Đợt Mới</span> <span class="pill-count" id="count-pre_order">(4)</span>
+          </button>
+          <button class="filter-pill" data-filter="lbwk">
+            <i class="fa-solid fa-bolt"></i> <span data-i18n="filter_lbwk">Liberty Walk LBWK</span> <span class="pill-count" id="count-lbwk">(4)</span>
+          </button>
+          <button class="filter-pill" data-filter="chase">
+            <i class="fa-solid fa-gem" style="color:#f59e0b;"></i> <span data-i18n="filter_chase">Secret Chase Car</span> <span class="pill-count" id="count-chase">(3)</span>
+          </button>
+          <button class="filter-pill" data-filter="f1">
+            <i class="fa-solid fa-flag-checkered"></i> <span data-i18n="filter_f1">Formula 1 Series</span> <span class="pill-count" id="count-f1">(4)</span>
+          </button>
+          <button class="filter-pill" data-filter="box_sets">
+            <i class="fa-solid fa-boxes-stacked"></i> <span data-i18n="filter_boxsets">Box Sets &amp; Combo</span> <span class="pill-count" id="count-box_sets">(3)</span>
+          </button>
+          <button class="filter-pill" data-filter="ao_racing">
+            <i class="fa-solid fa-shield-cat"></i> <span data-i18n="filter_aoracing">AO Racing GT3</span> <span class="pill-count" id="count-ao_racing">(3)</span>
           </button>
         </div>
 
         <!-- Filter and Sort Toolbar -->
-        <div class="catalog-toolbar" style="display: flex; justify-content: space-between; align-items: center; margin: 16px 0 20px; flex-wrap: wrap; gap: 12px; background: #f8fafc; padding: 12px 16px; border-radius: 10px; border: 1px solid #e2e8f0;">
+        <div class="catalog-toolbar" style="display: flex; justify-content: space-between; align-items: center; margin: 16px 0 20px; flex-wrap: wrap; gap: 12px; background: #ffffff; padding: 12px 16px; border-radius: 12px; border: 1px solid #e2e8f0; box-shadow: 0 2px 8px rgba(15,23,42,0.03);">
           <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
             <div style="font-size: 13px; color: var(--color-gray-600);">
-              <i class="fa-solid fa-filter" style="color: var(--color-primary); margin-right: 4px;"></i> Đang lọc: <strong id="currentFilterLabel" style="color: var(--color-navy);">Tất cả mô hình</strong>
+              <i class="fa-solid fa-filter" style="color: var(--color-primary); margin-right: 4px;"></i> <span data-i18n="toolbar_filtering">Đang lọc:</span> <strong id="currentFilterLabel" style="color: var(--color-navy);">Tất cả mô hình</strong>
             </div>
             <div style="display: flex; align-items: center; gap: 6px;">
-              <label for="catalogBrandFilter" style="font-size: 12px; font-weight: 600; color: #475569;">Hãng:</label>
+              <label for="catalogBrandFilter" style="font-size: 12px; font-weight: 600; color: #475569;" data-i18n="toolbar_brand">Hãng:</label>
               <select id="catalogBrandFilter" class="form-input" style="padding: 4px 8px; font-size: 12px; border-radius: 6px; width: auto;" onchange="handleCatalogBrandChange(this.value)">
-                <option value="all">Tất cả hãng xe</option>
+                <option value="all" data-i18n="brand_all">Tất cả hãng xe</option>
                 <option value="MINI GT">MINI GT</option>
                 <option value="Pop Race">Pop Race</option>
                 <option value="TSM-Model">TSM-Model</option>
@@ -447,20 +549,20 @@
           </div>
 
           <div style="display: flex; align-items: center; gap: 8px;">
-            <label for="catalogSortSelect" style="font-size: 12.5px; font-weight: 600; color: var(--color-navy);"><i class="fa-solid fa-arrow-down-short-wide"></i> Sắp xếp:</label>
+            <label for="catalogSortSelect" style="font-size: 12.5px; font-weight: 600; color: var(--color-navy);"><i class="fa-solid fa-arrow-down-short-wide"></i> <span data-i18n="toolbar_sort">Sắp xếp:</span></label>
             <select id="catalogSortSelect" class="form-input" style="padding: 6px 10px; font-size: 12px; border-radius: 8px; width: auto; min-width: 175px;" onchange="handleCatalogSort(this.value)">
-              <option value="default">Mặc định (Nổi bật nhất)</option>
-              <option value="price_asc">Giá: Thấp đến Cao ↗</option>
-              <option value="price_desc">Giá: Cao đến Thấp ↘</option>
-              <option value="name_asc">Tên: A ➔ Z</option>
-              <option value="name_desc">Tên: Z ➔ A</option>
-              <option value="newest">Mới nhất 2026</option>
-              <option value="best_selling">Bán chạy nhất</option>
+              <option value="default" data-i18n="sort_default">Mặc định (Nổi bật nhất)</option>
+              <option value="price_asc" data-i18n="sort_price_asc">Giá: Thấp đến Cao ↗</option>
+              <option value="price_desc" data-i18n="sort_price_desc">Giá: Cao đến Thấp ↘</option>
+              <option value="name_asc" data-i18n="sort_name_asc">Tên: A ➔ Z</option>
+              <option value="name_desc" data-i18n="sort_name_desc">Tên: Z ➔ A</option>
+              <option value="newest" data-i18n="sort_newest">Mới nhất 2026</option>
+              <option value="best_selling" data-i18n="sort_bestselling">Bán chạy nhất</option>
             </select>
           </div>
         </div>
 
-        <!-- Main Product Grid (Dynamic cards with exact Screenshot 2 layout) -->
+        <!-- Main Product Grid -->
         <div class="product-grid" id="mainProductGrid">
           <!-- Populated dynamically via js/app.js -->
         </div>
@@ -468,7 +570,7 @@
         <!-- Pagination Controls -->
         <div class="catalog-pagination-wrap" id="catalogPaginationWrap">
           <div class="catalog-pagination-info" id="catalogPaginationInfo">
-            Hiển thị 1 - 8 trên tổng số mô hình xe
+            Hiển thị 1 - 9 trên tổng số mô hình xe
           </div>
           <div class="catalog-pagination-controls" id="catalogPaginationControls">
             <!-- Dynamic page buttons -->
@@ -478,18 +580,233 @@
     </section>
 
     <!-- =====================================================================
-         6. "SECRET CHASE" 1/24 LUXURY FEATURE SECTION (MATCHING SCREENSHOT 3)
+         5B. LIBERTY WALK (LB★WORKS) WIDEBODY SHOWCASE ZONE (CLEAN WHITE SHOWROOM)
+         ===================================================================== -->
+    <section class="lbwk-showcase-section" id="lbwk-zone" aria-label="Chuyên trang độ thân rộng Liberty Walk LBWK">
+      <div class="container">
+        <div class="lbwk-header-flex">
+          <div>
+            <div class="lbwk-badge-top">
+              <span class="lbwk-flag-jp">🇯🇵</span> NAGOYA JAPAN • LIBERTY WALK OFFICIAL LICENSED
+            </div>
+            <h2 class="lbwk-main-title" data-i18n="lbwk_title">BỘ SƯU TẬP BẢN ĐỘ <span>LIBERTY WALK (LB★WORKS)</span> 1:64</h2>
+            <p class="lbwk-sub-desc" data-i18n="lbwk_desc">
+              Khám phá di sản độ xe thân rộng của Wataru Kato: Vòm bánh xe đinh tán cơ bắp (Overfenders), gầm hạ sát mặt đường và cánh gió GT khí động học trên từng mẫu mô hình kim loại 1:64.
+            </p>
+          </div>
+          <button type="button" class="btn btn-primary" onclick="filterAndScroll(event, 'lbwk')" style="white-space:nowrap;">
+            <i class="fa-solid fa-bolt"></i> <span data-i18n="lbwk_btn_all">Xem tất cả xe LB★WORKS</span>
+          </button>
+        </div>
+
+        <div class="lbwk-bento-grid">
+          <!-- Main LBWK Spotlight Card: Nissan S15 Silvia -->
+          <div class="lbwk-hero-feature">
+            <div class="lbwk-feature-top">
+              <div class="lbwk-feature-badges">
+                <span class="lbwk-tag-red">#MGT00465 • FORMULA DRIFT</span>
+                <span class="lbwk-tag-dark"><i class="fa-solid fa-flag-checkered"></i> Nissan Official Licensed</span>
+              </div>
+              <h3 class="lbwk-feature-title">LB-Super Silhouette Nissan S15 Silvia Presentation</h3>
+              <p class="lbwk-feature-desc">
+                Cảm hứng thiết kế từ huyền thoại đua Group 5 thập niên 80 kết hợp kỹ thuật chế tác diecast của MINI GT: Nắp ca-pô xẻ rãnh thoát nhiệt, vòm bánh đúc liền thân và mâm 5 chấu thể thao.
+              </p>
+            </div>
+
+            <div class="lbwk-feature-img-box">
+              <img src="image/Minigt_s15chop_lbwk.jpg" alt="LB-Super Silhouette Nissan S15 Silvia">
+              <span class="lbwk-car-number-badge">▶ 465 • Box &amp; Card</span>
+            </div>
+
+            <div class="lbwk-feature-bottom">
+              <div class="lbwk-spec-chips">
+                <span class="lbwk-spec-chip"><i class="fa-solid fa-car-side"></i> Tỷ lệ 1:64 (~7.3 cm)</span>
+                <span class="lbwk-spec-chip"><i class="fa-solid fa-box"></i> Box: 320.000đ</span>
+                <span class="lbwk-spec-chip"><i class="fa-solid fa-shield-halved"></i> Card: 370.000đ</span>
+              </div>
+              <div class="lbwk-price-action-row">
+                <div class="lbwk-price-meta">
+                  <span class="lbwk-price-caption">Giá từ (Bản Box):</span>
+                  <span class="lbwk-price-val">320.000đ</span>
+                </div>
+                <div class="lbwk-actions-group">
+                  <button type="button" class="btn btn-outline" onclick="openQuickView(10)">
+                    <i class="fa-solid fa-eye"></i> Chi tiết
+                  </button>
+                  <button type="button" class="btn btn-primary" onclick="handleCardAction(10, event)">
+                    <i class="fa-solid fa-bag-shopping"></i> Mua ngay
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Right Stack: 3 Other LBWK Icons -->
+          <div class="lbwk-side-stack">
+            <div class="lbwk-mini-spotlight">
+              <img src="image/mgt01055.webp" alt="LB★WORKS Lamborghini Huracán GT Gravity" onerror="this.src='image/Minigt_Lambo_LBWK.jpg'">
+              <div class="lbwk-mini-info">
+                <div class="lbwk-mini-sku">#MGT01055 • BOX 350K / CARD 410K</div>
+                <h4 class="lbwk-mini-title">LB★WORKS Lamborghini Huracán GT Gravity #5</h4>
+                <div class="lbwk-mini-sub">Bodykit vòm bánh rộng tán đinh + Cánh gió GT Swan-Neck</div>
+                <div class="lbwk-mini-bottom">
+                  <strong class="lbwk-mini-price">350.000đ</strong>
+                  <button type="button" class="btn btn-sm btn-primary" onclick="handleCardAction(5, event)"><i class="fa-solid fa-cart-plus"></i> Mua ngay</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="lbwk-mini-spotlight">
+              <img src="image/minig_lambo_lbwk.webp" alt="LB★WORKS Huracán Blister Card" onerror="this.src='image/Minigt_Lambo_LBWK.jpg'">
+              <div class="lbwk-mini-info">
+                <div class="lbwk-mini-sku">#MGT01055-LW • BẢN VỈ BLISTER CARD</div>
+                <h4 class="lbwk-mini-title">LB★WORKS Huracán GT (Bản Vỉ Treo Tường)</h4>
+                <div class="lbwk-mini-sub">Đóng gói vỉ nhựa bảo vệ cứng kèm Card Art sưu tầm nguyên seal</div>
+                <div class="lbwk-mini-bottom">
+                  <strong class="lbwk-mini-price">410.000đ</strong>
+                  <button type="button" class="btn btn-sm btn-primary" onclick="handleCardAction(17, event)"><i class="fa-solid fa-cart-plus"></i> Mua ngay</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="lbwk-mini-spotlight">
+              <img src="image/Minigt_S15_LBWK.jpg" alt="LB-Super Silhouette S15 Goodwood FoS">
+              <div class="lbwk-mini-info">
+                <div class="lbwk-mini-sku">#MGT00618 • GOODWOOD FOS #23</div>
+                <h4 class="lbwk-mini-title">LB-Super Silhouette S15 #23 Goodwood</h4>
+                <div class="lbwk-mini-sub">Phiên bản kỷ niệm màn trình diễn drift tại lễ hội tốc độ Anh Quốc</div>
+                <div class="lbwk-mini-bottom">
+                  <strong class="lbwk-mini-price">340.000đ</strong>
+                  <button type="button" class="btn btn-sm btn-outline" onclick="openQuickView(11)"><i class="fa-solid fa-eye"></i> Xem xe</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- =====================================================================
+         5C. GT3 / IMSA ENDURANCE & AO RACING PADDOCK (WITH roxy_rexy_minigt.webp)
+         ===================================================================== -->
+    <section class="gt3-paddock-section" id="gt3-paddock" aria-label="Đường đua IMSA GT3 & Formula 1 Paddock">
+      <div class="container">
+        <header class="section-header">
+          <span class="section-eyebrow" data-i18n="gt3_eyebrow">IMSA WEATHERTECH • DAYTONA 24H • AO RACING PADDOCK</span>
+          <h2 class="section-title" data-i18n="gt3_title">PORSCHE 911 GT3 R: BỘ BA REXY • ROXY • SKELETON</h2>
+          <p class="section-desc" data-i18n="gt3_desc">
+            Trọn bộ sưu tập chiến mã đường đua GT3 bản quyền chính thức từ đội đua AO Racing và IMSA Daytona 24h với cả hai tùy chọn <strong>Box (Hộp giấy)</strong> và <strong>Card (Vỉ nhựa Blister)</strong>.
+          </p>
+        </header>
+
+        <!-- Featured Banner with image/roxy_rexy_minigt.webp -->
+        <div class="ao-showcase-hero-banner" style="background-image: url('image/roxy_rexy_minigt.webp');">
+          <div class="ao-showcase-hero-overlay">
+            <div class="ao-showcase-hero-text">
+              <span class="ao-showcase-pill"><i class="fa-solid fa-trophy"></i> OFFICIAL AO RACING x MINI GT 1:64</span>
+              <h3>Bộ Sưu Tập Khủng Long Đường Đua IMSA GTD PRO</h3>
+              <p>Hình ảnh thực tế bộ đôi Porsche 911 GT3 R <strong>Rexy #80</strong> &amp; <strong>Roxy #77</strong> cùng phiên bản giới hạn <strong>Skeleton #77</strong> Petit Le Mans.</p>
+            </div>
+            <div class="ao-showcase-hero-actions">
+              <button type="button" class="btn btn-primary" onclick="filterAndScroll(event, 'ao_racing')">
+                <i class="fa-solid fa-filter"></i> Lọc trọn bộ AO Racing
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="gt3-trio-banner">
+          <!-- Card 1: Rexy #80 -->
+          <div class="gt3-dino-card rexy-theme">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <span style="background:#dcfce7; color:#15803d; font-size:10.5px; font-weight:800; padding:3px 9px; border-radius:99px;">#MGT00782 • REXY #80</span>
+              <span style="font-size:11px; font-weight:700; color:#059669;">Box 380k • Card 450k</span>
+            </div>
+            <div class="gt3-dino-img-wrap">
+              <img src="image/rexy.jpg" alt="Porsche 911 GT3 R #80 AO Racing Rexy">
+            </div>
+            <h3 style="font-size:15.5px; font-weight:800; color:var(--text-primary); margin-bottom:4px;">Porsche 911 GT3 R #80 AO Racing "Rexy"</h3>
+            <p style="font-size:12px; color:var(--text-secondary); line-height:1.5; margin-bottom:12px;">
+              Phiên bản khủng long xanh T-Rex tại giải đua sức bền Sebring &amp; Daytona. Có sẵn cả bản Hộp giấy (Box) và Vỉ Blister (Card).
+            </p>
+            <div style="margin-top:auto; display:flex; justify-content:space-between; align-items:center; padding-top:10px; border-top:1px dashed var(--border-subtle);">
+              <div>
+                <strong style="font-size:17px; font-weight:900; color:#0f172a;">380.000đ</strong>
+                <span style="font-size:10.5px; color:#64748b; display:block;">Bản Box (Card: 450.000đ)</span>
+              </div>
+              <div style="display:flex; gap:6px;">
+                <button type="button" class="btn btn-sm btn-outline" onclick="openQuickView(8)"><i class="fa-solid fa-eye"></i></button>
+                <button type="button" class="card-btn-buy" onclick="handleCardAction(8, event)"><i class="fa-solid fa-bag-shopping"></i> Mua ngay</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Card 2: Roxy #77 -->
+          <div class="gt3-dino-card roxy-theme">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <span style="background:#fce7f3; color:#be185d; font-size:10.5px; font-weight:800; padding:3px 9px; border-radius:99px;">#MGT01093 • ROXY #77</span>
+              <span style="font-size:11px; font-weight:700; color:#dc2626;">Đang giảm -5%</span>
+            </div>
+            <div class="gt3-dino-img-wrap">
+              <img src="image/Roxy.webp" alt="Porsche 911 GT3 R #77 AO Racing Roxy" onerror="this.src='image/roxy_rexy_minigt.webp'">
+            </div>
+            <h3 style="font-size:15.5px; font-weight:800; color:var(--text-primary); margin-bottom:4px;">Porsche 911 GT3 R #77 AO Racing "Roxy"</h3>
+            <p style="font-size:12px; color:var(--text-secondary); line-height:1.5; margin-bottom:12px;">
+              Phiên bản khủng long hồng Roxy tại chặng Virginia &amp; Road America. Sơn hồng Magenta kết hợp gai lưng xanh chuẩn xác.
+            </p>
+            <div style="margin-top:auto; display:flex; justify-content:space-between; align-items:center; padding-top:10px; border-top:1px dashed var(--border-subtle);">
+              <div>
+                <strong style="font-size:17px; font-weight:900; color:#e10600;">342.000đ</strong>
+                <span style="font-size:10.5px; color:#64748b; display:block;">Bản Box -5% (Card: 408.000đ)</span>
+              </div>
+              <div style="display:flex; gap:6px;">
+                <button type="button" class="btn btn-sm btn-outline" onclick="openQuickView(7)"><i class="fa-solid fa-eye"></i></button>
+                <button type="button" class="card-btn-buy" onclick="handleCardAction(7, event)"><i class="fa-solid fa-bag-shopping"></i> Mua ngay</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Card 3: Skeleton #77 -->
+          <div class="gt3-dino-card skeleton-theme">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <span style="background:#f1f5f9; color:#334155; font-size:10.5px; font-weight:800; padding:3px 9px; border-radius:99px;">#MGT01143 • SKELETON #77</span>
+              <span style="font-size:11px; font-weight:700; color:#2563eb;">Pre-Order (Cọc 150k)</span>
+            </div>
+            <div class="gt3-dino-img-wrap">
+              <img src="image/ske.webp" alt="Porsche 911 GT3 R #77 AO Racing Skeleton" onerror="this.src='image/roxy_rexy_minigt.webp'">
+            </div>
+            <h3 style="font-size:15.5px; font-weight:800; color:var(--text-primary); margin-bottom:4px;">Porsche 911 GT3 R #77 AO Racing "Skeleton"</h3>
+            <p style="font-size:12px; color:var(--text-secondary); line-height:1.5; margin-bottom:12px;">
+              Bản giới hạn Halloween Petit Le Mans với đồ họa bộ xương khủng long Rexy trên nền đen mờ. Tùy chọn Box hoặc Card.
+            </p>
+            <div style="margin-top:auto; display:flex; justify-content:space-between; align-items:center; padding-top:10px; border-top:1px dashed var(--border-subtle);">
+              <div>
+                <strong style="font-size:17px; font-weight:900; color:#0f172a;">390.000đ</strong>
+                <span style="font-size:10.5px; color:#64748b; display:block;">Bản Box (Card: 470.000đ)</span>
+              </div>
+              <div style="display:flex; gap:6px;">
+                <button type="button" class="btn btn-sm btn-outline" onclick="openQuickView(6)"><i class="fa-solid fa-eye"></i></button>
+                <button type="button" class="card-btn-preorder" onclick="handleCardAction(6, event)"><i class="fa-solid fa-plus"></i> Đặt cọc</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- =====================================================================
+         6. "SECRET CHASE" 1/24 LUXURY FEATURE SECTION (CLEAN WHITE SHOWROOM)
          ===================================================================== -->
     <section class="section secret-chase-section" id="secret-chase" aria-label="Bí mật xe Secret Chase 1/24">
       <div class="container">
         <div class="chase-feature-card">
           <!-- Left Text Content -->
           <div class="chase-feature-content">
-            <div class="chase-badge-tag">
+            <div class="chase-badge-tag" data-i18n="chase_badge">
               <i class="fa-solid fa-crown"></i> ĐẶC QUYỀN NHÀ SƯU TẦM CHUYÊN NGHIỆP
             </div>
-            <h2 class="chase-feature-title">BÍ MẬT XE &ldquo;SECRET CHASE&rdquo; 1/24 LÀ GÌ?</h2>
-            <p class="chase-feature-desc">
+            <h2 class="chase-feature-title" data-i18n="chase_title">BÍ MẬT XE &ldquo;SECRET CHASE&rdquo; 1/24 LÀ GÌ?</h2>
+            <p class="chase-feature-desc" data-i18n="chase_desc">
               Trong mỗi thùng tiêu chuẩn 24 xe xuất xưởng từ hãng <strong>Pop Race</strong> hoặc <strong>MINI GT</strong>, nhà sản xuất chỉ trộn lẫn duy nhất <strong>01 chiếc Chase Car đặc biệt</strong> (mạ Chrome sáng gương, phôi thép không sơn Raw Metal hoặc tem sơn riêng).
             </p>
 
@@ -499,8 +816,8 @@
                   <i class="fa-solid fa-chart-line"></i>
                 </div>
                 <div class="chase-benefit-text">
-                  <h4>Giá trị gia tăng x2 đến x5 lần</h4>
-                  <p>Được giới collector quốc tế săn lùng ngay khi vừa khui seal.</p>
+                  <h4 data-i18n="chase_b1_title">Giá trị sưu tầm cao gấp 2 đến 5 lần</h4>
+                  <p data-i18n="chase_b1_desc">Được giới collector quốc tế săn đón nhờ số lượng phát hành giới hạn theo tỉ lệ 1/24.</p>
                 </div>
               </div>
 
@@ -509,14 +826,14 @@
                   <i class="fa-solid fa-certificate"></i>
                 </div>
                 <div class="chase-benefit-text">
-                  <h4>Tem nhãn Secret độc quyền</h4>
-                  <p>Hộp xe hoặc thẻ bảo hành có dấu định danh Chase phiên bản kín.</p>
+                  <h4 data-i18n="chase_b2_title">Nguyên seal Box &amp; Blister chính hãng</h4>
+                  <p data-i18n="chase_b2_desc">Đầy đủ tem chống giả TSM-Model / Pop Race và hộp bảo vệ chuyên dụng.</p>
                 </div>
               </div>
             </div>
 
             <button class="btn-chase-gold" onclick="filterAndScroll(event, 'chase')">
-              <i class="fa-solid fa-gem"></i> Xem các mẫu Secret Chase trong đợt này
+              <i class="fa-solid fa-gem"></i> <span data-i18n="chase_btn">Xem các mẫu Secret Chase trong đợt này</span>
             </button>
           </div>
 
@@ -524,8 +841,8 @@
           <div class="chase-showcase-box">
             <div class="chase-car-frame">
               <div class="chase-frame-header">
-                <span>CREATE YOUR OWN RACE WORLD <strong>NOW</strong></span>
-                <span class="poprace-logo-badge">POP RACE</span>
+                <span>OFFICIAL COLLECTOR EDITION</span>
+                <span class="poprace-logo-badge">POP RACE 1:64</span>
               </div>
               <div class="topsecret-logo-text">TOP SECRET</div>
               <div class="chase-car-img-wrap">
@@ -535,9 +852,128 @@
                 <h3 class="chase-car-name">TOP SECRET GT300 SUPRA</h3>
                 <div class="chase-car-sub">SILVER CHROME 1:64</div>
                 <div class="chase-car-sku">PR640325</div>
-                <span class="chase-tag-pill">RAW CHASE FINISH</span>
+                <span class="chase-tag-pill">SECRET CHASE 1/24</span>
               </div>
             </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- =====================================================================
+         6B. TRUNG TÂM TIỆN ÍCH COLLECTOR 1:64 (SCALE GUIDE, BOX SAVER & WAVE TRACKER)
+         ===================================================================== -->
+    <section class="collector-hub-section" id="collector-hub" aria-label="Cẩm nang tỉ lệ 1:64 & Tiện ích nhà sưu tập">
+      <div class="container">
+        <header class="section-header">
+          <span class="section-eyebrow">CHUẨN MỰC DÀNH RIÊNG CHO NGƯỜI CHƠI MÔ HÌNH 1:64</span>
+          <h2 class="section-title" data-i18n="hub_title">TIỆN ÍCH ĐẶC QUYỀN COLLECTOR 1:64 DIE-CAST</h2>
+          <p class="section-desc" data-i18n="hub_desc">
+            Tích hợp các công cụ chuyên sâu thường có trên những hệ thống phân phối mô hình MINI GT &amp; Pop Race quốc tế: Quy chuẩn kích thước 1:64, Lưu kho Gom đơn (Box Saver) và Theo dõi lịch tàu cập bến.
+          </p>
+        </header>
+
+        <div class="collector-hub-grid">
+          <!-- Utility 1: 1:64 Scale & Packaging Spec Guide -->
+          <div class="collector-tool-card">
+            <div style="display:flex; align-items:center; gap:10px;">
+              <div style="width:42px; height:42px; border-radius:10px; background:#fee2e2; color:#e10600; display:flex; align-items:center; justify-content:center; font-size:18px;">
+                <i class="fa-solid fa-ruler-combined"></i>
+              </div>
+              <div>
+                <div style="font-size:11px; font-weight:800; color:#e10600; text-transform:uppercase;">CHUẨN KÍCH THƯỚC &amp; QUY CÁCH</div>
+                <h3 style="font-size:16px; font-weight:800; color:var(--text-primary); margin:0;">Cẩm Nang Tỉ Lệ 1:64 Chuẩn</h3>
+              </div>
+            </div>
+
+            <div class="scale-visual-ruler">
+              <div style="font-size:11.5px; color:#cbd5e1; margin-bottom:4px;">Kích thước thực tế mô hình 1:64 (Nằm gọn lòng bàn tay)</div>
+              <div style="font-size:20px; font-weight:900; color:#fbbf24;">Chiều dài: 7.0 cm – 7.8 cm</div>
+              <div class="ruler-ticks">
+                <span>0 cm</span>
+                <span>2 cm</span>
+                <span>4 cm</span>
+                <span>6 cm</span>
+                <span>7.5 cm (1:64)</span>
+              </div>
+            </div>
+
+            <div style="font-size:12px; color:var(--text-secondary); display:flex; flex-direction:column; gap:7px;">
+              <div><strong>📦 Hộp Giấy (Paper Box):</strong> Nhỏ gọn, có khay nhựa trong suốt, dễ lấy xe trưng bày diorama.</div>
+              <div><strong>🛡️ Vỉ Nhựa (Blister Pack):</strong> Ép seal nhựa cứng + Bìa Card Art lớn, chống cấn góc tuyệt đối.</div>
+              <div><strong>💎 Hộp Acrylic (Collector Case):</strong> Gồm đế trưng bày + nắp mica chống bụi (Pop Race / Trends Hobby).</div>
+            </div>
+          </div>
+
+          <!-- Utility 2: Box Saver & Blister Protector -->
+          <div class="collector-tool-card">
+            <div style="display:flex; align-items:center; gap:10px;">
+              <div style="width:42px; height:42px; border-radius:10px; background:#dcfce7; color:#059669; display:flex; align-items:center; justify-content:center; font-size:18px;">
+                <i class="fa-solid fa-boxes-packing"></i>
+              </div>
+              <div>
+                <div style="font-size:11px; font-weight:800; color:#059669; text-transform:uppercase;">TIẾT KIỆM PHÍ SHIP &amp; BẢO VỆ HỘP</div>
+                <h3 style="font-size:16px; font-weight:800; color:var(--text-primary); margin:0;">Gom Đơn "Box Saver" &amp; Protector</h3>
+              </div>
+            </div>
+
+            <p style="font-size:12.5px; color:var(--text-secondary); line-height:1.55; margin:0;">
+              Người chơi Pre-Order nhiều đợt xe khác nhau có thể chọn chế độ <strong>"Gom đơn lưu kho Box Saver (0đ phí ship)"</strong> ở bước Thanh toán để giữ xe tại kho lạnh chống ẩm của Store, gộp giao chung 1 kiện lớn khi đủ xe!
+            </p>
+
+            <div style="background:var(--bg-surface); border:1px solid var(--border-subtle); border-radius:12px; padding:12px; font-size:12px;">
+              <div style="font-weight:800; color:var(--text-primary); margin-bottom:6px;">
+                <i class="fa-solid fa-shield-cat" style="color:#e10600;"></i> Tùy chọn Bọc Hộp Nhựa Cứng PVC Protector:
+              </div>
+              <div style="color:var(--text-secondary); line-height:1.45;">
+                Ốp nhựa PET dày 0.5mm chống móp góc hộp giấy 100% khi vận chuyển đường xa (Tùy chọn thêm trực tiếp trong bước Thanh toán).
+              </div>
+            </div>
+
+            <button type="button" class="btn btn-outline btn-sm" style="margin-top:auto;" onclick="openCartDrawer()">
+              <i class="fa-solid fa-bag-shopping"></i> Mở giỏ hàng &amp; Trải nghiệm Box Saver
+            </button>
+          </div>
+
+          <!-- Utility 3: Pre-Order Container Wave Tracker -->
+          <div class="collector-tool-card">
+            <div style="display:flex; align-items:center; gap:10px;">
+              <div style="width:42px; height:42px; border-radius:10px; background:#dbeafe; color:#2563eb; display:flex; align-items:center; justify-content:center; font-size:18px;">
+                <i class="fa-solid fa-ship"></i>
+              </div>
+              <div>
+                <div style="font-size:11px; font-weight:800; color:#2563eb; text-transform:uppercase;">LỊCH TÀU VỀ KHO BIÊN HÒA</div>
+                <h3 style="font-size:16px; font-weight:800; color:var(--text-primary); margin:0;">Tiến Độ Container Pre-Order</h3>
+              </div>
+            </div>
+
+            <div class="wave-timeline-list">
+              <div class="wave-item-row">
+                <div>
+                  <strong style="color:var(--text-primary); display:block;">Wave #74: LBWK S15 &amp; Huracán GT</strong>
+                  <span style="color:var(--text-muted); font-size:11px;">Cảng Hồng Kông ➔ Kho Biên Hòa</span>
+                </div>
+                <span style="background:#dcfce7; color:#15803d; font-weight:800; font-size:10.5px; padding:3px 8px; border-radius:99px;">Đã cập kho</span>
+              </div>
+              <div class="wave-item-row">
+                <div>
+                  <strong style="color:var(--text-primary); display:block;">Wave #75: F1 Las Vegas GP (AMR24)</strong>
+                  <span style="color:var(--text-muted); font-size:11px;">Dự kiến trả hàng: 20/11/2026</span>
+                </div>
+                <span style="background:#fef3c7; color:#b45309; font-weight:800; font-size:10.5px; padding:3px 8px; border-radius:99px;">Đang nhận cọc</span>
+              </div>
+              <div class="wave-item-row">
+                <div>
+                  <strong style="color:var(--text-primary); display:block;">Wave #76: AO Racing Skeleton #77</strong>
+                  <span style="color:var(--text-muted); font-size:11px;">Dự kiến trả hàng: 30/11/2026</span>
+                </div>
+                <span style="background:#fee2e2; color:#dc2626; font-weight:800; font-size:10.5px; padding:3px 8px; border-radius:99px;">Sắp hết slot</span>
+              </div>
+            </div>
+
+            <button type="button" class="btn btn-outline btn-sm" style="margin-top:auto;" onclick="openTrackingModal()">
+              <i class="fa-solid fa-magnifying-glass"></i> Tra cứu mã đơn Pre-Order của bạn
+            </button>
           </div>
         </div>
       </div>
@@ -757,7 +1193,7 @@
             <li><a href="#preorder-workflow" onclick="scrollToSection(event, 'preorder-workflow')">Chính sách bảo hành hộp xe</a></li>
             <li><a href="#secret-chase" onclick="scrollToSection(event, 'secret-chase')">Cơ chế săn Secret Chase</a></li>
             <li><a href="javascript:void(0)" onclick="openAuthModal('login')">Tài khoản &amp; Đơn mua</a></li>
-            <li><a href="admin/index.html" style="color:#f59e0b; font-weight:700;"><i class="fa-solid fa-crown"></i> Quản Trị Viên (Admin)</a></li>
+            <!-- <li><a href="admin/index.html" style="color:#f59e0b; font-weight:700;"><i class="fa-solid fa-crown"></i> Quản Trị Viên (Admin)</a></li> -->
           </ul>
         </div>
 
@@ -780,7 +1216,7 @@
       <!-- Footer Bottom -->
       <div class="footer-bottom">
         <div>
-          &copy; 2026 MINI GT STORE — Bản quyền thiết kế thuộc về Đỗ Quốc Thịnh (Đại Học Lạc Hồng).
+          &copy; 2026 MINI GT STORE BIÊN HÒA — Đồ án Thiết kế Web thực hiện bởi <strong>Đỗ Quốc Thịnh &amp; Nguyễn Đình Nam</strong> (Đại Học Lạc Hồng).
         </div>
         <div>
           TSM-Model&reg;, MINI GT&reg; và Pop Race&reg; là các thương hiệu đã được đăng ký bản quyền.
@@ -852,7 +1288,11 @@
             <label class="form-label" for="regPassword">Mật khẩu mới</label>
             <input type="password" id="regPassword" class="form-input" placeholder="Tối thiểu 6 ký tự" required>
           </div>
-          <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 10px;">
+          <div style="font-size:11.5px; color:#64748b; margin-bottom:8px; display:flex; align-items:center; gap:8px;">
+            <img src="image/anh-clone.jpg" alt="Avatar mặc định" style="width:26px; height:26px; border-radius:50%; object-fit:cover; border:1px solid #cbd5e1;">
+            <span>Ảnh đại diện mặc định cho tài khoản mới: <code>anh-clone.jpg</code></span>
+          </div>
+          <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 6px;">
             Tạo Tài Khoản
           </button>
         </form>
@@ -870,11 +1310,11 @@
     </div>
   </div>
 
-  <!-- CHECKOUT MODAL: MULTI-STEP STEPPER CHUẨN DESIGN -->
+  <!-- CHECKOUT MODAL: MULTI-STEP STEPPER CHUẨN DESIGN (NON-OVERLAPPING STICKY ACTIONS) -->
   <div class="modal-overlay" id="checkoutModal" role="dialog" aria-modal="true" aria-label="Xác nhận thanh toán và cọc">
     <div class="modal-container checkout-stepper-container">
       <button type="button" class="modal-close-btn" onclick="closeModal('checkoutModal')">✕</button>
-      <div class="modal-body" style="padding: 1.5rem 1.75rem;">
+      <div class="modal-body">
 
         <!-- Stepper Progress Bar -->
         <div class="stepper-progress-bar">
@@ -939,7 +1379,7 @@
               <input type="text" id="checkoutAddress" class="form-input" placeholder="Ví dụ: 38/2 Võ Thị Sáu, P. Quyết Thắng, TP. Biên Hòa, Đồng Nai" required oninput="saveCheckoutFormState()">
             </div>
             <div class="form-group">
-              <label class="form-label" for="checkoutNote">Ghi chú giao hàng (Tùy chọn)</label>
+              <label class="form-label" for="checkoutNote">Ghi chú đóng gói / giao hàng (Tùy chọn)</label>
               <input type="text" id="checkoutNote" class="form-input" placeholder="Ví dụ: Bọc xốp dày 4 lớp bảo vệ góc hộp seal giúp em..." oninput="saveCheckoutFormState()">
             </div>
             <div class="stepper-actions">
@@ -949,12 +1389,48 @@
           </form>
         </div>
 
-        <!-- Step 3: Payment -->
+        <!-- Step 3: Payment & Collector Options -->
         <div class="checkout-step-pane" id="checkoutStepPane3" style="display: none;">
           <div class="step-pane-header">
-            <h3 class="step-pane-title"><i class="fa-solid fa-credit-card" style="color:var(--color-primary); margin-right:6px;"></i> 3. Phương Thức Thanh Toán &amp; Xác Nhận</h3>
-            <p class="step-pane-desc">Phí giao hàng bọc hộp chống sốc SPX Express đồng giá chỉ <strong>11.000đ</strong> toàn quốc.</p>
+            <h3 class="step-pane-title"><i class="fa-solid fa-credit-card" style="color:var(--color-primary); margin-right:6px;"></i> 3. Tùy Chọn Vận Chuyển, Bảo Vệ Hộp &amp; Thanh Toán</h3>
+            <p class="step-pane-desc">Tối ưu chi phí vận chuyển, chọn bọc hộp Protector và xác nhận phương thức thanh toán.</p>
           </div>
+
+          <!-- Collector Shipping & Box Protector Add-ons -->
+          <div class="checkout-addon-box" style="margin-top:0; margin-bottom:12px;">
+            <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap:10px; margin-bottom:10px;">
+              <div>
+                <label class="form-label" for="checkoutShippingMode" style="font-size:11.5px; margin-bottom:4px;"><i class="fa-solid fa-truck-fast" style="color:#ea580c;"></i> Hình thức giao nhận:</label>
+                <select id="checkoutShippingMode" class="form-input" style="padding:7px 10px; font-size:12px;" onchange="handleCheckoutAddonChange()">
+                  <option value="SPX_STANDARD">Giao tận nơi SPX Express (11.000đ)</option>
+                  <option value="BOX_SAVER">Gom đơn lưu kho Box Saver (Miễn phí 0đ)</option>
+                  <option value="SHOWROOM_PICKUP">Nhận trực tiếp tại Showroom Biên Hòa (0đ)</option>
+                </select>
+              </div>
+              <div>
+                <label class="form-label" for="checkoutVoucherInput" style="font-size:11.5px; margin-bottom:4px;"><i class="fa-solid fa-ticket" style="color:#d97706;"></i> Mã ưu đãi / Voucher:</label>
+                <div style="display:flex; gap:6px;">
+                  <input type="text" id="checkoutVoucherInput" class="form-input" placeholder="Nhập mã giảm giá..." style="padding:7px 10px; font-size:12px; text-transform:uppercase;">
+                  <button type="button" class="btn btn-sm btn-outline" style="white-space:nowrap; padding:6px 10px; font-size:11.5px;" onclick="applyCheckoutVoucher()">Áp dụng</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="voucher-chips-row" style="margin-bottom:10px;">
+              <button type="button" class="voucher-chip-btn" onclick="selectVoucherChip('MINIGT2026')"><i class="fa-solid fa-tag"></i> MINIGT2026 (-20k)</button>
+              <button type="button" class="voucher-chip-btn" onclick="selectVoucherChip('FREESHIP')"><i class="fa-solid fa-truck"></i> FREESHIP (-11k Ship)</button>
+              <button type="button" class="voucher-chip-btn" onclick="selectVoucherChip('LBWK50K')"><i class="fa-solid fa-bolt"></i> LBWK50K (-50k đơn từ 850k)</button>
+            </div>
+
+            <label class="protector-check-label" style="border-top:1px dashed var(--border-subtle); padding-top:8px;">
+              <input type="checkbox" id="checkoutBoxProtectorCheck" onchange="handleCheckoutAddonChange()">
+              <div>
+                <strong style="color:#e10600;">+ Bọc Hộp Nhựa Cứng PVC Protector (+15.000đ)</strong>
+                <div style="font-size:11px; color:var(--text-secondary);">Ốp nhựa PET 0.5mm chống cấn góc hộp giấy &amp; vỉ Blister tuyệt đối khi vận chuyển xa.</div>
+              </div>
+            </label>
+          </div>
+
           <div class="payment-method-options" style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 14px;">
             <label class="payment-option-card active" id="payOptDeposit" style="display:flex; gap:10px; padding:12px; border:1.5px solid var(--color-primary); border-radius:10px; background:#fff7f7; cursor:pointer;">
               <input type="radio" name="checkoutPaymentMethod" value="DEPOSIT" checked onchange="handlePaymentMethodChange(this.value)">
@@ -966,7 +1442,7 @@
                   <span style="font-size:10px; font-weight:800; background:#dc2626; color:#fff; padding:2px 6px; border-radius:4px;">Khuyên Dùng Pre-Order</span>
                 </div>
                 <div class="opt-desc" style="font-size:11.5px; color:#64748b; margin-top:3px; line-height:1.4;">
-                  Quét mã VietQR chuyển cọc trước giữ slot xe giới hạn. Số tiền còn lại + phí ship <strong>11.000đ</strong> thanh toán COD khi nhận xe.
+                  Quét mã VietQR chuyển cọc trước giữ slot xe giới hạn. Số tiền còn lại thanh toán COD khi nhận xe.
                 </div>
               </div>
             </label>
@@ -977,10 +1453,10 @@
                   <strong class="opt-title" style="color:var(--color-navy); font-size:13px;">
                     <i class="fa-solid fa-hand-holding-dollar" style="color:#059669; margin-right:4px;"></i> Thanh toán khi nhận hàng (Ship COD)
                   </strong>
-                  <span style="font-size:10px; font-weight:700; background:#ecfdf5; color:#059669; padding:2px 6px; border-radius:4px;">Ship Đồng Giá 11k</span>
+                  <span style="font-size:10px; font-weight:700; background:#ecfdf5; color:#059669; padding:2px 6px; border-radius:4px;">Kiểm Hàng Trước Khi Trả</span>
                 </div>
                 <div class="opt-desc" style="font-size:11.5px; color:#64748b; margin-top:3px; line-height:1.4;">
-                  Thanh toán toàn bộ tiền hàng + <strong>11.000đ</strong> phí ship cho shipper SPX Express khi nhận và kiểm tra kiện xe.
+                  Thanh toán toàn bộ tiền hàng cho shipper SPX Express khi nhận và đồng kiểm kiện xe nguyên seal.
                 </div>
               </div>
             </label>
@@ -1000,7 +1476,7 @@
             </label>
           </div>
 
-          <div class="checkout-review-card" style="background:#f1f5f9; border-radius:8px; padding:10px 14px; margin-bottom:12px; font-size:12.5px;">
+          <div class="checkout-review-card" style="background:var(--bg-surface-alt); border:1px solid var(--border-subtle); border-radius:8px; padding:10px 14px; margin-bottom:12px; font-size:12.5px;">
             <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
               <span style="color:#64748b;">Người nhận hàng:</span>
               <strong id="reviewRecipientName" style="color:var(--color-navy);">--</strong>
@@ -1017,7 +1493,7 @@
 
           <div id="checkoutStep3SummaryBox" class="checkout-summary-box"></div>
           <div class="stepper-actions">
-            <button type="button" class="btn btn-outline" onclick="goToCheckoutStep(2)">⬅ Sửa thông tin giao hàng</button>
+            <button type="button" class="btn btn-outline" onclick="goToCheckoutStep(2)">⬅ Sửa địa chỉ</button>
             <button type="button" id="btnSubmitOrder" class="btn btn-primary btn-submit-order" onclick="handleCheckoutSubmit(event)">
               <span id="submitOrderBtnText">Xác Nhận &amp; Đặt Hàng Ngay ➔</span>
             </button>
@@ -1195,6 +1671,15 @@
       <button class="drawer-close-btn" onclick="closeMobileNav()" aria-label="Đóng menu">✕</button>
     </div>
 
+    <div style="display:flex; gap:8px; padding:10px 16px; border-bottom:1px solid var(--border-subtle);">
+      <button type="button" class="pref-toggle-btn" style="flex:1;" onclick="toggleThemeMode()">
+        <i class="fa-solid fa-circle-half-stroke"></i> <span>Sáng / Tối</span>
+      </button>
+      <button type="button" class="pref-toggle-btn" style="flex:1;" onclick="toggleSiteLanguage()">
+        <i class="fa-solid fa-globe"></i> <span>Tiếng Việt / EN</span>
+      </button>
+    </div>
+
     <form class="drawer-search" onsubmit="handleMobileSearch(event)">
       <input type="text" id="mobileSearchInput" placeholder="Tìm kiếm mô hình xe..." autocomplete="off">
       <button type="submit" class="drawer-search-btn" style="background:none;border:none;cursor:pointer;"><i class="fa-solid fa-magnifying-glass"></i></button>
@@ -1205,10 +1690,10 @@
       <ul class="drawer-links-list">
         <li><a href="index.html" class="drawer-link active" onclick="closeMobileNav()"><i class="fa-solid fa-house" style="margin-right:8px;"></i> Trang chủ</a></li>
         <li><a href="#catalog" class="drawer-link" onclick="closeMobileNav(); filterAndScroll(event, 'pre_order')"><i class="fa-solid fa-clock" style="margin-right:8px;"></i> Pre-Order 2026</a></li>
-        <li><a href="#catalog" class="drawer-link" onclick="closeMobileNav(); filterAndScroll(event, 'lbwk')"><i class="fa-solid fa-bolt" style="margin-right:8px;"></i> Liberty Walk LBWK</a></li>
-        <li><a href="#catalog" class="drawer-link" onclick="closeMobileNav(); filterAndScroll(event, 'f1')"><i class="fa-solid fa-flag-checkered" style="margin-right:8px;"></i> Formula 1 Racing</a></li>
+        <li><a href="#lbwk-zone" class="drawer-link" onclick="closeMobileNav(); scrollToSection(event, 'lbwk-zone')"><i class="fa-solid fa-bolt" style="margin-right:8px;"></i> Chuyên trang Liberty Walk LBWK</a></li>
+        <li><a href="#gt3-paddock" class="drawer-link" onclick="closeMobileNav(); scrollToSection(event, 'gt3-paddock')"><i class="fa-solid fa-flag-checkered" style="margin-right:8px;"></i> Đường đua GT3 &amp; AO Racing</a></li>
         <li><a href="#secret-chase" class="drawer-link" onclick="closeMobileNav(); scrollToSection(event, 'secret-chase')"><i class="fa-solid fa-gem" style="margin-right:8px; color:#f59e0b;"></i> Săn xe Secret Chase</a></li>
-        <li><a href="#catalog" class="drawer-link" onclick="closeMobileNav(); filterAndScroll(event, 'box_sets')"><i class="fa-solid fa-boxes-stacked" style="margin-right:8px;"></i> Box Sets &amp; Combo</a></li>
+        <li><a href="#collector-hub" class="drawer-link" onclick="closeMobileNav(); scrollToSection(event, 'collector-hub')"><i class="fa-solid fa-ruler-combined" style="margin-right:8px;"></i> Cẩm nang 1:64 &amp; Box Saver</a></li>
       </ul>
 
       <div class="drawer-section-title">TIỆN ÍCH &amp; ĐƠN MUA</div>
@@ -1216,7 +1701,7 @@
         <li><a href="javascript:void(0)" class="drawer-link" onclick="closeMobileNav(); openWishlistModal()"><i class="fa-solid fa-heart" style="margin-right:8px; color:#dc2626;"></i> Danh sách yêu thích</a></li>
         <li><a href="javascript:void(0)" class="drawer-link" onclick="closeMobileNav(); openMyOrdersModal()"><i class="fa-solid fa-box-archive" style="margin-right:8px; color:#2563eb;"></i> Đơn hàng của tôi (SPX)</a></li>
         <li><a href="javascript:void(0)" class="drawer-link" onclick="closeMobileNav(); openTrackingModal()"><i class="fa-solid fa-truck-fast" style="margin-right:8px; color:#ea580c;"></i> Tra cứu đơn hàng</a></li>
-        <li><a href="admin/index.html" class="drawer-link" style="color:#d97706; font-weight:700;"><i class="fa-solid fa-crown" style="margin-right:8px;"></i> Cổng Quản Trị Admin</a></li>
+        <!-- <li><a href="admin/index.html" class="drawer-link" style="color:#d97706; font-weight:700;"><i class="fa-solid fa-crown" style="margin-right:8px;"></i> Cổng Quản Trị Admin</a></li> -->
       </ul>
 
       <div class="drawer-section-title">HỖ TRỢ TRỰC TIẾP</div>
@@ -1226,6 +1711,31 @@
       </div>
     </div>
   </aside>
+
+  <!-- STICKY MOBILE BOTTOM APP BAR (FOR PHONES <= 768PX) -->
+  <nav class="mobile-bottom-nav" id="mobileBottomNav" aria-label="Điều hướng nhanh trên điện thoại">
+    <a href="index.html" class="mob-nav-item active">
+      <i class="fa-solid fa-house"></i>
+      <span data-i18n="mob_home">Trang chủ</span>
+    </a>
+    <button type="button" class="mob-nav-item" onclick="scrollToSection(event, 'catalog')">
+      <i class="fa-solid fa-car-side"></i>
+      <span data-i18n="mob_catalog">Kho Xe</span>
+    </button>
+    <button type="button" class="mob-nav-item" onclick="scrollToSection(event, 'lbwk-zone')">
+      <i class="fa-solid fa-bolt"></i>
+      <span>LBWK/GT3</span>
+    </button>
+    <button type="button" class="mob-nav-item" onclick="openMyOrdersModal()">
+      <i class="fa-solid fa-box-archive"></i>
+      <span data-i18n="mob_orders">Đơn SPX</span>
+    </button>
+    <button type="button" class="mob-nav-item" onclick="openCartDrawer()">
+      <i class="fa-solid fa-bag-shopping"></i>
+      <span class="mob-nav-badge" id="mobCartBadgeCount">3</span>
+      <span data-i18n="mob_cart">Giỏ cọc</span>
+    </button>
+  </nav>
 
   <!-- TOAST NOTIFICATIONS CONTAINER -->
   <div class="toast-container" id="toastContainer" aria-live="polite"></div>

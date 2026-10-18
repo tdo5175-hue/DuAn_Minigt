@@ -45,15 +45,16 @@ router.post('/register', authLimiter, async (req, res, next) => {
     const passwordHash = await bcrypt.hash(password, salt);
 
     const insertResult = await db.query(
-      `INSERT INTO Users (FullName, Email, PasswordHash, Phone, Address, AuthProvider, Role, IsActive, CreatedAt, LastLoginAt)
+      `INSERT INTO Users (FullName, Email, PasswordHash, Phone, Address, AvatarUrl, AuthProvider, Role, IsActive, CreatedAt, LastLoginAt)
        OUTPUT INSERTED.UserId, INSERTED.FullName, INSERTED.Email, INSERTED.Role, INSERTED.AvatarUrl
-       VALUES (@fullName, @email, @passwordHash, @phone, @address, 'local', 'customer', 1, SYSDATETIME(), SYSDATETIME())`,
+       VALUES (@fullName, @email, @passwordHash, @phone, @address, @avatarUrl, 'local', 'customer', 1, SYSDATETIME(), SYSDATETIME())`,
       {
         fullName,
         email,
         passwordHash,
         phone: phone || null,
-        address: address || null
+        address: address || null,
+        avatarUrl: 'image/anh-clone.jpg'
       }
     );
 
@@ -64,7 +65,7 @@ router.post('/register', authLimiter, async (req, res, next) => {
       fullName: newUser.FullName,
       email: newUser.Email,
       role: newUser.Role,
-      avatarUrl: newUser.AvatarUrl
+      avatarUrl: newUser.AvatarUrl || 'image/anh-clone.jpg'
     };
 
     return created(res, {
@@ -115,7 +116,7 @@ router.post('/login', authLimiter, async (req, res, next) => {
       fullName: user.FullName,
       email: user.Email,
       role: user.Role,
-      avatarUrl: user.AvatarUrl
+      avatarUrl: user.AvatarUrl || 'image/anh-clone.jpg'
     };
 
     return ok(res, {
@@ -164,7 +165,7 @@ router.post('/google', authLimiter, async (req, res, next) => {
     } else if (userInfo && userInfo.email) {
       email = userInfo.email;
       name = userInfo.name || 'Người dùng Google';
-      picture = userInfo.picture || null;
+      picture = userInfo.picture || 'image/anh-clone.jpg';
       googleId = userInfo.googleId || ('g_' + Date.now());
     } else {
       throw badRequest('Dữ liệu xác thực Google không hợp lệ');
@@ -205,7 +206,7 @@ router.post('/google', authLimiter, async (req, res, next) => {
           name: name || 'Khách Hàng Google',
           email: trimmedEmail,
           googleId: googleId || null,
-          picture: picture || null
+          picture: picture || 'image/anh-clone.jpg'
         }
       );
       user = insertResult.recordset[0];
@@ -218,7 +219,7 @@ router.post('/google', authLimiter, async (req, res, next) => {
       fullName: user.FullName,
       email: user.Email,
       role: user.Role,
-      avatarUrl: user.AvatarUrl
+      avatarUrl: user.AvatarUrl || 'image/anh-clone.jpg'
     };
 
     return ok(res, {

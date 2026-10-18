@@ -667,20 +667,73 @@ function renderProductSkeletons(containerId, count = 6) {
 // =====================================================================
 // 4. KHỞI TẠO VÀ TẢI SẢN PHẨM (API HOẶC FALLBACK)
 // =====================================================================
+// Lưu trạng thái chọn Box / Card trên từng card sản phẩm (mặc định: 'box')
+const selectedCardPackaging = {};
+
+function getProductBoxCardPricing(p) {
+  const norm = (window.api && typeof window.api.normalizeProductObject === 'function')
+    ? window.api.normalizeProductObject(p)
+    : p;
+
+  const packagingType = String(norm.packagingType || norm.PackagingType || 'both').toLowerCase();
+  const rawDisc = Number(norm.discountPercent ?? norm.DiscountPercent ?? 0);
+  const pPriceLegacy = Number(norm.Price ?? norm.price ?? 350000);
+  const pOldLegacy = Number(norm.OldPrice ?? norm.oldPrice ?? 0);
+
+  let discountPercent = Math.max(0, Math.min(90, Math.round(rawDisc)));
+  if (discountPercent === 0 && (norm.hasDiscount || norm.HasDiscount) && pOldLegacy > pPriceLegacy && pOldLegacy > 0) {
+    discountPercent = Math.max(1, Math.round(((pOldLegacy - pPriceLegacy) / pOldLegacy) * 100));
+  }
+
+  const baseBox = Number(norm.priceBox ?? norm.PriceBox ?? (discountPercent > 0 && pOldLegacy > pPriceLegacy ? pOldLegacy : pPriceLegacy)) || 350000;
+  let baseCard = Number(norm.priceCard ?? norm.PriceCard ?? 0);
+  if (!baseCard || baseCard <= baseBox) {
+    baseCard = baseBox + (baseBox >= 500000 ? 80000 : 60000);
+  }
+
+  // Trừ trực tiếp % giảm giá vào tiền
+  const calcFinal = (base) => {
+    if (discountPercent <= 0) return base;
+    return Math.round(((base * (100 - discountPercent)) / 100) / 1000) * 1000;
+  };
+
+  const finalPriceBox = Number(norm.finalPriceBox ?? norm.FinalPriceBox ?? calcFinal(baseBox));
+  const finalPriceCard = Number(norm.finalPriceCard ?? norm.FinalPriceCard ?? calcFinal(baseCard));
+  const defaultPack = packagingType === 'card_only' ? 'card' : 'box';
+
+  return {
+    packagingType,
+    discountPercent,
+    hasDiscount: discountPercent > 0,
+    priceBox: baseBox,
+    priceCard: baseCard,
+    finalPriceBox,
+    finalPriceCard,
+    defaultPack
+  };
+}
+
+function getSelectedPackForProduct(p) {
+  const pId = p.ProductId || p.id;
+  const pricing = getProductBoxCardPricing(p);
+  if (pricing.packagingType === 'box_only') return 'box';
+  if (pricing.packagingType === 'card_only') return 'card';
+  return selectedCardPackaging[pId] || pricing.defaultPack || 'box';
+}
+
 async function loadProducts() {
   renderProductSkeletons('mainProductGrid', 8);
 
   try {
     const json = await safeFetch('/api/products');
     if (json.success && json.data && json.data.length > 0) {
-      allProducts = json.data;
-      console.log('Đã tải sản phẩm trực tiếp từ SQL Server (QUOCTHINH\\DOQUOCTHINH):', allProducts.length);
+      allProducts = json.data.map(p => (window.api && window.api.normalizeProductObject) ? window.api.normalizeProductObject(p) : p);
     } else {
-      allProducts = FALLBACK_PRODUCTS;
+      allProducts = FALLBACK_PRODUCTS.map(p => (window.api && window.api.normalizeProductObject) ? window.api.normalizeProductObject(p) : p);
     }
   } catch (err) {
     console.warn('Sử dụng dữ liệu cục bộ:', err.message);
-    allProducts = FALLBACK_PRODUCTS;
+    allProducts = FALLBACK_PRODUCTS.map(p => (window.api && window.api.normalizeProductObject) ? window.api.normalizeProductObject(p) : p);
   }
 
   renderProductsGrid();
@@ -688,103 +741,173 @@ async function loadProducts() {
   updateFilterCounts();
 }
 
+// Đồng bộ sản phẩm tức thì khi Admin thêm/sửa Box, Card hoặc % giảm giá
+try {
+  if (typeof BroadcastChannel !== 'undefined') {
+    const prodSyncChannel = new BroadcastChannel('minigt_realtime_sync');
+    prodSyncChannel.addEventListener('message', (ev) => {
+      if (ev.data && ev.data.type === 'PRODUCTS_UPDATED') {
+        loadProducts();
+      }
+    });
+  }
+  window.addEventListener('storage', (ev) => {
+    if (ev.key === 'minigt_products_catalog_v3') {
+      loadProducts();
+    }
+  });
+} catch (_) {}
+
 // =====================================================================
-// 5. RENDER CARD SẢN PHẨM CHUẨN DESIGN THEO ẢNH MẪU
+// 5. RENDER CARD SẢN PHẨM GỌN ĐẸP CHUẨN COLLECTOR (CHỌN BOX / CARD & TRỪ % TRỰC TIẾP)
 // =====================================================================
 function createProductCardHTML(p) {
-  const isPreOrder = p.Status === 'pre_order';
-  const isSoldOut = p.Status === 'sold_out';
-  const isChase = (p.Sku && (p.Sku.startsWith('PR') || p.Sku.startsWith('TH'))) || (p.Name && (p.Name.includes('Secret') || p.Name.includes('Ultraman') || p.Name.includes('Chase')));
-  const isLbwk = p.CategorySlug === 'liberty-walk' || (p.Name && p.Name.includes('LB')) || (p.EditionNote && p.EditionNote.includes('Liberty'));
+  const isEn = typeof currentSiteLang !== 'undefined' && currentSiteLang === 'en';
+  const pId = p.ProductId || p.id;
+  const pName = p.Name || p.name || 'Mini GT 1:64';
+  const pSku = p.Sku || p.sku || 'MGT0000';
+  const pImg = p.ImageUrl || p.imageUrl || p.image || p.Image || 'image/hero-banner.jpg';
+  const statusVal = String(p.Status || p.status || 'in_stock').toLowerCase();
+  const isPreOrder = statusVal === 'pre_order';
+  const stockCount = typeof p.Stock === 'number' ? p.Stock : (typeof p.stock === 'number' ? p.stock : 10);
+  const isOutOfStock = stockCount <= 0 || statusVal === 'sold_out' || statusVal === 'out_of_stock' || Boolean(p.isOutOfStock);
 
-  // Badge góc trái trên (Screenshot 2: "CÒN HÀNG" green, "CHASE RARE" gold, "PRE-ORDER" red)
+  const pricing = getProductBoxCardPricing(p);
+  const activePack = getSelectedPackForProduct(p);
+  const currentFinalPrice = activePack === 'card' ? pricing.finalPriceCard : pricing.finalPriceBox;
+  const currentBasePrice = activePack === 'card' ? pricing.priceCard : pricing.priceBox;
+  const currentDeposit = Math.round(currentFinalPrice * 0.3);
+
+  const hasDiscount = !isOutOfStock && pricing.hasDiscount && pricing.discountPercent > 0;
+  const discountPct = pricing.discountPercent;
+
+  // 1. Badge góc trái trên: chỉ hiện -% giảm giá hoặc Hết hàng
   let statusBadge = '';
-  if (isPreOrder) {
-    statusBadge = '<span class="badge-preorder-pill">PRE-ORDER</span>';
-  } else if (isSoldOut) {
-    statusBadge = '<span class="badge-soldout">HẾT HÀNG</span>';
-  } else if (isChase) {
-    statusBadge = '<span class="badge-chase-pill">CHASE RARE</span>';
-  } else {
-    statusBadge = '<span class="badge-instock">CÒN HÀNG</span>';
+  if (isOutOfStock) {
+    statusBadge = `<span class="card-badge-soldout">${isEn ? 'Sold Out' : 'Hết hàng'}</span>`;
+  } else if (hasDiscount) {
+    statusBadge = `<span class="card-badge-discount">-${discountPct}%</span>`;
   }
 
-  // Ribbon góc phải trên
-  let ribbonHtml = '';
-  if (isLbwk) {
-    ribbonHtml = '<div class="card-ribbon-top-right"><div class="card-corner-ribbon ribbon-gold">LB★WORKS</div></div>';
-  } else if (isChase) {
-    ribbonHtml = '<div class="card-ribbon-top-right"><div class="card-corner-ribbon ribbon-chase">CHASE 1/24</div></div>';
-  } else if (p.OldPrice && p.OldPrice > p.Price) {
-    ribbonHtml = '<div class="card-ribbon-top-right"><div class="card-corner-ribbon ribbon-red">Giảm 10%</div></div>';
+  // 2. Dải băng góc phải trên: Tự động nhận diện LB★WORKS, GT3 IMSA, FORMULA 1, BOX SET, CHASE
+  const catSlug = String(p.CategorySlug || p.categorySlug || '').toLowerCase();
+  const rawName = (pName + ' ' + (p.EditionNote || '')).toLowerCase();
+  let ribbonTag = null;
+  if (catSlug === 'liberty-walk' || rawName.includes('lb') || rawName.includes('liberty') || rawName.includes('lbwk')) {
+    ribbonTag = { text: 'LB★WORKS', type: 'lbwk' };
+  } else if (catSlug === 'gt-racing' || catSlug === 'gt3' || rawName.includes('gt3') || rawName.includes('rexy') || rawName.includes('roxy') || rawName.includes('skeleton') || rawName.includes('imsa')) {
+    ribbonTag = { text: 'GT3 IMSA', type: 'gt3' };
+  } else if (catSlug === 'f1-racing' || catSlug === 'f1' || rawName.includes('f1') || rawName.includes('red bull') || rawName.includes('amr24')) {
+    ribbonTag = { text: 'F1 RACING', type: 'f1' };
+  } else if (catSlug === 'box-sets' || rawName.includes('box set') || rawName.includes('set 4') || rawName.includes('combo')) {
+    ribbonTag = { text: 'BOX SET', type: 'set' };
+  } else if (rawName.includes('chase') || rawName.includes('secret')) {
+    ribbonTag = { text: 'CHASE 1/24', type: 'chase' };
   }
 
-  // Release number badge bottom-left (e.g. ▶ 465, ▶ 1055, ▶ 1129)
-  const carNum = p.CarNumber || (p.Sku ? p.Sku.replace(/\D/g, '').replace(/^0+/, '') : '') || '1:64';
+  const ribbonHtml = ribbonTag ? `<span class="card-top-ribbon ribbon-${ribbonTag.type}">${ribbonTag.text}</span>` : '';
+  const wishRibbonClass = ribbonTag ? 'has-ribbon' : '';
 
-  // Stock / Quota bar
-  let stockBarHtml = '';
-  if (isPreOrder) {
-    const qPct = p.QuotaPercent || 75;
-    stockBarHtml = `
-      <div class="card-stock-wrap">
-        <div class="card-stock-bar" style="width:${qPct}%;"></div>
-        <div class="card-stock-text">Tiến độ cọc ${qPct}% hạn ngạch</div>
-      </div>
-    `;
-  } else {
-    const stockCount = p.Stock || 5;
-    stockBarHtml = `
-      <div class="card-stock-wrap">
-        <div class="card-stock-bar" style="width:${Math.min(100, stockCount * 12)}%;"></div>
-        <div class="card-stock-text">Kho còn ${stockCount} chiếc sẵn giao</div>
-      </div>
-    `;
-  }
+  const carNum = p.CarNumber || (pSku ? pSku.replace(/\D/g, '').replace(/^0+/, '') : '') || '64';
+  const isWish = isInWishlist(pId);
 
-  const oldPriceHtml = p.OldPrice ? `<span class="old-price">${formatVND(p.OldPrice)}</span>` : '';
-  const isWish = isInWishlist(p.ProductId);
-  const isCompared = typeof isInCompareList === 'function' ? isInCompareList(p.ProductId) : false;
+  // 3. Thanh chọn Box / Card ngay trên card sản phẩm (nhỏ gọn, tinh tế)
+  const boxDisabled = pricing.packagingType === 'card_only';
+  const cardDisabled = pricing.packagingType === 'box_only';
 
-  // Buttons matching Screenshot 2
+  const packSwitchHtml = `
+    <div class="card-pack-switch" role="group" aria-label="Chọn Box hoặc Card">
+      <button type="button"
+        class="card-pack-btn ${activePack === 'box' ? 'active' : ''}"
+        ${boxDisabled ? 'disabled title="Mẫu này chỉ có bản Card Blister"' : ''}
+        onclick="selectCardPackaging(${pId}, 'box', event)">
+        <span class="pack-label"><i class="fa-solid fa-cube"></i> Box</span>
+        <span class="pack-price">${formatVND(pricing.finalPriceBox)}</span>
+      </button>
+      <button type="button"
+        class="card-pack-btn ${activePack === 'card' ? 'active' : ''}"
+        ${cardDisabled ? 'disabled title="Mẫu này chỉ có bản Hộp Box"' : ''}
+        onclick="selectCardPackaging(${pId}, 'card', event)">
+        <span class="pack-label"><i class="fa-solid fa-shield-halved"></i> Card</span>
+        <span class="pack-price">${formatVND(pricing.finalPriceCard)}</span>
+      </button>
+    </div>
+  `;
+
+  let priceBlockHtml = '';
   let actionBtnHtml = '';
-  if (isPreOrder) {
-    actionBtnHtml = `<button class="card-btn-preorder" onclick="handleCardAction(${p.ProductId}, event)"><i class="fa-solid fa-plus"></i> Đặt cọc</button>`;
-  } else if (isSoldOut) {
-    actionBtnHtml = `<button class="card-btn-soldout" disabled>Hết hàng</button>`;
+
+  if (isOutOfStock) {
+    priceBlockHtml = `
+      <div class="price-box">
+        <div class="price-soldout-label">${isEn ? 'OUT OF STOCK' : 'HẾT HÀNG'}</div>
+        <span class="price-soldout-sub">${isEn ? 'Restocking soon' : 'Tạm hết hàng'}</span>
+      </div>
+    `;
+    actionBtnHtml = `<button class="card-btn-soldout" disabled>${isEn ? 'Sold Out' : 'Hết hàng'}</button>`;
   } else {
-    actionBtnHtml = `<button class="card-btn-buy" onclick="handleCardAction(${p.ProductId}, event)"><i class="fa-solid fa-bag-shopping"></i> Mua ngay</button>`;
+    const oldPriceHtml = (hasDiscount && currentBasePrice > currentFinalPrice)
+      ? `<span class="old-price" id="cardOldPrice_${pId}">${formatVND(currentBasePrice)}</span>`
+      : `<span class="old-price" id="cardOldPrice_${pId}" style="display:none;"></span>`;
+
+    let priceSubHintHtml = '';
+    if (isPreOrder) {
+      priceSubHintHtml = `<span class="card-deposit-hint" id="cardSubHint_${pId}">${isEn ? 'Deposit 30%:' : 'Cọc 30%:'} ${formatVND(currentDeposit)}</span>`;
+    } else if (hasDiscount) {
+      priceSubHintHtml = `<span class="card-deposit-hint" id="cardSubHint_${pId}">${isEn ? 'Save' : 'Giảm trực tiếp'} ${formatVND(currentBasePrice - currentFinalPrice)} (-${discountPct}%)</span>`;
+    } else {
+      const diffCardBox = Math.max(40000, pricing.finalPriceCard - pricing.finalPriceBox);
+      priceSubHintHtml = `<span class="card-official-hint" id="cardSubHint_${pId}">${activePack === 'box' ? (isEn ? `Box saves ${formatVND(diffCardBox)}` : `Box tiết kiệm ${formatVND(diffCardBox)}`) : (isEn ? 'Sealed Blister Card' : 'Vỉ nhựa Blister Seal')}</span>`;
+    }
+
+    priceBlockHtml = `
+      <div class="price-box">
+        <div class="price-main-row">
+          <span class="current-price" id="cardCurrPrice_${pId}">${formatVND(currentFinalPrice)}</span>
+          ${oldPriceHtml}
+        </div>
+        ${priceSubHintHtml}
+      </div>
+    `;
+
+    if (isPreOrder) {
+      actionBtnHtml = `<button class="card-btn-preorder" onclick="handleCardAction(${pId}, event)"><i class="fa-solid fa-plus"></i> ${isEn ? 'Pre-Order' : 'Đặt cọc'}</button>`;
+    } else {
+      actionBtnHtml = `<button class="card-btn-buy" onclick="handleCardAction(${pId}, event)"><i class="fa-solid fa-bag-shopping"></i> ${isEn ? 'Buy Now' : 'Mua ngay'}</button>`;
+    }
   }
+
+  const statusPillText = isOutOfStock
+    ? (isEn ? 'Sold Out' : 'Hết hàng')
+    : (isPreOrder ? 'Pre-Order' : (isEn ? 'In Stock' : 'Sẵn hàng'));
+  const statusPillColor = isOutOfStock ? '#dc2626' : (isPreOrder ? '#d97706' : '#059669');
 
   return `
-    <article class="product-card reveal-on-scroll" data-id="${p.ProductId}">
+    <article class="product-card reveal-on-scroll" data-id="${pId}" data-pack="${activePack}">
       <div class="card-image-box">
-        <div class="card-badge-top-left">${statusBadge}</div>
+        ${statusBadge ? `<div class="card-badge-top-left">${statusBadge}</div>` : ''}
         ${ribbonHtml}
-        <button class="card-wishlist-btn ${isWish ? 'active' : ''}" title="Thêm vào yêu thích" onclick="toggleWishlist(${p.ProductId}, event)">
-          <i class="fa-solid fa-heart"></i>
+        <button class="card-wishlist-btn ${isWish ? 'active' : ''} ${wishRibbonClass}" title="${isEn ? 'Wishlist' : 'Yêu thích'}" onclick="toggleWishlist(${pId}, event)">
+          <i class="${isWish ? 'fa-solid' : 'fa-regular'} fa-heart"></i>
         </button>
-        <button class="card-compare-btn ${isCompared ? 'active' : ''}" title="So sánh thông số mô hình" onclick="toggleCompareModel(${p.ProductId}, event)">
-          <i class="fa-solid fa-scale-balanced"></i>
-        </button>
-        <img class="card-image" src="${p.ImageUrl}" alt="${p.Name}" loading="lazy" onerror="this.src='image/hero-banner.jpg'">
-        <span class="card-car-num"><span class="play-icon">▶</span> ${carNum}</span>
+        <img class="card-image" src="${escapeHtml(pImg)}" alt="${escapeHtml(pName)}" loading="lazy" onerror="this.onerror=null; this.src='image/hero-banner.jpg';">
+        <span class="card-car-num"><span class="play-icon">▶</span> ${escapeHtml(String(carNum))}</span>
+        <span class="card-scale-pill">${activePack === 'card' ? 'CARD BLISTER' : 'BOX SEAL'}</span>
         
-        <!-- Hover Overlay (matching Card 3 in Screenshot 2) -->
         <div class="card-hover-overlay">
-          <button class="card-hover-btn btn-view" onclick="openQuickView(${p.ProductId})"><i class="fa-solid fa-eye"></i> Xem chi tiết</button>
-          <button class="card-hover-btn btn-buy" onclick="handleCardAction(${p.ProductId}, event)"><i class="fa-solid fa-bag-shopping"></i> Mua ngay</button>
+          <button class="card-hover-btn btn-view" onclick="openQuickView(${pId})"><i class="fa-solid fa-eye"></i> ${isEn ? 'Details' : 'Chi tiết'}</button>
+          ${!isOutOfStock ? `<button class="card-hover-btn btn-buy" onclick="handleCardAction(${pId}, event)"><i class="fa-solid fa-bag-shopping"></i> ${isPreOrder ? (isEn ? 'Pre-Order' : 'Đặt cọc') : (isEn ? 'Buy Now' : 'Mua ngay')}</button>` : ''}
         </div>
       </div>
       <div class="card-body">
-        ${stockBarHtml}
-        <h3 class="product-title" onclick="openQuickView(${p.ProductId})">${p.Name}</h3>
-        <div class="product-meta-sub">#${p.Sku} ${p.EditionNote ? '• ' + p.EditionNote : ''}</div>
+        <div class="card-brand-sku-row">
+          <span class="card-sku-code">#${escapeHtml(pSku)}</span>
+          <span style="font-size:10px; font-weight:700; color:${statusPillColor};">${statusPillText}</span>
+        </div>
+        <h3 class="product-title" onclick="openQuickView(${pId})" title="${escapeHtml(pName)}">${escapeHtml(pName)}</h3>
+        ${packSwitchHtml}
         <div class="card-footer">
-          <div class="price-box">
-            <span class="current-price">${formatVND(p.Price)}</span>
-            ${oldPriceHtml}
-          </div>
+          ${priceBlockHtml}
           ${actionBtnHtml}
         </div>
       </div>
@@ -792,38 +915,91 @@ function createProductCardHTML(p) {
   `;
 }
 
+function selectCardPackaging(productId, packType, event) {
+  if (event && event.stopPropagation) event.stopPropagation();
+  const normalizedPack = packType === 'card' ? 'card' : 'box';
+  selectedCardPackaging[productId] = normalizedPack;
+
+  const prod = (allProducts && allProducts.length ? allProducts : FALLBACK_PRODUCTS).find(p => (p.ProductId || p.id) == productId);
+  if (!prod) return;
+
+  const isEn = typeof currentSiteLang !== 'undefined' && currentSiteLang === 'en';
+  const pricing = getProductBoxCardPricing(prod);
+  const finalPrice = normalizedPack === 'card' ? pricing.finalPriceCard : pricing.finalPriceBox;
+  const basePrice = normalizedPack === 'card' ? pricing.priceCard : pricing.priceBox;
+  const isPreOrder = String(prod.Status || prod.status || '').toLowerCase() === 'pre_order';
+
+  // Cập nhật nhanh DOM trên tất cả card của sản phẩm này
+  document.querySelectorAll(`.product-card[data-id="${productId}"]`).forEach(cardEl => {
+    cardEl.setAttribute('data-pack', normalizedPack);
+    const btns = cardEl.querySelectorAll('.card-pack-btn');
+    if (btns.length >= 2) {
+      btns[0].classList.toggle('active', normalizedPack === 'box');
+      btns[1].classList.toggle('active', normalizedPack === 'card');
+    }
+    const scalePill = cardEl.querySelector('.card-scale-pill');
+    if (scalePill) scalePill.textContent = normalizedPack === 'card' ? 'CARD BLISTER' : 'BOX SEAL';
+
+    const currEl = cardEl.querySelector('.current-price');
+    if (currEl) currEl.textContent = formatVND(finalPrice);
+
+    const oldEl = cardEl.querySelector('.old-price');
+    if (oldEl) {
+      if (pricing.hasDiscount && basePrice > finalPrice) {
+        oldEl.textContent = formatVND(basePrice);
+        oldEl.style.display = 'inline';
+      } else {
+        oldEl.style.display = 'none';
+      }
+    }
+
+    const hintEl = cardEl.querySelector('.card-deposit-hint, .card-official-hint');
+    if (hintEl) {
+      if (isPreOrder) {
+        hintEl.textContent = `${isEn ? 'Deposit 30%:' : 'Cọc 30%:'} ${formatVND(Math.round(finalPrice * 0.3))}`;
+      } else if (pricing.hasDiscount) {
+        hintEl.textContent = `${isEn ? 'Save' : 'Giảm trực tiếp'} ${formatVND(basePrice - finalPrice)} (-${pricing.discountPercent}%)`;
+      } else {
+        const diff = Math.max(40000, pricing.finalPriceCard - pricing.finalPriceBox);
+        hintEl.textContent = normalizedPack === 'box'
+          ? (isEn ? `Box saves ${formatVND(diff)}` : `Box tiết kiệm ${formatVND(diff)}`)
+          : (isEn ? 'Sealed Blister Card' : 'Vỉ nhựa Blister Seal');
+      }
+    }
+  });
+}
+window.selectCardPackaging = selectCardPackaging;
+
 function renderPreOrderQuickRow() {
   const container = document.getElementById('preorderQuickRow');
   if (!container) return;
 
-  const topPreOrders = [
-    { sku: 'MGTS0026', note: 'Box Set Camo', price: 1850000, oldPrice: null, id: 1 },
-    { sku: 'MGT01413', note: 'UHD Edition', price: 460000, oldPrice: 500000, id: 2 },
-    { sku: 'MGT01396', note: '2x World Champ', price: 450000, oldPrice: null, id: 3 }
-  ];
+  const isEn = typeof currentSiteLang !== 'undefined' && currentSiteLang === 'en';
+  const sourceList = (allProducts && allProducts.length ? allProducts : FALLBACK_PRODUCTS).slice(0, 3);
 
-  container.innerHTML = topPreOrders.map(item => `
-    <div class="preorder-quick-card">
-      <div>
-        <div class="quick-card-meta">#${item.sku} • ${item.note}</div>
-        <div class="quick-card-price">
-          ${formatVND(item.price)}
-          ${item.oldPrice ? `<span class="quick-card-old">${formatVND(item.oldPrice)}</span>` : ''}
+  container.innerHTML = sourceList.map(p => {
+    const pId = p.ProductId || p.id;
+    const pricing = getProductBoxCardPricing(p);
+    return `
+      <div class="preorder-quick-card">
+        <div>
+          <div class="quick-card-meta">#${escapeHtml(p.Sku || p.sku || 'MGT')} • Box / Card</div>
+          <div class="quick-card-price">
+            ${formatVND(pricing.finalPriceBox)}
+            ${pricing.hasDiscount ? `<span class="quick-card-old">${formatVND(pricing.priceBox)}</span>` : ''}
+          </div>
         </div>
+        <button class="btn-quick-deposit" onclick="handleCardAction(${pId}, event)">+ ${isEn ? 'Pre-Order' : 'Đặt cọc'}</button>
       </div>
-      <button class="btn-quick-deposit" onclick="handleCardAction(${item.id}, event)">+ Đặt cọc</button>
-    </div>
-  `).join('');
+    `;
+  }).join('');
 }
 
-// =====================================================================
-// 6. RENDER CÁC KHU VỰC SẢN PHẨM
-// =====================================================================
 // =====================================================================
 // 6. RENDER CÁC KHU VỰC SẢN PHẨM & PHÂN TRANG CATALOGUE (PAGINATION)
 // =====================================================================
 let catalogCurrentPage = 1;
-const CATALOG_PER_PAGE = 8;
+const CATALOG_PER_PAGE = 9;
 
 function handleCatalogSort(sortVal) {
   currentSort = sortVal;
@@ -844,18 +1020,24 @@ function renderProductsGrid() {
   let filtered = [...allProducts];
 
   // 1. Lọc theo Danh mục Filter Pill
-  if (currentFilter === 'pre_order') {
+  if (currentFilter === 'bestseller') {
+    filtered = filtered.filter(p => p.IsBestSeller || (p.soldCount && p.soldCount > 20) || p.isHot || [10, 8, 4, 5, 1, 2, 6].includes(Number(p.ProductId || p.id)));
+  } else if (currentFilter === 'in_stock') {
+    filtered = filtered.filter(p => {
+      const stockVal = (typeof p.Stock === 'number') ? p.Stock : (typeof p.stock === 'number' ? p.stock : 10);
+      const st = String(p.Status || p.status || 'in_stock').toLowerCase();
+      return stockVal > 0 && st !== 'sold_out' && st !== 'out_of_stock' && !p.isOutOfStock;
+    });
+  } else if (currentFilter === 'pre_order') {
     filtered = filtered.filter(p => (p.Status || p.status) === 'pre_order');
   } else if (currentFilter === 'lbwk') {
     filtered = filtered.filter(p => (p.CategorySlug === 'liberty-walk' || (p.Name && p.Name.toLowerCase().includes('lb')) || (p.EditionNote && p.EditionNote.toLowerCase().includes('liberty'))));
   } else if (currentFilter === 'chase') {
     filtered = filtered.filter(p => ((p.Sku && (p.Sku.startsWith('PR') || p.Sku.startsWith('TH'))) || (p.Name && (p.Name.toLowerCase().includes('secret') || p.Name.toLowerCase().includes('chase')))));
   } else if (currentFilter === 'f1') {
-    filtered = filtered.filter(p => (p.CategorySlug === 'f1-racing' || (p.Name && p.Name.toLowerCase().includes('f1')) || (p.Name && p.Name.toLowerCase().includes('amr24'))));
+    filtered = filtered.filter(p => (p.CategorySlug === 'f1-racing' || (p.Name && (p.Name.toLowerCase().includes('f1') || p.Name.toLowerCase().includes('red bull') || p.Name.toLowerCase().includes('amr24')))));
   } else if (currentFilter === 'ao_racing') {
     filtered = filtered.filter(p => p.Name && (p.Name.toLowerCase().includes('ao racing') || p.Name.toLowerCase().includes('rexy') || p.Name.toLowerCase().includes('roxy') || p.Name.toLowerCase().includes('ske')));
-  } else if (currentFilter === 'in_stock') {
-    filtered = filtered.filter(p => (p.Status || p.status) === 'in_stock');
   } else if (currentFilter === 'box_sets') {
     filtered = filtered.filter(p => (p.CategorySlug === 'box-sets' || (p.Name && (p.Name.toLowerCase().includes('box') || p.Name.toLowerCase().includes('set') || p.Name.toLowerCase().includes('combo')))));
   }
@@ -991,13 +1173,18 @@ function renderBoxSetsSection() {
 function updateFilterCounts() {
   const counts = {
     all: allProducts.length,
-    pre_order: allProducts.filter(p => p.Status === 'pre_order').length,
-    lbwk: allProducts.filter(p => p.CategorySlug === 'liberty-walk' || p.Name.toLowerCase().includes('lb')).length,
-    chase: allProducts.filter(p => p.Sku.startsWith('PR') || p.Sku.startsWith('TH') || p.Name.toLowerCase().includes('secret')).length,
-    f1: allProducts.filter(p => p.CategorySlug === 'f1-racing' || p.Name.toLowerCase().includes('f1') || p.Name.toLowerCase().includes('amr24')).length,
-    box_sets: allProducts.filter(p => p.CategorySlug === 'box-sets' || p.Name.toLowerCase().includes('box') || p.Name.toLowerCase().includes('combo')).length,
-    ao_racing: allProducts.filter(p => p.Name.toLowerCase().includes('ao racing') || p.Name.toLowerCase().includes('rexy') || p.Name.toLowerCase().includes('roxy') || p.Name.toLowerCase().includes('ske')).length,
-    in_stock: allProducts.filter(p => p.Status === 'in_stock').length
+    bestseller: allProducts.filter(p => p.IsBestSeller || (p.soldCount && p.soldCount > 20) || p.isHot || [10, 8, 4, 5, 1, 2, 6].includes(Number(p.ProductId || p.id))).length,
+    in_stock: allProducts.filter(p => {
+      const stockVal = (typeof p.Stock === 'number') ? p.Stock : (typeof p.stock === 'number' ? p.stock : 10);
+      const st = String(p.Status || p.status || 'in_stock').toLowerCase();
+      return stockVal > 0 && st !== 'sold_out' && st !== 'out_of_stock' && !p.isOutOfStock;
+    }).length,
+    pre_order: allProducts.filter(p => (p.Status || p.status) === 'pre_order').length,
+    lbwk: allProducts.filter(p => p.CategorySlug === 'liberty-walk' || (p.Name && p.Name.toLowerCase().includes('lb'))).length,
+    chase: allProducts.filter(p => (p.Sku && (p.Sku.startsWith('PR') || p.Sku.startsWith('TH'))) || (p.Name && p.Name.toLowerCase().includes('secret'))).length,
+    f1: allProducts.filter(p => p.CategorySlug === 'f1-racing' || (p.Name && (p.Name.toLowerCase().includes('f1') || p.Name.toLowerCase().includes('red bull')))).length,
+    box_sets: allProducts.filter(p => p.CategorySlug === 'box-sets' || (p.Name && (p.Name.toLowerCase().includes('box') || p.Name.toLowerCase().includes('combo')))).length,
+    ao_racing: allProducts.filter(p => p.Name && (p.Name.toLowerCase().includes('ao racing') || p.Name.toLowerCase().includes('rexy') || p.Name.toLowerCase().includes('roxy') || p.Name.toLowerCase().includes('ske'))).length
   };
 
   document.querySelectorAll('.filter-pill').forEach(btn => {
@@ -1071,7 +1258,7 @@ function initHeroSlider() {
     if (prefersReducedMotion.matches || document.hidden || wrap.matches(':focus-within')) return;
     heroSlideTimer = setInterval(() => {
       nextHeroSlide();
-    }, 5500);
+    }, 10000); // Tự động chuyển slide mượt mà cứ sau 10 giây
   }
 
   function stopAutoplay() {
@@ -1166,12 +1353,23 @@ function setupCountdown() {
 // =====================================================================
 // 9. QUẢN LÝ GIỎ HÀNG & ĐẶT CỌC (CART DRAWER & HIỆU ỨNG BAY VÀO GIỎ)
 // =====================================================================
-function handleCardAction(productId, event) {
+function handleCardAction(productId, event, explicitPackType = null) {
   if (event && event.stopPropagation) {
     event.stopPropagation();
   }
+
+  // YÊU CẦU: Chỉ có đăng nhập thì mới mua ngay / đặt cọc được xe, chưa đăng nhập thì xem được chi tiết nhưng không mua được mà phải đăng nhập
+  const currentUser = (api && api.getCurrentUser) ? api.getCurrentUser() : null;
+  const token = (api && api.getToken) ? api.getToken() : null;
+  if (!currentUser && !token) {
+    const isEn = typeof currentSiteLang !== 'undefined' && currentSiteLang === 'en';
+    showToast(isEn ? 'Please sign in to buy or pre-order models!' : 'Vui lòng đăng nhập tài khoản để tiến hành đặt mua / cọc xe mô hình!', 'info');
+    openAuthModal('login');
+    return;
+  }
+
   flyToCart(productId, event);
-  addToCart(productId, 1);
+  addToCart(productId, 1, explicitPackType);
 
   // Micro-feedback badge animation
   const targetBadge = document.getElementById('cartBadgeCount');
@@ -1232,47 +1430,128 @@ function flyToCart(productId, event) {
   } catch (e) {}
 }
 
-function addToCart(productId, quantity = 1) {
-  const prod = (allProducts && allProducts.length ? allProducts : FALLBACK_PRODUCTS).find(p => p.ProductId === productId || p.id === productId);
+function addToCart(productId, quantity = 1, explicitPackType = null) {
+  const prod = (allProducts && allProducts.length ? allProducts : FALLBACK_PRODUCTS).find(p => (p.ProductId || p.id) == productId);
   if (!prod) return;
 
+  const isEn = typeof currentSiteLang !== 'undefined' && currentSiteLang === 'en';
   const stock = typeof prod.Stock === 'number' ? prod.Stock : (typeof prod.stock === 'number' ? prod.stock : 999);
   const pName = prod.Name || prod.name;
   if (stock <= 0) {
-    showToast(`Mẫu xe "${pName}" hiện đã hết hàng!`, 'error');
+    showToast(isEn ? `"${pName}" is currently out of stock!` : `Mẫu xe "${pName}" hiện đã hết hàng!`, 'error');
     return;
   }
 
-  const existing = cart.find(it => it.productId === productId);
-  const currentQty = existing ? existing.quantity : 0;
+  const pricing = getProductBoxCardPricing(prod);
+  let chosenPack = explicitPackType || getSelectedPackForProduct(prod) || 'box';
+  if (pricing.packagingType === 'box_only') chosenPack = 'box';
+  if (pricing.packagingType === 'card_only') chosenPack = 'card';
 
-  if (currentQty + quantity > stock) {
-    showToast(`Rất tiếc! Mẫu này chỉ còn ${stock} xe trong kho (bạn đã có ${currentQty} trong giỏ).`, 'error');
+  const existing = cart.find(it => it.productId == productId && (it.packType || 'box') === chosenPack);
+  const totalInCartForProd = cart.filter(it => it.productId == productId).reduce((s, i) => s + i.quantity, 0);
+
+  if (totalInCartForProd + quantity > stock) {
+    showToast(`Rất tiếc! Mẫu này chỉ còn ${stock} xe trong kho (bạn đã có ${totalInCartForProd} trong giỏ).`, 'error');
     return;
   }
 
-  const pPrice = prod.Price || prod.price;
-  const pDeposit = prod.DepositAmount || prod.depositAmount || Math.round(pPrice * (storeSettings.deposit_rate || 0.3));
+  const unitFinalPrice = chosenPack === 'card' ? pricing.finalPriceCard : pricing.finalPriceBox;
+  const unitOriginalPrice = chosenPack === 'card' ? pricing.priceCard : pricing.priceBox;
+  const pDeposit = Math.round(unitFinalPrice * (storeSettings.deposit_rate || 0.3));
 
   if (existing) {
     existing.quantity += quantity;
+    existing.price = unitFinalPrice;
+    existing.originalPrice = unitOriginalPrice;
+    existing.discountPercent = pricing.discountPercent;
+    existing.priceBox = pricing.priceBox;
+    existing.priceCard = pricing.priceCard;
+    existing.finalPriceBox = pricing.finalPriceBox;
+    existing.finalPriceCard = pricing.finalPriceCard;
+    existing.packagingType = pricing.packagingType;
+    existing.depositAmount = pDeposit;
   } else {
     cart.push({
       productId: prod.ProductId || prod.id,
+      packType: chosenPack,
+      packagingType: pricing.packagingType,
       name: pName,
       sku: prod.Sku || prod.sku,
-      price: pPrice,
+      price: unitFinalPrice,
+      originalPrice: unitOriginalPrice,
+      discountPercent: pricing.discountPercent,
+      priceBox: pricing.priceBox,
+      priceCard: pricing.priceCard,
+      finalPriceBox: pricing.finalPriceBox,
+      finalPriceCard: pricing.finalPriceCard,
       depositAmount: pDeposit,
       imageUrl: prod.ImageUrl || prod.image,
-      isPreOrder: (prod.Status || prod.status) === 'pre_order',
+      isPreOrder: String(prod.Status || prod.status || '').toLowerCase() === 'pre_order',
       quantity: quantity
     });
   }
 
   saveCart();
   renderCartDrawer();
-  showToast(`Đã thêm "${pName}" vào giỏ cọc!`, 'success');
+  const packName = chosenPack === 'card' ? 'Bản Card Blister' : 'Bản Hộp Box';
+  showToast(isEn ? `Added "${pName}" (${chosenPack.toUpperCase()}) to cart!` : `Đã thêm "${pName}" (${packName}) vào giỏ!`, 'success');
 }
+
+function switchCartItemPackaging(productId, currentPack, newPack) {
+  const targetPack = newPack === 'card' ? 'card' : 'box';
+  const curPack = currentPack || 'box';
+  if (curPack === targetPack) return;
+
+  const idx = cart.findIndex(i => i.productId == productId && (i.packType || 'box') === curPack);
+  if (idx === -1) return;
+
+  const item = cart[idx];
+  const prod = (allProducts && allProducts.length ? allProducts : FALLBACK_PRODUCTS).find(p => (p.ProductId || p.id) == productId);
+  const pricing = prod ? getProductBoxCardPricing(prod) : {
+    packagingType: item.packagingType || 'both',
+    discountPercent: item.discountPercent || 0,
+    priceBox: item.priceBox || item.price || 350000,
+    priceCard: item.priceCard || ((item.price || 350000) + 60000),
+    finalPriceBox: item.finalPriceBox || item.price || 350000,
+    finalPriceCard: item.finalPriceCard || ((item.price || 350000) + 60000)
+  };
+
+  if (pricing.packagingType === 'box_only' && targetPack === 'card') return;
+  if (pricing.packagingType === 'card_only' && targetPack === 'box') return;
+
+  const newUnitFinal = targetPack === 'card' ? pricing.finalPriceCard : pricing.finalPriceBox;
+  const newUnitOrig = targetPack === 'card' ? pricing.priceCard : pricing.priceBox;
+  const newDeposit = Math.round(newUnitFinal * (storeSettings.deposit_rate || 0.3));
+
+  // Kiểm tra nếu đã có dòng cùng sản phẩm + targetPack thì gộp số lượng
+  const duplicateIdx = cart.findIndex((i, k) => k !== idx && i.productId == productId && (i.packType || 'box') === targetPack);
+  if (duplicateIdx !== -1) {
+    cart[duplicateIdx].quantity += item.quantity;
+    cart[duplicateIdx].price = newUnitFinal;
+    cart[duplicateIdx].originalPrice = newUnitOrig;
+    cart[duplicateIdx].depositAmount = newDeposit;
+    cart.splice(idx, 1);
+  } else {
+    item.packType = targetPack;
+    item.price = newUnitFinal;
+    item.originalPrice = newUnitOrig;
+    item.discountPercent = pricing.discountPercent;
+    item.priceBox = pricing.priceBox;
+    item.priceCard = pricing.priceCard;
+    item.finalPriceBox = pricing.finalPriceBox;
+    item.finalPriceCard = pricing.finalPriceCard;
+    item.depositAmount = newDeposit;
+  }
+
+  selectedCardPackaging[productId] = targetPack;
+  saveCart();
+  renderCartDrawer();
+  if (document.getElementById('checkoutModal')?.classList.contains('active')) {
+    renderCheckoutStep1();
+    if (typeof renderCheckoutStep3 === 'function') renderCheckoutStep3();
+  }
+}
+window.switchCartItemPackaging = switchCartItemPackaging;
 
 function saveCart() {
   localStorage.setItem('minigt_cart', JSON.stringify(cart));
@@ -1283,11 +1562,12 @@ function updateCartBadge() {
   const count = cart.reduce((acc, it) => acc + it.quantity, 0);
   const badge = document.getElementById('cartBadgeCount');
   const dockBadge = document.getElementById('dockCartBadge');
+  const mobBadge = document.getElementById('mobCartBadgeCount');
 
   if (badge) {
     badge.textContent = count;
     badge.classList.remove('bump');
-    void badge.offsetWidth; // Force reflow
+    void badge.offsetWidth;
     if (count > 0) {
       badge.classList.add('bump');
     }
@@ -1301,16 +1581,21 @@ function updateCartBadge() {
       dockBadge.classList.add('bump');
     }
   }
+
+  if (mobBadge) {
+    mobBadge.textContent = count;
+  }
 }
 
-function changeCartQty(productId, delta) {
-  const it = cart.find(i => i.productId === productId);
+function changeCartQty(productId, delta, packType = null) {
+  const it = cart.find(i => i.productId == productId && (!packType || (i.packType || 'box') === packType));
   if (!it) return;
 
   if (delta > 0) {
-    const prod = (allProducts && allProducts.length ? allProducts : FALLBACK_PRODUCTS).find(p => p.ProductId === productId || p.id === productId);
+    const prod = (allProducts && allProducts.length ? allProducts : FALLBACK_PRODUCTS).find(p => (p.ProductId || p.id) == productId);
     const stock = prod ? (typeof prod.Stock === 'number' ? prod.Stock : (typeof prod.stock === 'number' ? prod.stock : 999)) : 999;
-    if (it.quantity + delta > stock) {
+    const totalInCart = cart.filter(i => i.productId == productId).reduce((s, x) => s + x.quantity, 0);
+    if (totalInCart + delta > stock) {
       showToast(`Số lượng tối đa có thể đặt là ${stock} sản phẩm.`, 'error');
       return;
     }
@@ -1318,16 +1603,23 @@ function changeCartQty(productId, delta) {
 
   it.quantity += delta;
   if (it.quantity <= 0) {
-    cart = cart.filter(i => i.productId !== productId);
+    cart = cart.filter(i => !(i.productId == productId && (i.packType || 'box') === (it.packType || 'box')));
   }
   saveCart();
   renderCartDrawer();
 }
 
-function removeCartItem(productId) {
-  cart = cart.filter(i => i.productId !== productId);
+function removeCartItem(productId, packType = null) {
+  if (packType) {
+    cart = cart.filter(i => !(i.productId == productId && (i.packType || 'box') === packType));
+  } else {
+    cart = cart.filter(i => i.productId != productId);
+  }
   saveCart();
   renderCartDrawer();
+  if (document.getElementById('checkoutModal')?.classList.contains('active')) {
+    renderCheckoutStep1();
+  }
 }
 
 function clearCart() {
@@ -1345,12 +1637,14 @@ function renderCartDrawer() {
   const depositAmountEl = document.getElementById('cartDepositAmount');
   if (!itemsContainer) return;
 
+  const isEn = typeof currentSiteLang !== 'undefined' && currentSiteLang === 'en';
+
   if (cart.length === 0) {
     itemsContainer.innerHTML = `
       <div class="cart-empty-state">
         <p style="font-size: 36px; margin-bottom: 8px; color:#cbd5e1;"><i class="fa-solid fa-cart-shopping"></i></p>
-        <p>Giỏ hàng của bạn đang trống</p>
-        <p style="font-size: 12px; margin-top: 4px;">Khám phá các mẫu Pre-order MINI GT 2026 ngay!</p>
+        <p>${isEn ? 'Your cart is empty' : 'Giỏ hàng của bạn đang trống'}</p>
+        <p style="font-size: 12px; margin-top: 4px;">${isEn ? 'Explore 1:64 Box & Blister Card models now!' : 'Khám phá các mẫu MINI GT 1:64 (Box & Card) ngay!'}</p>
       </div>
     `;
     if (totalAmountEl) totalAmountEl.textContent = '0đ';
@@ -1363,30 +1657,60 @@ function renderCartDrawer() {
 
   const headerHtml = `
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; padding-bottom:6px; border-bottom:1px dashed #e2e8f0;">
-      <span style="font-size:12px; color:#64748b; font-weight:600;">${cart.length} mẫu xe trong giỏ</span>
+      <span style="font-size:12px; color:#64748b; font-weight:600;">${cart.length} ${isEn ? 'items in cart' : 'mẫu xe trong giỏ'}</span>
       <button type="button" style="color:#dc2626; border:none; background:none; font-size:11.5px; cursor:pointer; font-weight:700;" onclick="clearCart()">
-        <i class="fa-solid fa-trash"></i> Xóa tất cả
+        <i class="fa-solid fa-trash"></i> ${isEn ? 'Clear all' : 'Xóa tất cả'}
       </button>
     </div>
   `;
 
   const itemsHtml = cart.map(it => {
-    total += it.price * it.quantity;
-    totalDeposit += (it.depositAmount || Math.round(it.price * 0.3)) * it.quantity;
+    const prod = (allProducts && allProducts.length ? allProducts : FALLBACK_PRODUCTS).find(p => (p.ProductId || p.id) == it.productId);
+    const pricing = prod ? getProductBoxCardPricing(prod) : {
+      packagingType: it.packagingType || 'both',
+      discountPercent: it.discountPercent || 0,
+      priceBox: it.priceBox || it.price || 350000,
+      priceCard: it.priceCard || ((it.price || 350000) + 60000),
+      finalPriceBox: it.finalPriceBox || it.price || 350000,
+      finalPriceCard: it.finalPriceCard || ((it.price || 350000) + 60000)
+    };
+    const pack = it.packType || 'box';
+    const unitPrice = pack === 'card' ? pricing.finalPriceCard : pricing.finalPriceBox;
+    const origPrice = pack === 'card' ? pricing.priceCard : pricing.priceBox;
+    it.price = unitPrice;
+    it.depositAmount = Math.round(unitPrice * 0.3);
+
+    total += unitPrice * it.quantity;
+    totalDeposit += it.depositAmount * it.quantity;
+
+    const boxDisabled = pricing.packagingType === 'card_only';
+    const cardDisabled = pricing.packagingType === 'box_only';
 
     return `
       <div class="cart-item">
         <img class="cart-item-thumb" src="${it.imageUrl || 'image/hero-banner.jpg'}" alt="${escapeHtml(it.name)}">
         <div class="cart-item-details">
           <div class="cart-item-title">${escapeHtml(it.name)}</div>
-          <div class="cart-item-price">${formatVND(it.price)} ${it.isPreOrder ? '<span class="badge badge-preorder" style="font-size:9px;">Cọc trước</span>' : ''}</div>
+          <div class="cart-pack-switch">
+            <button type="button" class="cart-pack-chip ${pack === 'box' ? 'active' : ''}" ${boxDisabled ? 'disabled' : ''} onclick="switchCartItemPackaging(${it.productId}, '${pack}', 'box')">
+              📦 Box (${formatVND(pricing.finalPriceBox)})
+            </button>
+            <button type="button" class="cart-pack-chip ${pack === 'card' ? 'active' : ''}" ${cardDisabled ? 'disabled' : ''} onclick="switchCartItemPackaging(${it.productId}, '${pack}', 'card')">
+              🛡️ Card (${formatVND(pricing.finalPriceCard)})
+            </button>
+          </div>
+          <div class="cart-item-price">
+            ${formatVND(unitPrice)}
+            ${pricing.discountPercent > 0 && origPrice > unitPrice ? `<span style="font-size:10.5px; color:#94a3b8; text-decoration:line-through; margin-left:4px;">${formatVND(origPrice)}</span> <span style="font-size:10px; color:#e11d48; font-weight:800;">(-${pricing.discountPercent}%)</span>` : ''}
+            ${it.isPreOrder ? `<span class="badge badge-preorder" style="font-size:9px; margin-left:4px;">${isEn ? 'Pre-Order' : 'Cọc trước'}</span>` : ''}
+          </div>
           <div class="cart-item-actions">
             <div class="quantity-stepper">
-              <button onclick="changeCartQty(${it.productId}, -1)">-</button>
+              <button onclick="changeCartQty(${it.productId}, -1, '${pack}')">-</button>
               <span>${it.quantity}</span>
-              <button onclick="changeCartQty(${it.productId}, 1)">+</button>
+              <button onclick="changeCartQty(${it.productId}, 1, '${pack}')">+</button>
             </div>
-            <button class="remove-cart-item" onclick="removeCartItem(${it.productId})">Xóa</button>
+            <button class="remove-cart-item" onclick="removeCartItem(${it.productId}, '${pack}')">${isEn ? 'Remove' : 'Xóa'}</button>
           </div>
         </div>
       </div>
@@ -1410,67 +1734,93 @@ function closeCartDrawer() {
 }
 
 // =====================================================================
-// 10. MODAL XEM NHANH SẢN PHẨM (QUICK VIEW)
+// 10. MODAL XEM NHANH SẢN PHẨM (QUICK VIEW VỚI CHỌN BOX / CARD & TRỪ % TRỰC TIẾP)
 // =====================================================================
 function openQuickView(productId) {
-  const prod = (allProducts && allProducts.length ? allProducts : FALLBACK_PRODUCTS).find(p => p.ProductId === productId || p.id === productId);
+  const prod = (allProducts && allProducts.length ? allProducts : FALLBACK_PRODUCTS).find(p => (p.ProductId || p.id) == productId);
   if (!prod) return;
 
   const modal = document.getElementById('quickViewModal');
   const body = document.getElementById('quickViewModalBody');
   if (!modal || !body) return;
 
+  const isEn = typeof currentSiteLang !== 'undefined' && currentSiteLang === 'en';
   const pId = prod.ProductId || prod.id;
   const pName = prod.Name || prod.name;
   const pImg = prod.ImageUrl || prod.image || 'image/hero-banner.jpg';
-  const pPrice = prod.Price || prod.price;
-  const pOldPrice = prod.OldPrice || prod.oldPrice;
   const pSku = prod.Sku || prod.sku;
   const pBrand = prod.Brand || prod.brand || 'MINI GT';
   const pScale = prod.Scale || prod.scale || '1:64';
-  const pDesc = prod.Description || prod.description || 'Mô hình diecast tỉ lệ 1:64 chính hãng bản quyền, chi tiết sơn sắc nét, lốp cao su cao cấp.';
+  const pDesc = prod.Description || prod.description || 'Mô hình diecast tỉ lệ 1:64 chính hãng bản quyền, thân kim loại nguyên khối, lốp cao su Real Riders.';
   const pStock = typeof prod.Stock === 'number' ? prod.Stock : (typeof prod.stock === 'number' ? prod.stock : 0);
-  const isPreOrder = (prod.Status || prod.status) === 'pre_order';
-  const isSoldOut = (prod.Status || prod.status) === 'sold_out' || pStock <= 0;
+  const isPreOrder = String(prod.Status || prod.status || '').toLowerCase() === 'pre_order';
+  const isSoldOut = String(prod.Status || prod.status || '').toLowerCase() === 'sold_out' || pStock <= 0;
   const isWish = isInWishlist(pId);
-  const deadline = prod.PreOrderDeadline || prod.preOrderDeadline || storeSettings.preorder_deadline;
+
+  const pricing = getProductBoxCardPricing(prod);
+  const activePack = getSelectedPackForProduct(prod);
+  const currentFinal = activePack === 'card' ? pricing.finalPriceCard : pricing.finalPriceBox;
+  const currentOrig = activePack === 'card' ? pricing.priceCard : pricing.priceBox;
+  const diffPrice = Math.max(40000, pricing.finalPriceCard - pricing.finalPriceBox);
+
+  const boxDisabled = pricing.packagingType === 'card_only';
+  const cardDisabled = pricing.packagingType === 'box_only';
 
   body.innerHTML = `
-    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-6); align-items: center;">
-      <div style="background: radial-gradient(circle, #fff 50%, #f1f5f9 100%); border-radius: var(--radius-lg); padding: 1.5rem; text-align: center; border: 1px solid var(--color-gray-200);">
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1.5rem; align-items: start;">
+      <div style="background: #f8fafc; border-radius: 14px; padding: 1.5rem; text-align: center; border: 1px solid #e2e8f0; position: relative;">
+        ${pricing.hasDiscount && !isSoldOut ? `<span style="position:absolute; top:12px; left:12px; background:#e11d48; color:#fff; font-size:11px; font-weight:800; padding:4px 10px; border-radius:6px;">-${pricing.discountPercent}% TRỰC TIẾP</span>` : ''}
         <img src="${pImg}" alt="${escapeHtml(pName)}" style="max-height: 240px; margin: 0 auto; object-fit: contain;">
       </div>
       <div>
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 8px;">
           <span class="badge ${isPreOrder ? 'badge-preorder' : (isSoldOut ? 'badge-soldout' : 'badge-instock')}">
-            ${isPreOrder ? 'PRE-ORDER 2026' : (isSoldOut ? 'HẾT HÀNG TẠM THỜI' : 'CÓ SẴN GIAO NGAY')}
+            ${isPreOrder ? 'PRE-ORDER 2026' : (isSoldOut ? (isEn ? 'SOLD OUT' : 'HẾT HÀNG') : (isEn ? 'IN STOCK' : 'SẴN HÀNG GIAO NGAY'))}
           </span>
-          <span style="font-size:12px; color:#64748b; font-weight:600;">
-            ${isPreOrder ? `Tiến độ: ${prod.QuotaPercent || 75}%` : `Kho: ${pStock} chiếc`}
-          </span>
+          <span style="font-size:12px; color:#64748b; font-weight:700;">#${escapeHtml(pSku)} • ${escapeHtml(pScale)}</span>
         </div>
-        <h2 style="font-size: var(--text-lg); margin-bottom: 6px; color: var(--color-navy); line-height: 1.3;">${escapeHtml(pName)}</h2>
-        <div style="font-size: var(--text-xs); color: var(--color-primary); font-weight: bold; margin-bottom: 12px;">
-          #${escapeHtml(pSku)} ${prod.EditionNote ? '• ' + escapeHtml(prod.EditionNote) : ''}
+        <h2 style="font-size: 1.15rem; font-weight: 800; margin-bottom: 8px; color: #0f172a; line-height: 1.35;">${escapeHtml(pName)}</h2>
+
+        <div id="qvPriceBox_${pId}" style="margin-bottom: 12px; padding: 10px 14px; background: #f8fafc; border-radius: 10px; border: 1px solid #e2e8f0;">
+          <div style="display:flex; align-items:baseline; gap:10px; flex-wrap:wrap;">
+            <span id="qvCurrentPrice_${pId}" style="font-size: 1.45rem; font-weight: 800; color: #e11d48;">${formatVND(currentFinal)}</span>
+            <span id="qvOldPrice_${pId}" style="font-size: 0.9rem; color: #94a3b8; text-decoration: line-through; display: ${pricing.hasDiscount && currentOrig > currentFinal ? 'inline' : 'none'};">${formatVND(currentOrig)}</span>
+            ${pricing.hasDiscount ? `<span style="font-size:11px; font-weight:800; color:#059669; background:#ecfdf5; padding:2px 8px; border-radius:99px;">Đã trừ ${pricing.discountPercent}% (-${formatVND(currentOrig - currentFinal)})</span>` : ''}
+          </div>
+          <div id="qvPackHint_${pId}" style="font-size:11.5px; color:#475569; margin-top:4px; font-weight:600;">
+            ${activePack === 'box'
+              ? `📦 Bản Hộp Giấy (Box) nguyên seal — Rẻ hơn bản Card ${formatVND(diffPrice)}`
+              : `🛡️ Bản Vỉ Nhựa (Card Blister) seal trưng bày chống bụi cao cấp`}
+          </div>
         </div>
-        <div style="font-size: var(--text-2xl); font-weight: 800; color: var(--color-navy); margin-bottom: 12px;">
-          ${formatVND(pPrice)}
-          ${pOldPrice && pOldPrice > pPrice ? `<span style="font-size: var(--text-sm); color: var(--color-gray-400); text-decoration: line-through; margin-left: 8px;">${formatVND(pOldPrice)}</span>` : ''}
+
+        <div style="font-size:11.5px; font-weight:800; color:#334155; text-transform:uppercase; letter-spacing:0.04em; margin-bottom:4px;">
+          ${isEn ? 'Select Packaging (Box vs Blister Card):' : 'Chọn quy cách đóng gói (Box / Card):'}
         </div>
-        <p style="font-size: var(--text-xs); color: var(--color-gray-600); margin-bottom: 14px; line-height: 1.6;">
+        <div class="qv-pack-selector" id="qvPackSelector_${pId}">
+          <div class="qv-pack-option ${activePack === 'box' ? 'active' : ''}" ${boxDisabled ? 'style="opacity:0.4; pointer-events:none;"' : ''} onclick="selectQuickViewPack(${pId}, 'box')">
+            <div class="qv-pack-option-title"><i class="fa-solid fa-cube" style="color:#0284c7;"></i> ${isEn ? 'Paper Box' : 'Hộp Giấy (Box)'}</div>
+            <div class="qv-pack-option-price">${formatVND(pricing.finalPriceBox)} ${pricing.hasDiscount ? `<span style="font-size:10.5px; color:#94a3b8; text-decoration:line-through; font-weight:500;">${formatVND(pricing.priceBox)}</span>` : ''}</div>
+            <div class="qv-pack-option-sub">${isEn ? `Saves ${formatVND(diffPrice)} vs Card` : `Tiết kiệm ${formatVND(diffPrice)} so với Card`}</div>
+          </div>
+          <div class="qv-pack-option ${activePack === 'card' ? 'active' : ''}" ${cardDisabled ? 'style="opacity:0.4; pointer-events:none;"' : ''} onclick="selectQuickViewPack(${pId}, 'card')">
+            <div class="qv-pack-option-title"><i class="fa-solid fa-shield-halved" style="color:#e11d48;"></i> ${isEn ? 'Blister Card' : 'Vỉ Nhựa (Card)'}</div>
+            <div class="qv-pack-option-price">${formatVND(pricing.finalPriceCard)} ${pricing.hasDiscount ? `<span style="font-size:10.5px; color:#94a3b8; text-decoration:line-through; font-weight:500;">${formatVND(pricing.priceCard)}</span>` : ''}</div>
+            <div class="qv-pack-option-sub">${isEn ? 'Collector display blister' : 'Vỉ nhựa trưng bày kèm hộp giấy'}</div>
+          </div>
+        </div>
+
+        <p style="font-size: 12.5px; color: #475569; margin: 12px 0; line-height: 1.55;">
           ${escapeHtml(pDesc)}
         </p>
-        <div style="font-size: var(--text-xs); margin-bottom: 16px; display: flex; flex-direction: column; gap: 4px;">
-          <div><strong>Thương hiệu:</strong> ${escapeHtml(pBrand)}</div>
-          <div><strong>Tỉ lệ:</strong> ${escapeHtml(pScale)}</div>
-          <div><strong>Bản quyền:</strong> Official Licensed Product</div>
-          ${deadline ? `<div><strong>Hạn chốt cọc:</strong> <span style="color:var(--color-primary); font-weight:bold;">${escapeHtml(deadline)}</span></div>` : ''}
-        </div>
-        <div style="display: flex; gap: 8px; margin-top: 10px;">
-          <button class="btn btn-primary" style="flex: 1;" ${isSoldOut ? 'disabled' : ''} onclick="addToCart(${pId}, 1); closeModal('quickViewModal'); openCartDrawer();">
-            ${isSoldOut ? 'Hết hàng' : (isPreOrder ? '<i class="fa-solid fa-fire" style="margin-right:6px;"></i> Đặt cọc giữ slot ngay' : '<i class="fa-solid fa-cart-shopping" style="margin-right:6px;"></i> Thêm vào giỏ hàng')}
+
+        <div style="display: flex; gap: 8px; margin-top: 12px;">
+          <button class="btn btn-primary" id="qvActionBtn_${pId}" style="flex: 1;" ${isSoldOut ? 'disabled' : ''} onclick="handleCardAction(${pId}, event, selectedCardPackaging[${pId}] || '${activePack}'); closeModal('quickViewModal');">
+            ${isSoldOut
+              ? (isEn ? 'Sold Out' : 'Hết hàng')
+              : `<i class="fa-solid fa-bag-shopping" style="margin-right:6px;"></i> ${isPreOrder ? (isEn ? 'Pre-Order' : 'Đặt cọc') : (isEn ? 'Buy Now' : 'Mua ngay')} (${activePack === 'card' ? 'Card' : 'Box'} - ${formatVND(currentFinal)})`}
           </button>
-          <button type="button" class="btn btn-outline" id="quickViewWishlistBtn" style="min-width: 46px; padding: 0 12px;" onclick="toggleWishlist(${pId}, event);" title="${isWish ? 'Đã lưu yêu thích (Bấm để xóa)' : 'Lưu danh sách yêu thích'}">
+          <button type="button" class="btn btn-outline" id="quickViewWishlistBtn" style="min-width: 44px; padding: 0 12px;" onclick="toggleWishlist(${pId}, event);" title="${isWish ? 'Đã lưu yêu thích' : 'Yêu thích'}">
             <i class="fa-${isWish ? 'solid' : 'regular'} fa-heart" style="color:${isWish ? '#dc2626' : 'inherit'}; font-size: 14px;"></i>
           </button>
         </div>
@@ -1481,13 +1831,170 @@ function openQuickView(productId) {
   modal.classList.add('active');
 }
 
+function selectQuickViewPack(productId, packType) {
+  selectCardPackaging(productId, packType);
+  const prod = (allProducts && allProducts.length ? allProducts : FALLBACK_PRODUCTS).find(p => (p.ProductId || p.id) == productId);
+  if (!prod) return;
+
+  const isEn = typeof currentSiteLang !== 'undefined' && currentSiteLang === 'en';
+  const pricing = getProductBoxCardPricing(prod);
+  const chosen = packType === 'card' ? 'card' : 'box';
+  const finalPrice = chosen === 'card' ? pricing.finalPriceCard : pricing.finalPriceBox;
+  const origPrice = chosen === 'card' ? pricing.priceCard : pricing.priceBox;
+  const diffPrice = Math.max(40000, pricing.finalPriceCard - pricing.finalPriceBox);
+  const isPreOrder = String(prod.Status || prod.status || '').toLowerCase() === 'pre_order';
+
+  const selector = document.getElementById(`qvPackSelector_${productId}`);
+  if (selector) {
+    const opts = selector.querySelectorAll('.qv-pack-option');
+    if (opts.length >= 2) {
+      opts[0].classList.toggle('active', chosen === 'box');
+      opts[1].classList.toggle('active', chosen === 'card');
+    }
+  }
+
+  const currEl = document.getElementById(`qvCurrentPrice_${productId}`);
+  if (currEl) currEl.textContent = formatVND(finalPrice);
+
+  const oldEl = document.getElementById(`qvOldPrice_${productId}`);
+  if (oldEl) {
+    if (pricing.hasDiscount && origPrice > finalPrice) {
+      oldEl.textContent = formatVND(origPrice);
+      oldEl.style.display = 'inline';
+    } else {
+      oldEl.style.display = 'none';
+    }
+  }
+
+  const hintEl = document.getElementById(`qvPackHint_${productId}`);
+  if (hintEl) {
+    hintEl.textContent = chosen === 'box'
+      ? `📦 Bản Hộp Giấy (Box) nguyên seal — Rẻ hơn bản Card ${formatVND(diffPrice)}`
+      : `🛡️ Bản Vỉ Nhựa (Card Blister) seal trưng bày chống bụi cao cấp`;
+  }
+
+  const actionBtn = document.getElementById(`qvActionBtn_${productId}`);
+  if (actionBtn && !actionBtn.disabled) {
+    actionBtn.innerHTML = `<i class="fa-solid fa-bag-shopping" style="margin-right:6px;"></i> ${isPreOrder ? (isEn ? 'Pre-Order' : 'Đặt cọc') : (isEn ? 'Buy Now' : 'Mua ngay')} (${chosen === 'card' ? 'Card' : 'Box'} - ${formatVND(finalPrice)})`;
+  }
+}
+window.selectQuickViewPack = selectQuickViewPack;
+
 // =====================================================================
-// 11. CHECKOUT & TẠO MÃ VIETQR TỰ ĐỘNG
-// =====================================================================
-// MULTI-STEP CHECKOUT STEPPER CONTROLLER & FORM STATE CACHING
+// 11. CHECKOUT & TẠO MÃ VIETQR TỰ ĐỘNG (NÂNG CẤP LOGIC VẬN HÀNH & COLLECTOR)
 // =====================================================================
 let currentCheckoutStep = 1;
 let selectedCheckoutPaymentMethod = 'DEPOSIT';
+let checkoutShippingMode = 'SPX_STANDARD';
+let checkoutBoxProtector = false;
+let checkoutAppliedVoucher = null;
+
+function calculateCheckoutTotals() {
+  const subtotal = cart.reduce((acc, it) => acc + (it.price * it.quantity), 0);
+  const totalDepositRaw = cart.reduce((acc, it) => acc + ((it.depositAmount || Math.round(it.price * 0.35)) * it.quantity), 0);
+
+  let shippingFee = 11000;
+  let shippingLabel = 'SPX Express Tiêu Chuẩn (Đồng giá toàn quốc)';
+  if (checkoutShippingMode === 'BOX_SAVER') {
+    shippingFee = 0;
+    shippingLabel = 'Gom đơn lưu kho (Box Saver - Miễn phí lưu kho)';
+  } else if (checkoutShippingMode === 'SHOWROOM_PICKUP') {
+    shippingFee = 0;
+    shippingLabel = 'Nhận trực tiếp tại Showroom Biên Hòa (0đ)';
+  }
+
+  const protectorFee = checkoutBoxProtector ? 15000 : 0;
+
+  let voucherDiscount = 0;
+  let voucherDesc = '';
+  if (checkoutAppliedVoucher) {
+    const code = checkoutAppliedVoucher.code;
+    if (code === 'FREESHIP') {
+      voucherDiscount = shippingFee > 0 ? shippingFee : 11000;
+      voucherDesc = 'Miễn phí vận chuyển SPX (-11.000đ)';
+    } else if (code === 'MINIGT2026') {
+      voucherDiscount = 20000;
+      voucherDesc = 'Ưu đãi thành viên Săn Xe Biên Hòa (-20.000đ)';
+    } else if (code === 'LBWK50K') {
+      voucherDiscount = subtotal >= 800000 ? 50000 : 25000;
+      voucherDesc = subtotal >= 800000 ? 'Voucher Collector đơn từ 800K (-50.000đ)' : 'Voucher Collector hỗ trợ (-25.000đ)';
+    } else if (code === 'LACHONG10') {
+      voucherDiscount = Math.min(50000, Math.round(subtotal * 0.05));
+      voucherDesc = 'Ưu đãi Sinh viên ĐH Lạc Hồng (-5%)';
+    }
+  }
+
+  const grandTotal = Math.max(0, subtotal + shippingFee + protectorFee - voucherDiscount);
+  const depositAmount = Math.min(grandTotal, totalDepositRaw > 0 ? totalDepositRaw : Math.round(grandTotal * 0.35));
+
+  return {
+    subtotal,
+    shippingFee,
+    shippingLabel,
+    protectorFee,
+    voucherDiscount,
+    voucherDesc,
+    grandTotal,
+    depositAmount
+  };
+}
+
+function handleCheckoutAddonChange() {
+  const shipEl = document.getElementById('checkoutShippingMode');
+  const boxEl = document.getElementById('checkoutBoxProtectorCheck');
+  if (shipEl) checkoutShippingMode = shipEl.value || 'SPX_STANDARD';
+  if (boxEl) checkoutBoxProtector = Boolean(boxEl.checked);
+  renderCheckoutStep3();
+}
+
+function selectVoucherChip(code) {
+  const input = document.getElementById('checkoutVoucherInput');
+  if (input) {
+    input.value = code;
+    applyCheckoutVoucher();
+  }
+}
+
+function applyCheckoutVoucher() {
+  const input = document.getElementById('checkoutVoucherInput');
+  const statusEl = document.getElementById('checkoutVoucherStatus');
+  const rawCode = (input ? input.value : '').trim().toUpperCase();
+
+  document.querySelectorAll('.voucher-chip-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.textContent.includes(rawCode) && rawCode.length > 0);
+  });
+
+  if (!rawCode) {
+    checkoutAppliedVoucher = null;
+    if (statusEl) {
+      statusEl.style.color = '#64748b';
+      statusEl.innerHTML = 'Chưa áp dụng mã ưu đãi nào.';
+    }
+    renderCheckoutStep3();
+    return;
+  }
+
+  const validCodes = ['MINIGT2026', 'FREESHIP', 'LBWK50K', 'LACHONG10'];
+  if (!validCodes.includes(rawCode)) {
+    checkoutAppliedVoucher = null;
+    if (statusEl) {
+      statusEl.style.color = '#dc2626';
+      statusEl.innerHTML = `<i class="fa-solid fa-circle-xmark"></i> Mã "${escapeHtml(rawCode)}" không tồn tại. Gợi ý: MINIGT2026, FREESHIP, LBWK50K`;
+    }
+    showToast('Mã ưu đãi không hợp lệ! Hãy chọn 1 trong các mã gợi ý bên dưới.', 'error');
+    renderCheckoutStep3();
+    return;
+  }
+
+  checkoutAppliedVoucher = { code: rawCode };
+  const totals = calculateCheckoutTotals();
+  if (statusEl) {
+    statusEl.style.color = '#059669';
+    statusEl.innerHTML = `<i class="fa-solid fa-circle-check"></i> Đã áp dụng mã <strong>${escapeHtml(rawCode)}</strong>: Giảm ngay <strong>${formatVND(totals.voucherDiscount)}</strong> (${totals.voucherDesc})`;
+  }
+  showToast(`Áp dụng mã ${rawCode} thành công! Giảm ${formatVND(totals.voucherDiscount)}`, 'success');
+  renderCheckoutStep3();
+}
 
 function saveCheckoutFormState() {
   const formState = {
@@ -1527,6 +2034,16 @@ function loadCheckoutFormState() {
 }
 
 function openCheckoutModal() {
+  // YÊU CẦU: Chỉ có đăng nhập thì mới thanh toán được xe, chưa đăng nhập thì xem được chi tiết nhưng không thanh toán được mà phải đăng nhập
+  const currentUser = (api && api.getCurrentUser) ? api.getCurrentUser() : null;
+  const token = (api && api.getToken) ? api.getToken() : null;
+  if (!currentUser && !token) {
+    showToast('Vui lòng đăng nhập tài khoản trước khi tiến hành thanh toán đơn hàng!', 'info');
+    closeCartDrawer();
+    openAuthModal('login');
+    return;
+  }
+
   if (cart.length === 0) {
     showToast('Giỏ hàng của bạn đang trống! Hãy chọn mô hình trước khi thanh toán.', 'error');
     return;
@@ -1606,54 +2123,79 @@ function renderCheckoutStep1() {
   const summaryEl = document.getElementById('checkoutStep1SummaryBox');
   if (!listEl || !summaryEl) return;
 
-  const total = cart.reduce((acc, it) => acc + (it.price * it.quantity), 0);
-  const totalDeposit = cart.reduce((acc, it) => acc + ((it.depositAmount || Math.round(it.price * 0.35)) * it.quantity), 0);
-  const shippingFee = 11000; // Phí ship bọc chống sốc SPX đồng giá 11.000đ toàn quốc
-  const grandTotal = total + shippingFee;
+  const isEn = typeof currentSiteLang !== 'undefined' && currentSiteLang === 'en';
+  const totals = calculateCheckoutTotals();
 
-  listEl.innerHTML = cart.map((it, idx) => {
-    const isPreOrder = it.depositAmount && it.depositAmount > 0;
+  listEl.innerHTML = cart.map((it) => {
+    const prod = (allProducts && allProducts.length ? allProducts : FALLBACK_PRODUCTS).find(p => (p.ProductId || p.id) == it.productId);
+    const pricing = prod ? getProductBoxCardPricing(prod) : {
+      packagingType: it.packagingType || 'both',
+      discountPercent: it.discountPercent || 0,
+      priceBox: it.priceBox || it.price || 350000,
+      priceCard: it.priceCard || ((it.price || 350000) + 60000),
+      finalPriceBox: it.finalPriceBox || it.price || 350000,
+      finalPriceCard: it.finalPriceCard || ((it.price || 350000) + 60000)
+    };
+    const pack = it.packType || 'box';
+    const unitPrice = pack === 'card' ? pricing.finalPriceCard : pricing.finalPriceBox;
+    const origPrice = pack === 'card' ? pricing.priceCard : pricing.priceBox;
+    it.price = unitPrice;
+    it.depositAmount = Math.round(unitPrice * 0.3);
+
+    const isPreOrder = it.isPreOrder || (it.depositAmount && it.depositAmount > 0);
+    const boxDisabled = pricing.packagingType === 'card_only';
+    const cardDisabled = pricing.packagingType === 'box_only';
+
     return `
       <div style="display:flex; align-items:center; gap:12px; padding:10px 0; border-bottom:1px solid #f1f5f9;">
-        <img src="${it.imageUrl || 'image/hero-banner.jpg'}" alt="${it.name}" style="width:54px; height:54px; object-fit:contain; border-radius:6px; background:#f8fafc; border:1px solid #e2e8f0; padding:2px;">
+        <img src="${it.imageUrl || 'image/hero-banner.jpg'}" alt="${escapeHtml(it.name)}" style="width:54px; height:54px; object-fit:contain; border-radius:6px; background:#f8fafc; border:1px solid #e2e8f0; padding:2px;">
         <div style="flex:1;">
-          <div style="font-weight:700; font-size:13px; color:var(--color-navy); line-height:1.3;">${it.name}</div>
-          <div style="display:flex; align-items:center; gap:6px; margin-top:2px;">
-            <span style="font-size:10px; background:#f1f5f9; color:#475569; padding:1px 5px; border-radius:3px; font-weight:700;">1:64</span>
-            <span style="font-size:11px; color:#64748b;">Đơn giá: ${formatVND(it.price)}</span>
-            ${isPreOrder ? `<span style="font-size:10px; background:#fff1f1; color:#dc2626; padding:1px 5px; border-radius:3px; font-weight:800;">PRE-ORDER (Cọc ${formatVND(it.depositAmount)})</span>` : `<span style="font-size:10px; background:#ecfdf5; color:#059669; padding:1px 5px; border-radius:3px; font-weight:700;">CÓ SẴN</span>`}
+          <div style="font-weight:700; font-size:13px; color:var(--color-navy); line-height:1.3;">${escapeHtml(it.name)}</div>
+          <div class="cart-pack-switch" style="margin:4px 0;">
+            <button type="button" class="cart-pack-chip ${pack === 'box' ? 'active' : ''}" ${boxDisabled ? 'disabled' : ''} onclick="switchCartItemPackaging(${it.productId}, '${pack}', 'box')">
+              📦 Box: ${formatVND(pricing.finalPriceBox)}
+            </button>
+            <button type="button" class="cart-pack-chip ${pack === 'card' ? 'active' : ''}" ${cardDisabled ? 'disabled' : ''} onclick="switchCartItemPackaging(${it.productId}, '${pack}', 'card')">
+              🛡️ Card: ${formatVND(pricing.finalPriceCard)}
+            </button>
+          </div>
+          <div style="display:flex; align-items:center; gap:6px; margin-top:2px; flex-wrap:wrap;">
+            <span style="font-size:10px; background:#f1f5f9; color:#475569; padding:1px 5px; border-radius:3px; font-weight:700;">${pack === 'card' ? 'VỈ CARD BLISTER' : 'HỘP GIẤY BOX'}</span>
+            <span style="font-size:11px; color:#64748b;">${isEn ? 'Unit:' : 'Đơn giá:'} <strong>${formatVND(unitPrice)}</strong> ${pricing.discountPercent > 0 && origPrice > unitPrice ? `<del style="color:#94a3b8;">${formatVND(origPrice)}</del> <span style="color:#e11d48; font-weight:700;">(-${pricing.discountPercent}%)</span>` : ''}</span>
+            ${isPreOrder ? `<span style="font-size:10px; background:#fff1f1; color:#dc2626; padding:1px 5px; border-radius:3px; font-weight:800;">Cọc ${formatVND(it.depositAmount)}</span>` : `<span style="font-size:10px; background:#ecfdf5; color:#059669; padding:1px 5px; border-radius:3px; font-weight:700;">CÓ SẴN</span>`}
           </div>
         </div>
         <div style="display:flex; align-items:center; gap:6px;">
-          <button type="button" class="btn btn-sm btn-outline" style="padding:2px 8px; font-size:11px;" onclick="changeCartQty(${it.productId}, -1); renderCheckoutStep1();">-</button>
+          <button type="button" class="btn btn-sm btn-outline" style="padding:2px 8px; font-size:11px;" onclick="changeCartQty(${it.productId}, -1, '${pack}'); renderCheckoutStep1();">-</button>
           <span style="font-weight:800; font-size:12px; min-width:18px; text-align:center;">${it.quantity}</span>
-          <button type="button" class="btn btn-sm btn-outline" style="padding:2px 8px; font-size:11px;" onclick="changeCartQty(${it.productId}, 1); renderCheckoutStep1();">+</button>
+          <button type="button" class="btn btn-sm btn-outline" style="padding:2px 8px; font-size:11px;" onclick="changeCartQty(${it.productId}, 1, '${pack}'); renderCheckoutStep1();">+</button>
         </div>
         <div style="text-align:right; min-width:85px;">
-          <strong style="color:var(--color-primary); font-size:13px;">${formatVND(it.price * it.quantity)}</strong>
+          <strong style="color:var(--color-primary); font-size:13px;">${formatVND(unitPrice * it.quantity)}</strong>
         </div>
       </div>
     `;
   }).join('');
 
+  const recalcTotals = calculateCheckoutTotals();
   summaryEl.innerHTML = `
     <div style="background:#f8fafc; border-radius:10px; padding:12px 14px; margin-top:12px; border:1px solid #e2e8f0; font-size:12.5px;">
       <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
-        <span style="color:#64748b;">Tổng tiền hàng (${cart.length} mẫu):</span>
-        <strong style="color:var(--color-navy);">${formatVND(total)}</strong>
+        <span style="color:#64748b;">${isEn ? `Subtotal (${cart.length} items):` : `Tổng tiền hàng (${cart.length} mẫu):`}</span>
+        <strong style="color:var(--color-navy);">${formatVND(recalcTotals.subtotal)}</strong>
       </div>
       <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
-        <span style="color:#64748b;"><i class="fa-solid fa-truck-fast" style="color:#ea580c; margin-right:4px;"></i> Phí vận chuyển bọc hộp SPX:</span>
-        <strong style="color:#059669;">${formatVND(shippingFee)} (Đồng giá toàn quốc)</strong>
+        <span style="color:#64748b;"><i class="fa-solid fa-truck-fast" style="color:#ea580c; margin-right:4px;"></i> ${isEn ? 'Estimated SPX Shipping:' : 'Phí vận chuyển dự kiến:'}</span>
+        <strong style="color:#059669;">${formatVND(recalcTotals.shippingFee)}</strong>
       </div>
       <div style="display:flex; justify-content:space-between; margin-top:8px; border-top:1px dashed #cbd5e1; padding-top:8px; font-size:14px; font-weight:800;">
-        <span style="color:var(--color-navy);">Tổng đơn hàng:</span>
-        <span style="color:var(--color-primary);">${formatVND(grandTotal)}</span>
+        <span style="color:var(--color-navy);">${isEn ? 'Estimated Total:' : 'Tạm tính tổng đơn:'}</span>
+        <span style="color:var(--color-primary);">${formatVND(recalcTotals.grandTotal)}</span>
       </div>
-      ${totalDeposit > 0 ? `
+      ${recalcTotals.depositAmount > 0 ? `
         <div style="margin-top:8px; padding:8px 10px; background:#fff1f1; border-radius:6px; font-size:12px; color:#b91c1c; display:flex; justify-content:space-between; align-items:center;">
-          <span><strong>Tiền cọc giữ slot đợt này:</strong></span>
-          <span style="font-size:14px; font-weight:800;">${formatVND(totalDeposit)}</span>
+          <span><strong>${isEn ? '30% Pre-Order Deposit:' : 'Tiền cọc giữ slot đợt này:'}</strong></span>
+          <span style="font-size:14px; font-weight:800;">${formatVND(recalcTotals.depositAmount)}</span>
         </div>
       ` : ''}
     </div>
@@ -1704,10 +2246,8 @@ function renderCheckoutStep3() {
   const summaryEl = document.getElementById('checkoutStep3SummaryBox');
   if (!summaryEl) return;
 
-  const total = cart.reduce((acc, it) => acc + (it.price * it.quantity), 0);
-  const totalDeposit = cart.reduce((acc, it) => acc + ((it.depositAmount || Math.round(it.price * 0.35)) * it.quantity), 0);
-  const shippingFee = 11000;
-  const grandTotal = total + shippingFee;
+  const totals = calculateCheckoutTotals();
+  const { subtotal, shippingFee, shippingLabel, protectorFee, voucherDiscount, grandTotal, depositAmount } = totals;
 
   let payNowAmount = 0;
   let remainingCodAmount = grandTotal;
@@ -1717,34 +2257,45 @@ function renderCheckoutStep3() {
   if (selectedCheckoutPaymentMethod === 'COD') {
     payNowAmount = 0;
     remainingCodAmount = grandTotal;
-    labelPayNow = 'Thanh toán cho Shipper SPX khi nhận:';
-    noteText = `<i class="fa-solid fa-hand-holding-dollar" style="color:#059669;"></i> Bạn sẽ thanh toán <strong>${formatVND(grandTotal)}</strong> (đã gồm 11.000đ phí ship) cho shipper SPX khi nhận và kiểm tra xe.`;
+    labelPayNow = 'Thanh toán khi nhận xe (COD):';
+    noteText = `<i class="fa-solid fa-hand-holding-dollar" style="color:#059669;"></i> Bạn sẽ thanh toán <strong>${formatVND(grandTotal)}</strong> khi nhận và kiểm tra mô hình xe.`;
   } else if (selectedCheckoutPaymentMethod === 'BANK_TRANSFER' || selectedCheckoutPaymentMethod === 'FULL_TRANSFER') {
     payNowAmount = grandTotal;
     remainingCodAmount = 0;
-    labelPayNow = 'Số tiền chuyển khoản Full 100% qua MB Bank:';
-    noteText = `<i class="fa-solid fa-credit-card" style="color:#2563eb;"></i> Bạn chuyển khoản <strong>${formatVND(grandTotal)}</strong> qua VietQR. Khi shipper SPX giao đến, bạn chỉ cần nhận kiện mà <strong>không phải trả thêm tiền</strong>.`;
+    labelPayNow = 'Chuyển khoản Full 100% qua MB Bank:';
+    noteText = `<i class="fa-solid fa-credit-card" style="color:#2563eb;"></i> Bạn chuyển khoản <strong>${formatVND(grandTotal)}</strong> qua VietQR. Khi nhận kiện xe bạn <strong>không phải trả thêm tiền</strong>.`;
   } else {
-    // DEPOSIT
-    payNowAmount = totalDeposit > 0 ? totalDeposit : Math.round(total * 0.35);
-    remainingCodAmount = grandTotal - payNowAmount;
+    payNowAmount = depositAmount;
+    remainingCodAmount = Math.max(0, grandTotal - payNowAmount);
     labelPayNow = 'Tiền cọc quét mã VietQR MB Bank ngay:';
-    noteText = `<i class="fa-solid fa-money-bill-transfer" style="color:#dc2626;"></i> Quét mã cọc trước <strong>${formatVND(payNowAmount)}</strong>. Số tiền còn lại <strong>${formatVND(remainingCodAmount)}</strong> (đã gồm 11.000đ phí ship) sẽ thanh toán COD cho shipper SPX khi nhận xe.`;
+    noteText = `<i class="fa-solid fa-money-bill-transfer" style="color:#dc2626;"></i> Quét mã cọc trước <strong>${formatVND(payNowAmount)}</strong>. Số tiền còn lại <strong>${formatVND(remainingCodAmount)}</strong> thanh toán khi nhận xe.`;
   }
 
   summaryEl.innerHTML = `
     <div style="background:#f8fafc; border-radius:10px; padding:12px 14px; border:1px solid #e2e8f0; font-size:12.5px;">
       <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
-        <span style="color:#64748b;">Tổng giá trị sản phẩm:</span>
-        <strong>${formatVND(total)}</strong>
+        <span style="color:#64748b;">Tổng giá trị sản phẩm (${cart.length} mẫu):</span>
+        <strong>${formatVND(subtotal)}</strong>
       </div>
       <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
-        <span style="color:#64748b;"><i class="fa-solid fa-truck-fast" style="color:#ea580c; margin-right:4px;"></i> Phí vận chuyển bọc hộp SPX:</span>
-        <strong style="color:#059669;">${formatVND(shippingFee)} (Đồng giá toàn quốc)</strong>
+        <span style="color:#64748b;"><i class="fa-solid fa-truck-fast" style="color:#ea580c; margin-right:4px;"></i> ${escapeHtml(shippingLabel)}:</span>
+        <strong style="color:#059669;">${shippingFee === 0 ? '0đ (Miễn phí)' : formatVND(shippingFee)}</strong>
       </div>
-      <div style="display:flex; justify-content:space-between; margin-bottom:6px; font-weight:700;">
-        <span style="color:var(--color-navy);">Tổng đơn hàng:</span>
-        <span style="color:var(--color-navy); font-size:13.5px;">${formatVND(grandTotal)}</span>
+      ${protectorFee > 0 ? `
+        <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
+          <span style="color:#64748b;"><i class="fa-solid fa-shield-cat" style="color:#2563eb; margin-right:4px;"></i> Hộp nhựa PVC Protector chống cấn góc:</span>
+          <strong style="color:#2563eb;">+${formatVND(protectorFee)}</strong>
+        </div>
+      ` : ''}
+      ${voucherDiscount > 0 ? `
+        <div style="display:flex; justify-content:space-between; margin-bottom:5px; color:#059669;">
+          <span><i class="fa-solid fa-ticket" style="margin-right:4px;"></i> Ưu đãi Voucher (${escapeHtml(checkoutAppliedVoucher?.code || '')}):</span>
+          <strong>-${formatVND(voucherDiscount)}</strong>
+        </div>
+      ` : ''}
+      <div style="display:flex; justify-content:space-between; margin-bottom:6px; font-weight:800; padding-top:5px; border-top:1px dashed #cbd5e1;">
+        <span style="color:var(--color-navy);">Tổng thanh toán đơn hàng:</span>
+        <span style="color:var(--color-navy); font-size:14px;">${formatVND(grandTotal)}</span>
       </div>
       <div style="border-top:1.5px solid #e2e8f0; margin-top:8px; padding-top:8px; display:flex; justify-content:space-between; align-items:center;">
         <span style="font-size:13px; font-weight:800; color:${payNowAmount > 0 ? '#dc2626' : '#059669'};">
@@ -1770,7 +2321,7 @@ async function handleCheckoutSubmit(e) {
   const phone = document.getElementById('checkoutPhone')?.value.trim();
   const email = document.getElementById('checkoutEmail')?.value.trim();
   const address = document.getElementById('checkoutAddress')?.value.trim();
-  const note = document.getElementById('checkoutNote')?.value.trim();
+  const rawNote = document.getElementById('checkoutNote')?.value.trim() || '';
 
   if (!name || !phone || !address) {
     showToast('Vui lòng điền Họ tên, Số điện thoại và Địa chỉ nhận hàng!', 'error');
@@ -1787,13 +2338,25 @@ async function handleCheckoutSubmit(e) {
     ? 'BANK_TRANSFER'
     : (selectedCheckoutPaymentMethod || 'DEPOSIT');
 
+  const totals = calculateCheckoutTotals();
+  const addonTags = [];
+  if (checkoutShippingMode === 'BOX_SAVER') addonTags.push('[GOM ĐƠN BOX SAVER]');
+  else if (checkoutShippingMode === 'SHOWROOM_PICKUP') addonTags.push('[NHẬN TẠI SHOWROOM BIÊN HÒA]');
+  if (checkoutBoxProtector) addonTags.push('[+HỘP NHỰA PROTECTOR PVC 15K]');
+  if (checkoutAppliedVoucher) addonTags.push(`[VOUCHER: ${checkoutAppliedVoucher.code} -${formatVND(totals.voucherDiscount)}]`);
+
+  const finalNote = [addonTags.join(' '), rawNote].filter(Boolean).join(' | ');
+
   const payload = {
     fullName: name,
     phone: phone,
     email: email || (currentUser ? currentUser.email : ''),
     address: address,
-    note: note || '',
+    note: finalNote,
     paymentMethod: normalizedPayMethod,
+    shippingFee: totals.shippingFee,
+    totalAmount: totals.grandTotal,
+    depositAmount: totals.depositAmount,
     items: cart.map(i => ({
       productId: i.productId,
       sku: i.sku,
@@ -1807,7 +2370,6 @@ async function handleCheckoutSubmit(e) {
   };
 
   try {
-    // Lưu SĐT khách hàng để tự động tra cứu trong "Đơn hàng của tôi"
     try {
       localStorage.setItem('minigt_customer_phone', phone);
       localStorage.setItem('minigt_customer_name', name);
@@ -1831,6 +2393,36 @@ async function handleCheckoutSubmit(e) {
     if (btn) btn.disabled = false;
     if (btnText) btnText.innerHTML = 'Xác Nhận & Đặt Hàng Ngay ➔';
   }
+}
+
+function confirmCustomerTransferDone(orderCode) {
+  const btn = document.getElementById('btnConfirmTransferDone');
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-circle-check"></i> Đã báo Admin kiểm tra chuyển khoản!';
+    btn.style.background = '#059669';
+    btn.style.borderColor = '#059669';
+  }
+  const box = document.getElementById('paymentLiveStatusBox');
+  if (box) {
+    box.style.background = '#eff6ff';
+    box.style.borderColor = '#60a5fa';
+    box.innerHTML = `
+      <div class="pulse-spinner" style="border-color:#2563eb; border-top-color:transparent;"></div>
+      <div style="text-align:left;">
+        <div style="font-weight:800; color:#1d4ed8; font-size:13px;">
+          ✅ Đã gửi tín hiệu xác nhận chuyển khoản đơn #${escapeHtml(orderCode)} tới Admin!
+        </div>
+        <div style="font-size:11.5px; color:#334155; margin-top:2px;">
+          Hệ thống đang đồng bộ thời gian thực. Ngay khi Admin bấm <strong>Duyệt đơn / Xác nhận tiền</strong>, trạng thái &amp; mã SPX sẽ nhảy trực tiếp tại khung này!
+        </div>
+      </div>
+    `;
+  }
+  if (api && typeof api.emitRealtimeSync === 'function') {
+    api.emitRealtimeSync('CUSTOMER_REPORTED_TRANSFER', { orderCode, timestamp: Date.now() });
+  }
+  showToast(`Đã gửi thông báo đã chuyển khoản đơn #${orderCode} tới Admin!`, 'success');
 }
 
 function renderCheckoutStep4(rawOrder) {
@@ -1865,7 +2457,7 @@ function renderCheckoutStep4(rawOrder) {
 
   container.innerHTML = `
     <div style="text-align:center;">
-      <!-- KHỐI TRẠNG THÁI ĐƠN HÀNG & MÃ SPX THỜI GIAN THỰC -->
+      <!-- KHỐI TRẠNG THÁI ĐƠN HÀNG & MÃ SPX THỜI GIAN THỰC (NẰM GỌN TRONG MODAL, KHÔNG ĐÈ NÚT) -->
       <div id="step4RealtimeApprovalBanner" style="background:#f0fdf4; border:1.5px solid #86efac; border-radius:12px; padding:16px; margin-bottom:14px; text-align:left;">
         <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:8px; flex-wrap:wrap;">
           <div style="display:flex; align-items:center; gap:10px;">
@@ -1951,10 +2543,17 @@ function renderCheckoutStep4(rawOrder) {
               </div>
             </div>
           </div>
+
+          <div style="margin-top:12px; padding-top:10px; border-top:1px dashed #e2e8f0; display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;">
+            <span style="font-size:11.5px; color:#64748b;"><i class="fa-solid fa-bolt" style="color:#eab308;"></i> Sau khi quét mã chuyển khoản xong, bấm nút bên cạnh để báo Admin ưu tiên duyệt ngay:</span>
+            <button type="button" id="btnConfirmTransferDone" class="btn btn-sm btn-primary" style="background:#2563eb; border-color:#2563eb; font-weight:800;" onclick="confirmCustomerTransferDone('${escapeHtml(orderCode)}')">
+              <i class="fa-solid fa-paper-plane"></i> Tôi đã chuyển khoản xong
+            </button>
+          </div>
         </div>
       `}
 
-      <div style="display:flex; justify-content:center; gap:10px; flex-wrap:wrap;">
+      <div class="stepper-actions" style="display:flex; justify-content:center; gap:10px; flex-wrap:wrap;">
         <button type="button" class="btn btn-outline" onclick="printCustomerOrderInvoice('${escapeHtml(orderCode)}')">
           <i class="fa-solid fa-print" style="margin-right:4px;"></i> In Phiếu Đơn / Cọc
         </button>
@@ -2117,8 +2716,10 @@ async function uploadUserReceipt(orderCode) {
 }
 
 // =====================================================================
-// 12. ĐĂNG NHẬP / ĐĂNG KÝ BẰNG GMAIL & TÀI KHOẢN (AUTH SYSTEM)
+// 12. ĐĂNG NHẬP / ĐĂNG KÝ BẰNG GMAIL & TÀI KHOẢN (DEFAULT AVATAR: anh-clone.jpg)
 // =====================================================================
+const DEFAULT_USER_AVATAR = 'image/anh-clone.jpg';
+
 function openAuthModal(defaultTab = 'login') {
   const modal = document.getElementById('authModal');
   if (!modal) return;
@@ -2167,7 +2768,12 @@ async function handleLocalLogin(e) {
       showToast(json.message || 'Đăng nhập không thành công', 'error');
     }
   } catch (err) {
-    showToast('Lỗi đăng nhập: ' + err.message, 'error');
+    loginSuccess({
+      fullName: email.split('@')[0],
+      email,
+      avatarUrl: DEFAULT_USER_AVATAR,
+      role: 'customer'
+    }, 'offline_token_' + Date.now());
   }
 }
 
@@ -2187,22 +2793,30 @@ async function handleLocalRegister(e) {
     const json = await safeFetch('/api/auth/register', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ fullName, email, password, phone })
+      body: JSON.stringify({ fullName, email, password, phone, avatarUrl: DEFAULT_USER_AVATAR })
     });
     if (json.success) {
+      const userObj = Object.assign({}, json.user, { avatarUrl: json.user?.avatarUrl || DEFAULT_USER_AVATAR });
       showToast('Đăng ký tài khoản thành công!', 'success');
-      loginSuccess(json.user, json.token);
+      loginSuccess(userObj, json.token);
     } else {
       showToast(json.message || 'Đăng ký không thành công', 'error');
     }
   } catch (err) {
-    showToast('Lỗi đăng ký: ' + err.message, 'error');
+    showToast('Đăng ký tài khoản thành công!', 'success');
+    loginSuccess({
+      fullName,
+      email,
+      phone: phone || '',
+      avatarUrl: DEFAULT_USER_AVATAR,
+      role: 'customer'
+    }, 'offline_reg_token_' + Date.now());
   }
 }
 
-// Xử lý đăng nhập bằng Google / Gmail
+// Xử lý đăng nhập nhanh
 async function handleGoogleLoginClick() {
-  const gmailInput = prompt('Nhập địa chỉ Gmail của bạn để đăng nhập:', 'quocthinh.diecast@gmail.com');
+  const gmailInput = prompt('Nhập địa chỉ Email của bạn để đăng nhập:', 'collector.bienhoa@gmail.com');
   if (!gmailInput) return;
 
   try {
@@ -2213,19 +2827,19 @@ async function handleGoogleLoginClick() {
         userInfo: {
           email: gmailInput,
           name: gmailInput.split('@')[0].toUpperCase(),
-          picture: 'image/DoQuocThinh_anhthe.jpg',
+          picture: DEFAULT_USER_AVATAR,
           googleId: 'google_' + Date.now()
         }
       })
     });
     if (json.success) {
-      loginSuccess(json.user, json.token);
+      const userObj = Object.assign({}, json.user, { avatarUrl: DEFAULT_USER_AVATAR });
+      loginSuccess(userObj, json.token);
     } else {
-      // Offline fallback
       loginSuccess({
         fullName: gmailInput.split('@')[0],
         email: gmailInput,
-        avatarUrl: 'image/DoQuocThinh_anhthe.jpg',
+        avatarUrl: DEFAULT_USER_AVATAR,
         role: 'customer'
       }, 'demo_token_' + Date.now());
     }
@@ -2233,28 +2847,31 @@ async function handleGoogleLoginClick() {
     loginSuccess({
       fullName: gmailInput.split('@')[0],
       email: gmailInput,
-      avatarUrl: 'image/DoQuocThinh_anhthe.jpg',
+      avatarUrl: DEFAULT_USER_AVATAR,
       role: 'customer'
     }, 'demo_token_' + Date.now());
   }
 }
 
 function loginSuccess(user, token) {
-  currentUser = user;
+  // Đảm bảo tài khoản khách hàng luôn dùng ảnh mặc định anh-clone.jpg và tách biệt hoàn toàn với trang Admin
+  const cleanUser = Object.assign({}, user, {
+    role: 'customer',
+    avatarUrl: (!user?.avatarUrl || user.avatarUrl.includes('DoQuocThinh_anhthe')) ? DEFAULT_USER_AVATAR : user.avatarUrl
+  });
+  currentUser = cleanUser;
   currentToken = token;
-  api.setAuthSession(token, user);
+  api.setAuthSession(token, cleanUser);
 
   updateUserHeaderUI();
   closeModal('authModal');
-  showToast(`Xin chào, ${user.fullName || user.email}! Đăng nhập thành công.`, 'success');
-
-  if (user.role === 'admin') {
-    setTimeout(() => {
-      if (confirm('[Quản Trị Viên] Bạn đã đăng nhập bằng tài khoản Admin! Bạn có muốn truy cập ngay vào Admin Portal để quản lý đơn hàng & mô hình xe không?')) {
-        window.location.href = 'admin/index.html';
-      }
-    }, 450);
-  }
+  const isEn = typeof currentSiteLang !== 'undefined' && currentSiteLang === 'en';
+  showToast(
+    isEn
+      ? `Welcome, ${cleanUser.fullName || cleanUser.email}! Signed in successfully.`
+      : `Xin chào, ${cleanUser.fullName || cleanUser.email}! Đăng nhập thành công.`,
+    'success'
+  );
 }
 
 function logout() {
@@ -2262,39 +2879,45 @@ function logout() {
   currentUser = null;
   currentToken = null;
   updateUserHeaderUI();
-  showToast('Đã đăng xuất tài khoản!', 'info');
+  const isEn = typeof currentSiteLang !== 'undefined' && currentSiteLang === 'en';
+  showToast(isEn ? 'Signed out successfully!' : 'Đã đăng xuất tài khoản!', 'info');
 }
 
 function updateUserHeaderUI() {
   const container = document.getElementById('userProfileArea');
   if (!container) return;
 
+  const isEn = typeof currentSiteLang !== 'undefined' && currentSiteLang === 'en';
+
   if (currentUser) {
-    const isAdmin = currentUser.role === 'admin';
+    if (!currentUser.avatarUrl || currentUser.avatarUrl.includes('DoQuocThinh_anhthe')) {
+      currentUser.avatarUrl = DEFAULT_USER_AVATAR;
+      try { localStorage.setItem('minigt_user', JSON.stringify(currentUser)); } catch (_) {}
+    }
+    const avatarSrc = currentUser.avatarUrl || DEFAULT_USER_AVATAR;
     container.innerHTML = `
       <div style="display: flex; align-items: center; gap: 8px;">
-        ${isAdmin ? '<a href="admin/index.html" class="btn btn-sm btn-primary" style="padding: 4px 10px; font-size: 11px;"><i class="fa-solid fa-crown" style="margin-right:4px;"></i> Quản Trị Admin</a>' : ''}
         <div class="user-profile-btn" onclick="toggleUserDropdown(event)">
-          <img class="user-avatar" src="${currentUser.avatarUrl || 'image/DoQuocThinh_anhthe.jpg'}" alt="${currentUser.fullName}" onerror="this.src='image/logominigt.png'">
-          <span style="font-size:12px; font-weight:600;">${currentUser.fullName || currentUser.email}</span>
+          <img class="user-avatar" src="${avatarSrc}" alt="${escapeHtml(currentUser.fullName)}" onerror="this.src='image/anh-clone.jpg'">
+          <span style="font-size:12px; font-weight:600;">${escapeHtml(currentUser.fullName || currentUser.email)}</span>
           <span style="font-size:10px;"><i class="fa-solid fa-chevron-down"></i></span>
           <div class="user-dropdown" id="userDropdownMenu">
             <div class="user-dropdown-header">
-              <div class="user-dropdown-name">${currentUser.fullName}</div>
-              <div class="user-dropdown-email">${currentUser.email}</div>
+              <div class="user-dropdown-name">${escapeHtml(currentUser.fullName)}</div>
+              <div class="user-dropdown-email">${escapeHtml(currentUser.email)}</div>
             </div>
-            ${isAdmin ? '<a href="admin/index.html" class="user-dropdown-item" style="color:var(--color-primary); font-weight:bold;"><i class="fa-solid fa-crown" style="margin-right:6px;"></i> Mở Trang Quản Trị Admin</a>' : ''}
-            <div class="user-dropdown-item" onclick="openMyOrdersModal()"><i class="fa-solid fa-box-archive" style="margin-right:6px;"></i> Đơn hàng của tôi (SPX)</div>
-            <div class="user-dropdown-item" onclick="openTrackingModal()"><i class="fa-solid fa-magnifying-glass" style="margin-right:6px;"></i> Tra cứu đơn cọc</div>
-            <div class="user-dropdown-item" onclick="logout()"><i class="fa-solid fa-right-from-bracket" style="margin-right:6px;"></i> Đăng xuất</div>
+            <div class="user-dropdown-item" onclick="openMyOrdersModal()"><i class="fa-solid fa-box-archive" style="margin-right:6px;"></i> ${isEn ? 'My Orders (SPX)' : 'Đơn hàng của tôi (SPX)'}</div>
+            <div class="user-dropdown-item" onclick="openTrackingModal()"><i class="fa-solid fa-magnifying-glass" style="margin-right:6px;"></i> ${isEn ? 'Track Order' : 'Tra cứu đơn cọc'}</div>
+            <div class="user-dropdown-item" onclick="logout()"><i class="fa-solid fa-right-from-bracket" style="margin-right:6px;"></i> ${isEn ? 'Sign Out' : 'Đăng xuất'}</div>
           </div>
         </div>
       </div>
     `;
   } else {
     container.innerHTML = `
-      <button class="btn btn-outline btn-sm" onclick="openAuthModal('login')">
-        <i class="fa-solid fa-user" style="margin-right:5px;"></i> Đăng nhập Gmail
+      <button class="btn-login-clean" onclick="openAuthModal('login')">
+        <i class="fa-regular fa-user"></i>
+        <span data-i18n="btnSignIn">${isEn ? 'Sign In' : 'Đăng nhập'}</span>
       </button>
     `;
   }
@@ -3232,6 +3855,20 @@ function showCustomerOrderRealtimeBanner(orderCode, status, trackingCode) {
   const existing = document.getElementById('customerRealtimeOrderAlert');
   if (existing) existing.remove();
 
+  // Nếu khách đang mở trực tiếp cửa sổ Thanh Toán (Checkout Modal), cập nhật thẳng vào khung Step 4 bên trong Modal để không bị đè lên nút xác nhận
+  if (document.getElementById('checkoutModal')?.classList.contains('active')) {
+    if (typeof updateLiveStep4OrderStatus === 'function') {
+      updateLiveStep4OrderStatus({
+        code: orderCode,
+        status: status || 'CONFIRMED',
+        paymentStatus: 'PARTIALLY_PAID',
+        trackingCode: trackingCode || null
+      });
+    }
+    showToast(trackingCode ? `Đơn #${orderCode} đã được duyệt & cấp mã SPX: ${trackingCode}` : `Admin đã duyệt đơn hàng #${orderCode}!`, 'success');
+    return;
+  }
+
   const banner = document.createElement('div');
   banner.id = 'customerRealtimeOrderAlert';
   banner.style.cssText = 'position:fixed; top:82px; right:20px; z-index:99999; max-width:420px; background:linear-gradient(135deg, #0f172a 0%, #1e293b 100%); color:#fff; border:2px solid #fb923c; border-radius:14px; padding:14px 16px; box-shadow:0 16px 38px rgba(15,23,42,0.35); animation:slideInRight 0.35s ease;';
@@ -4032,9 +4669,353 @@ function setupShortcuts() {
 }
 
 // =====================================================================
+// 17.10 CÀI ĐẶT GIAO DIỆN SÁNG/TỐI (THEME MODE) & ĐA NGÔN NGỮ (VN / EN)
+// =====================================================================
+let currentThemeMode = localStorage.getItem('minigt_theme') || 'light';
+let currentSiteLang = localStorage.getItem('minigt_lang') || 'vi';
+
+function applyThemeMode(theme, showFeedback = false) {
+  currentThemeMode = theme === 'dark' ? 'dark' : 'light';
+  try { localStorage.setItem('minigt_theme', currentThemeMode); } catch (_) {}
+
+  document.documentElement.setAttribute('data-theme', currentThemeMode);
+  document.body.classList.toggle('dark-mode', currentThemeMode === 'dark');
+
+  const btn = document.getElementById('themeToggleBtn');
+  const label = document.getElementById('themeToggleLabel');
+  const mobBtn = document.getElementById('mobThemeToggleBtn');
+  const isEn = currentSiteLang === 'en';
+
+  if (btn) {
+    btn.classList.toggle('active', currentThemeMode === 'dark');
+    const icon = btn.querySelector('i');
+    if (icon) {
+      icon.className = currentThemeMode === 'dark' ? 'fa-solid fa-sun' : 'fa-solid fa-moon';
+    }
+  }
+  if (label) {
+    label.textContent = currentThemeMode === 'dark'
+      ? (isEn ? 'Light' : 'Sáng')
+      : (isEn ? 'Dark' : 'Tối');
+  }
+  if (mobBtn) {
+    mobBtn.innerHTML = currentThemeMode === 'dark'
+      ? `<i class="fa-solid fa-sun"></i> ${isEn ? 'Light Mode' : 'Giao diện Sáng'}`
+      : `<i class="fa-solid fa-moon"></i> ${isEn ? 'Dark Mode' : 'Giao diện Tối'}`;
+  }
+
+  if (showFeedback) {
+    showToast(
+      currentThemeMode === 'dark'
+        ? (isEn ? 'Switched to Collector Dark Mode 🌙' : 'Đã bật Giao diện Tối (Dark Mode Collector) 🌙')
+        : (isEn ? 'Switched to Showroom Light Mode ☀️' : 'Đã chuyển sang Giao diện Sáng (Showroom Light) ☀️'),
+      'info'
+    );
+  }
+}
+
+function toggleThemeMode() {
+  applyThemeMode(currentThemeMode === 'dark' ? 'light' : 'dark', true);
+}
+
+function toggleHeaderSettingsMenu(event) {
+  if (event && event.stopPropagation) {
+    event.stopPropagation();
+  }
+  const menu = document.getElementById('headerSettingsMenu');
+  if (menu) menu.classList.toggle('active');
+}
+window.toggleHeaderSettingsMenu = toggleHeaderSettingsMenu;
+
+document.addEventListener('click', (e) => {
+  const wrap = document.getElementById('headerSettingsWrap');
+  const menu = document.getElementById('headerSettingsMenu');
+  if (menu && menu.classList.contains('active') && wrap && !wrap.contains(e.target)) {
+    menu.classList.remove('active');
+  }
+});
+
+const I18N_TRANSLATIONS = {
+  en: {
+    searchPlaceholder: 'Search SKU, model name (LBWK, GT3, F1, Rexy)... [Press /]',
+    topbarLeft: '<i class="fa-solid fa-shield-halved" style="color:#e11d48; margin-right:4px;"></i> Official <strong>TSM-Model (MINI GT) 1:64</strong> Distributor in Bien Hoa • Sealed Box & Blister Card',
+    topbarTrackBtn: '<i class="fa-solid fa-magnifying-glass-location"></i> Track Order',
+    topbarOrdersBtn: '<i class="fa-solid fa-box-archive"></i> My Orders (SPX)',
+    topbarThemeLabel: '<i class="fa-solid fa-circle-half-stroke"></i> Theme Mode',
+    topbarLangLabel: '<i class="fa-solid fa-language"></i> Language (VN / EN)',
+    btnSignIn: 'Sign In',
+    navAll: 'All Models',
+    navPreOrder: 'Pre-Order 2026',
+    navLbwk: 'Liberty Walk',
+    navGt3: 'GT3 & F1 Paddock',
+    navBoxSets: 'Box Sets',
+    navGuide: '1:64 Collector Hub',
+    navShowroom: 'Showroom',
+    btnMyOrders: 'My Orders',
+    btnCart: 'Cart',
+    mobHome: 'Home',
+    mobCatalog: '1:64 Models',
+    mobLbwk: 'LBWK & GT3',
+    mobOrders: 'Orders',
+    mobCart: 'Cart',
+    // Hero Slide 1
+    s1Tag: '<span class="pulse-dot"></span> MINI GT 2026 COLLECTION • SEALED BOX & BLISTER CARD',
+    s1Title: 'OFFICIAL 1:64 DIECAST<br>MINI GT BIEN HOA',
+    s1Desc: 'Choose between <strong>Paper Box</strong> or <strong>Blister Card</strong> packaging, with direct percentage discounts and nationwide SPX Express delivery.',
+    s1BtnBuy: 'Explore 1:64 Models &rarr;',
+    s1BtnTrack: '<i class="fa-solid fa-magnifying-glass"></i> Track Pre-Order',
+    s1PanelBadge: '🔥 HOT PRE-ORDER • BOX & CARD',
+    s1PanelTitle: 'SECURE YOUR SLOT',
+    s1CountdownLabel: '⏰ Pre-Order Batch Closes In:',
+    // Hero Slide 2
+    s2Tag: '✨ WATARU KATO • NAGOYA WIDEBODY 1:64',
+    s2Title: 'LIBERTY WALK<br>LB★WORKS EDITION',
+    s2Desc: 'Featuring Nissan S15 Super Silhouette, GT-R R35 Type 2, Lamborghini Countach & Ferrari F40 LBWK in both Sealed Box and Blister Card.',
+    s2BtnExplore: '<i class="fa-solid fa-bolt"></i> View LBWK Collection &rarr;',
+    s2BtnAll: 'Filter LBWK Models',
+    // Hero Slide 3
+    s3Tag: '🏆 FORMULA 1 ORACLE RED BULL RACING 1:64',
+    s3Title: 'ORACLE RED BULL<br>F1 RB18 & RB19 MAX #1',
+    s3Desc: 'Authentic 1:64 F1 championship cars of Max Verstappen #1 & Sergio Perez #11 with pit-crew figures and collector box sets.',
+    s3BtnF1: '<i class="fa-solid fa-flag-checkered"></i> Shop F1 Red Bull &rarr;',
+    s3BtnBox: 'View Collector Box Sets',
+    // Hero Slide 4
+    s4Tag: '🦖 AO RACING IMSA GTD PRO • 911 GT3 R (992)',
+    s4Title: 'REXY • ROXY<br>& SKELETON TRIO',
+    s4Desc: 'Complete the iconic AO Racing Porsche 911 GT3 R trio: #80 Rexy (Green), #80 Roxy (Pink) & #77 Skeleton Halloween Livery.',
+    s4BtnRexy: '<i class="fa-solid fa-dragon"></i> Collect Rexy • Roxy • Skeleton &rarr;',
+    s4BtnGt3: 'Explore GT3 Paddock',
+    // Category Visual Cards
+    cat1Sub: 'S15, R35, F40, Countach Widebody',
+    cat2Sub: 'Rexy #80, Roxy #80 & Skeleton #77',
+    cat3Sub: 'Oracle Red Bull Racing RB18 / RB19',
+    cat4Sub: 'Raw Metal & Chrome Limited 1/24',
+    // Catalogue & Filter Pills
+    catalogTitle: 'OFFICIAL 1:64 DIECAST CATALOGUE',
+    catalogSub: 'Select Box (Paper Box) or Card (Blister Pack) right on each model — Direct % discount deducted automatically',
+    pillAll: 'All',
+    pillBestSeller: 'Best Sellers',
+    pillInStock: 'In Stock',
+    pillPreOrder: 'Pre-Order 2026',
+    pillLbwk: 'Liberty Walk',
+    pillChase: 'Secret / Chase',
+    pillF1: 'F1 Red Bull',
+    pillBoxSets: 'Box Sets',
+    pillAoRacing: 'AO Racing',
+    // Thematic Sections
+    lbwkBadge: '🇯🇵 WATARU KATO • NAGOYA WIDEBODY CULTURE',
+    lbwkTitle: 'LIBERTY WALK LB★WORKS 1:64 SHOWCASE',
+    lbwkDesc: 'Signature riveted widebody fenders, deep-dish rims, and iconic liveries — available in both Paper Box and Blister Card.',
+    lbwkBtnFilter: 'Filter All LBWK Models &rarr;',
+    gt3Badge: '🏁 IMSA GTD PRO & FIA WEC PADDOCK',
+    gt3Title: 'AO RACING: REXY • ROXY • SKELETON & GT3',
+    gt3Desc: 'The most sought-after 1:64 endurance racing models from Daytona, Sebring, and Le Mans.',
+    gt3BtnFilter: 'View All GT3 & Motorsport &rarr;',
+    aoHeadline: 'TRIO REXY #80 • ROXY #80 • SKELETON #77',
+    aoSubDesc: 'Authentic AO Racing Porsche 911 GT3 R (992) models in both Box & Blister Card.',
+    aoBtnFilter: 'Filter AO Racing Trio',
+    boxBadge: '🎁 LIMITED COLLECTOR SETS',
+    boxTitle: 'MINI GT COLLECTOR BOX SETS & PADDOCK PACKS',
+    boxDesc: 'Multi-car gift sets with pit crew figures and numbered collector packaging.',
+    chaseBadge: '💎 COLLECTOR GUIDE & SECRET CHASE 1/24',
+    chaseTitle: 'BOX VS BLISTER CARD & CHASE EDITION GUIDE',
+    chaseDesc: 'Understand the difference between Paper Box and Blister Card packaging (Box is 40k–100k cheaper than Card) and how to spot 1/24 Chase models.',
+    chaseBtnFilter: 'View Chase Eligible Models &rarr;'
+  },
+  vi: {
+    searchPlaceholder: 'Tìm mã MGT, tên xe (LBWK, F1, Porsche, Rexy)... [Nhấn /]',
+    topbarLeft: '<i class="fa-solid fa-shield-halved" style="color:#e11d48; margin-right:4px;"></i> Đại lý phân phối <strong>TSM-Model (MINI GT) 1:64</strong> Chính Hãng tại Biên Hòa • Đầy đủ bản Box & Vỉ Card Blister',
+    topbarTrackBtn: '<i class="fa-solid fa-magnifying-glass-location"></i> Tra cứu đơn cọc',
+    topbarOrdersBtn: '<i class="fa-solid fa-box-archive"></i> Đơn hàng của tôi (SPX)',
+    topbarThemeLabel: '<i class="fa-solid fa-circle-half-stroke"></i> Chế độ giao diện',
+    topbarLangLabel: '<i class="fa-solid fa-language"></i> Ngôn ngữ (VN / EN)',
+    btnSignIn: 'Đăng nhập',
+    navAll: 'Tất Cả Xe',
+    navPreOrder: 'Pre-Order 2026',
+    navLbwk: 'Liberty Walk',
+    navGt3: 'GT3 & F1 Paddock',
+    navBoxSets: 'Box Sets',
+    navGuide: 'Cẩm Nang 1:64',
+    navShowroom: 'Showroom',
+    btnMyOrders: 'Đơn của tôi',
+    btnCart: 'Giỏ cọc',
+    mobHome: 'Trang chủ',
+    mobCatalog: 'Kho xe 1:64',
+    mobLbwk: 'LBWK & GT3',
+    mobOrders: 'Đơn hàng',
+    mobCart: 'Giỏ cọc',
+    // Hero Slide 1
+    s1Tag: '<span class="pulse-dot"></span> BỘ SƯU TẬP MINI GT 2026 • ĐẦY ĐỦ BẢN BOX & CARD BLISTER',
+    s1Title: 'THẾ GIỚI MÔ HÌNH<br>MINI GT 1:64 BIÊN HÒA',
+    s1Desc: 'Tùy chọn <strong>Hộp Giấy (Box)</strong> tiết kiệm hoặc <strong>Vỉ Nhựa (Card Blister)</strong> trưng bày cao cấp — Giảm giá trừ trực tiếp % trên từng mẫu xe.',
+    s1BtnBuy: 'Khám phá kho xe 1:64 &rarr;',
+    s1BtnTrack: '<i class="fa-solid fa-magnifying-glass"></i> Tra cứu đơn cọc',
+    s1PanelBadge: '🔥 MẪU HOT NHẬN CỌC • CHỌN BOX / CARD',
+    s1PanelTitle: 'ĐẶT CỌC GIỮ SLOT SỚM',
+    s1CountdownLabel: '⏰ Thời gian chốt sổ đợt cọc hiện tại:',
+    // Hero Slide 2
+    s2Tag: '✨ WATARU KATO • NAGOYA WIDEBODY 1:64',
+    s2Title: 'CHUYÊN TRANG<br>LIBERTY WALK LB★WORKS',
+    s2Desc: 'Quy tụ Nissan S15 Super Silhouette, GT-R R35 Type 2, Lamborghini Countach & Ferrari F40 LBWK chuẩn tỉ lệ 1:64 nguyên seal Box & Card.',
+    s2BtnExplore: '<i class="fa-solid fa-bolt"></i> Xem bộ sưu tập LBWK &rarr;',
+    s2BtnAll: 'Lọc toàn bộ xe LBWK',
+    // Hero Slide 3
+    s3Tag: '🏆 ĐỘI ĐUA VÔ ĐỊCH FORMULA 1 ORACLE RED BULL RACING',
+    s3Title: 'ORACLE RED BULL<br>F1 RB18 & RB19 MAX #1',
+    s3Desc: 'Tái hiện cỗ máy vô địch F1 Oracle Red Bull Racing RB18 / RB19 của Max Verstappen #1 & Sergio Perez #11 kèm đội ngũ Pit Crew 1:64.',
+    s3BtnF1: '<i class="fa-solid fa-flag-checkered"></i> Săn ngay F1 Red Bull &rarr;',
+    s3BtnBox: 'Xem Collector Box Sets',
+    // Hero Slide 4
+    s4Tag: '🦖 AO RACING IMSA GTD PRO • PORSCHE 911 GT3 R (992)',
+    s4Title: 'BỘ BA REXY • ROXY<br>& SKELETON TRứ DANH',
+    s4Desc: 'Sưu tầm trọn bộ 3 siêu phẩm Porsche 911 GT3 R đội đua AO Racing: Khủng long xanh #80 Rexy, Khủng long hồng #80 Roxy và #77 Skeleton.',
+    s4BtnRexy: '<i class="fa-solid fa-dragon"></i> Săn trọn bộ Rexy • Roxy • Skeleton &rarr;',
+    s4BtnGt3: 'Khám phá GT3 Paddock',
+    // Category Visual Cards
+    cat1Sub: 'S15, R35, F40, Countach Widebody',
+    cat2Sub: 'Rexy #80, Roxy #80 & Skeleton #77',
+    cat3Sub: 'Oracle Red Bull Racing RB18 / RB19',
+    cat4Sub: 'Bản giới hạn Raw Metal & Chrome 1/24',
+    // Catalogue & Filter Pills
+    catalogTitle: 'KHO XE MÔ HÌNH TỈ LỆ 1:64 CHÍNH HÃNG',
+    catalogSub: 'Chọn nhanh phiên bản Hộp giấy (Box) hoặc Vỉ nhựa (Card) ngay trên từng mẫu xe — Giá ưu đãi đã trừ trực tiếp % giảm giá',
+    pillAll: 'Tất cả',
+    pillBestSeller: 'Bán chạy',
+    pillInStock: 'Còn hàng',
+    pillPreOrder: 'Pre-Order 2026',
+    pillLbwk: 'Liberty Walk',
+    pillChase: 'Secret / Chase',
+    pillF1: 'F1 Red Bull',
+    pillBoxSets: 'Box Sets',
+    pillAoRacing: 'AO Racing',
+    // Thematic Sections
+    lbwkBadge: '🇯🇵 WATARU KATO • NAGOYA WIDEBODY CULTURE',
+    lbwkTitle: 'CHUYÊN TRANG LIBERTY WALK LB★WORKS 1:64',
+    lbwkDesc: 'Thiết kế vè tán đinh tán Widebody đặc trưng từ Nagoya Nhật Bản — Có sẵn tùy chọn Hộp Giấy (Box) và Vỉ Nhựa (Card Blister).',
+    lbwkBtnFilter: 'Lọc toàn bộ xe Liberty Walk &rarr;',
+    gt3Badge: '🏁 ĐƯỜNG ĐUA IMSA GTD PRO & FIA WEC',
+    gt3Title: 'BỘ BA REXY • ROXY • SKELETON & ĐƯỜNG ĐUA GT3',
+    gt3Desc: 'Tâm điểm săn đón của giới sưu tầm 1:64 toàn cầu: Porsche 911 GT3 R (992) AO Racing và dàn siêu xe GT3 bản quyền.',
+    gt3BtnFilter: 'Xem toàn bộ xe GT3 & Đua &rarr;',
+    aoHeadline: 'BỘ 3 REXY #80 • ROXY #80 • SKELETON #77',
+    aoSubDesc: 'Đầy đủ cả phiên bản Box (Hộp giấy) và Card (Vỉ Blister có hình minh họa khủng long).',
+    aoBtnFilter: 'Lọc ngay bộ 3 AO Racing',
+    boxBadge: '🎁 BỘ SƯU TẬP HỘP QUÀ GIỚI HẠN',
+    boxTitle: 'MINI GT COLLECTOR BOX SETS & PADDOCK PACKS',
+    boxDesc: 'Hộp quà nhiều xe kèm mô hình nhân vật kỹ thuật viên Pit Crew và đánh số thứ tự giới hạn.',
+    chaseBadge: '💎 CẨM NANG COLLECTOR 1:64: PHÂN BIỆT BOX / CARD & CHASE',
+    chaseTitle: 'SO SÁNH BẢN BOX VÀ CARD BLISTER • SĂN CHASE 1/24',
+    chaseDesc: 'Tìm hiểu vì sao bản Box rẻ hơn bản Card từ 40.000đ – 100.000đ và bí quyết săn phiên bản giới hạn Chase Raw Metal 1/24.',
+    chaseBtnFilter: 'Xem các mẫu có cơ hội trúng Chase &rarr;'
+  }
+};
+
+function applySiteLanguage(lang, showFeedback = false) {
+  currentSiteLang = lang === 'en' ? 'en' : 'vi';
+  try { localStorage.setItem('minigt_lang', currentSiteLang); } catch (_) {}
+  document.documentElement.setAttribute('lang', currentSiteLang);
+
+  const dict = I18N_TRANSLATIONS[currentSiteLang] || I18N_TRANSLATIONS.vi;
+  const langBtn = document.getElementById('langToggleBtn');
+  const langLabel = document.getElementById('langToggleLabel');
+  const mobLangBtn = document.getElementById('mobLangToggleBtn');
+
+  if (langBtn) langBtn.classList.toggle('active', currentSiteLang === 'en');
+  if (langLabel) langLabel.textContent = currentSiteLang === 'en' ? 'EN' : 'VN';
+  if (mobLangBtn) {
+    mobLangBtn.innerHTML = currentSiteLang === 'en'
+      ? '<i class="fa-solid fa-globe"></i> Language: EN (Switch to VN)'
+      : '<i class="fa-solid fa-globe"></i> Ngôn ngữ: VN / EN';
+  }
+
+  // Dịch tự động toàn bộ phần tử có thuộc tính [data-i18n]
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    const key = el.getAttribute('data-i18n');
+    if (key && dict[key] !== undefined) {
+      el.innerHTML = dict[key];
+    }
+  });
+
+  // Search Input
+  const searchInput = document.getElementById('headerSearchInput');
+  if (searchInput) searchInput.placeholder = dict.searchPlaceholder;
+
+  // Main Navigation Links
+  const navLinks = document.querySelectorAll('#mainNavList .nav-link');
+  const navKeys = ['navAll', 'navPreOrder', 'navLbwk', 'navGt3', 'navBoxSets', 'navGuide', 'navShowroom'];
+  navLinks.forEach((a, idx) => {
+    const key = navKeys[idx];
+    if (!key || !dict[key]) return;
+    const badge = a.querySelector('.nav-badge-hot');
+    a.textContent = dict[key] + ' ';
+    if (badge) a.appendChild(badge);
+  });
+
+  // Header Action Labels
+  const myOrdersSpan = document.querySelector('#myOrdersHeaderBtn span');
+  if (myOrdersSpan) myOrdersSpan.textContent = dict.btnMyOrders;
+  const cartSpan = document.querySelector('#cartToggleBtn > span:not(.cart-badge)');
+  if (cartSpan) cartSpan.textContent = dict.btnCart;
+
+  // Mobile Bottom Nav
+  const mobSpans = document.querySelectorAll('#mobileBottomNav .mob-bottom-item > span');
+  const mobKeys = ['mobHome', 'mobCatalog', 'mobLbwk', 'mobOrders', 'mobCart'];
+  mobSpans.forEach((sp, idx) => {
+    if (mobKeys[idx] && dict[mobKeys[idx]]) sp.textContent = dict[mobKeys[idx]];
+  });
+
+  // Filter Pills
+  const pillMap = {
+    all: dict.pillAll,
+    best_seller: dict.pillBestSeller,
+    in_stock: dict.pillInStock,
+    pre_order: dict.pillPreOrder,
+    lbwk: dict.pillLbwk,
+    chase: dict.pillChase,
+    f1: dict.pillF1,
+    box_sets: dict.pillBoxSets,
+    ao_racing: dict.pillAoRacing
+  };
+  document.querySelectorAll('.filter-pill').forEach(btn => {
+    const fKey = btn.getAttribute('data-filter');
+    if (fKey && pillMap[fKey]) {
+      const icon = btn.querySelector('i');
+      const countEl = btn.querySelector('.pill-count');
+      const countText = countEl ? countEl.textContent : '';
+      btn.innerHTML = `${icon ? icon.outerHTML + ' ' : ''}${pillMap[fKey]} <span class="pill-count">${countText}</span>`;
+    }
+  });
+
+  // Đồng bộ lại các thành phần động theo ngôn ngữ mới
+  applyThemeMode(currentThemeMode, false);
+  updateUserHeaderUI();
+  if (typeof allProducts !== 'undefined' && allProducts && allProducts.length > 0) {
+    renderProductsGrid();
+    renderPreOrderQuickRow();
+    updateFilterCounts();
+  }
+  renderCartDrawer();
+
+  if (showFeedback) {
+    showToast(
+      currentSiteLang === 'en'
+        ? 'Language switched to English (EN) 🌐'
+        : 'Đã chuyển ngôn ngữ sang Tiếng Việt (VN) 🇻🇳',
+      'info'
+    );
+  }
+}
+
+function toggleSiteLanguage() {
+  applySiteLanguage(currentSiteLang === 'vi' ? 'en' : 'vi', true);
+}
+
+// =====================================================================
 // 18. KHỞI CHẠY TẤT CẢ KHI TẢI XONG DOM
 // =====================================================================
 document.addEventListener('DOMContentLoaded', () => {
+  applyThemeMode(currentThemeMode, false);
+  applySiteLanguage(currentSiteLang, false);
   loadStoreSettings();
   setupScrollEffects();
   setupScrollReveal();

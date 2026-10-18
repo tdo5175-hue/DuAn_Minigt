@@ -42,14 +42,17 @@
       <button class="nav-item" id="nav-settings" onclick="switchTab('settings')">
         <i class="fa-solid fa-sliders"></i> Thiết lập Store
       </button>
+      <button class="nav-item" id="nav-about" onclick="switchTab('about')" style="border:1px dashed rgba(251,191,36,0.35); background:rgba(251,191,36,0.08); color:#fde68a; margin-top:6px;">
+        <i class="fa-solid fa-graduation-cap" style="color:#fbbf24;"></i> Đề tài &amp; Tác giả
+      </button>
     </nav>
 
     <div class="sidebar-footer">
       <div class="admin-user-info">
         <img src="../image/DoQuocThinh_anhthe.jpg" alt="Admin" class="admin-avatar" id="sidebarAdminAvatar">
         <div style="overflow:hidden;">
-          <div class="admin-name" id="sidebarAdminName">Admin</div>
-          <div class="admin-role" id="sidebarAdminEmail">admin@gmail.com</div>
+          <div class="admin-name" id="sidebarAdminName">Đỗ Quốc Thịnh</div>
+          <div class="admin-role" id="sidebarAdminEmail">Nhóm Thực Hiện Dự Án</div>
         </div>
       </div>
       <div style="display: flex; gap: 6px;">
@@ -76,7 +79,18 @@
         <h1 class="topbar-title" id="pageTitle">Tổng Quan Quản Trị Store</h1>
       </div>
 
-      <div class="topbar-actions">
+      <div class="topbar-actions" style="flex-wrap:wrap;">
+        <div class="admin-prefs-group">
+          <button type="button" class="btn-admin btn-admin-outline" id="adminThemeToggleBtn" onclick="toggleAdminTheme()" title="Chuyển đổi Giao diện Sáng / Tối">
+            <i class="fa-solid fa-moon"></i> <span id="adminThemeLabel">Tối</span>
+          </button>
+          <button type="button" class="btn-admin btn-admin-outline" id="adminLangToggleBtn" onclick="toggleAdminLang()" title="Chuyển đổi Ngôn ngữ VN / EN">
+            <i class="fa-solid fa-globe"></i> <span id="adminLangLabel">VN</span>
+          </button>
+        </div>
+        <button type="button" class="btn-admin btn-admin-outline" style="border-color:#f59e0b; color:#b45309; background:#fffbeb;" onclick="switchTab('about')">
+          <i class="fa-solid fa-user-graduate"></i> Nhóm Tác Giả
+        </button>
         <a href="../index.html" class="btn-admin btn-admin-outline" style="text-decoration:none; display:inline-flex; align-items:center; gap:6px;">
           <i class="fa-solid fa-store"></i> Xem Cửa Hàng
         </a>
@@ -84,7 +98,7 @@
           <span class="dot"></span>
           <span id="serverStatusText">QUOCTHINH\DOQUOCTHINH</span>
         </div>
-        <div style="font-size: 13px; font-weight: 700; color: #1e293b;" id="topbarAdminName">
+        <div style="font-size: 13px; font-weight: 700; color: var(--admin-text-main);" id="topbarAdminName">
           Admin
         </div>
       </div>
@@ -94,6 +108,48 @@
 
       <!-- PANE 1: TỔNG QUAN (DASHBOARD) -->
       <section class="tab-pane active" id="pane-dashboard">
+        <!-- BANNER GIỚI THIỆU ĐỀ TÀI & 2 TÁC GIẢ THỰC HIỆN (ĐỖ QUỐC THỊNH & NGUYỄN ĐÌNH NAM) -->
+        <div class="project-authors-banner">
+          <div class="project-authors-info">
+            <div class="project-badge-pill">
+              <i class="fa-solid fa-graduation-cap"></i> ĐỒ ÁN THIẾT KẾ WEB &amp; THƯƠNG MẠI ĐIỆN TỬ • ĐẠI HỌC LẠC HỒNG
+            </div>
+            <h2 class="project-banner-title">
+              Đề tài: Hệ Thống Thương Mại Điện Tử &amp; Quản Trị Đặt Cọc Mô Hình Xe Tỉ Lệ 1:64 — MINI GT STORE BIÊN HÒA
+            </h2>
+            <p class="project-banner-desc">
+              Nền tảng chuyên biệt dành cho cộng đồng sưu tầm Diecast 1:64 (Mini GT, Pop Race, Kaido House, Liberty Walk &amp; FIA GT3). Tích hợp quản lý hạn ngạch Pre-order, tùy chọn Không Giảm Giá / Giá Niêm Yết, tạo mã VietQR MB Bank tự động và đồng bộ vận đơn SPX Express thời gian thực.
+            </p>
+            <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:10px;">
+              <button type="button" class="btn-admin btn-admin-primary" onclick="switchTab('about')">
+                <i class="fa-solid fa-book-open"></i> Xem Chi Tiết Đề Tài &amp; Hồ Sơ Tác Giả
+              </button>
+              <button type="button" class="btn-admin btn-admin-outline" style="background:rgba(255,255,255,0.12); color:#fff; border-color:rgba(255,255,255,0.25);" onclick="openAddProductModal()">
+                <i class="fa-solid fa-plus"></i> Thêm Mô Hình 1:64 Mới
+              </button>
+            </div>
+          </div>
+
+          <div class="project-authors-cards">
+            <div class="author-mini-card" onclick="switchTab('about')">
+              <img src="../image/DoQuocThinh_anhthe.jpg" alt="Đỗ Quốc Thịnh" class="author-mini-avatar" onerror="this.src='../image/logominigt.png'">
+              <div>
+                <div class="author-mini-role">TÁC GIẢ 1 • TRƯỞNG NHÓM</div>
+                <div class="author-mini-name">Đỗ Quốc Thịnh</div>
+                <div class="author-mini-sub">Full-Stack • SQL Server • VietQR &amp; Admin</div>
+              </div>
+            </div>
+            <div class="author-mini-card" onclick="switchTab('about')">
+              <img src="../image/Anh_The_Dinh_Nam.jpg" alt="Nguyễn Đình Nam" class="author-mini-avatar" onerror="this.src='../image/logominigt.png'">
+              <div>
+                <div class="author-mini-role">TÁC GIẢ 2 • ĐỒNG SÁNG LẬP</div>
+                <div class="author-mini-name">Nguyễn Đình Nam</div>
+                <div class="author-mini-sub">UI/UX Collector 1:64 • Hiệu Ứng &amp; Mobile</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <!-- 6 KPI CARDS -->
         <div class="stats-grid">
           <div class="stat-card">
@@ -492,6 +548,128 @@
         </div>
       </section>
 
+      <!-- PANE 7: GIỚI THIỆU ĐỀ TÀI & NHÓM THỰC HIỆN DỰ ÁN (ĐỖ QUỐC THỊNH & NGUYỄN ĐÌNH NAM) -->
+      <section class="tab-pane" id="pane-about" style="display: none;">
+        <!-- Hero Overview -->
+        <div class="about-project-hero">
+          <div class="about-project-badge">
+            <i class="fa-solid fa-award"></i> ĐỒ ÁN MÔN HỌC THIẾT KẾ WEB • TRƯỜNG ĐẠI HỌC LẠC HỒNG (LHU)
+          </div>
+          <h2 class="about-project-title">
+            XÂY DỰNG HỆ THỐNG THƯƠNG MẠI ĐIỆN TỬ &amp; QUẢN LÝ ĐẶT CỌC XE MÔ HÌNH TỈ LỆ 1:64 — MINI GT STORE BIÊN HÒA
+          </h2>
+          <p class="about-project-subtitle">
+            Giải pháp thương mại điện tử Full-stack chuyên biệt cho cộng đồng sưu tầm xe mô hình tĩnh tỉ lệ 1:64 (Mini GT, Pop Race, Kaido House, Tarmac Works), kết hợp quy trình đặt cọc Pre-order theo đợt phát hành toàn cầu, tự động tạo mã VietQR MB Bank và đồng bộ lộ trình giao vận SPX Express thời gian thực.
+          </p>
+          <div class="about-tech-pills">
+            <span><i class="fa-brands fa-html5"></i> HTML5 / CSS3 Modern UI</span>
+            <span><i class="fa-brands fa-js"></i> JavaScript ES6+ &amp; BroadcastChannel</span>
+            <span><i class="fa-brands fa-node-js"></i> Node.js &amp; Express API</span>
+            <span><i class="fa-solid fa-database"></i> Microsoft SQL Server</span>
+            <span><i class="fa-solid fa-qrcode"></i> VietQR MB Bank API</span>
+            <span><i class="fa-solid fa-truck-fast"></i> SPX Express Tracking</span>
+          </div>
+        </div>
+
+        <!-- 2 FOUNDING AUTHORS SHOWCASE -->
+        <div class="authors-showcase-grid">
+          <!-- Thành viên 1: Đỗ Quốc Thịnh -->
+          <div class="author-profile-card">
+            <div class="author-card-header-ribbon">THÀNH VIÊN 01 • PROJECT LEADER</div>
+            <div class="author-card-top">
+              <div class="author-photo-frame">
+                <img src="../image/DoQuocThinh_anhthe.jpg" alt="Đỗ Quốc Thịnh" class="author-photo" onerror="this.src='../image/logominigt.png'">
+                <span class="author-verified-badge" title="Xác thực Tác giả Đề tài"><i class="fa-solid fa-check"></i></span>
+              </div>
+              <div class="author-identity">
+                <span class="author-role-tag"><i class="fa-solid fa-crown"></i> Trưởng Nhóm • Full-Stack &amp; Database Architect</span>
+                <h3 class="author-full-name">Đỗ Quốc Thịnh</h3>
+                <div class="author-org"><i class="fa-solid fa-building-columns"></i> Khoa Công Nghệ Thông Tin — Đại học Lạc Hồng</div>
+                <div class="author-contact-pills">
+                  <span><i class="fa-solid fa-server"></i> SQL: QUOCTHINH\DOQUOCTHINH</span>
+                  <span><i class="fa-solid fa-credit-card"></i> VietQR MB Bank Integration</span>
+                </div>
+              </div>
+            </div>
+            <div class="author-card-body">
+              <h4><i class="fa-solid fa-list-check"></i> Hạng mục phụ trách chính trong dự án:</h4>
+              <ul class="author-task-list">
+                <li><strong>Kiến trúc CSDL &amp; Backend API:</strong> Thiết kế lược đồ cơ sở dữ liệu quan hệ trên Microsoft SQL Server (<code>minigt_store.sql</code>) và xây dựng hệ thống RESTful API Node.js + Express.</li>
+                <li><strong>Nghiệp vụ Đặt cọc &amp; Thanh toán VietQR:</strong> Xây dựng thuật toán tính cọc giữ slot 30%–35%, áp dụng mã giảm giá/voucher, phí bảo vệ hộp PVC và tự động sinh mã QR chuyển khoản MB Bank chính xác từng đơn.</li>
+                <li><strong>Đồng bộ Thời gian thực (Real-time Sync):</strong> Phát triển cơ chế đồng bộ 2 chiều giữa Cổng Quản Trị Admin và Giao diện Khách hàng giúp cập nhật trạng thái duyệt đơn &amp; mã vận đơn SPX Express ngay lập tức.</li>
+                <li><strong>Bảo mật &amp; Phân quyền:</strong> Xây dựng cơ chế xác thực JWT, phân tách phiên đăng nhập Admin và Khách hàng, đảm bảo ảnh đại diện mặc định khách hàng (<code>anh-clone.jpg</code>) tách biệt hoàn toàn với hồ sơ Quản trị viên.</li>
+              </ul>
+            </div>
+          </div>
+
+          <!-- Thành viên 2: Nguyễn Đình Nam -->
+          <div class="author-profile-card">
+            <div class="author-card-header-ribbon ribbon-blue">THÀNH VIÊN 02 • CO-FOUNDER &amp; UI/UX LEAD</div>
+            <div class="author-card-top">
+              <div class="author-photo-frame">
+                <img src="../image/Anh_The_Dinh_Nam.jpg" alt="Nguyễn Đình Nam" class="author-photo" onerror="this.src='../image/logominigt.png'">
+                <span class="author-verified-badge badge-blue" title="Xác thực Tác giả Đề tài"><i class="fa-solid fa-check"></i></span>
+              </div>
+              <div class="author-identity">
+                <span class="author-role-tag tag-blue"><i class="fa-solid fa-wand-magic-sparkles"></i> Đồng Sáng Lập • UI/UX &amp; Frontend Architect</span>
+                <h3 class="author-full-name">Nguyễn Đình Nam</h3>
+                <div class="author-org"><i class="fa-solid fa-building-columns"></i> Khoa Công Nghệ Thông Tin — Đại học Lạc Hồng</div>
+                <div class="author-contact-pills">
+                  <span><i class="fa-solid fa-palette"></i> Design System &amp; Dark/Light Mode</span>
+                  <span><i class="fa-solid fa-mobile-screen-button"></i> Mobile-First Responsive</span>
+                </div>
+              </div>
+            </div>
+            <div class="author-card-body">
+              <h4><i class="fa-solid fa-list-check"></i> Hạng mục phụ trách chính trong dự án:</h4>
+              <ul class="author-task-list">
+                <li><strong>Thiết kế Giao diện Chuẩn Collector 1:64:</strong> Xây dựng bố cục chuyên sâu gồm <em>Liberty Walk (LB★WORKS) Widebody Zone</em>, <em>IMSA GT3 &amp; Formula 1 Motorsport Paddock</em>, và <em>Cẩm nang Sưu tầm 1:64 Collector Hub</em>.</li>
+                <li><strong>Tối ưu Box Card Xe &amp; Hiệu ứng Tương tác:</strong> Thiết kế lại toàn bộ thẻ sản phẩm (Box Card Xe) kích thước lớn, hiển thị đầy đủ SKU, Hãng, Quy cách đóng gói (Hộp giấy / Vỉ Blister), Giá niêm yết vs Khuyến mãi, cùng hiệu ứng Radar Hotspot trên Banner.</li>
+                <li><strong>Cài đặt Hệ thống Đa ngôn ngữ &amp; Giao diện Sáng/Tối:</strong> Triển khai bộ chuyển đổi <em>Dark Mode / Light Mode</em> và chuyển ngữ trực tiếp <em>Tiếng Việt (VN) / Tiếng Anh (EN)</em> đồng bộ trên cả Storefront và Admin.</li>
+                <li><strong>Trải nghiệm Di động (Mobile UX):</strong> Tối ưu hóa bố cục đa thiết bị, tích hợp thanh điều hướng đáy (Sticky Mobile Bottom App Bar) và khắc phục triệt để lỗi thông báo đè lên nút xác nhận ở bước Thanh toán.</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <!-- CHI TIẾT ĐỀ TÀI & ĐIỂM NỔI BẬT -->
+        <div class="admin-card" style="margin-top: 1.5rem;">
+          <div class="admin-card-header">
+            <h3 class="admin-card-title"><i class="fa-solid fa-layer-group" style="color:var(--admin-primary);"></i> Tổng Quan Đề Tài &amp; Các Chức Năng Trọng Tâm Của Hệ Thống</h3>
+          </div>
+          <div class="project-features-grid">
+            <div class="project-feature-item">
+              <div class="pf-icon"><i class="fa-solid fa-car-tunnel"></i></div>
+              <div>
+                <h4>1. Chuẩn Hóa Thông Tin Mô Hình 1:64</h4>
+                <p>Mỗi mẫu xe đều quản lý chi tiết Mã SKU quốc tế (MGT/PR/KH), số thứ tự phát hành, quy cách hộp (Box / Blister / Acrylic), tay lái (LHD/RHD) và thanh tiến độ suất cọc Quota %.</p>
+              </div>
+            </div>
+            <div class="project-feature-item">
+              <div class="pf-icon"><i class="fa-solid fa-tags"></i></div>
+              <div>
+                <h4>2. Linh Hoạt Chế Độ Giá Niêm Yết &amp; Giảm Giá</h4>
+                <p>Admin dễ dàng chọn chế độ <strong>"Không giảm giá (Giá niêm yết chính hãng)"</strong> hoặc bật khuyến mãi theo % (-5%, -10%, -15%, -20%) và tự động tính tiền cọc 30% chỉ với 1 cú nhấp chuột.</p>
+              </div>
+            </div>
+            <div class="project-feature-item">
+              <div class="pf-icon"><i class="fa-solid fa-box-open"></i></div>
+              <div>
+                <h4>3. Tiện Ích Gom Đơn Box Saver &amp; Protector</h4>
+                <p>Đáp ứng đúng thói quen của người chơi Mini GT: hỗ trợ gom nhiều đợt xe lưu kho chờ ship chung 1 kiện, tùy chọn mua kèm hộp nhựa PVC chống cấn góc và áp mã Voucher trực tiếp.</p>
+              </div>
+            </div>
+            <div class="project-feature-item">
+              <div class="pf-icon"><i class="fa-solid fa-bolt"></i></div>
+              <div>
+                <h4>4. Vận Hành Đơn Hàng &amp; SPX Real-time</h4>
+                <p>Quy trình khép kín 4 bước không bị che khuất nút bấm: Đặt đơn ➔ Quét mã VietQR MB Bank ➔ Admin duyệt &amp; cấp mã vận đơn SPX Express ➔ Khách hàng nhận thông báo tức thì.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
     </div>
   </main>
 
@@ -501,7 +679,7 @@
 
   <!-- PRODUCT MODAL (ADD / EDIT) -->
   <div class="modal-overlay" id="productModal">
-    <div class="modal-card">
+    <div class="modal-card" style="max-width: 720px;">
       <button class="modal-close" onclick="closeAdminModal('productModal')">✕</button>
       <h3 style="font-size: 18px; font-weight: 800; margin-bottom: 1rem;" id="productModalTitle">Thêm Mô Hình Mới</h3>
       
@@ -519,9 +697,9 @@
             <select id="prodCategory" class="form-control" required>
               <option value="1">Liberty Walk LBWK</option>
               <option value="2">Formula 1 Racing</option>
-              <option value="3">IMSA & GT3 Racing</option>
-              <option value="4">Box Sets & Combo</option>
-              <option value="5">Pop Race & Collab</option>
+              <option value="3">IMSA &amp; GT3 Racing</option>
+              <option value="4">Box Sets &amp; Combo</option>
+              <option value="5">Pop Race &amp; Collab</option>
             </select>
           </div>
 
@@ -532,7 +710,14 @@
 
           <div class="form-group">
             <label class="form-label">Thương hiệu</label>
-            <input type="text" id="prodBrand" class="form-control" value="MINI GT">
+            <input type="text" id="prodBrand" class="form-control" value="MINI GT" list="brandSuggestions">
+            <datalist id="brandSuggestions">
+              <option value="MINI GT"></option>
+              <option value="Pop Race"></option>
+              <option value="Kaido House"></option>
+              <option value="Trends Hobby"></option>
+              <option value="Tarmac Works"></option>
+            </datalist>
           </div>
 
           <div class="form-group">
@@ -540,19 +725,99 @@
             <input type="text" id="prodScale" class="form-control" value="1:64">
           </div>
 
-          <div class="form-group">
-            <label class="form-label">Giá bán chính thức (VNĐ) *</label>
-            <input type="number" id="prodPrice" class="form-control" placeholder="460000" required>
+          <!-- KHỐI CẤU HÌNH QUY CÁCH BOX & CARD (BLISTER) + GIẢM GIÁ % TRỰC TIẾP -->
+          <div class="form-group form-full" style="background:#f8fafc; border:1.5px solid #cbd5e1; border-radius:12px; padding:14px 16px; margin-bottom:0.5rem;">
+            <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:12px; padding-bottom:10px; border-bottom:1px solid #e2e8f0;">
+              <div>
+                <label class="form-label" style="margin:0; font-size:13px; font-weight:800; color:#0f172a;">
+                  <i class="fa-solid fa-boxes-stacked" style="color:#e10600; margin-right:5px;"></i> Cấu hình Giá Bản Box &amp; Bản Card (Blister) + Khuyến mãi %
+                </label>
+                <div style="font-size:11px; color:#64748b; margin-top:2px;">
+                  Chuẩn MINI GT: Bản <strong>Box (Hộp giấy)</strong> rẻ hơn bản <strong>Card (Vỉ nhựa Blister)</strong> từ 40.000đ – 100.000đ
+                </div>
+              </div>
+              <div class="discount-mode-switch" style="display:inline-flex; gap:6px; background:#e2e8f0; padding:3px; border-radius:8px;">
+                <button type="button" id="btnDiscountModeNone" class="discount-mode-btn active" onclick="setProductDiscountMode('none')">
+                  <i class="fa-solid fa-circle-check"></i> Không giảm giá (0%)
+                </button>
+                <button type="button" id="btnDiscountModeSale" class="discount-mode-btn" onclick="setProductDiscountMode('sale')">
+                  <i class="fa-solid fa-percent"></i> Giảm giá trực tiếp (%)
+                </button>
+              </div>
+            </div>
+
+            <div class="form-grid" style="margin-bottom:10px;">
+              <div class="form-group" style="margin-bottom:0;">
+                <label class="form-label">Quy cách đóng gói mở bán *</label>
+                <select id="prodPackagingType" class="form-control" onchange="handleProductPriceInput()">
+                  <option value="both">Có cả Bản Box &amp; Bản Card (Khách tự chọn)</option>
+                  <option value="box_only">Chỉ có Bản Box (Hộp giấy)</option>
+                  <option value="card_only">Chỉ có Bản Card (Vỉ Blister)</option>
+                </select>
+              </div>
+
+              <div class="form-group" id="prodDiscountGroup" style="margin-bottom:0; opacity:0.55;">
+                <label class="form-label" style="display:flex; justify-content:space-between; align-items:center;">
+                  <span>Phần trăm giảm giá trực tiếp (%)</span>
+                  <span id="prodDiscountPreviewBadge" style="font-size:10.5px; font-weight:800; color:#059669;">Đang để: 0%</span>
+                </label>
+                <input type="number" id="prodDiscountPercent" class="form-control" placeholder="0" min="0" max="80" value="0" oninput="handleProductPriceInput()" disabled>
+                <div id="discountQuickPresets" style="display:none; gap:5px; flex-wrap:wrap; margin-top:6px;">
+                  <span style="font-size:11px; color:#64748b; align-self:center;">Chọn nhanh % trừ vào tiền:</span>
+                  <button type="button" class="mini-preset-chip" onclick="applyQuickDiscountPercent(5)">-5%</button>
+                  <button type="button" class="mini-preset-chip" onclick="applyQuickDiscountPercent(10)">-10%</button>
+                  <button type="button" class="mini-preset-chip" onclick="applyQuickDiscountPercent(15)">-15%</button>
+                  <button type="button" class="mini-preset-chip" onclick="applyQuickDiscountPercent(20)">-20%</button>
+                  <button type="button" class="mini-preset-chip" onclick="applyQuickDiscountPercent(25)">-25%</button>
+                </div>
+              </div>
+
+              <div class="form-group" style="margin-bottom:0;">
+                <label class="form-label">📦 Giá gốc Bản BOX - Hộp giấy (VNĐ) *</label>
+                <input type="number" id="prodPriceBox" class="form-control" placeholder="320000" value="320000" oninput="handleProductPriceInput()" required>
+                <div style="display:flex; gap:4px; flex-wrap:wrap; margin-top:5px;">
+                  <span style="font-size:10.5px; color:#64748b;">Mẫu:</span>
+                  <button type="button" class="mini-preset-chip" onclick="setBoxPricePreset(320000)">320k</button>
+                  <button type="button" class="mini-preset-chip" onclick="setBoxPricePreset(350000)">350k</button>
+                  <button type="button" class="mini-preset-chip" onclick="setBoxPricePreset(380000)">380k</button>
+                  <button type="button" class="mini-preset-chip" onclick="setBoxPricePreset(420000)">420k</button>
+                </div>
+              </div>
+
+              <div class="form-group" style="margin-bottom:0;">
+                <label class="form-label">🛡️ Giá gốc Bản CARD - Vỉ Blister (VNĐ) *</label>
+                <input type="number" id="prodPriceCard" class="form-control" placeholder="380000" value="380000" oninput="handleProductPriceInput()" required>
+                <div style="display:flex; gap:4px; flex-wrap:wrap; margin-top:5px;">
+                  <span style="font-size:10.5px; color:#64748b;">Cộng từ Box:</span>
+                  <button type="button" class="mini-preset-chip" onclick="addCardDiffFromBox(40000)">+40k</button>
+                  <button type="button" class="mini-preset-chip" onclick="addCardDiffFromBox(50000)">+50k</button>
+                  <button type="button" class="mini-preset-chip" onclick="addCardDiffFromBox(60000)">+60k</button>
+                  <button type="button" class="mini-preset-chip" onclick="addCardDiffFromBox(80000)">+80k</button>
+                  <button type="button" class="mini-preset-chip" onclick="addCardDiffFromBox(100000)">+100k</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Hidden compatibility inputs -->
+            <input type="hidden" id="prodPrice" value="320000">
+            <input type="hidden" id="prodOldPrice" value="">
+
+            <!-- Bảng tính trực tiếp giá sau giảm cho Box và Card -->
+            <div id="prodLivePriceSummary" style="background:#ffffff; border:1px solid #e2e8f0; border-radius:8px; padding:10px 12px; font-size:12px; display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+              <div>📦 <strong>Giá Box thực thu:</strong> <span style="color:#e10600; font-weight:800;">320.000đ</span></div>
+              <div>🛡️ <strong>Giá Card thực thu:</strong> <span style="color:#2563eb; font-weight:800;">380.000đ</span></div>
+            </div>
           </div>
 
           <div class="form-group">
-            <label class="form-label">Giá cũ niêm yết (nếu giảm giá)</label>
-            <input type="number" id="prodOldPrice" class="form-control" placeholder="500000">
-          </div>
-
-          <div class="form-group">
-            <label class="form-label">Tiền cọc giữ mẫu (VNĐ)</label>
-            <input type="number" id="prodDeposit" class="form-control" placeholder="150000">
+            <label class="form-label" style="display:flex; justify-content:space-between; align-items:center;">
+              <span>Tiền cọc giữ mẫu (VNĐ)</span>
+              <span style="display:inline-flex; gap:4px;">
+                <button type="button" class="mini-preset-chip" onclick="autoCalcProductDeposit(0.3)" title="Tự động tính 30% giá bán">Tự tính 30%</button>
+                <button type="button" class="mini-preset-chip" onclick="autoCalcProductDeposit(0.35)" title="Tự động tính 35% giá bán">35%</button>
+              </span>
+            </label>
+            <input type="number" id="prodDeposit" class="form-control" placeholder="120000">
           </div>
 
           <div class="form-group">
@@ -561,8 +826,14 @@
           </div>
 
           <div class="form-group">
-            <label class="form-label">Ghi chú phiên bản (Badge/Note)</label>
-            <input type="text" id="prodEdition" class="form-control" placeholder="+ LHD Edition">
+            <label class="form-label">Ghi chú phiên bản (Edition Note)</label>
+            <input type="text" id="prodEdition" class="form-control" placeholder="LHD Edition">
+            <div style="display:flex; gap:4px; flex-wrap:wrap; margin-top:4px;">
+              <button type="button" class="mini-preset-chip" onclick="document.getElementById('prodEdition').value='LHD Edition'">LHD</button>
+              <button type="button" class="mini-preset-chip" onclick="document.getElementById('prodEdition').value='RHD Edition'">RHD</button>
+              <button type="button" class="mini-preset-chip" onclick="document.getElementById('prodEdition').value='Box & Blister'">Box &amp; Card</button>
+              <button type="button" class="mini-preset-chip" onclick="document.getElementById('prodEdition').value='Widebody Aero'">LBWK</button>
+            </div>
           </div>
 
           <div class="form-group">
@@ -588,8 +859,9 @@
             <label class="form-label">Đường dẫn hình ảnh chính (URL)</label>
             <div style="display:flex; gap:8px;">
               <input type="text" id="prodImage" class="form-control" placeholder="image/aston-amr24-stroll.png" oninput="updateProductImagePreview(this.value)" required>
-              <select class="form-control" style="max-width:180px;" onchange="document.getElementById('prodImage').value = this.value; updateProductImagePreview(this.value);">
+              <select class="form-control" style="max-width:190px;" onchange="document.getElementById('prodImage').value = this.value; updateProductImagePreview(this.value);">
                 <option value="">-- Chọn ảnh sẵn có --</option>
+                <option value="image/roxy_rexy_minigt.webp">Bộ 3 AO Racing (Rexy/Roxy)</option>
                 <option value="image/hero-banner.jpg">Banner chính</option>
                 <option value="image/aston-amr24-stroll.png">AMR24 Stroll</option>
                 <option value="image/aston-amr24-alonso.png">AMR24 Alonso</option>
@@ -614,7 +886,7 @@
           </div>
 
           <div class="form-group form-full">
-            <div style="display:flex; gap:20px; align-items:center; margin-top:4px;">
+            <div style="display:flex; gap:20px; align-items:center; margin-top:4px; flex-wrap:wrap;">
               <label style="display:flex; align-items:center; gap:6px; font-size:13px; font-weight:600; cursor:pointer;">
                 <input type="checkbox" id="prodIsFeatured" style="width:16px; height:16px;">
                 ⭐ Đánh dấu Mô hình Nổi Bật (Featured)
