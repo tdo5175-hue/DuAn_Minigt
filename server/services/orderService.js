@@ -126,10 +126,8 @@ async function createOrder(payload, authUser = null) {
       const lineTotal = unitPrice * quantity;
       subtotal += lineTotal;
 
-      const depPct = Number(p.DepositPercent || 30);
-      const unitDeposit = p.DepositAmount && Number(p.DepositAmount) > 0
-        ? Number(p.DepositAmount)
-        : Math.round((unitPrice * (depPct / 100)) / 1000) * 1000;
+      const depPct = Number(p.DepositPercent || (p.DepositAmount && unitPrice > 0 ? Math.round((Number(p.DepositAmount) / unitPrice) * 100) : 30));
+      const unitDeposit = isPreOrder ? Math.round((unitPrice * (depPct / 100)) / 1000) * 1000 : 0;
       depositRequired += unitDeposit * quantity;
 
       lineItems.push({

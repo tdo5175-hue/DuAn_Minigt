@@ -37,9 +37,9 @@
   --color-badge-instock: #059669;
 
   /* --- TYPOGRAPHY & FONT --- */
-  --font-main: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-  --font-heading: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  --font-mono: 'JetBrains Mono', 'Fira Code', Consolas, monospace;
+  --font-main: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --font-heading: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'JetBrains Mono', 'Fira Code', monospace;
 
   /* Kích thước chữ */
   --text-2xs: 0.6875rem; /* 11px */
@@ -60,8 +60,8 @@
   --font-weight-bold: 700;
   --font-weight-extrabold: 800;
 
-  /* Line Heights */
-  --line-height-tight: 1.2;
+  /* Line Heights (Tối ưu dấu thanh tiếng Việt không bị cấn ngọn) */
+  --line-height-tight: 1.26;
   --line-height-normal: 1.5;
   --line-height-relaxed: 1.7;
 

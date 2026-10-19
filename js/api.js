@@ -8,21 +8,47 @@
  */
 (function (global) {
   'use strict';
-const getApiBase = () => {
+  const isLocalEnvironment = () => {
+    if (!global.location) return false;
+    const h = (global.location.hostname || '').toLowerCase();
+    return h === 'localhost' ||
+           h === '127.0.0.1' ||
+           h === '0.0.0.0' ||
+           h.startsWith('192.168.') ||
+           h.startsWith('10.') ||
+           h.endsWith('.local') ||
+           global.location.protocol === 'file:';
+  };
+
+  const isDirectNodeServer = () => {
+    try {
+      if (!global.location) return false;
+      if (String(global.location.port) === '5000') return true;
+      if (localStorage.getItem('minigt_connect_port_5000') === 'true') return true;
+      if (global.MINIGT_API_BASE) return true;
+      return false;
+    } catch (e) {
+      return false;
+    }
+  };
+
+  const getApiBase = () => {
     if (global.MINIGT_API_BASE) return global.MINIGT_API_BASE.replace(/\/+$/, '');
     
-    // Nếu chạy trên Vercel hoặc môi trường production (không phải localhost)
-    if (global.location && !global.location.hostname.includes('localhost') && global.location.protocol !== 'file:') {
-      return 'https://duan-nhom2.onrender.com'; // <-- Thay chính xác link Render của bạn vào đây
+    // Nếu chạy cục bộ / Live Server trên máy cá nhân
+    if (isLocalEnvironment()) {
+      return 'http://localhost:5000';
     }
 
-    // Khi chạy thử ở máy cá nhân
-    return 'http://localhost:5000';
+    // Khi deploy lên cloud production (Render / Vercel)
+    return 'https://duan-nhom2.onrender.com';
   };
 
   const API_BASE = getApiBase();
+  let localServerOffline = null;
   const SHARED_ORDERS_KEY = 'minigt_shared_orders_v2';
   const SHARED_PRODUCTS_KEY = 'minigt_products_catalog_v4_canonical';
+  const SHARED_CATEGORIES_KEY = 'minigt_shared_categories_v2';
   const SHARED_SETTINGS_KEY = 'minigt_store_settings_v2';
   const SHARED_USERS_KEY = 'minigt_users_list_v2';
   const SHARED_SUBSCRIBERS_KEY = 'minigt_subscribers_v2';
@@ -252,6 +278,35 @@ const getApiBase = () => {
   // =====================================================================
   // DANH MỤC MẶC ĐỊNH & CHUẨN HÓA SẢN PHẨM (BOX vs CARD + GIẢM TRỰC TIẾP %)
   // =====================================================================
+  const DEFAULT_CATEGORIES_DATA = [
+    { id: 1, CategoryId: 1, slug: 'liberty-walk', Slug: 'liberty-walk', name: 'Liberty Walk LBWK', Name: 'Liberty Walk LBWK', description: 'Phong cách độ thân rộng Widebody huyền thoại từ Nhật Bản', sortOrder: 1, SortOrder: 1, imageUrl: 'image/Minigt_Lambo_LBWK.jpg' },
+    { id: 2, CategoryId: 2, slug: 'f1-racing', Slug: 'f1-racing', name: 'Formula 1 Racing', Name: 'Formula 1 Racing', description: 'Xe đua Công thức 1 bản quyền chính thức các đội đua hàng đầu', sortOrder: 2, SortOrder: 2, imageUrl: 'image/f1_redbull.jpg' },
+    { id: 3, CategoryId: 3, slug: 'gt-racing', Slug: 'gt-racing', name: 'IMSA & GT3 Racing', Name: 'IMSA & GT3 Racing', description: 'Những chiến binh đường đua sức bền 24h & AO Racing', sortOrder: 3, SortOrder: 3, imageUrl: 'image/roxy_rexy_minigt.webp' },
+    { id: 4, CategoryId: 4, slug: 'box-sets', Slug: 'box-sets', name: 'Box Sets & Combo', Name: 'Box Sets & Combo', description: 'Bộ sưu tập nhiều xe và hộp quà giới hạn đặc biệt', sortOrder: 4, SortOrder: 4, imageUrl: 'image/huracan.webp' },
+    { id: 5, CategoryId: 5, slug: 'partner', Slug: 'partner', name: 'Pop Race & Secret Chase', Name: 'Pop Race & Secret Chase', description: 'Thương hiệu đối tác: Pop Race, Kaido House & Secret Chase 1/24', sortOrder: 5, SortOrder: 5, imageUrl: 'image/Poprace_Supra_Secret.webp' }
+  ];
+
+  const getSharedCategories = () => {
+    try {
+      const raw = localStorage.getItem(SHARED_CATEGORIES_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch (e) {}
+    try {
+      localStorage.setItem(SHARED_CATEGORIES_KEY, JSON.stringify(DEFAULT_CATEGORIES_DATA));
+    } catch (e) {}
+    return DEFAULT_CATEGORIES_DATA;
+  };
+
+  const saveSharedCategories = (cats) => {
+    try {
+      localStorage.setItem(SHARED_CATEGORIES_KEY, JSON.stringify(cats));
+    } catch (e) {}
+    return cats;
+  };
+
   const CATEGORY_MAP = {
     1: { id: 1, name: 'Liberty Walk LBWK', slug: 'liberty-walk' },
     2: { id: 2, name: 'Formula 1 Racing', slug: 'f1-racing' },
@@ -486,7 +541,13 @@ const getApiBase = () => {
     const sku = String(raw.sku || raw.Sku || `MGT${id}`).trim();
     const name = String(raw.name || raw.Name || 'Mô hình MINI GT 1:64').trim();
     const catId = Number(raw.categoryId || raw.CategoryId || (raw.category && raw.category.id) || 1);
-    const catInfo = CATEGORY_MAP[catId] || {
+    const allCats = (typeof getSharedCategories === 'function') ? getSharedCategories() : [];
+    const foundCat = allCats.find(c => Number(c.id || c.CategoryId) === catId || (c.slug || c.Slug) === String(raw.CategorySlug || raw.categorySlug || '')) || CATEGORY_MAP[catId];
+    const catInfo = foundCat ? {
+      id: Number(foundCat.id || foundCat.CategoryId || catId),
+      name: foundCat.name || foundCat.Name || raw.CategoryName || 'MINI GT 1:64',
+      slug: foundCat.slug || foundCat.Slug || raw.CategorySlug || 'liberty-walk'
+    } : {
       id: catId,
       name: raw.CategoryName || (raw.category && raw.category.name) || 'MINI GT 1:64',
       slug: raw.CategorySlug || (raw.category && raw.category.slug) || 'liberty-walk'
@@ -539,7 +600,22 @@ const getApiBase = () => {
     if (stock <= 0 && status !== 'pre_order') status = 'sold_out';
 
     const image = raw.image || raw.imageUrl || raw.ImageUrl || 'image/hero-banner.jpg';
-    const depositAmount = Number(raw.depositAmount ?? raw.DepositAmount ?? (status === 'pre_order' ? Math.round((effectivePrice * 0.3) / 1000) * 1000 : 0));
+    let depositPercent = Math.max(0, Math.min(100, Number(raw.depositPercent ?? raw.DepositPercent ?? 0)));
+    let depositAmount = Number(raw.depositAmount ?? raw.DepositAmount ?? 0);
+    if (status === 'pre_order') {
+      if (depositPercent <= 0 && depositAmount > 0 && effectivePrice > 0) {
+        depositPercent = Math.min(100, Math.max(10, Math.round((depositAmount / effectivePrice) * 100)));
+      } else if (depositPercent <= 0) {
+        depositPercent = 30;
+      }
+      if (depositAmount <= 0) {
+        depositAmount = Math.round(((effectivePrice * depositPercent) / 100) / 1000) * 1000;
+      }
+    } else {
+      depositPercent = 0;
+      depositAmount = 0;
+    }
+    const expectedDelivery = raw.expectedDelivery ?? raw.ExpectedDelivery ?? null;
     const editionNote = raw.editionNote ?? raw.EditionNote ?? '';
     const preOrderDeadline = raw.preOrderDeadline ?? raw.PreOrderDeadline ?? null;
     const brand = raw.brand || raw.Brand || 'MINI GT';
@@ -585,8 +661,12 @@ const getApiBase = () => {
       Price: effectivePrice,
       oldPrice: effectiveOldPrice,
       OldPrice: effectiveOldPrice,
+      depositPercent,
+      DepositPercent: depositPercent,
       depositAmount,
       DepositAmount: depositAmount,
+      expectedDelivery,
+      ExpectedDelivery: expectedDelivery,
       editionNote,
       EditionNote: editionNote,
       preOrderDeadline,
@@ -646,13 +726,136 @@ const getApiBase = () => {
   // =====================================================================
   // BỘ ĐỒNG BỘ ĐƠN HÀNG SHARED LOCALSTORAGE & REALTIME EVENT
   // =====================================================================
+  const DEFAULT_INITIAL_ORDERS = [
+    {
+      id: 101,
+      code: 'MGT-20261019-9801',
+      fullName: 'Trần Minh Quân',
+      phone: '0912345678',
+      email: 'minhquan.collector@gmail.com',
+      address: '38/2 Võ Thị Sáu, P. Quang Vinh, TP. Biên Hòa, Đồng Nai',
+      addressType: 'NEW',
+      addressTypeLabel: 'Địa chỉ MỚI (Sau sáp nhập)',
+      oldAddressNote: 'Phường Hòa Bình cũ đã sáp nhập vào P. Quang Vinh',
+      newAddressEquivalent: '38/2 Võ Thị Sáu, P. Quang Vinh, TP. Biên Hòa, Đồng Nai',
+      city: 'Đồng Nai',
+      district: 'TP. Biên Hòa',
+      paymentMethod: 'DEPOSIT',
+      paymentStatus: 'PARTIALLY_PAID',
+      status: 'CONFIRMED',
+      hasPreOrder: true,
+      preOrderExpected: 'Tháng 11/2026',
+      subtotal: 760000,
+      shippingFee: 11000,
+      totalAmount: 771000,
+      depositAmount: 228000,
+      createdAt: new Date(Date.now() - 3600000 * 2).toISOString(),
+      items: [
+        {
+          productId: 1,
+          sku: 'MGT00780',
+          name: 'LB★WORKS Nissan GT-R R35 Type 2 Magic Purple (Pre-Order 2026)',
+          packagingOption: 'box',
+          packagingLabel: 'Bản Box (Hộp giấy)',
+          unitPrice: 380000,
+          quantity: 2,
+          lineTotal: 760000,
+          productImage: 'image/hero-banner.jpg',
+          isPreOrder: true
+        }
+      ]
+    },
+    {
+      id: 102,
+      code: 'MGT-20261019-8722',
+      fullName: 'Lê Hoàng Long',
+      phone: '0988776655',
+      email: 'hoanglong.diecast@gmail.com',
+      address: '15 Cách Mạng Tháng 8, P. Thanh Bình, TP. Biên Hòa, Đồng Nai',
+      addressType: 'OLD',
+      addressTypeLabel: 'Địa chỉ CŨ (Trước sáp nhập)',
+      oldAddressNote: 'P. Thanh Bình cũ ➔ nay thuộc P. Quyết Thắng mới',
+      newAddressEquivalent: '15 Cách Mạng Tháng 8, P. Quyết Thắng, TP. Biên Hòa, Đồng Nai',
+      city: 'Đồng Nai',
+      district: 'TP. Biên Hòa',
+      paymentMethod: 'DEPOSIT',
+      paymentStatus: 'UNPAID',
+      status: 'PENDING',
+      hasPreOrder: true,
+      preOrderExpected: 'Tháng 11/2026',
+      subtotal: 440000,
+      shippingFee: 11000,
+      totalAmount: 451000,
+      depositAmount: 132000,
+      createdAt: new Date(Date.now() - 3600000 * 5).toISOString(),
+      items: [
+        {
+          productId: 2,
+          sku: 'MGT00782',
+          name: 'Porsche 911 GT3 R Rexy #80 AO Racing 2024 IMSA (Pre-Order)',
+          packagingOption: 'card',
+          packagingLabel: 'Bản Card (Vỉ Blister)',
+          unitPrice: 440000,
+          quantity: 1,
+          lineTotal: 440000,
+          productImage: 'image/hero-banner.jpg',
+          isPreOrder: true
+        }
+      ]
+    },
+    {
+      id: 103,
+      code: 'MGT-20261019-7611',
+      fullName: 'Nguyễn Văn Hùng',
+      phone: '0903112233',
+      email: 'hungnguyen.diecast@gmail.com',
+      address: '124 Bùi Thị Xuân, P. Võ Thị Sáu, Quận 3, TP. Hồ Chí Minh',
+      addressType: 'NEW',
+      addressTypeLabel: 'Địa chỉ MỚI (Sau sáp nhập)',
+      oldAddressNote: 'Trước sáp nhập là Phường 7, Quận 3',
+      newAddressEquivalent: '124 Bùi Thị Xuân, P. Võ Thị Sáu, Quận 3, TP. Hồ Chí Minh',
+      city: 'TP. Hồ Chí Minh',
+      district: 'Quận 3',
+      paymentMethod: 'COD',
+      paymentStatus: 'UNPAID',
+      status: 'SHIPPING',
+      trackingCode: 'SPX840192830VN',
+      trackingCarrier: 'SPX Express',
+      hasPreOrder: false,
+      subtotal: 350000,
+      shippingFee: 11000,
+      totalAmount: 361000,
+      depositAmount: 0,
+      createdAt: new Date(Date.now() - 3600000 * 24).toISOString(),
+      items: [
+        {
+          productId: 5,
+          sku: 'MGT01055',
+          name: 'LB★WORKS Lamborghini Huracán GT Widebody Light Blue',
+          packagingOption: 'box',
+          packagingLabel: 'Bản Box (Hộp giấy)',
+          unitPrice: 350000,
+          quantity: 1,
+          lineTotal: 350000,
+          productImage: 'image/hero-banner.jpg',
+          isPreOrder: false
+        }
+      ]
+    }
+  ];
+
   const getSharedOrders = () => {
     try {
       const raw = localStorage.getItem(SHARED_ORDERS_KEY);
-      const list = raw ? JSON.parse(raw) : [];
-      return Array.isArray(list) ? list : [];
+      if (raw) {
+        const list = JSON.parse(raw);
+        if (Array.isArray(list) && list.length > 0) return list;
+      }
+      const seeded = DEFAULT_INITIAL_ORDERS.map(normalizeOrderObject);
+      saveSharedOrders(seeded);
+      return seeded;
     } catch (e) {
-      return [];
+      return DEFAULT_INITIAL_ORDERS.map(normalizeOrderObject);
     }
   };
 
@@ -727,14 +930,34 @@ const getApiBase = () => {
     const phone = ord.phone || ord.Phone || (ord.customer && ord.customer.phone) || '';
     const email = ord.email || ord.Email || (ord.customer && ord.customer.email) || '';
     const address = ord.address || ord.Address || (ord.shipping && ord.shipping.address) || (ord.customer && ord.customer.address) || '';
+    const addressType = String(ord.addressType || ord.AddressType || (ord.isOldAddress ? 'OLD' : 'NEW')).toUpperCase();
+    const isOldAddress = addressType === 'OLD';
+    const addressTypeLabel = isOldAddress ? 'Địa chỉ CŨ (Trước sáp nhập)' : 'Địa chỉ MỚI (Sau sáp nhập)';
+    const oldAddressNote = ord.oldAddressNote || ord.OldAddressNote || '';
+    const newAddressEquivalent = ord.newAddressEquivalent || ord.NewAddressEquivalent || '';
     const city = ord.city || ord.City || (ord.shipping && ord.shipping.city) || (ord.customer && ord.customer.city) || '';
     const district = ord.district || ord.District || (ord.shipping && ord.shipping.district) || (ord.customer && ord.customer.district) || '';
     const codAmount = paymentStatus === 'PAID' ? 0 : (depositAmount > 0 ? Math.max(0, totalAmount - depositAmount) : totalAmount);
+    const hasPreOrder = Boolean(
+      ord.hasPreOrder ??
+      ord.HasPreOrder ??
+      (paymentMethod === 'DEPOSIT') ??
+      (depositAmount > 0) ??
+      (Array.isArray(ord.items) && ord.items.some(i => i.isPreOrder || i.Status === 'pre_order' || String(i.status || '').toLowerCase() === 'pre_order'))
+    );
+    const preOrderNotified = Boolean(ord.preOrderNotified ?? ord.PreOrderNotified);
+    const preOrderExpected = ord.preOrderExpected || ord.PreOrderExpected || (hasPreOrder ? 'Tháng 11/2026' : null);
 
     return Object.assign({}, ord, {
       id: Number(ord.id || ord.orderId || ord.OrderId || Date.now()),
       orderId: Number(ord.orderId || ord.id || ord.OrderId || Date.now()),
       OrderId: Number(ord.OrderId || ord.id || ord.orderId || Date.now()),
+      hasPreOrder,
+      HasPreOrder: hasPreOrder,
+      preOrderNotified,
+      PreOrderNotified: preOrderNotified,
+      preOrderExpected,
+      PreOrderExpected: preOrderExpected,
       code,
       orderCode: code,
       OrderCode: code,
@@ -746,6 +969,15 @@ const getApiBase = () => {
       Email: email,
       address,
       Address: address,
+      addressType,
+      AddressType: addressType,
+      isOldAddress,
+      addressTypeLabel,
+      AddressTypeLabel: addressTypeLabel,
+      oldAddressNote,
+      OldAddressNote: oldAddressNote,
+      newAddressEquivalent,
+      NewAddressEquivalent: newAddressEquivalent,
       city,
       City: city,
       district,
@@ -756,6 +988,11 @@ const getApiBase = () => {
         phone,
         email,
         address,
+        addressType,
+        isOldAddress,
+        addressTypeLabel,
+        oldAddressNote,
+        newAddressEquivalent,
         city,
         district
       },
@@ -1201,11 +1438,15 @@ const getApiBase = () => {
       const sort = String(params.sort || 'newest').toLowerCase();
 
       if (q) {
-        list = list.filter(p =>
-          p.name.toLowerCase().includes(q) ||
-          p.sku.toLowerCase().includes(q) ||
-          p.brand.toLowerCase().includes(q)
-        );
+        list = list.filter(p => {
+          const name = String(p.name || p.Name || '').toLowerCase();
+          const sku = String(p.sku || p.Sku || '').toLowerCase();
+          const carNum = String(p.carNumber || p.CarNumber || '').toLowerCase();
+          const brand = String(p.brand || p.Brand || '').toLowerCase();
+          const catName = String(p.categoryName || p.CategoryName || (p.category && p.category.name) || '').toLowerCase();
+          const edition = String(p.editionNote || p.EditionNote || '').toLowerCase();
+          return name.includes(q) || sku.includes(q) || carNum.includes(q) || brand.includes(q) || catName.includes(q) || edition.includes(q);
+        });
       }
       if (cat !== 'all') {
         list = list.filter(p => p.CategorySlug === cat || String(p.categoryId) === cat);
@@ -1308,6 +1549,66 @@ const getApiBase = () => {
       return { success: true, message: 'Đã xóa sản phẩm khỏi danh mục' };
     }
 
+    // 1b. DANH MỤC SẢN PHẨM (GET /api/categories, GET /api/admin/categories, POST /api/admin/categories)
+    if (method === 'GET' && (path === '/api/categories' || path === '/api/admin/categories')) {
+      const cats = getSharedCategories();
+      const prods = getSharedProducts();
+      const enriched = cats.map(c => {
+        const cid = Number(c.id || c.CategoryId);
+        const count = prods.filter(p => Number(p.categoryId || p.CategoryId) === cid).length;
+        return {
+          id: cid,
+          CategoryId: cid,
+          slug: c.slug || c.Slug,
+          Slug: c.slug || c.Slug,
+          name: c.name || c.Name,
+          Name: c.name || c.Name,
+          description: c.description || c.Description || '',
+          Description: c.description || c.Description || '',
+          imageUrl: c.imageUrl || c.ImageUrl || '',
+          sortOrder: Number(c.sortOrder || c.SortOrder || 0),
+          SortOrder: Number(c.sortOrder || c.SortOrder || 0),
+          productCount: count,
+          ProductCount: count
+        };
+      });
+      return { success: true, data: enriched };
+    }
+
+    if (method === 'POST' && (path === '/api/categories' || path === '/api/admin/categories')) {
+      const allCats = getSharedCategories();
+      const nextId = allCats.reduce((max, c) => Math.max(max, Number(c.id || c.CategoryId) || 0), 0) + 1;
+      const cleanName = String(body.name || body.Name || '').trim();
+      const cleanSlug = (body.slug && String(body.slug).trim())
+        ? String(body.slug).trim().toLowerCase()
+        : cleanName.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[đĐ]/g, 'd').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+      const existing = allCats.find(c => (c.slug || c.Slug) === cleanSlug);
+      let catItem;
+      if (existing) {
+        existing.name = cleanName;
+        existing.Name = cleanName;
+        if (body.description) existing.description = body.description;
+        catItem = existing;
+      } else {
+        catItem = {
+          id: nextId,
+          CategoryId: nextId,
+          name: cleanName,
+          Name: cleanName,
+          slug: cleanSlug || ('cat-' + Date.now()),
+          Slug: cleanSlug || ('cat-' + Date.now()),
+          description: body.description || '',
+          Description: body.description || '',
+          sortOrder: allCats.length + 1,
+          SortOrder: allCats.length + 1,
+          imageUrl: body.imageUrl || ''
+        };
+        allCats.push(catItem);
+      }
+      saveSharedCategories(allCats);
+      return { success: true, data: catItem, message: 'Đã lưu danh mục thành công!' };
+    }
+
     // 2. Tạo đơn hàng mới (POST /api/orders)
     if (method === 'POST' && path === '/api/orders') {
       const now = new Date();
@@ -1352,6 +1653,9 @@ const getApiBase = () => {
         phone: body.phone || '',
         email: body.email || '',
         address: body.address || '',
+        addressType: body.addressType || 'NEW',
+        oldAddressNote: body.oldAddressNote || '',
+        newAddressEquivalent: body.newAddressEquivalent || '',
         city: body.city || '',
         district: body.district || '',
         note: body.note || '',
@@ -1393,6 +1697,8 @@ const getApiBase = () => {
         if (found) return { success: true, data: found };
       }
 
+      const preOrdersList = allOrders.filter(o => o.hasPreOrder || o.HasPreOrder || o.paymentMethod === 'DEPOSIT');
+
       const counts = {
         all: allOrders.length,
         pending: allOrders.filter(o => o.status === 'PENDING').length,
@@ -1400,12 +1706,36 @@ const getApiBase = () => {
         preparing: allOrders.filter(o => o.status === 'PREPARING').length,
         shipping: allOrders.filter(o => o.status === 'SHIPPING').length,
         delivered: allOrders.filter(o => o.status === 'DELIVERED').length,
-        cancelled: allOrders.filter(o => o.status === 'CANCELLED').length
+        cancelled: allOrders.filter(o => o.status === 'CANCELLED').length,
+        preOrder: preOrdersList.length
+      };
+
+      const preStages = {
+        all: preOrdersList.length,
+        needDeposit: preOrdersList.filter(o => o.paymentStatus === 'UNPAID' && o.status !== 'CANCELLED').length,
+        waitingGoods: preOrdersList.filter(o => (o.status === 'CONFIRMED' || o.paymentStatus === 'PARTIALLY_PAID') && !o.preOrderNotified && o.status !== 'CANCELLED').length,
+        goodsArrived: preOrdersList.filter(o => (o.preOrderNotified || o.status === 'PREPARING') && o.status !== 'SHIPPING' && o.status !== 'DELIVERED' && o.status !== 'CANCELLED').length,
+        shipped: preOrdersList.filter(o => o.status === 'SHIPPING').length
       };
 
       let filtered = allOrders;
       if (params.status && params.status !== 'ALL') {
-        filtered = filtered.filter(o => o.status === params.status);
+        if (params.status === 'PRE_ORDER' || params.status === 'PREORDER') {
+          filtered = preOrdersList;
+          if (params.preStage && params.preStage !== 'ALL') {
+            if (params.preStage === 'NEED_DEPOSIT') {
+              filtered = filtered.filter(o => o.paymentStatus === 'UNPAID' && o.status !== 'CANCELLED');
+            } else if (params.preStage === 'WAITING_GOODS') {
+              filtered = filtered.filter(o => (o.status === 'CONFIRMED' || o.paymentStatus === 'PARTIALLY_PAID') && !o.preOrderNotified && o.status !== 'CANCELLED');
+            } else if (params.preStage === 'GOODS_ARRIVED') {
+              filtered = filtered.filter(o => (o.preOrderNotified || o.status === 'PREPARING') && o.status !== 'SHIPPING' && o.status !== 'DELIVERED' && o.status !== 'CANCELLED');
+            } else if (params.preStage === 'SHIPPED') {
+              filtered = filtered.filter(o => o.status === 'SHIPPING');
+            }
+          }
+        } else {
+          filtered = filtered.filter(o => o.status === params.status);
+        }
       }
       if (params.paymentStatus && params.paymentStatus !== 'ALL') {
         filtered = filtered.filter(o => o.paymentStatus === params.paymentStatus);
@@ -1426,6 +1756,7 @@ const getApiBase = () => {
         success: true,
         data: filtered,
         counts,
+        preStages,
         pagination: { page: 1, limit: 50, total: filtered.length, totalPages: 1 }
       };
     }
@@ -1540,7 +1871,7 @@ const getApiBase = () => {
     }
 
     // 7. Admin cập nhật trạng thái / mã vận đơn SPX / thanh toán
-    const adminOrderMatch = path.match(/^\/api\/admin\/orders\/(\d+)\/(status|tracking|confirm-payment|payment|cancel)/);
+    const adminOrderMatch = path.match(/^\/api\/admin\/orders\/(\d+)\/(status|tracking|confirm-payment|payment|preorder-arrived|cancel|address-type)/);
     if (method === 'PUT' && adminOrderMatch) {
       const oid = Number(adminOrderMatch[1]);
       const action = adminOrderMatch[2];
@@ -1565,17 +1896,40 @@ const getApiBase = () => {
           }
         } else if (action === 'confirm-payment' || action === 'payment') {
           target.paymentStatus = body.kind === 'deposit' ? 'PARTIALLY_PAID' : 'PAID';
+          if (body.kind === 'deposit') {
+            target.depositPaidAt = new Date().toISOString();
+          } else {
+            target.fullPaidAt = new Date().toISOString();
+          }
           if (target.status === 'PENDING') target.status = 'CONFIRMED';
+        } else if (action === 'preorder-arrived') {
+          target.preOrderNotified = true;
+          target.PreOrderNotified = true;
+          target.hasPreOrder = true;
+          target.HasPreOrder = true;
+          if (target.status === 'CONFIRMED' || target.status === 'PENDING') {
+            target.status = 'PREPARING';
+          }
         } else if (action === 'cancel') {
           target.status = 'CANCELLED';
           target.cancelReason = body.cancelReason || 'Admin hủy đơn';
+        } else if (action === 'address-type') {
+          target.addressType = body.addressType === 'OLD' ? 'OLD' : 'NEW';
+          target.isOldAddress = target.addressType === 'OLD';
+          target.addressTypeLabel = target.addressType === 'OLD' ? 'Địa chỉ CŨ (Trước sáp nhập)' : 'Địa chỉ MỚI (Sau sáp nhập)';
+          if (body.oldAddressNote !== undefined) target.oldAddressNote = body.oldAddressNote;
+          if (body.newAddressEquivalent !== undefined) target.newAddressEquivalent = body.newAddressEquivalent;
         }
         target.updatedAt = new Date().toISOString();
         const saved = upsertSharedOrder(target);
         emitRealtimeSync('ORDER_UPDATED', saved);
         return {
           success: true,
-          message: 'Đã cập nhật đơn hàng thành công!',
+          message: action === 'preorder-arrived'
+            ? `Đã cập nhật: Hàng Pre-Order cho đơn #${saved.code} đã về kho! Sẵn sàng đóng gói & gán SPX.`
+            : (action === 'confirm-payment'
+              ? (body.kind === 'deposit' ? `Đã xác nhận nhận cọc cho đơn #${saved.code} thành công!` : `Đã xác nhận nhận đủ tiền 100% cho đơn #${saved.code}!`)
+              : 'Đã cập nhật đơn hàng thành công!'),
           data: saved
         };
       }
@@ -1646,8 +2000,17 @@ const getApiBase = () => {
   };
 
   async function request(endpoint, options = {}) {
-    const fullUrl = endpoint.startsWith('http') ? endpoint : (API_BASE + endpoint);
     const method = (options.method || 'GET').toUpperCase();
+    const rawBody = options.body;
+
+    // Khi chạy trên Live Server (127.0.0.1:5500) mà không có backend port 5000:
+    // Chuyển thẳng vào Local Storage Engine để không kích hoạt lỗi đỏ net::ERR_CONNECTION_REFUSED trong Console DevTools F12
+    if ((isLocalEnvironment() && !isDirectNodeServer()) || (isLocalEnvironment() && localServerOffline === true)) {
+      const fallbackResult = handleOfflineFallback(endpoint, { method, body: rawBody });
+      if (fallbackResult) return fallbackResult;
+    }
+
+    const fullUrl = endpoint.startsWith('http') ? endpoint : (API_BASE + endpoint);
     const headers = Object.assign({
       'Accept': 'application/json'
     }, options.headers || {});
@@ -1657,7 +2020,6 @@ const getApiBase = () => {
       headers['Authorization'] = `Bearer ${token}`;
     }
 
-    const rawBody = options.body;
     if (options.body && typeof options.body === 'object' && !(options.body instanceof FormData)) {
       headers['Content-Type'] = 'application/json';
       options.body = JSON.stringify(options.body);
@@ -1668,12 +2030,18 @@ const getApiBase = () => {
     let response;
     try {
       response = await fetch(fullUrl, config);
+      if (isLocalEnvironment()) {
+        localServerOffline = false;
+      }
     } catch (netErr) {
+      if (isLocalEnvironment()) {
+        localServerOffline = true;
+      }
       const fallbackResult = handleOfflineFallback(endpoint, { method, body: rawBody });
       if (fallbackResult) {
         return fallbackResult;
       }
-      console.error('[API NETWORK ERROR]:', netErr);
+      console.warn('[API OFFLINE]:', endpoint);
       throw new ApiError('Không thể kết nối đến máy chủ.', 0, 'NETWORK_ERROR');
     }
 
@@ -1735,11 +2103,14 @@ const getApiBase = () => {
     saveSharedProducts,
     getSharedUsers,
     saveSharedUsers,
+    getSharedCategories,
+    saveSharedCategories,
     normalizeProductObject,
     getMyOrderCodes,
     addMyOrderCode,
     emitRealtimeSync,
     normalizeOrderObject,
+    isLocalServerOffline: () => localServerOffline,
 
     get(url, params = {}) {
       let finalUrl = url;

@@ -305,8 +305,7 @@ function applyStoreSettingsUI() {
   // Update Announcement Ticker
   const ticker = document.querySelector('.announcement-ticker span:nth-child(2)');
   if (ticker && storeSettings.announcement) {
-    const dl = storeSettings.preorder_deadline || '30/10/2026';
-    ticker.innerHTML = `${escapeHtml(storeSettings.announcement)} | <i class="fa-regular fa-clock" style="font-size:11px; margin-left:4px;"></i> Hạn chót đợt cọc: <strong>${escapeHtml(dl)}</strong>`;
+    ticker.innerHTML = `${escapeHtml(storeSettings.announcement)} | <i class="fa-solid fa-truck-fast" style="font-size:11px; margin-left:4px;"></i> Giao hàng toàn quốc SPX Express • Cam kết chính hãng 100%`;
   }
   // Update Hotline Links
   if (storeSettings.store_hotline) {
@@ -651,6 +650,8 @@ async function loadProducts() {
     allProducts = FALLBACK_PRODUCTS.map(p => (window.api && window.api.normalizeProductObject) ? window.api.normalizeProductObject(p) : p);
   }
 
+  await loadAppCategories();
+  renderDynamicBrandFilter();
   renderProductsGrid();
   renderPreOrderQuickRow();
   updateFilterCounts();
@@ -986,26 +987,32 @@ function matchesProductFilter(p, filterKey) {
   }
 
   const catSlug = String(p.CategorySlug || p.categorySlug || '').toLowerCase();
+  const catId = String(p.CategoryId || p.categoryId || '');
+  const catName = String(p.CategoryName || p.categoryName || (p.category && p.category.name) || '').toLowerCase();
   const name = String(p.Name || p.name || '').toLowerCase();
   const sku = String(p.Sku || p.sku || '').toUpperCase();
   const note = String(p.EditionNote || p.editionNote || '').toLowerCase();
 
-  if (filterKey === 'lbwk') {
+  const targetKey = String(filterKey).toLowerCase();
+
+  // Backward compatibility aliases
+  if (targetKey === 'lbwk' || targetKey === 'liberty-walk') {
     return catSlug === 'liberty-walk' || name.includes('lb') || note.includes('liberty');
   }
-  if (filterKey === 'chase') {
+  if (targetKey === 'chase' || targetKey === 'partner') {
     return catSlug === 'partner' || sku.startsWith('PR') || sku.startsWith('TH') || name.includes('secret') || name.includes('chase');
   }
-  if (filterKey === 'f1') {
+  if (targetKey === 'f1' || targetKey === 'f1-racing') {
     return catSlug === 'f1-racing' || name.includes('f1') || name.includes('red bull') || name.includes('amr24');
   }
-  if (filterKey === 'box_sets') {
+  if (targetKey === 'box_sets' || targetKey === 'box-sets') {
     return catSlug === 'box-sets' || name.includes('box') || name.includes('set') || name.includes('combo');
   }
-  if (filterKey === 'ao_racing') {
+  if (targetKey === 'ao_racing' || targetKey === 'gt-racing') {
     return catSlug === 'gt-racing' || name.includes('ao racing') || name.includes('rexy') || name.includes('roxy') || name.includes('ske');
   }
-  return true;
+
+  return catSlug === targetKey || catId === targetKey || catName.includes(targetKey);
 }
 
 function renderProductsGrid() {
@@ -1145,18 +1152,105 @@ function renderBoxSetsSection() {
   refreshScrollReveal();
 }
 
-function updateFilterCounts() {
-  const filterKeys = ['all', 'bestseller', 'in_stock', 'pre_order', 'lbwk', 'chase', 'f1', 'box_sets', 'ao_racing'];
-  const counts = {};
-  filterKeys.forEach(k => {
-    counts[k] = allProducts.filter(p => matchesProductFilter(p, k)).length;
+let appCategories = [];
+
+async function loadAppCategories() {
+  try {
+    const res = await safeFetch('/api/categories');
+    if (res && res.success && Array.isArray(res.data)) {
+      appCategories = res.data;
+    }
+  } catch (e) {
+    if (window.api && typeof window.api.getSharedCategories === 'function') {
+      appCategories = window.api.getSharedCategories();
+    }
+  }
+  renderDynamicCategoryFilterPills();
+}
+
+function renderDynamicCategoryFilterPills() {
+  const container = document.querySelector('.filter-tags-wrapper');
+  if (!container) return;
+
+  const staticPills = [
+    { key: 'all', icon: 'fa-solid fa-border-all', label: 'Tất cả mô hình', countId: 'count-all' },
+    { key: 'bestseller', icon: 'fa-solid fa-fire', iconColor: '#e10600', label: 'Bán chạy nhất', countId: 'count-bestseller' },
+    { key: 'in_stock', icon: 'fa-solid fa-circle-check', iconColor: '#10b981', label: 'Còn hàng', countId: 'count-in_stock' },
+    { key: 'pre_order', icon: 'fa-solid fa-clock', label: 'Pre-Order Đợt Mới', countId: 'count-pre_order' }
+  ];
+
+  const dynamicPills = (appCategories && appCategories.length > 0)
+    ? appCategories.map(c => {
+        const slug = (c.slug || c.Slug || '').toLowerCase();
+        let icon = 'fa-solid fa-car-side';
+        let iconColor = '';
+        if (slug === 'liberty-walk') { icon = 'fa-solid fa-bolt'; }
+        else if (slug === 'partner') { icon = 'fa-solid fa-gem'; iconColor = '#f59e0b'; }
+        else if (slug === 'f1-racing') { icon = 'fa-solid fa-flag-checkered'; }
+        else if (slug === 'box-sets') { icon = 'fa-solid fa-boxes-stacked'; }
+        else if (slug === 'gt-racing') { icon = 'fa-solid fa-shield-cat'; }
+
+        return {
+          key: slug,
+          icon,
+          iconColor,
+          label: c.name || c.Name,
+          countId: `count-${slug}`
+        };
+      })
+    : [
+        { key: 'lbwk', icon: 'fa-solid fa-bolt', label: 'Liberty Walk LBWK', countId: 'count-lbwk' },
+        { key: 'chase', icon: 'fa-solid fa-gem', iconColor: '#f59e0b', label: 'Secret Chase Car', countId: 'count-chase' },
+        { key: 'f1', icon: 'fa-solid fa-flag-checkered', label: 'Formula 1 Series', countId: 'count-f1' },
+        { key: 'box_sets', icon: 'fa-solid fa-boxes-stacked', label: 'Box Sets & Combo', countId: 'count-box_sets' },
+        { key: 'ao_racing', icon: 'fa-solid fa-shield-cat', label: 'AO Racing GT3', countId: 'count-ao_racing' }
+      ];
+
+  const allPills = [...staticPills, ...dynamicPills];
+
+  container.innerHTML = allPills.map(p => {
+    const isActive = (currentFilter === p.key);
+    const count = (allProducts || []).filter(prod => matchesProductFilter(prod, p.key)).length;
+    const styleAttr = p.iconColor ? `style="color:${p.iconColor};"` : '';
+    return `
+      <button class="filter-pill ${isActive ? 'active' : ''}" data-filter="${escapeHtml(p.key)}" type="button">
+        <i class="${p.icon}" ${styleAttr}></i> <span>${escapeHtml(p.label)}</span> <span class="pill-count" id="${p.countId}">(${count})</span>
+      </button>
+    `;
+  }).join('');
+
+  setupFilterPills();
+}
+
+function renderDynamicBrandFilter() {
+  const brandSelect = document.getElementById('catalogBrandFilter');
+  if (!brandSelect) return;
+  const currentVal = brandSelect.value || currentBrandFilter || 'all';
+
+  const brandSet = new Set();
+  (allProducts || []).forEach(p => {
+    const b = (p.Brand || p.brand || '').trim();
+    if (b) brandSet.add(b);
   });
 
+  const sortedBrands = Array.from(brandSet).sort((a, b) => a.localeCompare(b, 'vi'));
+
+  let html = `<option value="all" ${currentVal === 'all' ? 'selected' : ''}>Tất cả hãng xe</option>`;
+  sortedBrands.forEach(b => {
+    const isSel = currentVal.toLowerCase() === b.toLowerCase();
+    html += `<option value="${escapeHtml(b)}" ${isSel ? 'selected' : ''}>${escapeHtml(b)}</option>`;
+  });
+
+  brandSelect.innerHTML = html;
+}
+
+function updateFilterCounts() {
   document.querySelectorAll('.filter-pill').forEach(btn => {
     const filterKey = btn.getAttribute('data-filter');
     const badge = btn.querySelector('.pill-count');
-    if (badge && counts[filterKey] !== undefined) {
-      badge.textContent = `(${counts[filterKey]})`;
+    if (badge && filterKey) {
+      const count = (allProducts || []).filter(p => matchesProductFilter(p, filterKey)).length;
+      badge.textContent = `(${count})`;
     }
   });
 }
@@ -1165,15 +1259,21 @@ function updateFilterCounts() {
 // 7. BỘ LỌC DANH MỤC (FILTER PILLS INTERACTION)
 // =====================================================================
 function setupFilterPills() {
-  document.querySelectorAll('.filter-pill').forEach(btn => {
-    btn.addEventListener('click', () => {
-      document.querySelectorAll('.filter-pill').forEach(b => b.classList.remove('active'));
+  const container = document.querySelector('.filter-tags-wrapper');
+  if (!container) return;
+
+  if (!container.__hasFilterListener) {
+    container.addEventListener('click', (e) => {
+      const btn = e.target.closest('.filter-pill');
+      if (!btn) return;
+      container.querySelectorAll('.filter-pill').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       currentFilter = btn.getAttribute('data-filter') || 'all';
-      catalogCurrentPage = 1; // Reset về trang 1 khi chuyển filter
+      catalogCurrentPage = 1;
       renderProductsGrid();
     });
-  });
+    container.__hasFilterListener = true;
+  }
 }
 
 // =====================================================================
@@ -2047,12 +2147,88 @@ function applyCheckoutVoucher() {
   renderCheckoutStep3();
 }
 
+let currentCheckoutAddressType = 'NEW';
+
+const KNOWN_MERGED_MAP = [
+  { match: /hòa\s*bình/i, oldName: 'P. Hòa Bình', newName: 'P. Quang Vinh', city: 'TP. Biên Hòa' },
+  { match: /thanh\s*bình/i, oldName: 'P. Thanh Bình', newName: 'P. Quyết Thắng', city: 'TP. Biên Hòa' },
+  { match: /tam\s*hòa/i, oldName: 'P. Tam Hòa', newName: 'P. Bình Đa', city: 'TP. Biên Hòa' },
+  { match: /quận\s*2|quận\s*9|quận\s*thủ\s*đức/i, oldName: 'Q.2 / Q.9 / Q.Thủ Đức', newName: 'TP. Thủ Đức', city: 'TP.HCM' },
+  { match: /phường\s*6\s*,\s*quận\s*3|phường\s*7\s*,\s*quận\s*3|phường\s*8\s*,\s*quận\s*3/i, oldName: 'P.6 / P.7 / P.8 (Q.3)', newName: 'Phường Võ Thị Sáu (Quận 3)', city: 'TP.HCM' }
+];
+
+function handleCheckoutAddressTypeChange(type) {
+  currentCheckoutAddressType = type === 'OLD' ? 'OLD' : 'NEW';
+  const badge = document.getElementById('checkoutAddrTypeBadge');
+  const cardNew = document.getElementById('addrCardNew');
+  const cardOld = document.getElementById('addrCardOld');
+  const helper = document.getElementById('checkoutOldAddrHelper');
+
+  if (currentCheckoutAddressType === 'OLD') {
+    if (badge) {
+      badge.textContent = '⚠️ Địa chỉ CŨ (Trước sáp nhập)';
+      badge.style.background = '#fffbeb';
+      badge.style.color = '#b45309';
+      badge.style.borderColor = '#fde68a';
+    }
+    if (cardNew) {
+      cardNew.classList.remove('active');
+      cardNew.style.borderColor = '#cbd5e1';
+    }
+    if (cardOld) {
+      cardOld.classList.add('active');
+      cardOld.style.borderColor = 'var(--color-primary)';
+    }
+    if (helper) helper.style.display = 'block';
+  } else {
+    if (badge) {
+      badge.textContent = '✓ Địa chỉ MỚI (Sau sáp nhập)';
+      badge.style.background = '#ecfdf5';
+      badge.style.color = '#047857';
+      badge.style.borderColor = '#a7f3d0';
+    }
+    if (cardNew) {
+      cardNew.classList.add('active');
+      cardNew.style.borderColor = 'var(--color-primary)';
+    }
+    if (cardOld) {
+      cardOld.classList.remove('active');
+      cardOld.style.borderColor = '#cbd5e1';
+    }
+    if (helper) helper.style.display = 'none';
+  }
+  saveCheckoutFormState();
+}
+
+function handleAddressInputDebounced(val) {
+  saveCheckoutFormState();
+  const tip = document.getElementById('checkoutAddrMatchTip');
+  if (!tip) return;
+  if (!val || val.length < 3) {
+    tip.style.display = 'none';
+    return;
+  }
+
+  const matched = KNOWN_MERGED_MAP.find(m => m.match.test(val));
+  if (matched) {
+    tip.style.display = 'block';
+    tip.innerHTML = `<i class="fa-solid fa-circle-info"></i> <strong>Lưu ý sáp nhập ĐVHC (${matched.city}):</strong> Địa chỉ có chứa <strong>${matched.oldName}</strong> cũ. Trong hệ thống SPX Express, khu vực này tương ứng là <strong>${matched.newName}</strong>. Shop sẽ tự động bổ sung ghi chú để shipper phát chuẩn xác!`;
+  } else {
+    tip.style.display = 'none';
+  }
+}
+
+window.handleCheckoutAddressTypeChange = handleCheckoutAddressTypeChange;
+window.handleAddressInputDebounced = handleAddressInputDebounced;
+
 function saveCheckoutFormState() {
   const formState = {
     name: document.getElementById('checkoutName')?.value || '',
     phone: document.getElementById('checkoutPhone')?.value || '',
     email: document.getElementById('checkoutEmail')?.value || '',
     address: document.getElementById('checkoutAddress')?.value || '',
+    addressType: currentCheckoutAddressType,
+    oldWardNote: document.getElementById('checkoutOldWardNote')?.value || '',
     note: document.getElementById('checkoutNote')?.value || ''
   };
   sessionStorage.setItem('minigt_checkout_info', JSON.stringify(formState));
@@ -2068,6 +2244,12 @@ function loadCheckoutFormState() {
       if (document.getElementById('checkoutEmail') && data.email) document.getElementById('checkoutEmail').value = data.email;
       if (document.getElementById('checkoutAddress') && data.address) document.getElementById('checkoutAddress').value = data.address;
       if (document.getElementById('checkoutNote') && data.note) document.getElementById('checkoutNote').value = data.note;
+      if (document.getElementById('checkoutOldWardNote') && data.oldWardNote) document.getElementById('checkoutOldWardNote').value = data.oldWardNote;
+      if (data.addressType) {
+        const radio = document.querySelector(`input[name="checkoutAddressType"][value="${data.addressType}"]`);
+        if (radio) radio.checked = true;
+        handleCheckoutAddressTypeChange(data.addressType);
+      }
     }
   } catch (e) {
     console.warn('Không thể khôi phục form từ sessionStorage:', e);
@@ -2451,6 +2633,8 @@ async function handleCheckoutSubmit(e) {
     phone: phone,
     email: email || (currentUser ? currentUser.email : ''),
     address: address,
+    addressType: (typeof currentCheckoutAddressType !== 'undefined' ? currentCheckoutAddressType : 'NEW'),
+    oldAddressNote: document.getElementById('checkoutOldWardNote')?.value.trim() || '',
     note: finalNote,
     paymentMethod: normalizedPayMethod,
     shippingMethod: shippingMethod,
@@ -4783,11 +4967,15 @@ function setupSearch() {
       return;
     }
 
-    const matched = allProducts.filter(p =>
-      p.Name.toLowerCase().includes(q) ||
-      p.Sku.toLowerCase().includes(q) ||
-      (p.EditionNote && p.EditionNote.toLowerCase().includes(q))
-    ).slice(0, 6);
+    const matched = allProducts.filter(p => {
+      const name = String(p.Name || p.name || '').toLowerCase();
+      const sku = String(p.Sku || p.sku || '').toLowerCase();
+      const carNum = String(p.CarNumber || p.carNumber || '').toLowerCase();
+      const brand = String(p.Brand || p.brand || '').toLowerCase();
+      const catName = String(p.CategoryName || p.categoryName || (p.category && p.category.name) || '').toLowerCase();
+      const edition = String(p.EditionNote || p.editionNote || '').toLowerCase();
+      return name.includes(q) || sku.includes(q) || carNum.includes(q) || brand.includes(q) || catName.includes(q) || edition.includes(q);
+    }).slice(0, 8);
 
     if (matched.length === 0) {
       dropdown.innerHTML = '<div style="padding:12px; font-size:12px; color:var(--color-gray-500); text-align:center;">Không tìm thấy mô hình nào</div>';
@@ -4944,6 +5132,9 @@ function closeMobileNav() {
   document.body.style.overflow = '';
 }
 
+window.toggleMobileNav = toggleMobileNav;
+window.closeMobileNav = closeMobileNav;
+
 function handleMobileSearch(e) {
   if (e && e.preventDefault) e.preventDefault();
   const input = document.getElementById('mobileSearchInput');
@@ -4958,12 +5149,15 @@ function handleMobileSearch(e) {
   const container = document.getElementById('mainProductGrid');
   if (!container) return;
 
-  const filtered = allProducts.filter(p =>
-    p.Name.toLowerCase().includes(query) ||
-    p.Sku.toLowerCase().includes(query) ||
-    (p.Brand && p.Brand.toLowerCase().includes(query)) ||
-    (p.CategoryName && p.CategoryName.toLowerCase().includes(query))
-  );
+  const filtered = allProducts.filter(p => {
+    const name = String(p.Name || p.name || '').toLowerCase();
+    const sku = String(p.Sku || p.sku || '').toLowerCase();
+    const carNum = String(p.CarNumber || p.carNumber || '').toLowerCase();
+    const brand = String(p.Brand || p.brand || '').toLowerCase();
+    const catName = String(p.CategoryName || p.categoryName || (p.category && p.category.name) || '').toLowerCase();
+    const edition = String(p.EditionNote || p.editionNote || '').toLowerCase();
+    return name.includes(query) || sku.includes(query) || carNum.includes(query) || brand.includes(query) || catName.includes(query) || edition.includes(query);
+  });
 
   if (filtered.length === 0) {
     container.innerHTML = `
@@ -5146,16 +5340,23 @@ function initMagneticNavGlider() {
   });
 }
 
-// 17.3 Scroll Progress Bar
+// 17.3 Scroll Progress Bar (Throttled with requestAnimationFrame for 60fps Mobile Performance)
 function initScrollProgressBar() {
   const progressBar = document.getElementById('navScrollProgress');
   if (!progressBar) return;
 
+  let ticking = false;
   window.addEventListener('scroll', () => {
-    const scrollTop = window.scrollY || document.documentElement.scrollTop;
-    const docHeight = document.documentElement.scrollHeight - window.innerHeight;
-    const scrollPercent = docHeight > 0 ? (scrollTop / docHeight) * 100 : 0;
-    progressBar.style.width = `${Math.min(100, Math.max(0, scrollPercent))}%`;
+    if (!ticking) {
+      window.requestAnimationFrame(() => {
+        const scrollTop = window.scrollY || document.documentElement.scrollTop;
+        const docHeight = document.documentElement.scrollHeight - window.innerHeight;
+        const scrollPercent = docHeight > 0 ? (scrollTop / docHeight) * 100 : 0;
+        progressBar.style.width = `${Math.min(100, Math.max(0, scrollPercent))}%`;
+        ticking = false;
+      });
+      ticking = true;
+    }
   }, { passive: true });
 }
 
@@ -5486,32 +5687,41 @@ function setupScrollEffects() {
   const progressFill = document.getElementById('scrollProgressFill');
   const circumference = 2 * Math.PI * 20;
 
+  let ticking = false;
+
   window.addEventListener('scroll', () => {
-    const scrollTop = window.scrollY || document.documentElement.scrollTop;
-    const docHeight = document.documentElement.scrollHeight - document.documentElement.clientHeight;
-    const scrollPercent = docHeight > 0 ? (scrollTop / docHeight) : 0;
+    if (!ticking) {
+      window.requestAnimationFrame(() => {
+        const scrollTop = window.scrollY || document.documentElement.scrollTop;
+        const docHeight = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+        const scrollPercent = docHeight > 0 ? (scrollTop / docHeight) : 0;
 
-    // Sticky Frosted Header
-    if (header) {
-      if (scrollTop > 40) {
-        header.classList.add('scrolled');
-      } else {
-        header.classList.remove('scrolled');
-      }
-    }
+        // Sticky Frosted Header
+        if (header) {
+          if (scrollTop > 40) {
+            header.classList.add('scrolled');
+          } else {
+            header.classList.remove('scrolled');
+          }
+        }
 
-    // Back to Top Progress & Visibility
-    if (bttBtn) {
-      if (scrollTop > 220) {
-        bttBtn.classList.add('visible');
-      } else {
-        bttBtn.classList.remove('visible');
-      }
+        // Back to Top Progress & Visibility
+        if (bttBtn) {
+          if (scrollTop > 220) {
+            bttBtn.classList.add('visible');
+          } else {
+            bttBtn.classList.remove('visible');
+          }
 
-      if (progressFill) {
-        const offset = circumference - (scrollPercent * circumference);
-        progressFill.style.strokeDashoffset = Math.max(0, offset);
-      }
+          if (progressFill) {
+            const offset = circumference - (scrollPercent * circumference);
+            progressFill.style.strokeDashoffset = Math.max(0, offset);
+          }
+        }
+
+        ticking = false;
+      });
+      ticking = true;
     }
   }, { passive: true });
 }

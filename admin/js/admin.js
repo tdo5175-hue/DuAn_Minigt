@@ -29,6 +29,7 @@
     paymentStatus: 'ALL',
     paymentMethod: 'ALL',
     search: '',
+    preStage: 'ALL',
     page: 1,
     limit: 10
   };
@@ -138,6 +139,10 @@
     // Cho phép truy cập trực tiếp Cổng Quản Trị qua đường dẫn riêng /admin/index.html
     // Tách biệt hoàn toàn với phiên đăng nhập Khách hàng ngoài trang chủ
     currentAdminUser = defaultAdminProfile;
+    if (!localStorage.getItem('minigt_admin_token')) {
+      localStorage.setItem('minigt_admin_token', 'local-admin-token-minigt');
+      localStorage.setItem('minigt_admin_user', JSON.stringify(defaultAdminProfile));
+    }
     updateAdminProfileUI();
     hideLoginModal();
     initDashboard();
@@ -322,10 +327,18 @@
 
   function toggleSidebar() {
     const sidebar = document.getElementById('adminSidebar');
+    const backdrop = document.getElementById('sidebarBackdrop');
     if (!sidebar) return;
     isSidebarOpen = !isSidebarOpen;
-    if (isSidebarOpen) sidebar.classList.add('mobile-open');
-    else sidebar.classList.remove('mobile-open');
+    if (isSidebarOpen) {
+      sidebar.classList.add('mobile-open');
+      if (backdrop) backdrop.classList.add('active');
+      document.body.style.overflow = 'hidden';
+    } else {
+      sidebar.classList.remove('mobile-open');
+      if (backdrop) backdrop.classList.remove('active');
+      document.body.style.overflow = '';
+    }
   }
 
   // =====================================================================
@@ -1044,16 +1057,144 @@
     loadProducts();
   }
 
+  // =====================================================================
+  // QUẢN LÝ DANH MỤC ĐỘNG & TẠO DANH MỤC MỚI INLINE
+  // =====================================================================
+  let cachedCategories = [];
+
+  async function loadCategories() {
+    try {
+      const res = await api.get('/api/categories');
+      if (res && res.success && Array.isArray(res.data)) {
+        cachedCategories = res.data;
+        renderCategoryOptions(cachedCategories);
+      }
+    } catch (e) {
+      console.warn('Không thể tải danh mục từ API:', e);
+    }
+  }
+
+  function renderCategoryOptions(categories) {
+    if (!Array.isArray(categories) || !categories.length) return;
+
+    // 1. Dropdown trong Modal Thêm/Sửa sản phẩm
+    const prodCatSelect = document.getElementById('prodCategory');
+    if (prodCatSelect) {
+      const currentVal = prodCatSelect.value;
+      prodCatSelect.innerHTML = categories.map(c => `
+        <option value="${c.id || c.CategoryId}">${escapeHtml(c.name || c.Name)}</option>
+      `).join('');
+      if (currentVal && categories.some(c => String(c.id || c.CategoryId) === String(currentVal))) {
+        prodCatSelect.value = currentVal;
+      }
+    }
+
+    // 2. Dropdown bộ lọc Danh mục trên thanh Toolbar bảng sản phẩm
+    const filterSelect = document.getElementById('prodCategoryFilter');
+    if (filterSelect) {
+      const currentFilterVal = filterSelect.value;
+      filterSelect.innerHTML = `
+        <option value="all">-- Tất cả danh mục --</option>
+        ${categories.map(c => `<option value="${escapeHtml(c.slug || c.Slug)}">${escapeHtml(c.name || c.Name)}</option>`).join('')}
+      `;
+      if (currentFilterVal) filterSelect.value = currentFilterVal;
+    }
+  }
+
+  function toggleAddCategoryInline(forceOpen) {
+    const wrap = document.getElementById('newCategoryInlineWrap');
+    if (!wrap) return;
+    const shouldOpen = (forceOpen !== undefined) ? forceOpen : (wrap.style.display === 'none' || !wrap.style.display);
+    wrap.style.display = shouldOpen ? 'block' : 'none';
+    if (shouldOpen) {
+      const nameInput = document.getElementById('newCategoryNameInput');
+      if (nameInput) {
+        nameInput.value = '';
+        setTimeout(() => nameInput.focus(), 50);
+      }
+      const slugInput = document.getElementById('newCategorySlugInput');
+      if (slugInput) slugInput.value = '';
+    }
+  }
+
+  async function submitNewCategoryInline() {
+    const nameInput = document.getElementById('newCategoryNameInput');
+    const slugInput = document.getElementById('newCategorySlugInput');
+    const name = nameInput?.value.trim();
+    if (!name) {
+      adminToast('Vui lòng nhập tên danh mục mới!', 'error');
+      nameInput?.focus();
+      return;
+    }
+    const cleanSlug = (slugInput?.value.trim()) || name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[đĐ]/g, 'd').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+
+    try {
+      const res = await api.post('/api/admin/categories', {
+        name,
+        slug: cleanSlug
+      });
+
+      if (res && res.success) {
+        adminToast(`Đã thêm danh mục "${name}" thành công!`, 'success');
+        const newCat = res.data || { id: Date.now(), name, slug: cleanSlug };
+        if (!cachedCategories.some(c => (c.slug || c.Slug) === cleanSlug || (c.id && c.id == newCat.id))) {
+          cachedCategories.push(newCat);
+        }
+        renderCategoryOptions(cachedCategories);
+
+        const prodCatSelect = document.getElementById('prodCategory');
+        if (prodCatSelect) {
+          prodCatSelect.value = String(newCat.id || newCat.CategoryId);
+        }
+        toggleAddCategoryInline(false);
+      } else {
+        adminToast(res.message || 'Lỗi thêm danh mục', 'error');
+      }
+    } catch (err) {
+      adminToast('Không thể thêm danh mục: ' + err.message, 'error');
+    }
+  }
+
+  // =====================================================================
+  // LIÊN KẾT TỰ ĐỘNG 2 CHIỀU % CỌC & SỐ TIỀN VNĐ PRE-ORDER
+  // =====================================================================
+  function getEffectiveDiscountedPrice() {
+    const packType = document.getElementById('prodPackagingType')?.value || 'both';
+    const priceBox = parseFloat(document.getElementById('prodPriceBox')?.value) || 0;
+    const priceCard = parseFloat(document.getElementById('prodPriceCard')?.value) || 0;
+    const isDiscount = (typeof productDiscountMode !== 'undefined' && productDiscountMode === 'sale');
+    const discountPercent = isDiscount ? Math.max(0, Math.min(80, parseInt(document.getElementById('prodDiscountPercent')?.value, 10) || 0)) : 0;
+
+    const finalPriceBox = discountPercent > 0 ? Math.round((priceBox * (100 - discountPercent) / 100) / 1000) * 1000 : priceBox;
+    const finalPriceCard = discountPercent > 0 ? Math.round((priceCard * (100 - discountPercent) / 100) / 1000) * 1000 : priceCard;
+
+    return packType === 'card_only' ? (finalPriceCard > 0 ? finalPriceCard : finalPriceBox) : (finalPriceBox > 0 ? finalPriceBox : finalPriceCard);
+  }
+
   function handleProductStatusChange() {
     const status = document.getElementById('prodStatus')?.value;
     const preOrderCard = document.getElementById('preOrderConfigCard');
     if (!preOrderCard) return;
+
     if (status === 'pre_order') {
       preOrderCard.style.display = 'block';
       updateExpectedDeliveryString();
+      const pctInput = document.getElementById('prodDepositPercent');
+      if (pctInput) {
+        let val = parseInt(pctInput.value, 10);
+        if (isNaN(val) || val < 10 || val > 100) {
+          pctInput.value = 30;
+        }
+      }
       syncDepositPercentToAmount();
     } else {
       preOrderCard.style.display = 'none';
+      const pctInput = document.getElementById('prodDepositPercent');
+      if (pctInput) pctInput.value = 0;
+      const amtInput = document.getElementById('prodDepositAmount');
+      if (amtInput) amtInput.value = 0;
+      const legacyInput = document.getElementById('prodDeposit');
+      if (legacyInput) legacyInput.value = 0;
     }
   }
 
@@ -1070,19 +1211,51 @@
   function setDepositPercentPreset(pct) {
     const pctInput = document.getElementById('prodDepositPercent');
     if (pctInput) {
-      pctInput.value = pct;
+      pctInput.value = Math.min(100, Math.max(10, pct));
       syncDepositPercentToAmount();
     }
   }
 
   function syncDepositPercentToAmount() {
-    const pct = parseInt(document.getElementById('prodDepositPercent')?.value, 10) || 30;
-    const priceBox = parseFloat(document.getElementById('prodPriceBox')?.value) || 0;
-    if (priceBox > 0) {
-      const depAmt = Math.round((priceBox * (pct / 100)) / 1000) * 1000;
-      const depEl = document.getElementById('prodDeposit');
-      if (depEl) depEl.value = depAmt;
+    const pctInput = document.getElementById('prodDepositPercent');
+    if (!pctInput) return;
+    let pct = parseInt(pctInput.value, 10);
+    if (isNaN(pct) || pct < 10) pct = 10;
+    if (pct > 100) pct = 100;
+    pctInput.value = pct;
+
+    const basePrice = getEffectiveDiscountedPrice();
+    const depAmt = basePrice > 0 ? Math.round((basePrice * (pct / 100)) / 1000) * 1000 : 0;
+
+    const amtInput = document.getElementById('prodDepositAmount');
+    if (amtInput) amtInput.value = depAmt;
+
+    const legacyInput = document.getElementById('prodDeposit');
+    if (legacyInput) legacyInput.value = depAmt;
+  }
+
+  function syncDepositAmountToPercent() {
+    const amtInput = document.getElementById('prodDepositAmount');
+    if (!amtInput) return;
+    const basePrice = getEffectiveDiscountedPrice();
+    let amt = parseFloat(amtInput.value) || 0;
+
+    if (basePrice > 0) {
+      if (amt > basePrice) {
+        amt = basePrice;
+        amtInput.value = amt;
+      }
+      if (amt < 0) {
+        amt = 0;
+        amtInput.value = 0;
+      }
+      const pct = Math.min(100, Math.max(10, Math.round((amt / basePrice) * 100)));
+      const pctInput = document.getElementById('prodDepositPercent');
+      if (pctInput) pctInput.value = pct;
     }
+
+    const legacyInput = document.getElementById('prodDeposit');
+    if (legacyInput) legacyInput.value = amt;
   }
 
   function openAddProductModal() {
@@ -1182,9 +1355,7 @@
       }
       handleProductPriceInput();
 
-      document.getElementById('prodDeposit').value = p.depositAmount || '';
       document.getElementById('prodEdition').value = p.editionNote || '';
-      document.getElementById('prodDeadline').value = p.preOrderDeadline || '';
       document.getElementById('prodStatus').value = p.status;
 
       // Cấu hình Pre-Order dự kiến hàng về & % cọc
@@ -1200,8 +1371,13 @@
           if (yEl) yEl.value = yVal;
         }
       }
+      const isPre = p.status === 'pre_order';
       const dpInput = document.getElementById('prodDepositPercent');
-      if (dpInput) dpInput.value = p.depositPercent || p.DepositPercent || 30;
+      if (dpInput) dpInput.value = isPre ? (p.depositPercent || p.DepositPercent || 30) : 0;
+      const amtInput = document.getElementById('prodDepositAmount');
+      if (amtInput) amtInput.value = isPre ? (p.depositAmount || p.DepositAmount || '') : 0;
+      const legacyDep = document.getElementById('prodDeposit');
+      if (legacyDep) legacyDep.value = isPre ? (p.depositAmount || p.DepositAmount || 0) : 0;
       handleProductStatusChange();
 
       // Điền số lượng tồn kho Box & Card thực tế kiểm hàng
@@ -1298,6 +1474,11 @@
     const stockCard = parseInt(document.getElementById('prodStockCard')?.value, 10) || 0;
     const computedStock = packagingType === 'box_only' ? stockBox : (packagingType === 'card_only' ? stockCard : (stockBox + stockCard));
 
+    const isPreOrder = document.getElementById('prodStatus').value === 'pre_order';
+    const depositPercent = isPreOrder ? Math.min(100, Math.max(10, parseInt(document.getElementById('prodDepositPercent')?.value, 10) || 30)) : 0;
+    const depositAmount = isPreOrder ? (parseFloat(document.getElementById('prodDepositAmount')?.value) || Math.round((mainPrice * (depositPercent / 100)) / 1000) * 1000) : 0;
+    const expectedDelivery = isPreOrder ? (document.getElementById('prodExpectedDelivery')?.value || 'Tháng 11/2026 (Có thể trễ hơn dự kiến)') : null;
+
     const payload = {
       sku: skuVal,
       carNumber: carVal,
@@ -1313,12 +1494,12 @@
       finalPriceCard,
       price: mainPrice,
       oldPrice: mainOldPrice,
-      depositAmount: document.getElementById('prodDeposit').value ? parseFloat(document.getElementById('prodDeposit').value) : null,
+      depositAmount,
+      depositPercent,
+      expectedDelivery,
       editionNote: document.getElementById('prodEdition').value.trim(),
-      preOrderDeadline: document.getElementById('prodDeadline').value || null,
+      preOrderDeadline: null,
       status: document.getElementById('prodStatus').value,
-      expectedDelivery: document.getElementById('prodStatus').value === 'pre_order' ? (document.getElementById('prodExpectedDelivery')?.value || 'Tháng 11/2026 (Có thể trễ hơn dự kiến)') : null,
-      depositPercent: parseInt(document.getElementById('prodDepositPercent')?.value, 10) || 30,
       stock: computedStock,
       stockBox,
       stockCard,
@@ -1392,6 +1573,31 @@
       btn.classList.toggle('active', btn.dataset.status === status);
     });
 
+    const subBar = document.getElementById('preorderSubFilterBar');
+    if (subBar) {
+      if (status === 'PRE_ORDER') {
+        subBar.style.display = 'block';
+        if (!orderFilter.preStage) orderFilter.preStage = 'ALL';
+        document.querySelectorAll('.preorder-sub-btn').forEach(btn => {
+          btn.classList.toggle('active', btn.dataset.prestage === orderFilter.preStage);
+        });
+      } else {
+        subBar.style.display = 'none';
+        delete orderFilter.preStage;
+      }
+    }
+
+    loadOrders();
+  }
+
+  function setPreOrderSubStage(stage) {
+    orderFilter.preStage = stage;
+    orderFilter.page = 1;
+
+    document.querySelectorAll('.preorder-sub-btn').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.prestage === stage);
+    });
+
     loadOrders();
   }
 
@@ -1423,6 +1629,20 @@
     for (const [id, count] of Object.entries(map)) {
       const el = document.getElementById(id);
       if (el) el.textContent = count || 0;
+    }
+
+    if (counts.preStages) {
+      const preMap = {
+        preCountAll: counts.preStages.all || 0,
+        preCountNeedDeposit: counts.preStages.needDeposit || 0,
+        preCountWaitingGoods: counts.preStages.waitingGoods || 0,
+        preCountGoodsArrived: counts.preStages.goodsArrived || 0,
+        preCountShipped: counts.preStages.shipped || 0
+      };
+      for (const [id, count] of Object.entries(preMap)) {
+        const el = document.getElementById(id);
+        if (el) el.textContent = count;
+      }
     }
   }
 
@@ -1753,8 +1973,13 @@
 
       // 3. Xác nhận tiền cọc hoặc thanh toán full
       if (o.status !== 'CANCELLED' && o.paymentStatus !== 'PAID' && o.paymentMethod !== 'COD') {
-        if (o.paymentMethod === 'DEPOSIT' && o.paymentStatus === 'UNPAID') {
-          actions.push(`<button class="btn-admin btn-admin-outline" style="padding:3px 7px; font-size:11px; color:#2563eb; border-color:#93c5fd;" onclick="confirmPaymentAction(${o.id}, 'deposit')" title="Xác nhận đã nhận cọc"><i class="fa-solid fa-money-bill-transfer"></i> Nhận Cọc</button>`);
+        if (o.paymentMethod === 'DEPOSIT') {
+          if (o.paymentStatus === 'UNPAID') {
+            actions.push(`<button class="btn-admin btn-admin-outline" style="padding:3px 7px; font-size:11px; color:#2563eb; border-color:#93c5fd;" onclick="confirmPaymentAction(${o.id}, 'deposit')" title="Xác nhận đã nhận cọc"><i class="fa-solid fa-money-bill-transfer"></i> Nhận Cọc</button>`);
+          } else if (o.paymentStatus === 'PARTIALLY_PAID') {
+            actions.push(`<span class="badge-deposited" style="font-size:10px; font-weight:700; padding:2px 6px; border-radius:4px;"><i class="fa-solid fa-circle-check"></i> Đã nhận cọc</span>`);
+            actions.push(`<button class="btn-admin btn-admin-outline" style="padding:3px 7px; font-size:11px; color:#059669; border-color:#a7f3d0;" onclick="confirmPaymentAction(${o.id}, 'full')" title="Xác nhận nhận đủ tiền 100%"><i class="fa-solid fa-circle-dollar-to-slot"></i> Nhận Đủ</button>`);
+          }
         } else if (o.paymentMethod === 'BANK_TRANSFER' && o.paymentStatus === 'UNPAID') {
           actions.push(`<button class="btn-admin btn-admin-outline" style="padding:3px 7px; font-size:11px; color:#2563eb; border-color:#93c5fd;" onclick="confirmPaymentAction(${o.id}, 'full')" title="Xác nhận nhận đủ tiền 100%"><i class="fa-solid fa-circle-dollar-to-slot"></i> Nhận Full</button>`);
         }
@@ -1771,11 +1996,11 @@
       }
 
       // 5b. Báo hàng Pre-Order đã về kho (chỉ dành riêng cho đơn có xe Pre-Order)
-      if ((o.hasPreOrder || o.HasPreOrder) && ['CONFIRMED', 'PREPARING'].includes(o.status)) {
+      if ((o.hasPreOrder || o.HasPreOrder) && ['PENDING', 'CONFIRMED', 'PREPARING'].includes(o.status)) {
         if (!o.preOrderNotified && !o.PreOrderNotified) {
-          actions.push(`<button class="btn-admin btn-admin-primary" style="padding:3px 8px; font-size:11px; background:#7c3aed; border-color:#7c3aed;" onclick="markPreOrderArrivedAction(${o.id})" title="Báo hàng Pre-Order đã về tới kho Biên Hòa để giao"><i class="fa-solid fa-bell"></i> Báo Hàng Đã Về</button>`);
+          actions.push(`<button class="btn-admin btn-admin-primary" style="padding:3px 8px; font-size:11px; background:#d97706; border-color:#b45309;" onclick="markPreOrderArrivedAction(${o.id})" title="Báo hàng Pre-Order đã về tới kho Biên Hòa để giao"><i class="fa-solid fa-boxes-packing"></i> Báo Hàng Đã Về</button>`);
         } else {
-          actions.push(`<span style="font-size:10px; color:#7c3aed; font-weight:700; background:#f5f3ff; border:1px solid #ddd6fe; padding:2px 6px; border-radius:4px;"><i class="fa-solid fa-circle-check"></i> Đã về kho</span>`);
+          actions.push(`<span class="badge-arrived" style="font-size:10px; font-weight:700; padding:2px 6px; border-radius:4px;"><i class="fa-solid fa-circle-check"></i> Hàng đã về kho</span>`);
         }
       }
 
@@ -1833,7 +2058,7 @@
             ` : ''}
           </td>
 
-          <!-- 2. Khách hàng & SĐT (bảo mật số điện thoại bằng eye toggle) -->
+          <!-- 2. Khách hàng & SĐT (bảo mật số điện thoại bằng eye toggle & huy hiệu địa chỉ Mới/Cũ) -->
           <td>
             <div style="font-weight:700; color:#0f172a; font-size:12.5px;">${escapeHtml(custName)}</div>
             <div class="phone-privacy-wrapper" style="margin-top:2px;">
@@ -1846,6 +2071,13 @@
             </div>
             <div style="font-size:11px; color:#64748b; margin-top:2px; max-width:180px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${escapeHtml(custAddr)}">
               ${escapeHtml(custAddr || 'Tại shop')}
+            </div>
+            <div style="margin-top:3px; display:flex; align-items:center; gap:4px; flex-wrap:wrap;">
+              ${(o.addressType === 'OLD' || o.isOldAddress)
+                ? `<span class="badge-addr-old" title="Khách chọn Địa chỉ CŨ trước sáp nhập - Khi tạo đơn SPX cần đối chiếu hoặc báo khách!"><i class="fa-solid fa-triangle-exclamation"></i> ĐC CŨ</span>`
+                : `<span class="badge-addr-new" title="Địa chỉ MỚI chuẩn sau sáp nhập"><i class="fa-solid fa-circle-check"></i> ĐC MỚI</span>`
+              }
+              ${o.oldAddressNote ? `<span style="font-size:10px; color:#c2410c; background:#ffedd5; padding:1px 4px; border-radius:3px; max-width:110px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${escapeHtml(o.oldAddressNote)}">${escapeHtml(o.oldAddressNote)}</span>` : ''}
             </div>
           </td>
 
@@ -1973,6 +2205,8 @@
         </div>
       `).join('') || '<div style="font-size:12px; color:#64748b;">Chưa có lịch sử trạng thái</div>';
 
+      const isOldAddr = order.addressType === 'OLD' || order.isOldAddress;
+
       body.innerHTML = `
         <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #e2e8f0; padding-bottom:12px; margin-bottom:14px;">
           <div>
@@ -1995,11 +2229,90 @@
             ${order.customer.email ? `<div>Email: <span>${escapeHtml(order.customer.email)}</span></div>` : ''}
           </div>
           <div>
-            <div style="color:#64748b; margin-bottom:2px;">Địa chỉ giao phát kiện:</div>
-            <div style="line-height:1.4;">${escapeHtml(order.customer.address)}</div>
-            ${order.note ? `<div style="margin-top:6px; color:#b45309; font-style:italic;">Ghi chú: ${escapeHtml(order.note)}</div>` : ''}
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:2px;">
+              <span style="color:#64748b;">Địa chỉ giao phát kiện:</span>
+              <span class="${isOldAddr ? 'badge-addr-old' : 'badge-addr-new'}">
+                <i class="fa-solid ${isOldAddr ? 'fa-triangle-exclamation' : 'fa-circle-check'}"></i>
+                ${isOldAddr ? 'ĐC CŨ TRƯỚC SÁP NHẬP' : 'ĐC MỚI CHUẨN'}
+              </span>
+            </div>
+            <div style="line-height:1.4; font-weight:600; color:#1e293b;">${escapeHtml(order.customer.address)}</div>
+            ${order.oldAddressNote ? `<div style="margin-top:4px; color:#c2410c; font-size:11.5px;"><strong>Ghi chú phường cũ:</strong> ${escapeHtml(order.oldAddressNote)}</div>` : ''}
+            ${order.note ? `<div style="margin-top:6px; color:#b45309; font-style:italic;">Ghi chú khách: ${escapeHtml(order.note)}</div>` : ''}
           </div>
         </div>
+
+        <!-- Khung đối soát địa chỉ Mới / Cũ sáp nhập & hỗ trợ tạo đơn SPX Express -->
+        <div class="addr-dispatch-box ${isOldAddr ? 'is-old-addr' : ''}">
+          <div class="addr-dispatch-header">
+            <div style="display:flex; align-items:center; gap:8px;">
+              <i class="fa-solid fa-location-dot" style="color:${isOldAddr ? '#ea580c' : '#059669'}; font-size:15px;"></i>
+              <strong style="color:${isOldAddr ? '#c2410c' : '#065f46'}; font-size:13px;">
+                ĐỐI SOÁT ĐỊA CHỈ NHẬN HÀNG (${isOldAddr ? 'ĐỊA CHỈ CŨ TRƯỚC SÁP NHẬP' : 'ĐỊA CHỈ MỚI CHUẨN'})
+              </strong>
+            </div>
+            <div style="display:flex; gap:6px; align-items:center;">
+              <span class="${isOldAddr ? 'badge-addr-old' : 'badge-addr-new'}">
+                <i class="fa-solid ${isOldAddr ? 'fa-triangle-exclamation' : 'fa-circle-check'}"></i>
+                ${isOldAddr ? 'Khách chọn: ĐỊA CHỈ CŨ' : 'Khách chọn: ĐỊA CHỈ MỚI'}
+              </span>
+            </div>
+          </div>
+
+          <div style="font-size:12px; line-height:1.5; color:#334155; margin-bottom:8px;">
+            <div><strong>Địa chỉ khách ghi:</strong> ${escapeHtml(order.customer.address)}</div>
+            ${order.oldAddressNote ? `<div style="margin-top:2px; color:#c2410c;"><strong>Ghi chú đơn vị hành chính cũ:</strong> ${escapeHtml(order.oldAddressNote)}</div>` : ''}
+            ${order.newAddressEquivalent ? `<div style="margin-top:2px; color:#047857; font-weight:700;"><i class="fa-solid fa-arrow-right"></i> Quy đổi chuẩn hành chính mới: ${escapeHtml(order.newAddressEquivalent)}</div>` : ''}
+          </div>
+
+          ${isOldAddr ? `
+            <div style="background:#fff7ed; border:1px solid #fed7aa; border-radius:6px; padding:8px 10px; font-size:11.5px; color:#9a3412; margin-bottom:8px; line-height:1.45;">
+              <i class="fa-solid fa-circle-exclamation" style="color:#ea580c; margin-right:4px;"></i>
+              <strong>Cảnh báo Admin khi lên đơn SPX / GHTK:</strong> Khách khai báo theo tên phường/quận cũ trước sáp nhập. Khi nhập đơn trên ứng dụng SPX Express, nếu không tìm thấy phường cũ, Admin hãy đối chiếu sang phường mới tương đương (VD: P. Hòa Bình ➔ P. Quang Vinh; P. Thanh Bình ➔ P. Quyết Thắng; Q.2/9/Thủ Đức ➔ TP. Thủ Đức) hoặc bấm nút <strong>"Copy Báo Khách (Zalo)"</strong> bên dưới để hỏi lại khách!
+            </div>
+          ` : ''}
+
+          <div class="addr-dispatch-actions">
+            <button type="button" class="addr-btn-copy btn-copy-spx" onclick="copySpxFormattedAddress(${order.id})" title="Copy địa chỉ theo định dạng chuẩn để dán vào App SPX Express hoặc GHTK">
+              <i class="fa-regular fa-copy"></i> 📋 Copy Địa Chỉ Chuẩn SPX
+            </button>
+            <button type="button" class="addr-btn-copy btn-copy-msg" onclick="copyCustomerAddressConfirmMsg(${order.id})" title="Copy tin nhắn soạn sẵn gửi Zalo/SMS cho khách để xác nhận địa chỉ">
+              <i class="fa-solid fa-comment-dots"></i> 💬 Copy Tin Nhắn Báo Khách (Zalo)
+            </button>
+            <button type="button" class="addr-btn-copy" onclick="toggleOrderAddressType(${order.id})" title="Chuyển đổi trạng thái đơn giữa Địa chỉ Mới và Cũ">
+              <i class="fa-solid fa-arrows-rotate"></i> Đổi sang ${isOldAddr ? 'ĐC MỚI' : 'ĐC CŨ'}
+            </button>
+          </div>
+        </div>
+
+        <!-- Tiến độ Đơn Pre-Order (Nếu đơn chứa mô hình đặt trước) -->
+        ${(order.hasPreOrder || order.HasPreOrder) ? `
+          <div style="background:linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%); border:1.5px solid #fde68a; border-radius:8px; padding:12px 14px; margin-bottom:14px; font-size:12.5px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; flex-wrap:wrap; gap:6px;">
+              <div style="display:flex; align-items:center; gap:6px; font-weight:800; color:#92400e; font-size:13px;">
+                <span>⚡</span> TIẾN ĐỘ ĐƠN ĐẶT HÀNG TRƯỚC (PRE-ORDER)
+              </div>
+              <div>
+                ${(order.preOrderNotified || order.PreOrderNotified)
+                  ? '<span class="badge-arrived" style="font-size:11px; font-weight:700; padding:3px 8px; border-radius:4px;"><i class="fa-solid fa-circle-check"></i> Hàng đã về kho Biên Hòa</span>'
+                  : '<span style="background:#fee2e2; color:#b91c1c; font-size:11px; font-weight:700; padding:3px 8px; border-radius:4px;"><i class="fa-solid fa-clock"></i> Đang chờ hãng xuất xưởng</span>'
+                }
+              </div>
+            </div>
+            <div style="font-size:12px; color:#78350f; line-height:1.5;">
+              <div>• Dự kiến phát hàng từ hãng: <strong>${escapeHtml(order.preOrderExpected || order.PreOrderExpected || 'Theo thông báo hãng')}</strong></div>
+              <div>• Tiền cọc giữ xe: <strong>${formatVND(order.depositAmount || 0)}</strong> &bull; Trạng thái cọc: <strong>${order.paymentStatus === 'PARTIALLY_PAID' ? '✓ Đã nhận cọc' : (order.paymentStatus === 'PAID' ? '✓ Đã thanh toán full 100%' : '⏳ Chưa nhận cọc')}</strong></div>
+            </div>
+            ${['PENDING', 'CONFIRMED', 'PREPARING'].includes(order.status) && !order.preOrderNotified && !order.PreOrderNotified ? `
+              <div style="margin-top:10px; padding-top:8px; border-top:1px dashed #fcd34d; display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+                <button type="button" class="btn-admin btn-admin-primary" style="background:#d97706; border-color:#b45309; font-size:11.5px; padding:6px 14px;" onclick="markPreOrderArrivedAction(${order.id})">
+                  <i class="fa-solid fa-boxes-packing"></i> Báo Hàng Pre-Order Đã Về Kho Biên Hòa
+                </button>
+                <span style="font-size:11px; color:#92400e;">(Click để chuyển trạng thái sang đóng gói và gửi thông báo tới khách)</span>
+              </div>
+            ` : ''}
+          </div>
+        ` : ''}
 
         <!-- Bảng sản phẩm -->
         <div style="margin-bottom:14px;">
@@ -2223,11 +2536,20 @@
         const codAmount = currentActionOrderData.codAmount !== undefined 
           ? currentActionOrderData.codAmount 
           : (currentActionOrderData.paymentStatus === 'PAID' ? 0 : (currentActionOrderData.depositAmount > 0 ? Math.max(0, currentActionOrderData.total - currentActionOrderData.depositAmount) : currentActionOrderData.total));
+        const isOld = currentActionOrderData.addressType === 'OLD' || currentActionOrderData.isOldAddress;
 
         dispatchInfo.innerHTML = `
           <div><strong>Người nhận:</strong> ${escapeHtml(currentActionOrderData.customer.fullName)}</div>
           <div><strong>Số điện thoại:</strong> ${escapeHtml(currentActionOrderData.customer.phone)}</div>
-          <div><strong>Địa chỉ:</strong> ${escapeHtml(currentActionOrderData.customer.address)}</div>
+          <div>
+            <strong>Địa chỉ:</strong> ${escapeHtml(currentActionOrderData.customer.address)}
+            <span class="${isOld ? 'badge-addr-old' : 'badge-addr-new'}" style="margin-left:6px;">
+              <i class="fa-solid ${isOld ? 'fa-triangle-exclamation' : 'fa-circle-check'}"></i>
+              ${isOld ? 'ĐC CŨ TRƯỚC SÁP NHẬP' : 'ĐC MỚI CHUẨN'}
+            </span>
+          </div>
+          ${currentActionOrderData.oldAddressNote ? `<div style="color:#c2410c; font-size:11.5px; margin-top:2px;">⚠️ Ghi chú cũ: <em>${escapeHtml(currentActionOrderData.oldAddressNote)}</em></div>` : ''}
+          ${isOld ? `<div style="color:#c2410c; font-size:11.5px; margin-top:2px;">⚠️ <em>Lưu ý đối chiếu: Khách dùng địa chỉ cũ. Khi chọn danh mục trên App SPX Express, hãy chọn phường mới tương đương hoặc hỏi lại khách!</em></div>` : ''}
           <div><strong>Hình thức:</strong> ${currentActionOrderData.paymentMethod === 'DEPOSIT' ? 'Cọc trước giữ xe' : (currentActionOrderData.paymentMethod === 'BANK_TRANSFER' ? 'Chuyển khoản 100%' : 'COD')}</div>
           <div><strong>Tiền thu hộ Shipper (COD):</strong> <span style="color:#dc2626; font-weight:800; font-size:13.5px;">${formatVND(codAmount)}</span> ${codAmount === 0 ? '<span style="color:#059669; font-size:11px;">(Đã thanh toán đủ - Thu 0đ)</span>' : '<span style="color:#64748b; font-size:11px;">(Tiền xe còn lại + ship SPX)</span>'}</div>
         `;
@@ -2245,16 +2567,92 @@
       ? currentActionOrderData.codAmount 
       : (currentActionOrderData.paymentStatus === 'PAID' ? 0 : (currentActionOrderData.depositAmount > 0 ? Math.max(0, currentActionOrderData.total - currentActionOrderData.depositAmount) : currentActionOrderData.total));
 
+    const isOld = currentActionOrderData.addressType === 'OLD' || currentActionOrderData.isOldAddress;
     const itemsSummary = (currentActionOrderData.items || []).map(i => `${i.name} (x${i.quantity})`).join(', ');
 
     const text = `NGƯỜI NHẬN: ${currentActionOrderData.customer.fullName}
 SĐT: ${currentActionOrderData.customer.phone}
-ĐỊA CHỈ: ${currentActionOrderData.customer.address}
+ĐỊA CHỈ: ${currentActionOrderData.customer.address} [${isOld ? 'ĐỊA CHỈ CŨ TRƯỚC SÁP NHẬP' : 'ĐỊA CHỈ MỚI'}]
 THU HỘ COD: ${formatVND(codAmount)}
 HÀNG HÓA: Mô hình 1:64 Mini GT [${itemsSummary || 'Mô hình xe'}]
 MÃ ĐƠN SHOP: #${currentActionOrderData.code}`;
 
     copyTextToClipboard(text, 'Đã sao chép toàn bộ thông tin gửi hàng cho SPX!');
+  }
+
+  // Tiện ích 1: Sao chép địa chỉ chuẩn đối soát để paste trực tiếp vào SPX Express / GHTK
+  async function copySpxFormattedAddress(orderId) {
+    try {
+      const res = await api.get(`/api/admin/orders/${orderId}`);
+      if (!res.success || !res.data) return;
+      const order = res.data;
+      const isOld = order.addressType === 'OLD' || order.isOldAddress;
+      const codVal = order.codAmount !== undefined 
+        ? order.codAmount 
+        : (order.paymentStatus === 'PAID' ? 0 : (order.depositAmount > 0 ? Math.max(0, order.total - order.depositAmount) : order.total));
+
+      let addrText = order.customer.address;
+      if (isOld) {
+        if (order.newAddressEquivalent) {
+          addrText += ` (Chuẩn mới tương đương: ${order.newAddressEquivalent})`;
+        } else if (order.oldAddressNote) {
+          addrText += ` (Ghi chú cũ: ${order.oldAddressNote})`;
+        }
+      }
+
+      const text = `Người nhận: ${order.customer.fullName}
+Số điện thoại: ${order.customer.phone}
+Địa chỉ giao hàng: ${addrText}
+Tiền thu COD: ${formatVND(codVal)}
+Ghi chú gửi: Mô hình xe 1:64 Mini GT Store Biên Hòa #${order.code} - Cho kiểm tra hàng`;
+
+      copyTextToClipboard(text, 'Đã sao chép địa chỉ chuẩn tạo đơn SPX Express!');
+    } catch (e) {
+      adminToast('Lỗi sao chép địa chỉ: ' + e.message, 'error');
+    }
+  }
+
+  // Tiện ích 2: Sao chép mẫu tin nhắn soạn sẵn gửi khách qua Zalo/SMS để hỏi lại địa chỉ
+  async function copyCustomerAddressConfirmMsg(orderId) {
+    try {
+      const res = await api.get(`/api/admin/orders/${orderId}`);
+      if (!res.success || !res.data) return;
+      const order = res.data;
+      const isOld = order.addressType === 'OLD' || order.isOldAddress;
+
+      const msg = `Dạ chào anh/chị ${order.customer.fullName}, Shop Mô Hình Mini GT Biên Hòa đã tiếp nhận đơn #${order.code} của mình ạ!
+
+Dạ em thấy địa chỉ nhận hàng của mình: "${order.customer.address}"${isOld ? ' (đang dùng tên phường/quận cũ trước đợt sáp nhập ĐVHC)' : ''}.
+Để bên em tạo mã vận đơn qua SPX Express phát nhanh nhất và tránh shipper giao nhầm bưu cục khác, anh/chị cho shop xác nhận lại địa chỉ hành chính mới của mình${order.newAddressEquivalent ? ` có phải là: "${order.newAddressEquivalent}" không ạ?` : ' nhé ạ!'}
+
+Anh/chị phản hồi giúp shop để kiện xe được đóng gói gửi đi sớm nhất nhé ạ. Em cảm ơn anh/chị nhiều!`;
+
+      copyTextToClipboard(msg, 'Đã sao chép tin nhắn Zalo/SMS báo khách xác nhận địa chỉ!');
+    } catch (e) {
+      adminToast('Lỗi sao chép tin nhắn: ' + e.message, 'error');
+    }
+  }
+
+  // Tiện ích 3: Chuyển đổi qua lại giữa Địa chỉ Mới và Địa chỉ Cũ chỉ với 1-Click
+  async function toggleOrderAddressType(orderId) {
+    try {
+      const resOrder = await api.get(`/api/admin/orders/${orderId}`);
+      if (!resOrder.success || !resOrder.data) return;
+      const currentType = resOrder.data.addressType || (resOrder.data.isOldAddress ? 'OLD' : 'NEW');
+      const targetType = currentType === 'OLD' ? 'NEW' : 'OLD';
+
+      const res = await api.put(`/api/admin/orders/${orderId}/address-type`, {
+        addressType: targetType
+      });
+
+      adminToast(res.message || `Đã chuyển sang ${targetType === 'OLD' ? 'Địa chỉ CŨ' : 'Địa chỉ MỚI'} thành công!`, 'success');
+      loadOrders();
+      if (document.getElementById('orderDetailModal')?.classList.contains('active')) {
+        viewOrderDetail(orderId);
+      }
+    } catch (e) {
+      adminToast('Lỗi cập nhật loại địa chỉ: ' + e.message, 'error');
+    }
   }
 
   async function pasteTrackingToInput(inputId) {
@@ -2704,11 +3102,30 @@ MÃ ĐƠN SHOP: #${currentActionOrderData.code}`;
     adminToast(next === 'en' ? '🌐 Switched Admin language to English (EN)' : '🇻🇳 Đã chuyển ngôn ngữ Quản trị sang Tiếng Việt (VN)', 'info');
   }
 
+  function toggleAdminSettingsMenu(event) {
+    if (event) {
+      if (event.stopPropagation) event.stopPropagation();
+      if (event.preventDefault) event.preventDefault();
+    }
+    const dropdown = document.getElementById('adminSettingsDropdown');
+    if (dropdown) dropdown.classList.toggle('show');
+  }
+
+  // Tự động đóng dropdown khi click bên ngoài
+  document.addEventListener('click', (e) => {
+    const wrap = document.getElementById('adminSettingsWrap');
+    const dropdown = document.getElementById('adminSettingsDropdown');
+    if (wrap && dropdown && !wrap.contains(e.target)) {
+      dropdown.classList.remove('show');
+    }
+  });
+
   let adminSyncInterval = null;
   let lastKnownOrderCode = null;
 
   // Khởi tạo ứng dụng khi load xong DOM
   function initDashboard() {
+    loadCategories();
     loadDashboard();
     loadOrders();
 
@@ -2790,6 +3207,7 @@ MÃ ĐƠN SHOP: #${currentActionOrderData.code}`;
   window.copyTextToClipboard = copyTextToClipboard;
   window.toggleAdminTheme = toggleAdminTheme;
   window.toggleAdminLang = toggleAdminLang;
+  window.toggleAdminSettingsMenu = toggleAdminSettingsMenu;
 
   // Products
   window.loadProducts = loadProducts;
@@ -2811,6 +3229,10 @@ MÃ ĐƠN SHOP: #${currentActionOrderData.code}`;
   window.saveProduct = saveProduct;
   window.cloneProduct = cloneProduct;
   window.deleteProduct = deleteProduct;
+  window.loadCategories = loadCategories;
+  window.toggleAddCategoryInline = toggleAddCategoryInline;
+  window.submitNewCategoryInline = submitNewCategoryInline;
+  window.syncDepositAmountToPercent = syncDepositAmountToPercent;
 
   async function markPreOrderArrivedAction(orderId) {
     if (!confirm('Xác nhận: Lô hàng Pre-Order của đơn hàng này đã về tới kho cửa hàng Biên Hòa? Trạng thái đơn sẽ được cập nhật để bạn chuẩn bị đóng gói & gán mã SPX Express giao cho khách.')) return;
@@ -2823,6 +3245,9 @@ MÃ ĐƠN SHOP: #${currentActionOrderData.code}`;
         }
         loadOrders();
         loadDashboard();
+        if (document.getElementById('orderDetailModal')?.classList.contains('active')) {
+          viewOrderDetail(orderId);
+        }
       }
     } catch (err) {
       adminToast('Lỗi cập nhật hàng về: ' + err.message, 'error');
@@ -2832,6 +3257,7 @@ MÃ ĐƠN SHOP: #${currentActionOrderData.code}`;
   // Orders
   window.loadOrders = loadOrders;
   window.setOrderTab = setOrderTab;
+  window.setPreOrderSubStage = setPreOrderSubStage;
   window.handleOrderSearchDebounced = handleOrderSearchDebounced;
   window.handleOrderFilterChange = handleOrderFilterChange;
   window.goToOrderPage = goToOrderPage;
@@ -2857,6 +3283,9 @@ MÃ ĐƠN SHOP: #${currentActionOrderData.code}`;
   window.togglePhoneMask = togglePhoneMask;
   window.copyOrderCode = copyOrderCode;
   window.printOrderInvoice = printOrderInvoice;
+  window.copySpxFormattedAddress = copySpxFormattedAddress;
+  window.copyCustomerAddressConfirmMsg = copyCustomerAddressConfirmMsg;
+  window.toggleOrderAddressType = toggleOrderAddressType;
 
   // Customers & Newsletter & Settings
   window.loadUsers = loadUsers;

@@ -20,6 +20,9 @@
     <div class="sidebar-header">
       <img src="../image/logo-minigt.webp" alt="MINI GT" class="sidebar-logo">
       <span class="sidebar-badge">ADMIN</span>
+      <button type="button" class="sidebar-close-btn" onclick="toggleSidebar()" aria-label="Đóng menu">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
     </div>
 
     <nav class="sidebar-nav">
@@ -65,6 +68,7 @@
       </div>
     </div>
   </aside>
+  <div class="sidebar-backdrop" id="sidebarBackdrop" onclick="toggleSidebar()"></div>
 
   <!-- =====================================================================
        2. MAIN CONTENT AREA
@@ -80,13 +84,36 @@
       </div>
 
       <div class="topbar-actions" style="flex-wrap:wrap;">
-        <div class="admin-prefs-group">
-          <button type="button" class="btn-admin btn-admin-outline" id="adminThemeToggleBtn" onclick="toggleAdminTheme()" title="Chuyển đổi Giao diện Sáng / Tối">
-            <i class="fa-solid fa-moon"></i> <span id="adminThemeLabel">Tối</span>
+        <!-- Unified Display Settings (Theme & Language in 1 Dropdown) -->
+        <div class="admin-settings-wrap" id="adminSettingsWrap">
+          <button type="button" class="btn-admin btn-admin-outline" id="adminDisplaySettingsBtn" onclick="toggleAdminSettingsMenu(event)" title="Cài đặt giao diện & ngôn ngữ" aria-label="Cài đặt hiển thị">
+            <i class="fa-solid fa-sliders"></i> <span>Cài Đặt Hiển Thị</span> <i class="fa-solid fa-chevron-down" style="font-size:10px; margin-left:3px;"></i>
           </button>
-          <button type="button" class="btn-admin btn-admin-outline" id="adminLangToggleBtn" onclick="toggleAdminLang()" title="Chuyển đổi Ngôn ngữ VN / EN">
-            <i class="fa-solid fa-globe"></i> <span id="adminLangLabel">VN</span>
-          </button>
+          <div class="admin-settings-dropdown" id="adminSettingsDropdown">
+            <div class="settings-dropdown-header">
+              <i class="fa-solid fa-sliders"></i> Cài Đặt Hiển Thị
+            </div>
+            <div class="settings-dropdown-item" onclick="toggleAdminTheme()">
+              <div class="settings-item-label">
+                <i class="fa-solid fa-circle-half-stroke"></i>
+                <span>Giao diện</span>
+              </div>
+              <button type="button" class="admin-pill-toggle" id="adminThemePill">
+                <i class="fa-solid fa-moon" id="adminThemeIcon"></i>
+                <span id="adminThemeLabel">Tối</span>
+              </button>
+            </div>
+            <div class="settings-dropdown-item" onclick="toggleAdminLang()">
+              <div class="settings-item-label">
+                <i class="fa-solid fa-globe"></i>
+                <span>Ngôn ngữ</span>
+              </div>
+              <button type="button" class="admin-pill-toggle" id="adminLangPill">
+                <span id="adminLangFlag">🇻🇳</span>
+                <span id="adminLangLabel">VN</span>
+              </button>
+            </div>
+          </div>
         </div>
         <button type="button" class="btn-admin btn-admin-outline" style="border-color:#f59e0b; color:#b45309; background:#fffbeb;" onclick="switchTab('about')">
           <i class="fa-solid fa-user-graduate"></i> Nhóm Tác Giả
@@ -108,48 +135,6 @@
 
       <!-- PANE 1: TỔNG QUAN (DASHBOARD) -->
       <section class="tab-pane active" id="pane-dashboard">
-        <!-- BANNER GIỚI THIỆU ĐỀ TÀI & 2 TÁC GIẢ THỰC HIỆN (ĐỖ QUỐC THỊNH & NGUYỄN ĐÌNH NAM) -->
-        <div class="project-authors-banner">
-          <div class="project-authors-info">
-            <div class="project-badge-pill">
-              <i class="fa-solid fa-graduation-cap"></i> ĐỒ ÁN THIẾT KẾ WEB &amp; THƯƠNG MẠI ĐIỆN TỬ • ĐẠI HỌC LẠC HỒNG
-            </div>
-            <h2 class="project-banner-title">
-              Đề tài: Hệ Thống Thương Mại Điện Tử &amp; Quản Trị Đặt Cọc Mô Hình Xe Tỉ Lệ 1:64 — MINI GT STORE BIÊN HÒA
-            </h2>
-            <p class="project-banner-desc">
-              Nền tảng chuyên biệt dành cho cộng đồng sưu tầm Diecast 1:64 (Mini GT, Pop Race, Kaido House, Liberty Walk &amp; FIA GT3). Tích hợp quản lý hạn ngạch Pre-order, tùy chọn Không Giảm Giá / Giá Niêm Yết, tạo mã VietQR MB Bank tự động và đồng bộ vận đơn SPX Express thời gian thực.
-            </p>
-            <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:10px;">
-              <button type="button" class="btn-admin btn-admin-primary" onclick="switchTab('about')">
-                <i class="fa-solid fa-book-open"></i> Xem Chi Tiết Đề Tài &amp; Hồ Sơ Tác Giả
-              </button>
-              <button type="button" class="btn-admin btn-admin-outline" style="background:rgba(255,255,255,0.12); color:#fff; border-color:rgba(255,255,255,0.25);" onclick="openAddProductModal()">
-                <i class="fa-solid fa-plus"></i> Thêm Mô Hình 1:64 Mới
-              </button>
-            </div>
-          </div>
-
-          <div class="project-authors-cards">
-            <div class="author-mini-card" onclick="switchTab('about')">
-              <img src="../image/DoQuocThinh_anhthe.jpg" alt="Đỗ Quốc Thịnh" class="author-mini-avatar" onerror="this.src='../image/logo-minigt.webp'">
-              <div>
-                <div class="author-mini-role">TÁC GIẢ 1 • TRƯỞNG NHÓM</div>
-                <div class="author-mini-name">Đỗ Quốc Thịnh</div>
-                <div class="author-mini-sub">Full-Stack • SQL Server • VietQR &amp; Admin</div>
-              </div>
-            </div>
-            <div class="author-mini-card" onclick="switchTab('about')">
-              <img src="../image/Anh_The_Dinh_Nam.jpg" alt="Nguyễn Đình Nam" class="author-mini-avatar" onerror="this.src='../image/logo-minigt.webp'">
-              <div>
-                <div class="author-mini-role">TÁC GIẢ 2 • ĐỒNG SÁNG LẬP</div>
-                <div class="author-mini-name">Nguyễn Đình Nam</div>
-                <div class="author-mini-sub">UI/UX Collector 1:64 • Hiệu Ứng &amp; Mobile</div>
-              </div>
-            </div>
-          </div>
-        </div>
-
         <!-- 6 KPI CARDS -->
         <div class="stats-grid">
           <div class="stat-card">
@@ -361,6 +346,32 @@
             <button class="order-tab-btn pre-order-tab-highlight" data-status="PRE_ORDER" onclick="setOrderTab('PRE_ORDER')">
               ⚡ Đơn Pre-Order <span class="tab-pill-count" id="tabCountPreOrder">0</span>
             </button>
+          </div>
+
+          <!-- Sub-stage Filter for Pre-Orders (Auto-toggled when Pre-Order tab is active) -->
+          <div id="preorderSubFilterBar" class="preorder-sub-filter-bar" style="display:none;">
+            <div class="preorder-sub-filter-header">
+              <span class="preorder-stage-icon">⚡</span>
+              <span class="preorder-stage-title">Quy trình xử lý đơn Pre-Order:</span>
+              <span class="preorder-stage-hint">Theo dõi & cập nhật từng bước đặt cọc, chờ hàng, về kho để không bao giờ bị trôi đơn</span>
+            </div>
+            <div class="preorder-sub-filter-pills">
+              <button type="button" class="preorder-sub-btn active" data-prestage="ALL" onclick="setPreOrderSubStage('ALL')">
+                Tất cả Pre-Order <span class="pre-sub-count" id="preCountAll">0</span>
+              </button>
+              <button type="button" class="preorder-sub-btn" data-prestage="NEED_DEPOSIT" onclick="setPreOrderSubStage('NEED_DEPOSIT')">
+                ⏳ Cần xác nhận cọc <span class="pre-sub-count" id="preCountNeedDeposit">0</span>
+              </button>
+              <button type="button" class="preorder-sub-btn" data-prestage="WAITING_GOODS" onclick="setPreOrderSubStage('WAITING_GOODS')">
+                📦 Chờ hãng giao hàng <span class="pre-sub-count" id="preCountWaitingGoods">0</span>
+              </button>
+              <button type="button" class="preorder-sub-btn" data-prestage="GOODS_ARRIVED" onclick="setPreOrderSubStage('GOODS_ARRIVED')">
+                🎉 Đã về kho (Chờ xuất/giao) <span class="pre-sub-count" id="preCountGoodsArrived">0</span>
+              </button>
+              <button type="button" class="preorder-sub-btn" data-prestage="SHIPPED" onclick="setPreOrderSubStage('SHIPPED')">
+                🚚 Đã giao hàng / Hoàn tất <span class="pre-sub-count" id="preCountShipped">0</span>
+              </button>
+            </div>
           </div>
 
           <!-- Order Search & Filters -->
@@ -699,7 +710,12 @@
           </div>
 
           <div class="form-group form-full">
-            <label class="form-label">Danh mục *</label>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+              <label class="form-label" style="margin:0;">Danh mục *</label>
+              <button type="button" class="btn-admin btn-admin-outline" style="padding:2px 8px; font-size:11px;" onclick="toggleAddCategoryInline()">
+                <i class="fa-solid fa-plus"></i> Tạo danh mục mới
+              </button>
+            </div>
             <select id="prodCategory" class="form-control" required>
               <option value="1">Liberty Walk LBWK</option>
               <option value="2">Formula 1 Racing</option>
@@ -707,6 +723,22 @@
               <option value="4">Box Sets &amp; Combo</option>
               <option value="5">Pop Race &amp; Collab</option>
             </select>
+            <!-- Khung thêm danh mục mới inline -->
+            <div id="newCategoryInlineWrap" style="display:none; background:#f0fdf4; border:1px solid #bbf7d0; border-radius:8px; padding:10px; margin-top:8px;">
+              <div style="font-size:12px; font-weight:700; color:#166534; margin-bottom:6px;">
+                <i class="fa-solid fa-folder-plus"></i> Thêm Danh Mục Mới:
+              </div>
+              <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                <input type="text" id="newCategoryNameInput" class="form-control" style="flex:2; min-width:180px;" placeholder="Tên danh mục (VD: JDM Street, Supercars...)">
+                <input type="text" id="newCategorySlugInput" class="form-control" style="flex:1; min-width:140px;" placeholder="Slug (Tự động tạo)">
+                <button type="button" class="btn-admin btn-admin-primary" style="padding:6px 14px; background:#16a34a; border-color:#16a34a;" onclick="submitNewCategoryInline()">
+                  <i class="fa-solid fa-check"></i> Lưu Danh Mục
+                </button>
+                <button type="button" class="btn-admin btn-admin-outline" style="padding:6px 10px;" onclick="toggleAddCategoryInline(false)">
+                  Hủy
+                </button>
+              </div>
+            </div>
           </div>
 
           <div class="form-group form-full">
@@ -840,43 +872,29 @@
             </div>
           </div>
 
-          <div class="form-group">
-            <label class="form-label" style="display:flex; justify-content:space-between; align-items:center;">
-              <span>Tiền cọc giữ mẫu (VNĐ)</span>
-              <span style="display:inline-flex; gap:4px;">
-                <button type="button" class="mini-preset-chip" onclick="autoCalcProductDeposit(0.3)" title="Tự động tính 30% giá bán">Tự tính 30%</button>
-                <button type="button" class="mini-preset-chip" onclick="autoCalcProductDeposit(0.35)" title="Tự động tính 35% giá bán">35%</button>
-              </span>
-            </label>
-            <input type="number" id="prodDeposit" class="form-control" placeholder="120000">
-          </div>
+          <div class="form-grid">
+            <div class="form-group" style="margin-bottom:0;">
+              <label class="form-label">Ghi chú phiên bản (Edition Note)</label>
+              <input type="text" id="prodEdition" class="form-control" placeholder="LHD Edition">
+              <div style="display:flex; gap:4px; flex-wrap:wrap; margin-top:4px;">
+                <button type="button" class="mini-preset-chip" onclick="document.getElementById('prodEdition').value='LHD Edition'">LHD</button>
+                <button type="button" class="mini-preset-chip" onclick="document.getElementById('prodEdition').value='RHD Edition'">RHD</button>
+                <button type="button" class="mini-preset-chip" onclick="document.getElementById('prodEdition').value='Box & Blister'">Box &amp; Card</button>
+                <button type="button" class="mini-preset-chip" onclick="document.getElementById('prodEdition').value='Widebody Aero'">LBWK</button>
+              </div>
+            </div>
 
-          <div class="form-group">
-            <label class="form-label">Ghi chú phiên bản (Edition Note)</label>
-            <input type="text" id="prodEdition" class="form-control" placeholder="LHD Edition">
-            <div style="display:flex; gap:4px; flex-wrap:wrap; margin-top:4px;">
-              <button type="button" class="mini-preset-chip" onclick="document.getElementById('prodEdition').value='LHD Edition'">LHD</button>
-              <button type="button" class="mini-preset-chip" onclick="document.getElementById('prodEdition').value='RHD Edition'">RHD</button>
-              <button type="button" class="mini-preset-chip" onclick="document.getElementById('prodEdition').value='Box & Blister'">Box &amp; Card</button>
-              <button type="button" class="mini-preset-chip" onclick="document.getElementById('prodEdition').value='Widebody Aero'">LBWK</button>
+            <div class="form-group" style="margin-bottom:0;">
+              <label class="form-label">Tình trạng mở bán *</label>
+              <select id="prodStatus" class="form-control" onchange="handleProductStatusChange()">
+                <option value="in_stock">Có sẵn giao ngay</option>
+                <option value="pre_order">Pre-Order (Đang mở cọc)</option>
+                <option value="sold_out">Hết hàng (Sold Out)</option>
+              </select>
             </div>
           </div>
 
-          <div class="form-group">
-            <label class="form-label">Hạn chốt cọc</label>
-            <input type="date" id="prodDeadline" class="form-control">
-          </div>
-
-          <div class="form-group">
-            <label class="form-label">Tình trạng mở bán</label>
-            <select id="prodStatus" class="form-control" onchange="handleProductStatusChange()">
-              <option value="in_stock">Có sẵn giao ngay</option>
-              <option value="pre_order">Pre-Order (Đang mở cọc)</option>
-              <option value="sold_out">Hết hàng (Sold Out)</option>
-            </select>
-          </div>
-
-          <!-- KHỐI CẤU HÌNH DÀNH RIÊNG CHO SẢN PHẨM PRE-ORDER -->
+          <!-- KHỐI CẤU HÌNH DÀNH RIÊNG CHO SẢN PHẨM PRE-ORDER (CHỈ HIỂN THỊ KHI CHỌN PRE-ORDER) -->
           <div class="form-group form-full" id="preOrderConfigCard" style="display:none; background:#f5f3ff; border:1.5px solid #c4b5fd; border-radius:10px; padding:12px 14px; margin-bottom:14px;">
             <div style="font-weight:750; font-size:13px; color:#5b21b6; margin-bottom:8px; display:flex; align-items:center; gap:6px;">
               <i class="fa-solid fa-calendar-check"></i> Cấu hình Đợt Hàng &amp; Mức Cọc Pre-Order (Chỉ khi mở cọc)
@@ -914,20 +932,28 @@
               </div>
 
               <div class="form-group" style="margin-bottom:0;">
-                <label class="form-label" style="font-size:12px; color:#4c1d95; display:flex; justify-content:space-between;">
-                  <span>🔒 Mức cọc yêu cầu (% giá xe) *</span>
+                <label class="form-label" style="font-size:12px; color:#4c1d95; display:flex; justify-content:space-between; align-items:center;">
+                  <span>🔒 Mức cọc yêu cầu (% &amp; VNĐ) *</span>
                   <span style="display:inline-flex; gap:4px;">
                     <button type="button" class="mini-preset-chip" onclick="setDepositPercentPreset(30)">30%</button>
-                    <button type="button" class="mini-preset-chip" onclick="setDepositPercentPreset(40)">40%</button>
                     <button type="button" class="mini-preset-chip" onclick="setDepositPercentPreset(50)">50%</button>
+                    <button type="button" class="mini-preset-chip" onclick="setDepositPercentPreset(100)">100%</button>
                   </span>
                 </label>
-                <div style="display:flex; align-items:center; gap:8px;">
-                  <input type="number" id="prodDepositPercent" class="form-control" value="30" min="10" max="100" style="font-weight:700;" oninput="syncDepositPercentToAmount()">
-                  <span style="font-weight:700; color:#5b21b6;">%</span>
+                <div style="display:flex; align-items:center; gap:6px;">
+                  <div style="position:relative; width:95px;">
+                    <input type="number" id="prodDepositPercent" class="form-control" value="30" min="10" max="100" style="font-weight:700; padding-right:24px;" oninput="syncDepositPercentToAmount()">
+                    <span style="position:absolute; right:8px; top:50%; transform:translateY(-50%); font-weight:700; color:#5b21b6; pointer-events:none;">%</span>
+                  </div>
+                  <div style="flex:1; position:relative;">
+                    <input type="number" id="prodDepositAmount" class="form-control" placeholder="Số tiền cọc VNĐ" style="font-weight:700; padding-right:36px;" oninput="syncDepositAmountToPercent()">
+                    <span style="position:absolute; right:8px; top:50%; transform:translateY(-50%); font-size:11px; font-weight:700; color:#5b21b6; pointer-events:none;">VNĐ</span>
+                  </div>
                 </div>
-                <div style="margin-top:4px; font-size:11px; color:#6d28d9;">
-                  Khách chỉ được cọc theo mức này. <b>Không mở thanh toán Full 100%</b> khi đặt Pre-Order.
+                <!-- Hidden compatibility input -->
+                <input type="hidden" id="prodDeposit" value="0">
+                <div style="margin-top:4px; font-size:11px; color:#6d28d9; line-height:1.4;">
+                  Hai chiều tự tính: Bấm chọn % hoặc gõ số tiền VNĐ (10% – 100%, không vượt giá xe).
                 </div>
               </div>
             </div>

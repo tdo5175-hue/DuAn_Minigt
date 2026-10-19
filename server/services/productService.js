@@ -244,7 +244,7 @@ async function listProducts(filters = {}, { includeInactive = false } = {}) {
     params.maxPrice = Number(filters.maxPrice);
   }
   if (filters.q && String(filters.q).trim()) {
-    where.push('(p.Name ILIKE @q OR p.Sku ILIKE @q OR p.Brand ILIKE @q OR p.EditionNote ILIKE @q)');
+    where.push('(p.Name ILIKE @q OR p.Sku ILIKE @q OR p.CarNumber ILIKE @q OR p.Brand ILIKE @q OR c.Name ILIKE @q OR p.EditionNote ILIKE @q)');
     params.q = `%${String(filters.q).trim()}%`;
   }
 
@@ -375,6 +375,40 @@ async function listCategories() {
   }));
 }
 
+async function addCategory({ name, slug, description = '', imageUrl = '', sortOrder = 10 }) {
+  if (!name || !name.trim()) throw new Error('Tên danh mục không được để trống');
+  const cleanName = name.trim();
+  const cleanSlug = (slug && slug.trim())
+    ? slug.trim().toLowerCase()
+    : cleanName.toString().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[đĐ]/g, 'd').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+
+  const res = await db.query(`
+    INSERT INTO Categories (Slug, Name, Description, ImageUrl, SortOrder)
+    VALUES (@slug, @name, @description, @imageUrl, @sortOrder)
+    ON CONFLICT (Slug) DO UPDATE SET Name = EXCLUDED.Name, Description = EXCLUDED.Description
+    RETURNING *
+  `, {
+    slug: cleanSlug || ('cat-' + Date.now()),
+    name: cleanName,
+    description: description || '',
+    imageUrl: imageUrl || '',
+    sortOrder: Number(sortOrder) || 10
+  });
+
+  const row = (res.recordset && res.recordset[0]) || {};
+  return {
+    id: row.CategoryId ?? row.categoryid,
+    CategoryId: row.CategoryId ?? row.categoryid,
+    slug: row.Slug ?? row.slug,
+    Slug: row.Slug ?? row.slug,
+    name: row.Name ?? row.name,
+    Name: row.Name ?? row.name,
+    description: row.Description ?? row.description,
+    imageUrl: row.ImageUrl ?? row.imageurl,
+    sortOrder: Number(row.SortOrder ?? row.sortorder ?? 10)
+  };
+}
+
 module.exports = {
   BASE_SELECT: SELECT_PRODUCT,
   SELECT_PRODUCT,
@@ -383,5 +417,6 @@ module.exports = {
   listProducts,
   getProductByIdOrSlug,
   findPublic,
-  listCategories
+  listCategories,
+  addCategory
 };
