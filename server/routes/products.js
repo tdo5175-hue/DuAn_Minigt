@@ -1,5 +1,5 @@
 /**
- * PRODUCTS & CATEGORIES PUBLIC API ROUTES
+ * PRODUCTS & CATEGORIES PUBLIC API ROUTES — ĐỒNG BỘ SUPABASE POSTGRESQL
  */
 const express = require('express');
 const router = express.Router();
@@ -9,17 +9,24 @@ const { authenticate } = require('../middleware/auth');
 const { ok, notFound, badRequest, created } = require('../utils/http');
 const v = require('../utils/validators');
 
-// 1. LẤY DANH SÁCH TẤT CẢ SẢN PHẨM (KÈM BỘ LỌC VÀ SẮP XẾP)
+// 1. LẤY DANH SÁCH TẤT CẢ SẢN PHẨM
 router.get('/', async (req, res, next) => {
   try {
     const { category, brand, status, search, tag, sort, minPrice, maxPrice, inStockOnly } = req.query;
 
-    let queryStr = productService.BASE_SELECT + ' WHERE p.IsActive = 1';
+    let queryStr = productService.BASE_SELECT + ' WHERE p.IsActive = TRUE';
     const params = {};
 
     if (category && category !== 'all') {
-      queryStr += ' AND (c.Slug = @category OR c.CategoryId = TRY_CAST(@category AS INT))';
-      params.category = category;
+      const catNum = Number(category);
+      if (!Number.isNaN(catNum) && String(catNum) === String(category).trim()) {
+        queryStr += ' AND (c.Slug = @category OR c.CategoryId = @catId)';
+        params.category = String(category);
+        params.catId = catNum;
+      } else {
+        queryStr += ' AND c.Slug = @category';
+        params.category = String(category);
+      }
     }
 
     if (brand && brand !== 'all') {
@@ -47,30 +54,28 @@ router.get('/', async (req, res, next) => {
     }
 
     if (search && search.trim()) {
-      queryStr += ' AND (p.Name LIKE @search OR p.Sku LIKE @search OR p.Brand LIKE @search OR c.Name LIKE @search OR p.Description LIKE @search)';
+      queryStr += ' AND (p.Name ILIKE @search OR p.Sku ILIKE @search OR p.Brand ILIKE @search OR c.Name ILIKE @search OR p.Description ILIKE @search)';
       params.search = v.likeParam(search.trim());
     }
 
-    // Quick tag filters
     if (tag) {
       if (tag === 'pre_order') {
         queryStr += ' AND p.Status = \'pre_order\'';
       } else if (tag === 'in_stock') {
         queryStr += ' AND p.Status = \'in_stock\' AND p.Stock > 0';
       } else if (tag === 'f1') {
-        queryStr += ' AND (c.Slug = \'f1-racing\' OR p.Name LIKE \'%F1%\' OR p.Name LIKE \'%AMR24%\' OR p.Name LIKE \'%RB18%\')';
+        queryStr += ' AND (c.Slug = \'f1-racing\' OR p.Name ILIKE \'%F1%\' OR p.Name ILIKE \'%AMR24%\' OR p.Name ILIKE \'%RB18%\')';
       } else if (tag === 'lbwk') {
-        queryStr += ' AND (c.Slug = \'liberty-walk\' OR p.Name LIKE \'%LB%\' OR p.Name LIKE \'%Liberty%\')';
+        queryStr += ' AND (c.Slug = \'liberty-walk\' OR p.Name ILIKE \'%LB%\' OR p.Name ILIKE \'%Liberty%\')';
       } else if (tag === 'chase') {
-        queryStr += ' AND (c.Slug = \'partner\' OR p.Name LIKE \'%Secret%\' OR p.Sku LIKE \'PR%\' OR p.Sku LIKE \'TH%\' OR p.Name LIKE \'%Chase%\')';
+        queryStr += ' AND (c.Slug = \'partner\' OR p.Name ILIKE \'%Secret%\' OR p.Sku ILIKE \'PR%\' OR p.Sku ILIKE \'TH%\' OR p.Name ILIKE \'%Chase%\')';
       } else if (tag === 'box_sets') {
-        queryStr += ' AND (c.Slug = \'box-sets\' OR p.Name LIKE \'%Set%\' OR p.Name LIKE \'%Combo%\')';
+        queryStr += ' AND (c.Slug = \'box-sets\' OR p.Name ILIKE \'%Set%\' OR p.Name ILIKE \'%Combo%\')';
       } else if (tag === 'ao_racing') {
-        queryStr += ' AND (p.Name LIKE \'%AO Racing%\' OR p.Name LIKE \'%Rexy%\' OR p.Name LIKE \'%Roxy%\' OR p.Name LIKE \'%Skeleton%\')';
+        queryStr += ' AND (p.Name ILIKE \'%AO Racing%\' OR p.Name ILIKE \'%Rexy%\' OR p.Name ILIKE \'%Roxy%\' OR p.Name ILIKE \'%Skeleton%\')';
       }
     }
 
-    // Sort order
     switch (sort) {
       case 'price_asc':
         queryStr += ' ORDER BY p.Price ASC, p.ProductId ASC';
@@ -114,7 +119,7 @@ router.get('/categories', async (req, res, next) => {
   }
 });
 
-// 3. CHI TIẾT SẢN PHẨM THEO ID HOẶC SLUG (KÈM GALLERY VÀ REVIEWS)
+// 3. CHI TIẾT SẢN PHẨM THEO ID HOẶC SLUG
 router.get('/:idOrSlug', async (req, res, next) => {
   try {
     const { idOrSlug } = req.params;
@@ -124,7 +129,6 @@ router.get('/:idOrSlug', async (req, res, next) => {
       throw notFound('Không tìm thấy sản phẩm yêu cầu');
     }
 
-    // Lấy reviews
     const reviewsRes = await db.query(
       `SELECT r.ReviewId, r.Rating, r.Comment, r.CreatedAt, u.FullName, u.AvatarUrl
        FROM ProductReviews r
@@ -151,7 +155,7 @@ router.get('/:idOrSlug', async (req, res, next) => {
   }
 });
 
-// 4. GỬI ĐÁNH GIÁ SẢN PHẨM (YÊU CẦU ĐĂNG NHẬP)
+// 4. GỬI ĐÁNH GIÁ SẢN PHẨM
 router.post('/:id/reviews', authenticate, async (req, res, next) => {
   try {
     const productId = v.int(req.params.id, { min: 1 });
@@ -161,19 +165,14 @@ router.post('/:id/reviews', authenticate, async (req, res, next) => {
     if (!productId) throw badRequest('Mã sản phẩm không hợp lệ');
     if (!rating) throw badRequest('Vui lòng chọn số sao đánh giá (1 đến 5 sao)');
 
-    const prodCheck = await db.query('SELECT ProductId FROM Products WHERE ProductId = @id AND IsActive = 1', { id: productId });
+    const prodCheck = await db.query('SELECT ProductId FROM Products WHERE ProductId = @id AND IsActive = TRUE', { id: productId });
     if (prodCheck.recordset.length === 0) throw notFound('Sản phẩm không tồn tại');
 
-    // Thêm hoặc cập nhật đánh giá của user đối với sản phẩm này
     await db.query(
-      `MERGE ProductReviews AS t
-       USING (SELECT @productId AS ProductId, @userId AS UserId) AS s
-       ON t.ProductId = s.ProductId AND t.UserId = s.UserId
-       WHEN MATCHED THEN
-         UPDATE SET Rating = @rating, Comment = @comment, CreatedAt = SYSDATETIME()
-       WHEN NOT MATCHED THEN
-         INSERT (ProductId, UserId, Rating, Comment, CreatedAt)
-         VALUES (@productId, @userId, @rating, @comment, SYSDATETIME());`,
+      `INSERT INTO ProductReviews (ProductId, UserId, Rating, Comment, CreatedAt)
+       VALUES (@productId, @userId, @rating, @comment, NOW())
+       ON CONFLICT (ProductId, UserId)
+       DO UPDATE SET Rating = EXCLUDED.Rating, Comment = EXCLUDED.Comment, CreatedAt = NOW();`,
       {
         productId,
         userId: req.user.userId,

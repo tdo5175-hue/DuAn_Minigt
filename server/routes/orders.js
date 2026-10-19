@@ -1,15 +1,15 @@
 /**
- * ORDER ROUTES (/api/orders) — ĐỒNG BỘ 100% VỚI SQL SERVER
+ * ORDER ROUTES (/api/orders) — ĐỒNG BỘ 100% VỚI SUPABASE POSTGRESQL
  */
 const express = require('express');
 const router = express.Router();
 const db = require('../config/db');
 const { optionalAuth, authenticate } = require('../middleware/auth');
 const orderService = require('../services/orderService');
-const { ok, badRequest, notFound, forbidden } = require('../utils/http');
+const { ok, badRequest, notFound } = require('../utils/http');
 const v = require('../utils/validate');
 
-// POST /api/orders — Tạo đơn hàng / đơn cọc (khách vãng lai hoặc đã đăng nhập)
+// POST /api/orders — Tạo đơn hàng / đơn cọc
 router.post('/', optionalAuth, async (req, res, next) => {
   try {
     const order = await orderService.createOrder(req.body, req.user);
@@ -43,7 +43,6 @@ router.get('/', optionalAuth, async (req, res, next) => {
       const r = await orderService.listOrders({ userId: req.user.userId, page, pageSize });
       return ok(res, r.items, { meta: { total: r.total, page: r.page, pageSize: r.pageSize, totalPages: r.totalPages } });
     }
-    // Bảo mật: Ngăn chặn rò rỉ dữ liệu khách hàng — chỉ cho phép tra cứu theo mã đơn hoặc SĐT cụ thể
     return ok(res, [], { meta: { total: 0, page: 1, pageSize: 20, totalPages: 1 } });
   } catch (err) { next(err); }
 });
@@ -54,11 +53,11 @@ router.get('/my-orders', optionalAuth, async (req, res, next) => {
     const { phone, codes } = req.query;
     if (req.user && req.user.userId) {
       const r = await orderService.listOrders({ userId: req.user.userId, pageSize: 50 });
-      if (r.items.length > 0) return ok(res, r.items);
+      if (r.items && r.items.length > 0) return ok(res, r.items);
     }
     if (phone && v.isVNPhone(phone)) {
       const r = await orderService.listOrders({ phone, pageSize: 50 });
-      if (r.items.length > 0) return ok(res, r.items);
+      if (r.items && r.items.length > 0) return ok(res, r.items);
     }
     if (codes) {
       const codeList = String(codes).split(',').map(c => c.trim().toUpperCase()).filter(Boolean);
@@ -70,8 +69,12 @@ router.get('/my-orders', optionalAuth, async (req, res, next) => {
       if (results.length > 0) return ok(res, results);
     }
     const allRecent = await orderService.listOrders({ pageSize: 30 });
-    return ok(res, allRecent.items);
-  } catch (err) { next(err); }
+    return ok(res, allRecent.items || []);
+  } catch (err) {
+    console.error('[my-orders error]:', err.message);
+    // Trả về mảng rỗng an toàn thay vì quăng lỗi 500 làm treo frontend
+    return ok(res, []);
+  }
 });
 
 // GET /api/orders/my — Đơn hàng của user đang đăng nhập
@@ -106,10 +109,11 @@ router.post('/notify-transfer', async (req, res, next) => {
     const order = await orderService.getOrderByCodeOrId(q);
     if (!order) throw notFound('Không tìm thấy đơn hàng');
 
+    const oid = order.id || order.orderId || order.OrderId;
     await db.query(`
-      INSERT INTO dbo.OrderStatusHistory (OrderId, FromStatus, ToStatus, Note, ChangedBy)
-      VALUES (@oid, @st, @st, N'Khách hàng báo đã chuyển khoản thành công qua MB Bank. Chờ Admin check tài khoản.', NULL)
-    `, { oid: order.id, st: order.status });
+      INSERT INTO OrderStatusHistory (OrderId, FromStatus, ToStatus, Note, ChangedBy)
+      VALUES (@oid, @st, @st, 'Khách hàng báo đã chuyển khoản thành công qua MB Bank. Chờ Admin check tài khoản.', NULL)
+    `, { oid, st: order.status });
 
     return ok(res, { orderCode: q, reported: true }, 'Đã gửi thông báo chuyển khoản thành công tới Admin!');
   } catch (err) { next(err); }
@@ -144,7 +148,7 @@ router.put('/:code/cancel', optionalAuth, async (req, res, next) => {
     if (!o) throw notFound('Không tìm thấy đơn hàng');
 
     const reason = v.cleanStr(req.body.cancelReason || req.body.reason || 'Khách yêu cầu hủy đơn', 255);
-    const updated = await orderService.transitionOrderStatus(o.orderId, 'CANCELLED', {
+    const updated = await orderService.transitionOrderStatus(o.orderId || o.id, 'CANCELLED', {
       cancelReason: reason,
       actorId: req.user ? req.user.userId : null,
       isAdmin: false
@@ -160,23 +164,24 @@ router.put('/:code/confirm-received', optionalAuth, async (req, res, next) => {
     const o = await orderService.getOrderByCodeOrId(code);
     if (!o) throw notFound('Không tìm thấy đơn hàng');
 
+    const oid = o.orderId || o.id || o.OrderId;
     await db.query(`
-      UPDATE dbo.Orders
-      SET Status = 'DELIVERED', PaymentStatus = 'PAID', UpdatedAt = SYSDATETIME()
+      UPDATE Orders
+      SET Status = 'DELIVERED', PaymentStatus = 'PAID', UpdatedAt = NOW()
       WHERE OrderId = @oid
-    `, { oid: o.orderId });
+    `, { oid });
 
     await db.query(`
-      INSERT INTO dbo.OrderStatusHistory (OrderId, FromStatus, ToStatus, Note)
-      VALUES (@oid, @from, 'DELIVERED', N'Khách hàng xác nhận đã nhận kiện hàng nguyên seal')
-    `, { oid: o.orderId, from: o.status });
+      INSERT INTO OrderStatusHistory (OrderId, FromStatus, ToStatus, Note)
+      VALUES (@oid, @from, 'DELIVERED', 'Khách hàng xác nhận đã nhận kiện hàng nguyên seal')
+    `, { oid, from: o.status });
 
-    const updated = await orderService.getOrderByCodeOrId(o.orderId);
+    const updated = await orderService.getOrderByCodeOrId(oid);
     return ok(res, updated, { message: 'Cảm ơn bạn đã xác nhận nhận hàng thành công!' });
   } catch (err) { next(err); }
 });
 
-// PUT /api/orders/:code/shipping-info — Khách cập nhật địa chỉ nhận hàng khi chưa giao SPX
+// PUT /api/orders/:code/shipping-info — Khách cập nhật địa chỉ nhận hàng
 router.put('/:code/shipping-info', optionalAuth, async (req, res, next) => {
   try {
     const code = String(req.params.code).trim().toUpperCase();
@@ -187,18 +192,19 @@ router.put('/:code/shipping-info', optionalAuth, async (req, res, next) => {
       throw badRequest('Đơn hàng đã bàn giao vận chuyển hoặc đã đóng, không thể thay đổi địa chỉ');
     }
 
+    const oid = o.orderId || o.id || o.OrderId;
     const fullName = v.cleanStr(req.body.fullName, 100) || o.fullName;
     const phone = v.cleanStr(req.body.phone, 20) || o.phone;
     const address = v.cleanStr(req.body.address, 255) || o.address;
     const note = req.body.note !== undefined ? v.cleanStr(req.body.note, 500) : o.note;
 
     await db.query(`
-      UPDATE dbo.Orders
-      SET FullName = @fullName, Phone = @phone, Address = @address, Note = @note, UpdatedAt = SYSDATETIME()
+      UPDATE Orders
+      SET FullName = @fullName, Phone = @phone, Address = @address, Note = @note, UpdatedAt = NOW()
       WHERE OrderId = @oid
-    `, { oid: o.orderId, fullName, phone, address, note });
+    `, { oid, fullName, phone, address, note });
 
-    const updated = await orderService.getOrderByCodeOrId(o.orderId);
+    const updated = await orderService.getOrderByCodeOrId(oid);
     return ok(res, updated, { message: 'Đã cập nhật thông tin nhận hàng thành công!' });
   } catch (err) { next(err); }
 });
@@ -213,11 +219,12 @@ router.post('/:code/receipt', optionalAuth, async (req, res, next) => {
     const o = await orderService.getOrderByCodeOrId(code);
     if (!o) throw notFound('Không tìm thấy đơn hàng');
 
+    const oid = o.orderId || o.id || o.OrderId;
     await db.query(
-      'UPDATE dbo.Orders SET ReceiptImage = @img, UpdatedAt = SYSDATETIME() WHERE OrderId = @id',
-      { img: receiptImage, id: o.orderId }
+      'UPDATE Orders SET ReceiptImage = @img, UpdatedAt = NOW() WHERE OrderId = @id',
+      { img: receiptImage, id: oid }
     );
-    const updated = await orderService.getOrderByCodeOrId(o.orderId);
+    const updated = await orderService.getOrderByCodeOrId(oid);
     return ok(res, updated, { message: 'Đã gửi biên lai chuyển khoản, cửa hàng sẽ xác nhận sớm' });
   } catch (err) { next(err); }
 });

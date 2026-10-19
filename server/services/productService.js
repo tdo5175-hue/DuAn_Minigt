@@ -1,5 +1,5 @@
 /**
- * PRODUCT SERVICE — LỚP NGHIỆP VỤ SẢN PHẨM & DANH MỤC (CHUẨN BOX & BLISTER CARD 2026)
+ * PRODUCT SERVICE — LỚP NGHIỆP VỤ SẢN PHẨM & DANH MỤC (CHUẨN SUPABASE POSTGRESQL 2026)
  */
 const db = require('../config/db');
 
@@ -13,19 +13,31 @@ function calcDiscountedPrice(basePrice, discountPercent) {
 function mapProduct(row) {
   if (!row) return null;
 
-  const packagingType = row.PackagingType || 'both';
-  const rawPrice = Number(row.Price || 0);
-  const rawOldPrice = row.OldPrice != null ? Number(row.OldPrice) : null;
-  const discountPercent = Math.min(80, Math.max(0, Number(row.DiscountPercent || 0)));
+  const pId = row.ProductId ?? row.productid;
+  const sku = row.Sku ?? row.sku ?? '';
+  const name = row.Name ?? row.name ?? '';
+  const slug = row.Slug ?? row.slug ?? '';
+  const brand = row.Brand ?? row.brand ?? 'MINI GT';
+  const scale = row.Scale ?? row.scale ?? '1:64';
+  const packagingType = row.PackagingType ?? row.packagingtype ?? 'both';
 
-  const priceBox = Number(row.PriceBox || 0) > 0
-    ? Number(row.PriceBox)
+  const rawPrice = Number(row.Price ?? row.price ?? 0);
+  const rawOldPrice = (row.OldPrice != null || row.oldprice != null)
+    ? Number(row.OldPrice ?? row.oldprice)
+    : null;
+  const discountPercent = Math.min(80, Math.max(0, Number(row.DiscountPercent ?? row.discountpercent ?? 0)));
+
+  const rawPriceBox = Number(row.PriceBox ?? row.pricebox ?? 0);
+  const rawPriceCard = Number(row.PriceCard ?? row.pricecard ?? 0);
+
+  const priceBox = rawPriceBox > 0
+    ? rawPriceBox
     : (rawOldPrice && rawOldPrice > rawPrice ? rawOldPrice : rawPrice);
-  const priceCard = Number(row.PriceCard || 0) > 0
-    ? Number(row.PriceCard)
+  const priceCard = rawPriceCard > 0
+    ? rawPriceCard
     : (packagingType === 'box_only' ? priceBox : priceBox + 60000);
 
-  const finalPriceBox = discountPercent > 0 ? calcDiscountedPrice(priceBox, discountPercent) : rawPrice || priceBox;
+  const finalPriceBox = discountPercent > 0 ? calcDiscountedPrice(priceBox, discountPercent) : (rawPrice || priceBox);
   const finalPriceCard = discountPercent > 0 ? calcDiscountedPrice(priceCard, discountPercent) : priceCard;
 
   const effectivePrice = packagingType === 'card_only' ? finalPriceCard : finalPriceBox;
@@ -33,32 +45,68 @@ function mapProduct(row) {
     ? (packagingType === 'card_only' ? priceCard : priceBox)
     : rawOldPrice;
 
-  const preOrderDeadline = row.PreOrderDeadline
-    ? (row.PreOrderDeadline instanceof Date
-        ? row.PreOrderDeadline.toISOString().split('T')[0]
-        : String(row.PreOrderDeadline).split('T')[0])
+  const rawDeadline = row.PreOrderDeadline ?? row.preorderdeadline;
+  const preOrderDeadline = rawDeadline
+    ? (rawDeadline instanceof Date
+        ? rawDeadline.toISOString().split('T')[0]
+        : String(rawDeadline).split('T')[0])
     : null;
 
-  const carNumber = row.CarNumber || String(row.Sku || '').replace(/^(MGTS00|MGT0|MGT|PR640|TH6400)/i, '') || '64';
+  const carNumber = row.CarNumber ?? row.carnumber ?? (String(sku).replace(/^(MGTS00|MGT0|MGT|PR640|TH6400)/i, '') || '64');
 
-  const rawStock = Number(row.Stock || 0);
-  let stockBox = row.StockBox != null ? Number(row.StockBox) : (packagingType === 'card_only' ? 0 : Math.ceil(rawStock * 0.6));
-  let stockCard = row.StockCard != null ? Number(row.StockCard) : (packagingType === 'box_only' ? 0 : Math.floor(rawStock * 0.4));
+  const rawStock = Number(row.Stock ?? row.stock ?? 0);
+  const rawStockBox = row.StockBox ?? row.stockbox;
+  const rawStockCard = row.StockCard ?? row.stockcard;
+
+  let stockBox = rawStockBox != null ? Number(rawStockBox) : (packagingType === 'card_only' ? 0 : Math.ceil(rawStock * 0.6));
+  let stockCard = rawStockCard != null ? Number(rawStockCard) : (packagingType === 'box_only' ? 0 : Math.floor(rawStock * 0.4));
   if (packagingType === 'box_only') stockCard = 0;
   if (packagingType === 'card_only') stockBox = 0;
-  const effectiveStock = stockBox + stockCard || rawStock;
+  const effectiveStock = (stockBox + stockCard) || rawStock;
 
   const hasBox = packagingType !== 'card_only' && stockBox > 0;
   const hasCard = packagingType !== 'box_only' && stockCard > 0;
 
+  const rawDepositAmount = row.DepositAmount ?? row.depositamount;
+  const depositAmount = rawDepositAmount != null ? Number(rawDepositAmount) : null;
+
+  const rawDepositPercent = row.DepositPercent ?? row.depositpercent;
+  const depositPercent = rawDepositPercent != null
+    ? Number(rawDepositPercent)
+    : (depositAmount && effectivePrice ? Math.round((depositAmount / effectivePrice) * 100) : 30);
+
+  const rawReleaseDate = row.ReleaseDate ?? row.releasedate;
+  const releaseDate = rawReleaseDate ? String(rawReleaseDate).slice(0, 10) : null;
+  const status = row.Status ?? row.status ?? 'in_stock';
+  const expectedDelivery = row.ExpectedDelivery ?? row.expecteddelivery ?? (
+    rawReleaseDate
+      ? `Tháng ${new Date(rawReleaseDate).getMonth() + 1}/${new Date(rawReleaseDate).getFullYear()}`
+      : (status === 'pre_order' ? 'Tháng 11/2026' : null)
+  );
+
+  const editionNote = row.EditionNote ?? row.editionnote ?? '';
+  const imageUrl = row.ImageUrl ?? row.imageurl ?? '';
+  const description = row.Description ?? row.description ?? '';
+
+  const isFeatured = Boolean(row.IsFeatured ?? row.isfeatured ?? false);
+  const isNew = Boolean(row.IsNew ?? row.isnew ?? false);
+  const rawActive = row.IsActive ?? row.isactive;
+  const isActive = rawActive === undefined ? true : Boolean(rawActive);
+
+  const categoryId = row.CategoryId ?? row.categoryid;
+  const categoryName = row.CategoryName ?? row.categoryname ?? '';
+  const categorySlug = row.CategorySlug ?? row.categoryslug ?? '';
+  const createdAt = row.CreatedAt ?? row.createdat;
+  const updatedAt = row.UpdatedAt ?? row.updatedat;
+
   return {
-    id: row.ProductId,
-    sku: row.Sku,
+    id: pId,
+    sku,
     carNumber,
-    name: row.Name,
-    slug: row.Slug,
-    brand: row.Brand,
-    scale: row.Scale,
+    name,
+    slug,
+    brand,
+    scale,
     packagingType,
     priceBox,
     priceCard,
@@ -67,42 +115,43 @@ function mapProduct(row) {
     finalPriceCard,
     price: effectivePrice,
     oldPrice: effectiveOldPrice,
-    depositAmount: row.DepositAmount != null ? Number(row.DepositAmount) : null,
-    depositPercent: row.DepositPercent != null ? Number(row.DepositPercent) : (row.DepositAmount && effectivePrice ? Math.round((Number(row.DepositAmount) / effectivePrice) * 100) : 30),
-    expectedDelivery: row.ExpectedDelivery || (row.ReleaseDate ? `Tháng ${new Date(row.ReleaseDate).getMonth() + 1}/${new Date(row.ReleaseDate).getFullYear()}` : (row.Status === 'pre_order' ? 'Tháng 11/2026' : null)),
-    releaseDate: row.ReleaseDate ? String(row.ReleaseDate).slice(0, 10) : null,
-    editionNote: row.EditionNote || '',
+    depositAmount,
+    depositPercent,
+    expectedDelivery,
+    releaseDate,
+    editionNote,
     preOrderDeadline,
     stockBox,
     stockCard,
     hasBox,
     hasCard,
     stock: effectiveStock,
-    image: row.ImageUrl,
-    imageUrl: row.ImageUrl,
-    description: row.Description,
-    status: row.Status,
-    isFeatured: Boolean(row.IsFeatured),
-    isNew: Boolean(row.IsNew),
-    isActive: row.IsActive === undefined ? true : Boolean(row.IsActive),
-    categoryId: row.CategoryId,
-    categoryName: row.CategoryName,
-    categorySlug: row.CategorySlug,
+    image: imageUrl,
+    imageUrl,
+    description,
+    status,
+    isFeatured,
+    isNew,
+    isActive,
+    categoryId,
+    categoryName,
+    categorySlug,
     category: {
-      id: row.CategoryId,
-      name: row.CategoryName,
-      slug: row.CategorySlug
+      id: categoryId,
+      name: categoryName,
+      slug: categorySlug
     },
-    createdAt: row.CreatedAt,
+    createdAt,
+    updatedAt,
 
     // Tương thích ngược PascalCase cho giao diện hiện tại
-    ProductId: row.ProductId,
-    Sku: row.Sku,
+    ProductId: pId,
+    Sku: sku,
     CarNumber: carNumber,
-    Name: row.Name,
-    Slug: row.Slug,
-    Brand: row.Brand,
-    Scale: row.Scale,
+    Name: name,
+    Slug: slug,
+    Brand: brand,
+    Scale: scale,
     PackagingType: packagingType,
     PriceBox: priceBox,
     PriceCard: priceCard,
@@ -111,27 +160,28 @@ function mapProduct(row) {
     FinalPriceCard: finalPriceCard,
     Price: effectivePrice,
     OldPrice: effectiveOldPrice,
-    DepositAmount: row.DepositAmount != null ? Number(row.DepositAmount) : null,
-    DepositPercent: row.DepositPercent != null ? Number(row.DepositPercent) : (row.DepositAmount && effectivePrice ? Math.round((Number(row.DepositAmount) / effectivePrice) * 100) : 30),
-    ExpectedDelivery: row.ExpectedDelivery || (row.ReleaseDate ? `Tháng ${new Date(row.ReleaseDate).getMonth() + 1}/${new Date(row.ReleaseDate).getFullYear()}` : (row.Status === 'pre_order' ? 'Tháng 11/2026' : null)),
-    ReleaseDate: row.ReleaseDate ? String(row.ReleaseDate).slice(0, 10) : null,
-    EditionNote: row.EditionNote || '',
+    DepositAmount: depositAmount,
+    DepositPercent: depositPercent,
+    ExpectedDelivery: expectedDelivery,
+    ReleaseDate: releaseDate,
+    EditionNote: editionNote,
     PreOrderDeadline: preOrderDeadline,
     StockBox: stockBox,
     StockCard: stockCard,
     HasBox: hasBox,
     HasCard: hasCard,
     Stock: effectiveStock,
-    ImageUrl: row.ImageUrl,
-    Description: row.Description,
-    Status: row.Status,
-    IsFeatured: Boolean(row.IsFeatured),
-    IsNew: Boolean(row.IsNew),
-    IsActive: row.IsActive === undefined ? true : Boolean(row.IsActive),
-    CategoryId: row.CategoryId,
-    CategoryName: row.CategoryName,
-    CategorySlug: row.CategorySlug,
-    CreatedAt: row.CreatedAt
+    ImageUrl: imageUrl,
+    Description: description,
+    Status: status,
+    IsFeatured: isFeatured,
+    IsNew: isNew,
+    IsActive: isActive,
+    CategoryId: categoryId,
+    CategoryName: categoryName,
+    CategorySlug: categorySlug,
+    CreatedAt: createdAt,
+    UpdatedAt: updatedAt
   };
 }
 
@@ -144,8 +194,8 @@ const SELECT_PRODUCT = `
     p.ReleaseDate, p.ExpectedDelivery,
     p.IsFeatured, p.IsNew, p.IsActive, p.CreatedAt, p.UpdatedAt,
     c.CategoryId, c.Name AS CategoryName, c.Slug AS CategorySlug
-  FROM dbo.Products p
-  INNER JOIN dbo.Categories c ON p.CategoryId = c.CategoryId
+  FROM Products p
+  INNER JOIN Categories c ON p.CategoryId = c.CategoryId
 `;
 
 /**
@@ -156,10 +206,10 @@ async function listProducts(filters = {}, { includeInactive = false } = {}) {
   const params = {};
 
   if (!includeInactive) {
-    where.push('p.IsActive = 1');
-  } else if (filters.active === '1' || filters.active === '0') {
+    where.push('p.IsActive = TRUE');
+  } else if (filters.active === '1' || filters.active === '0' || filters.active === 'true' || filters.active === 'false') {
     where.push('p.IsActive = @isActive');
-    params.isActive = filters.active === '1' ? 1 : 0;
+    params.isActive = (filters.active === '1' || filters.active === 'true');
   }
 
   if (filters.category && filters.category !== 'all') {
@@ -180,10 +230,10 @@ async function listProducts(filters = {}, { includeInactive = false } = {}) {
     params.status = String(filters.status);
   }
   if (filters.featured === '1' || filters.featured === 'true') {
-    where.push('p.IsFeatured = 1');
+    where.push('p.IsFeatured = TRUE');
   }
   if (filters.isNew === '1' || filters.isNew === 'true') {
-    where.push('p.IsNew = 1');
+    where.push('p.IsNew = TRUE');
   }
   if (filters.minPrice !== undefined && filters.minPrice !== '' && !isNaN(filters.minPrice)) {
     where.push('p.Price >= @minPrice');
@@ -194,7 +244,7 @@ async function listProducts(filters = {}, { includeInactive = false } = {}) {
     params.maxPrice = Number(filters.maxPrice);
   }
   if (filters.q && String(filters.q).trim()) {
-    where.push('(p.Name LIKE @q OR p.Sku LIKE @q OR p.Brand LIKE @q OR p.EditionNote LIKE @q)');
+    where.push('(p.Name ILIKE @q OR p.Sku ILIKE @q OR p.Brand ILIKE @q OR p.EditionNote ILIKE @q)');
     params.q = `%${String(filters.q).trim()}%`;
   }
 
@@ -213,7 +263,7 @@ async function listProducts(filters = {}, { includeInactive = false } = {}) {
   const hasPaging = filters.page !== undefined || filters.pageSize !== undefined;
   if (!hasPaging) {
     const res = await db.query(`${SELECT_PRODUCT} ${whereClause} ORDER BY ${orderBy}`, params);
-    const items = res.recordset.map(mapProduct);
+    const items = (res.recordset || []).map(mapProduct);
     return { items, total: items.length, page: 1, pageSize: items.length || 1, totalPages: 1 };
   }
 
@@ -222,17 +272,17 @@ async function listProducts(filters = {}, { includeInactive = false } = {}) {
   params.offset = (page - 1) * pageSize;
   params.pageSize = pageSize;
 
-  const countSql = `SELECT COUNT(*) AS Total FROM dbo.Products p INNER JOIN dbo.Categories c ON p.CategoryId = c.CategoryId ${whereClause}`;
-  const dataSql = `${SELECT_PRODUCT} ${whereClause} ORDER BY ${orderBy} OFFSET @offset ROWS FETCH NEXT @pageSize ROWS ONLY`;
+  const countSql = `SELECT COUNT(*) AS Total FROM Products p INNER JOIN Categories c ON p.CategoryId = c.CategoryId ${whereClause}`;
+  const dataSql = `${SELECT_PRODUCT} ${whereClause} ORDER BY ${orderBy} LIMIT @pageSize OFFSET @offset`;
 
   const [countRes, dataRes] = await Promise.all([
     db.query(countSql, params),
     db.query(dataSql, params)
   ]);
 
-  const total = countRes.recordset[0]?.Total || 0;
+  const total = Number(countRes.recordset[0]?.Total ?? countRes.recordset[0]?.total ?? 0);
   return {
-    items: dataRes.recordset.map(mapProduct),
+    items: (dataRes.recordset || []).map(mapProduct),
     total,
     page,
     pageSize,
@@ -240,28 +290,32 @@ async function listProducts(filters = {}, { includeInactive = false } = {}) {
   };
 }
 
+/**
+ * Lấy chi tiết sản phẩm theo ID, Slug hoặc SKU (kèm ảnh phụ, đánh giá và sản phẩm liên quan)
+ */
 async function getProductByIdOrSlug(idOrSlug, { includeInactive = false } = {}) {
   const isNum = /^\d+$/.test(String(idOrSlug));
   const cond = isNum ? 'p.ProductId = @val' : '(p.Slug = @val OR p.Sku = @val)';
-  const activeCond = includeInactive ? '' : 'AND p.IsActive = 1';
+  const activeCond = includeInactive ? '' : 'AND p.IsActive = TRUE';
+
   const res = await db.query(
     `${SELECT_PRODUCT} WHERE ${cond} ${activeCond}`,
     { val: isNum ? parseInt(idOrSlug, 10) : String(idOrSlug) }
   );
-  if (!res.recordset.length) return null;
+  if (!res.recordset || !res.recordset.length) return null;
   const product = mapProduct(res.recordset[0]);
 
   const [imgRes, revRes, relRes] = await Promise.all([
-    db.query('SELECT ImageUrl, SortOrder FROM dbo.ProductImages WHERE ProductId = @pid ORDER BY SortOrder ASC', { pid: product.id }),
+    db.query('SELECT ImageUrl, SortOrder FROM ProductImages WHERE ProductId = @pid ORDER BY SortOrder ASC', { pid: product.id }),
     db.query(`
       SELECT r.ReviewId, r.Rating, r.Comment, r.CreatedAt, u.FullName, u.AvatarUrl
-      FROM dbo.ProductReviews r
-      INNER JOIN dbo.Users u ON r.UserId = u.UserId
+      FROM ProductReviews r
+      INNER JOIN Users u ON r.UserId = u.UserId
       WHERE r.ProductId = @pid
       ORDER BY r.CreatedAt DESC
     `, { pid: product.id }),
     db.query(`
-      SELECT TOP 4
+      SELECT
         p.ProductId, p.Sku, p.CarNumber, p.Name, p.Slug, p.Brand, p.Scale,
         p.PackagingType, p.PriceBox, p.PriceCard, p.DiscountPercent,
         p.Price, p.OldPrice, p.DepositAmount, p.DepositPercent, p.EditionNote,
@@ -269,33 +323,56 @@ async function getProductByIdOrSlug(idOrSlug, { includeInactive = false } = {}) 
         p.ReleaseDate, p.ExpectedDelivery,
         p.IsFeatured, p.IsNew, p.IsActive, p.CreatedAt,
         c.CategoryId, c.Name AS CategoryName, c.Slug AS CategorySlug
-      FROM dbo.Products p
-      INNER JOIN dbo.Categories c ON p.CategoryId = c.CategoryId
-      WHERE p.CategoryId = @cid AND p.ProductId <> @pid AND p.IsActive = 1
+      FROM Products p
+      INNER JOIN Categories c ON p.CategoryId = c.CategoryId
+      WHERE p.CategoryId = @cid AND p.ProductId <> @pid AND p.IsActive = TRUE
       ORDER BY p.IsFeatured DESC, p.ProductId ASC
+      LIMIT 4
     `, { cid: product.categoryId, pid: product.id })
   ]);
 
-  product.images = imgRes.recordset.map(i => i.ImageUrl);
-  product.reviews = revRes.recordset;
-  product.ratingAvg = revRes.recordset.length
-    ? Number((revRes.recordset.reduce((s, r) => s + Number(r.Rating), 0) / revRes.recordset.length).toFixed(1))
+  product.images = (imgRes.recordset || []).map(i => i.ImageUrl ?? i.imageurl);
+  product.reviews = revRes.recordset || [];
+  product.ratingAvg = product.reviews.length
+    ? Number((product.reviews.reduce((s, r) => s + Number(r.Rating ?? r.rating ?? 0), 0) / product.reviews.length).toFixed(1))
     : 0;
-  product.reviewCount = revRes.recordset.length;
-  product.related = relRes.recordset.map(mapProduct);
+  product.reviewCount = product.reviews.length;
+  product.related = (relRes.recordset || []).map(mapProduct);
   return product;
+}
+
+/**
+ * Alias cho public route (/api/products/:idOrSlug)
+ */
+async function findPublic(idOrSlug) {
+  return getProductByIdOrSlug(idOrSlug, { includeInactive: false });
 }
 
 async function listCategories() {
   const res = await db.query(`
     SELECT c.CategoryId, c.Slug, c.Name, c.Description, c.ImageUrl, c.SortOrder,
            COUNT(p.ProductId) AS ProductCount
-    FROM dbo.Categories c
-    LEFT JOIN dbo.Products p ON p.CategoryId = c.CategoryId AND p.IsActive = 1
+    FROM Categories c
+    LEFT JOIN Products p ON p.CategoryId = c.CategoryId AND p.IsActive = TRUE
     GROUP BY c.CategoryId, c.Slug, c.Name, c.Description, c.ImageUrl, c.SortOrder
     ORDER BY c.SortOrder ASC
   `);
-  return res.recordset;
+  return (res.recordset || []).map(c => ({
+    CategoryId: c.CategoryId ?? c.categoryid,
+    Slug: c.Slug ?? c.slug,
+    Name: c.Name ?? c.name,
+    Description: c.Description ?? c.description,
+    ImageUrl: c.ImageUrl ?? c.imageurl,
+    SortOrder: Number(c.SortOrder ?? c.sortorder ?? 0),
+    ProductCount: Number(c.ProductCount ?? c.productcount ?? 0),
+    id: c.CategoryId ?? c.categoryid,
+    slug: c.Slug ?? c.slug,
+    name: c.Name ?? c.name,
+    description: c.Description ?? c.description,
+    imageUrl: c.ImageUrl ?? c.imageurl,
+    sortOrder: Number(c.SortOrder ?? c.sortorder ?? 0),
+    productCount: Number(c.ProductCount ?? c.productcount ?? 0)
+  }));
 }
 
 module.exports = {
@@ -305,5 +382,6 @@ module.exports = {
   calcDiscountedPrice,
   listProducts,
   getProductByIdOrSlug,
+  findPublic,
   listCategories
 };
