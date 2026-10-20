@@ -66,30 +66,126 @@
       .replace(/'/g, '&#039;');
   }
 
-  function adminToast(message, type = 'info') {
+  function getCustomerVipInfo(totalSpent = 0) {
+    const spent = Math.max(0, Number(totalSpent) || 0);
+    if (spent <= 200000) {
+      return {
+        level: 1,
+        label: 'VIP 1',
+        tierName: '0 - 200K',
+        color: '#475569',
+        bg: '#f1f5f9',
+        border: '#cbd5e1',
+        icon: 'fa-shield'
+      };
+    } else if (spent <= 500000) {
+      return {
+        level: 2,
+        label: 'VIP 2',
+        tierName: '201K - 500K',
+        color: '#0284c7',
+        bg: '#e0f2fe',
+        border: '#bae6fd',
+        icon: 'fa-medal'
+      };
+    } else if (spent <= 1000000) {
+      return {
+        level: 3,
+        label: 'VIP 3',
+        tierName: '501K - 1TR',
+        color: '#d97706',
+        bg: '#fef3c7',
+        border: '#fde68a',
+        icon: 'fa-award'
+      };
+    } else if (spent <= 5000000) {
+      return {
+        level: 4,
+        label: 'VIP 4',
+        tierName: '1TR001K - 5TR',
+        color: '#7c3aed',
+        bg: '#f3e8ff',
+        border: '#ddd6fe',
+        icon: 'fa-gem'
+      };
+    } else {
+      return {
+        level: 5,
+        label: 'VIP 5',
+        tierName: '5TR001K - 10TR+',
+        color: '#dc2626',
+        bg: '#fee2e2',
+        border: '#fca5a5',
+        icon: 'fa-crown'
+      };
+    }
+  }
+  window.getCustomerVipInfo = getCustomerVipInfo;
+
+  function adminToast(message, type = 'info', title = null) {
     let container = document.getElementById('adminToastContainer');
     if (!container) {
       container = document.createElement('div');
       container.id = 'adminToastContainer';
-      container.style.cssText = 'position:fixed; top:24px; right:24px; z-index:999999; display:flex; flex-direction:column; gap:8px; pointer-events:none;';
+      container.style.cssText = 'position:fixed; top:24px; right:24px; z-index:999999; display:flex; flex-direction:column; gap:10px; pointer-events:none; max-width:420px; width:100%;';
       document.body.appendChild(container);
     }
 
     const toast = document.createElement('div');
-    const bg = type === 'success' ? '#10b981' : (type === 'error' ? '#ef4444' : '#2563eb');
-    toast.style.cssText = `background:${bg}; color:#fff; padding:12px 18px; border-radius:8px; box-shadow:0 10px 25px rgba(0,0,0,0.18); font-size:13px; font-weight:700; display:flex; align-items:center; gap:10px; pointer-events:auto; transition:all 0.3s ease; transform:translateY(10px); opacity:0;`;
-    toast.innerHTML = `<span>${type === 'success' ? '✓' : (type === 'error' ? '✕' : 'ℹ')}</span> <div>${escapeHtml(message)}</div>`;
+    const validTypes = ['success', 'error', 'warning', 'info'];
+    const t = validTypes.includes(type) ? type : 'info';
+
+    let iconHtml = '<i class="fa-solid fa-circle-info"></i>';
+    let defaultTitle = 'Quản trị Admin';
+    let accentColor = '#2563eb';
+    let iconBg = '#eff6ff';
+    if (t === 'success') {
+      iconHtml = '<i class="fa-solid fa-circle-check"></i>';
+      defaultTitle = 'Thành công';
+      accentColor = '#10b981';
+      iconBg = '#ecfdf5';
+    } else if (t === 'error') {
+      iconHtml = '<i class="fa-solid fa-circle-exclamation"></i>';
+      defaultTitle = 'Thông báo lỗi';
+      accentColor = '#ef4444';
+      iconBg = '#fef2f2';
+    } else if (t === 'warning') {
+      iconHtml = '<i class="fa-solid fa-triangle-exclamation"></i>';
+      defaultTitle = 'Cảnh báo';
+      accentColor = '#f59e0b';
+      iconBg = '#fffbeb';
+    }
+
+    const finalTitle = title || defaultTitle;
+
+    toast.style.cssText = `background:#ffffff; color:#0f172a; padding:12px 14px; border-radius:12px; border:1px solid #e2e8f0; border-left:4px solid ${accentColor}; box-shadow:0 14px 35px -6px rgba(15,23,42,0.16), 0 4px 10px rgba(15,23,42,0.05); font-size:12.5px; display:flex; align-items:flex-start; gap:10px; pointer-events:auto; transition:all 0.28s cubic-bezier(0.16,1,0.3,1); transform:translateY(-14px) scale(0.96); opacity:0;`;
+    toast.innerHTML = `
+      <div style="width:30px; height:30px; border-radius:8px; background:${iconBg}; color:${accentColor}; display:flex; align-items:center; justify-content:center; font-size:15px; flex-shrink:0; margin-top:1px;">
+        ${iconHtml}
+      </div>
+      <div style="flex:1; min-width:0;">
+        <div style="font-size:11px; font-weight:800; color:${accentColor}; text-transform:uppercase; letter-spacing:0.4px; margin-bottom:2px;">
+          ${escapeHtml(finalTitle)}
+        </div>
+        <div style="color:#334155; font-weight:600; line-height:1.4; word-break:break-word;">
+          ${escapeHtml(message)}
+        </div>
+      </div>
+      <button type="button" aria-label="Đóng" onclick="this.closest('div').remove();" style="border:none; background:transparent; color:#94a3b8; font-size:14px; cursor:pointer; padding:2px; margin-top:-2px;">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+    `;
 
     container.appendChild(toast);
     requestAnimationFrame(() => {
-      toast.style.transform = 'translateY(0)';
+      toast.style.transform = 'translateY(0) scale(1)';
       toast.style.opacity = '1';
     });
 
     setTimeout(() => {
       toast.style.opacity = '0';
-      toast.style.transform = 'translateY(-10px)';
-      setTimeout(() => toast.remove(), 300);
+      toast.style.transform = 'translateY(-10px) scale(0.96)';
+      setTimeout(() => toast.remove(), 260);
     }, 3500);
   }
 
@@ -2234,7 +2330,17 @@
 
           <!-- 2. Khách hàng & SĐT (bảo mật số điện thoại bằng eye toggle & huy hiệu địa chỉ Mới/Cũ) -->
           <td>
-            <div style="font-weight:700; color:#0f172a; font-size:12.5px;">${escapeHtml(custName)}</div>
+            <div style="font-weight:700; color:#0f172a; font-size:12.5px; display:flex; align-items:center; gap:5px; flex-wrap:wrap;">
+              <span>${escapeHtml(custName)}</span>
+              ${(() => {
+                const custMatch = (cachedUsers && cachedUsers.length)
+                  ? cachedUsers.find(u => (o.userId && u.userId == o.userId) || (u.phone && custPhone && u.phone.replace(/\D/g, '') === custPhone.replace(/\D/g, '')))
+                  : null;
+                const custTotalSpent = (custMatch ? custMatch.totalSpent : 0) || o.userTotalSpent || o.totalSpent || 0;
+                const custVip = getCustomerVipInfo(custTotalSpent);
+                return `<span class="vip-badge vip-${custVip.level}" style="background:${custVip.bg}; color:${custVip.color}; border:1px solid ${custVip.border}; padding:1px 6px; border-radius:10px; font-weight:800; font-size:10px; display:inline-flex; align-items:center; gap:3px;" title="Cấp độ ${custVip.label} (${formatVND(custTotalSpent)})"><i class="fa-solid ${custVip.icon}"></i> ${custVip.label}</span>`;
+              })()}
+            </div>
             <div class="phone-privacy-wrapper" style="margin-top:2px;">
               <span class="phone-masked-text" id="phoneMask_${o.id}">
                 ${isPhoneRevealed ? escapeHtml(custPhone) : maskPhoneNumber(custPhone)}
@@ -2663,6 +2769,15 @@
     try {
       const res = await api.put(`/api/admin/orders/${orderId}/status`, { status: nextStatus });
       adminToast(res.message || 'Đã duyệt & cập nhật trạng thái đơn hàng! Khách hàng đã nhận được thông báo.', 'success');
+      if (api && typeof api.emitRealtimeSync === 'function') {
+        const orderData = (res && res.data) ? res.data : { id: orderId, status: nextStatus };
+        api.emitRealtimeSync('ORDER_UPDATED', {
+          orderId,
+          orderCode: orderData.code || orderData.OrderCode,
+          status: nextStatus,
+          order: orderData
+        });
+      }
       loadOrders();
       loadDashboard();
       if (document.getElementById('orderDetailModal')?.classList.contains('active')) {
@@ -2678,6 +2793,15 @@
     try {
       const res = await api.put(`/api/admin/orders/${orderId}/confirm-payment`, { kind });
       adminToast(res.message || 'Xác nhận thanh toán thành công!', 'success');
+      if (api && typeof api.emitRealtimeSync === 'function') {
+        const orderData = (res && res.data) ? res.data : { id: orderId };
+        api.emitRealtimeSync('ORDER_UPDATED', {
+          orderId,
+          orderCode: orderData.code || orderData.OrderCode,
+          paymentStatus: kind === 'deposit' ? 'PARTIALLY_PAID' : 'PAID',
+          order: orderData
+        });
+      }
       loadOrders();
       loadDashboard();
       if (document.getElementById('orderDetailModal')?.classList.contains('active')) {
@@ -2861,6 +2985,15 @@ Anh/chị phản hồi giúp shop để kiện xe được đóng gói gửi đi
         autoShip: false
       });
       adminToast(`Đã duyệt đơn & lưu mã SPX (${code})! Khách hàng đã nhận được thông báo kèm mã vận đơn.`, 'success');
+      if (api && typeof api.emitRealtimeSync === 'function') {
+        const orderData = (res && res.data) ? res.data : { id: currentActionOrderId, trackingCode: code };
+        api.emitRealtimeSync('ORDER_UPDATED', {
+          orderId: currentActionOrderId,
+          orderCode: orderData.code || orderData.OrderCode,
+          trackingCode: code,
+          order: orderData
+        });
+      }
       closeAdminModal('shipSpxModal');
       loadOrders();
       loadDashboard();
@@ -2881,12 +3014,22 @@ Anh/chị phản hồi giúp shop để kiện xe được đóng gói gửi đi
     }
 
     try {
-      await api.put(`/api/admin/orders/${currentActionOrderId}/tracking`, {
+      const res = await api.put(`/api/admin/orders/${currentActionOrderId}/tracking`, {
         trackingCode: code,
         carrier: 'SPX Express',
         autoShip: true
       });
       adminToast(`Đã duyệt & chuyển giao SPX Express (Mã: ${code})! Đã gửi thông báo đến khách hàng.`, 'success');
+      if (api && typeof api.emitRealtimeSync === 'function') {
+        const orderData = (res && res.data) ? res.data : { id: currentActionOrderId, trackingCode: code, status: 'SHIPPING' };
+        api.emitRealtimeSync('ORDER_UPDATED', {
+          orderId: currentActionOrderId,
+          orderCode: orderData.code || orderData.OrderCode,
+          status: 'SHIPPING',
+          trackingCode: code,
+          order: orderData
+        });
+      }
       closeAdminModal('shipSpxModal');
       loadOrders();
       loadDashboard();
@@ -3035,42 +3178,51 @@ Anh/chị phản hồi giúp shop để kiện xe được đóng gói gửi đi
     if (!tbody) return;
 
     if (!users.length) {
-      tbody.innerHTML = '<tr><td colspan="10" style="text-align:center; padding:2rem; color:#64748b;">Không tìm thấy khách hàng nào</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="11" style="text-align:center; padding:2rem; color:#64748b;">Không tìm thấy khách hàng nào</td></tr>';
       return;
     }
 
-    tbody.innerHTML = users.map(u => `
-      <tr>
-        <td>#${u.userId}</td>
-        <td>
-          <div style="font-weight:700; color:#0f172a;">${escapeHtml(u.fullName)}</div>
-          <div style="font-size:11px; color:#64748b;">Tham gia: ${new Date(u.createdAt).toLocaleDateString('vi-VN')}</div>
-        </td>
-        <td>${escapeHtml(u.email)}</td>
-        <td>${escapeHtml(u.phone || '-')}</td>
-        <td style="max-width:180px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${escapeHtml(u.address || '-')}</td>
-        <td><strong style="color:#0f172a;">${u.totalOrders}</strong> đơn</td>
-        <td><strong style="color:#e10600;">${formatVND(u.totalSpent)}</strong></td>
-        <td>
-          <span class="status-badge" style="background:${u.role === 'admin' ? '#fef2f2' : '#f1f5f9'}; color:${u.role === 'admin' ? '#dc2626' : '#475569'}; font-weight:700;">
-            ${u.role.toUpperCase()}
-          </span>
-        </td>
-        <td>
-          <span style="font-size:12px; font-weight:700; color:${u.isActive ? '#059669' : '#dc2626'};">
-            ${u.isActive ? '● Hoạt động' : '● Bị khóa'}
-          </span>
-        </td>
-        <td style="text-align:right; white-space:nowrap;">
-          <button class="btn-admin btn-admin-outline" style="padding:3px 7px; font-size:11.5px;" onclick="toggleUserStatus(${u.userId}, ${!u.isActive})" title="${u.isActive ? 'Khóa tài khoản' : 'Mở khóa'}">
-            ${u.isActive ? '<i class="fa-solid fa-lock" style="color:#dc2626;"></i> Khóa' : '<i class="fa-solid fa-lock-open" style="color:#059669;"></i> Mở'}
-          </button>
-          <button class="btn-admin btn-admin-outline" style="padding:3px 7px; font-size:11.5px;" onclick="changeUserRole(${u.userId}, '${u.role === 'admin' ? 'customer' : 'admin'}')" title="Đổi quyền">
-            ${u.role === 'admin' ? 'Hạ Customer' : 'Lên Admin'}
-          </button>
-        </td>
-      </tr>
-    `).join('');
+    tbody.innerHTML = users.map(u => {
+      const vip = getCustomerVipInfo(u.totalSpent);
+      return `
+        <tr>
+          <td>#${u.userId}</td>
+          <td>
+            <div style="font-weight:700; color:#0f172a;">${escapeHtml(u.fullName)}</div>
+            <div style="font-size:11px; color:#64748b;">Tham gia: ${new Date(u.createdAt).toLocaleDateString('vi-VN')}</div>
+          </td>
+          <td>${escapeHtml(u.email)}</td>
+          <td>${escapeHtml(u.phone || '-')}</td>
+          <td style="max-width:180px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${escapeHtml(u.address || '-')}">${escapeHtml(u.address || '-')}</td>
+          <td><strong style="color:#0f172a;">${u.totalOrders}</strong> đơn</td>
+          <td><strong style="color:#e10600;">${formatVND(u.totalSpent)}</strong></td>
+          <td>
+            <span class="vip-badge vip-${vip.level}" style="background:${vip.bg}; color:${vip.color}; border:1px solid ${vip.border}; padding:3px 8px; border-radius:12px; font-weight:800; font-size:11.5px; display:inline-flex; align-items:center; gap:4px;">
+              <i class="fa-solid ${vip.icon}"></i> ${vip.label}
+            </span>
+            <div style="font-size:10.5px; color:#64748b; margin-top:2px;">${vip.tierName}</div>
+          </td>
+          <td>
+            <span class="status-badge" style="background:${u.role === 'admin' ? '#fef2f2' : '#f1f5f9'}; color:${u.role === 'admin' ? '#dc2626' : '#475569'}; font-weight:700;">
+              ${u.role.toUpperCase()}
+            </span>
+          </td>
+          <td>
+            <span style="font-size:12px; font-weight:700; color:${u.isActive ? '#059669' : '#dc2626'};">
+              ${u.isActive ? '● Hoạt động' : '● Bị khóa'}
+            </span>
+          </td>
+          <td style="text-align:right; white-space:nowrap;">
+            <button class="btn-admin btn-admin-outline" style="padding:3px 7px; font-size:11.5px;" onclick="toggleUserStatus(${u.userId}, ${!u.isActive})" title="${u.isActive ? 'Khóa tài khoản' : 'Mở khóa'}">
+              ${u.isActive ? '<i class="fa-solid fa-lock" style="color:#dc2626;"></i> Khóa' : '<i class="fa-solid fa-lock-open" style="color:#059669;"></i> Mở'}
+            </button>
+            <button class="btn-admin btn-admin-outline" style="padding:3px 7px; font-size:11.5px;" onclick="changeUserRole(${u.userId}, '${u.role === 'admin' ? 'customer' : 'admin'}')" title="Đổi quyền">
+              ${u.role === 'admin' ? 'Hạ Customer' : 'Lên Admin'}
+            </button>
+          </td>
+        </tr>
+      `;
+    }).join('');
   }
 
   async function toggleUserStatus(userId, willBeActive) {
@@ -3166,7 +3318,17 @@ Anh/chị phản hồi giúp shop để kiện xe được đóng gói gửi đi
 
       const setVal = (id, val) => {
         const el = document.getElementById(id);
-        if (el) el.value = val != null ? val : '';
+        if (!el) return;
+        if (el.type === 'date') {
+          if (typeof val === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(val)) {
+            el.value = val;
+          } else {
+            try { el.type = 'text'; } catch (_) {}
+            el.value = val != null ? val : '';
+          }
+        } else {
+          el.value = val != null ? val : '';
+        }
       };
 
       setVal('set_store_name', s.store_name);

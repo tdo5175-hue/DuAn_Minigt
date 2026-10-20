@@ -318,8 +318,19 @@ function applyStoreSettingsUI() {
   }
 }
 
-// Khởi tạo wishlist (lưu trữ trong LocalStorage)
-let wishlist = JSON.parse(localStorage.getItem('minigt_wishlist') || '[1, 2, 10, 11]');
+// Khởi tạo wishlist (mặc định rỗng, người dùng bấm tim mới có xe)
+let rawWishlist = localStorage.getItem('minigt_wishlist');
+if (rawWishlist === '[1, 2, 10, 11]' || rawWishlist === '[1,2,10,11]') {
+  localStorage.setItem('minigt_wishlist', '[]');
+  rawWishlist = '[]';
+}
+let wishlist = [];
+try {
+  wishlist = JSON.parse(rawWishlist || '[]');
+  if (!Array.isArray(wishlist)) wishlist = [];
+} catch (_) {
+  wishlist = [];
+}
 
 function isInWishlist(id) {
   return wishlist.includes(Number(id));
@@ -345,6 +356,12 @@ function toggleWishlist(id, e) {
     showToast(`Đã lưu vào danh sách yêu thích: ${pName}`, 'success');
   }
   localStorage.setItem('minigt_wishlist', JSON.stringify(wishlist));
+  if (currentUser) {
+    const uKey = currentUser.userId || currentUser.id || currentUser.email;
+    if (uKey) {
+      try { localStorage.setItem('minigt_wishlist_user_' + uKey, JSON.stringify(wishlist)); } catch (_) {}
+    }
+  }
   updateWishlistBadge();
 
   // Cập nhật mượt mà trực tiếp tại nút tim trên thẻ, không re-render toàn bộ grid gây giật
@@ -443,7 +460,13 @@ function clearWishlist() {
   if (!wishlist.length) return;
   if (!confirm('Bạn có muốn xóa toàn bộ danh sách xe yêu thích không?')) return;
   wishlist = [];
-  localStorage.setItem('minigt_wishlist', JSON.stringify(wishlist));
+  localStorage.setItem('minigt_wishlist', '[]');
+  if (currentUser) {
+    const uKey = currentUser.userId || currentUser.id || currentUser.email;
+    if (uKey) {
+      try { localStorage.setItem('minigt_wishlist_user_' + uKey, '[]'); } catch (_) {}
+    }
+  }
   updateWishlistBadge();
   renderProductsGrid();
   renderWishlistModal();
@@ -474,6 +497,16 @@ if (Array.isArray(cart)) {
 let currentUser = JSON.parse(localStorage.getItem('minigt_user')) || null;
 let currentToken = localStorage.getItem('minigt_token') || null;
 
+// Tự động xóa phiên tài khoản demo cũ nếu có để chạy tài khoản thật
+if (currentUser && (currentUser.email === 'collector.bienhoa@gmail.com' || currentUser.email === 'collector.google@gmail.com' || (currentUser.fullName && currentUser.fullName.includes('MINI GT BIÊN HÒA VIP')))) {
+  try {
+    localStorage.removeItem('minigt_user');
+    localStorage.removeItem('minigt_token');
+  } catch (_) {}
+  currentUser = null;
+  currentToken = null;
+}
+
 // =====================================================================
 // 3. TIỆN ÍCH ĐỊNH DẠNG (FORMATTERS)
 // =====================================================================
@@ -493,19 +526,131 @@ function escapeHtml(str) {
 }
 window.escapeHtml = escapeHtml;
 
-function showToast(message, type = 'info') {
+function getCustomerVipInfo(totalSpent = 0) {
+  const spent = Math.max(0, Number(totalSpent) || 0);
+  if (spent <= 200000) {
+    return {
+      level: 1,
+      label: 'VIP 1',
+      tierName: 'Hội viên Mới (0 - 200K)',
+      color: '#475569',
+      bg: '#f1f5f9',
+      border: '#cbd5e1',
+      icon: 'fa-shield',
+      min: 0,
+      max: 200000,
+      nextTarget: 201000,
+      nextLabel: 'VIP 2',
+      progressPercent: Math.min(100, Math.round((spent / 200000) * 100))
+    };
+  } else if (spent <= 500000) {
+    return {
+      level: 2,
+      label: 'VIP 2',
+      tierName: 'Collector Bạc (201K - 500K)',
+      color: '#0284c7',
+      bg: '#e0f2fe',
+      border: '#bae6fd',
+      icon: 'fa-medal',
+      min: 201000,
+      max: 500000,
+      nextTarget: 501000,
+      nextLabel: 'VIP 3',
+      progressPercent: Math.min(100, Math.round(((spent - 200000) / 300000) * 100))
+    };
+  } else if (spent <= 1000000) {
+    return {
+      level: 3,
+      label: 'VIP 3',
+      tierName: 'Collector Vàng (501K - 1TR)',
+      color: '#d97706',
+      bg: '#fef3c7',
+      border: '#fde68a',
+      icon: 'fa-award',
+      min: 501000,
+      max: 1000000,
+      nextTarget: 1001000,
+      nextLabel: 'VIP 4',
+      progressPercent: Math.min(100, Math.round(((spent - 500000) / 500000) * 100))
+    };
+  } else if (spent <= 5000000) {
+    return {
+      level: 4,
+      label: 'VIP 4',
+      tierName: 'VIP Bạch Kim (1TR - 5TR)',
+      color: '#7c3aed',
+      bg: '#f3e8ff',
+      border: '#ddd6fe',
+      icon: 'fa-gem',
+      min: 1001000,
+      max: 5000000,
+      nextTarget: 5001000,
+      nextLabel: 'VIP 5',
+      progressPercent: Math.min(100, Math.round(((spent - 1000000) / 4000000) * 100))
+    };
+  } else {
+    return {
+      level: 5,
+      label: 'VIP 5',
+      tierName: 'VIP Kim Cương (Từ 5TR)',
+      color: '#dc2626',
+      bg: '#fee2e2',
+      border: '#fca5a5',
+      icon: 'fa-crown',
+      min: 5001000,
+      max: 10000000,
+      nextTarget: null,
+      nextLabel: 'Cấp tối đa',
+      progressPercent: 100
+    };
+  }
+}
+window.getCustomerVipInfo = getCustomerVipInfo;
+
+function showToast(message, type = 'info', title = null) {
   const container = document.getElementById('toastContainer');
   if (!container) return;
 
+  const validTypes = ['success', 'error', 'warning', 'info'];
+  const t = validTypes.includes(type) ? type : 'info';
+
   const toast = document.createElement('div');
-  toast.className = `toast ${type === 'success' ? 'toast-success' : (type === 'error' ? 'toast-error' : '')}`;
-  toast.innerHTML = `<span>${type === 'success' ? '✓' : (type === 'error' ? '✕' : 'ℹ')}</span> <div>${escapeHtml(message)}</div>`;
+  toast.className = `toast toast-${t}`;
+
+  let iconHtml = '<i class="fa-solid fa-circle-info"></i>';
+  let defaultTitle = 'Thông báo';
+  if (t === 'success') {
+    iconHtml = '<i class="fa-solid fa-circle-check"></i>';
+    defaultTitle = 'Thành công';
+  } else if (t === 'error') {
+    iconHtml = '<i class="fa-solid fa-circle-exclamation"></i>';
+    defaultTitle = 'Thông báo lỗi';
+  } else if (t === 'warning') {
+    iconHtml = '<i class="fa-solid fa-triangle-exclamation"></i>';
+    defaultTitle = 'Lưu ý';
+  }
+
+  const finalTitle = title || defaultTitle;
+
+  toast.innerHTML = `
+    <div class="toast-icon-wrap">${iconHtml}</div>
+    <div class="toast-body">
+      <div class="toast-title">${escapeHtml(finalTitle)}</div>
+      <div class="toast-message">${escapeHtml(message)}</div>
+    </div>
+    <button type="button" class="toast-close-btn" aria-label="Đóng" onclick="const p = this.closest('.toast'); if (p) { p.classList.add('toast-hiding'); setTimeout(() => p.remove(), 260); }">
+      <i class="fa-solid fa-xmark"></i>
+    </button>
+    <div class="toast-progress toast-progress-${t}"></div>
+  `;
 
   container.appendChild(toast);
+
   setTimeout(() => {
-    toast.style.opacity = '0';
-    toast.style.transform = 'translateY(10px)';
-    setTimeout(() => toast.remove(), 300);
+    if (toast.parentNode) {
+      toast.classList.add('toast-hiding');
+      setTimeout(() => toast.remove(), 260);
+    }
   }, 3500);
 }
 
@@ -942,8 +1087,8 @@ function selectCardPackaging(productId, packType, event) {
   const basePrice = normalizedPack === 'card' ? pricing.priceCard : pricing.priceBox;
   const isPreOrder = String(prod.Status || prod.status || '').toLowerCase() === 'pre_order';
 
-  // Cập nhật nhanh DOM trên tất cả card của sản phẩm này
-  document.querySelectorAll(`.product-card[data-id="${productId}"]`).forEach(cardEl => {
+  // Cập nhật nhanh DOM trên tất cả card của sản phẩm này (kể cả trên catalog grid và chuyên trang GT3 Dino)
+  document.querySelectorAll(`.product-card[data-id="${productId}"], .gt3-dino-card[data-id="${productId}"]`).forEach(cardEl => {
     cardEl.setAttribute('data-pack', normalizedPack);
     const btns = cardEl.querySelectorAll('.card-pack-btn');
     if (btns.length >= 2) {
@@ -953,8 +1098,15 @@ function selectCardPackaging(productId, packType, event) {
     const scalePill = cardEl.querySelector('.card-scale-pill');
     if (scalePill) scalePill.textContent = normalizedPack === 'card' ? 'CARD BLISTER' : 'BOX SEAL';
 
-    const currEl = cardEl.querySelector('.current-price');
+    const currEl = cardEl.querySelector('.current-price') || cardEl.querySelector('.gt3-price-group strong');
     if (currEl) currEl.textContent = formatVND(finalPrice);
+
+    const dinoSubEl = cardEl.querySelector('.gt3-price-group span');
+    if (dinoSubEl) {
+      dinoSubEl.textContent = normalizedPack === 'card'
+        ? (isEn ? 'Blister Display Card' : 'Bản Vỉ Card Trưng Bày')
+        : (isEn ? 'Paper Box Edition' : 'Bản Hộp Giấy (Box Tiết Kiệm)');
+    }
 
     const oldEl = cardEl.querySelector('.old-price');
     if (oldEl) {
@@ -1443,8 +1595,23 @@ function initHeroSlider() {
 // 8. ĐỒNG HỒ ĐẾM NGƯỢC PRE-ORDER (COUNTDOWN TIMER)
 // =====================================================================
 function setupCountdown() {
-  const deadlineStr = (storeSettings && storeSettings.preorder_deadline) ? `${storeSettings.preorder_deadline}T23:59:59` : '2026-10-30T23:59:59';
-  const targetDate = new Date(deadlineStr).getTime();
+  let targetDate;
+  const rawDl = (storeSettings && storeSettings.preorder_deadline) ? String(storeSettings.preorder_deadline).trim() : '2026-11-30';
+  if (/^\d{4}-\d{2}-\d{2}$/.test(rawDl)) {
+    targetDate = new Date(`${rawDl}T23:59:59`).getTime();
+  } else if (rawDl.includes('/')) {
+    const parts = rawDl.match(/(\d{1,2})\/(\d{4})/);
+    if (parts) {
+      const month = parseInt(parts[1], 10);
+      const year = parseInt(parts[2], 10);
+      const lastDay = new Date(year, month, 0).getDate();
+      targetDate = new Date(`${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}T23:59:59`).getTime();
+    } else {
+      targetDate = new Date('2026-11-30T23:59:59').getTime();
+    }
+  } else {
+    targetDate = new Date('2026-11-30T23:59:59').getTime();
+  }
 
   function update() {
     const now = new Date().getTime();
@@ -1707,6 +1874,12 @@ window.switchCartItemPackaging = switchCartItemPackaging;
 
 function saveCart() {
   localStorage.setItem('minigt_cart', JSON.stringify(cart));
+  if (currentUser) {
+    const uKey = currentUser.userId || currentUser.id || currentUser.email;
+    if (uKey) {
+      try { localStorage.setItem('minigt_cart_user_' + uKey, JSON.stringify(cart)); } catch (_) {}
+    }
+  }
   updateCartBadge();
 }
 
@@ -1847,17 +2020,20 @@ function renderCartDrawer() {
   let totalDeposit = 0;
 
   const headerHtml = `
-    <div class="cart-drawer-toolbar" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; padding:8px 10px; background:#fff; border-radius:10px; border:1px solid #e2e8f0;">
-      <label class="cart-select-all-label" style="display:inline-flex; align-items:center; gap:8px; font-size:12px; font-weight:700; color:#334155; cursor:pointer; user-select:none;">
-        <input type="checkbox" class="cart-select-checkbox" ${isAllSelected ? 'checked' : ''} onchange="toggleAllCartSelection(this.checked)" style="width:17px; height:17px; accent-color:#e10600; cursor:pointer;">
+    <div class="cart-drawer-toolbar" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; padding:10px 12px; background:#fff; border-radius:10px; border:1px solid #e2e8f0; gap:8px; flex-wrap:wrap;">
+      <label class="cart-select-all-label" style="display:inline-flex; align-items:center; gap:8px; font-size:12.5px; font-weight:700; color:#1e293b; cursor:pointer; user-select:none;">
+        <input type="checkbox" class="cart-select-checkbox" ${isAllSelected ? 'checked' : ''} onchange="toggleAllCartSelection(this.checked)" style="width:18px; height:18px; accent-color:#e10600; cursor:pointer;">
         <span>${isEn ? `Selected ${selectedCount}/${cart.length} (${selectedQty} pcs)` : `Đã chọn ${selectedCount}/${cart.length} mẫu (${selectedQty} chiếc)`}</span>
       </label>
-      <div style="display:flex; align-items:center; gap:8px;">
-        <button type="button" class="cart-unselect-all-btn" onclick="toggleAllCartSelection(${isNoneSelected ? 'true' : 'false'})" style="background:#f1f5f9; border:1px solid #cbd5e1; color:#2563eb; font-size:11.5px; font-weight:700; cursor:pointer; padding:3px 8px; border-radius:6px; transition:all 0.15s ease;">
-          <i class="fa-solid fa-check-double"></i> ${isNoneSelected ? (isEn ? 'Select all' : 'Chọn tất cả') : (isEn ? 'Bỏ chọn tất cả' : 'Bỏ chọn tất cả')}
+      <div style="display:flex; align-items:center; gap:6px;">
+        <button type="button" class="cart-unselect-all-btn" onclick="toggleAllCartSelection(false)" title="Bỏ chọn tất cả sản phẩm" style="background:${isNoneSelected ? '#f8fafc' : '#eff6ff'}; border:1px solid ${isNoneSelected ? '#e2e8f0' : '#bfdbfe'}; color:${isNoneSelected ? '#94a3b8' : '#2563eb'}; font-size:11.5px; font-weight:700; cursor:pointer; padding:4px 8px; border-radius:6px; transition:all 0.15s ease;">
+          <i class="fa-solid fa-square-minus"></i> ${isEn ? 'Uncheck all' : 'Bỏ chọn tất cả'}
+        </button>
+        <button type="button" class="cart-select-all-btn" onclick="toggleAllCartSelection(true)" title="Chọn tất cả sản phẩm" style="background:#f1f5f9; border:1px solid #e2e8f0; color:#334155; font-size:11.5px; font-weight:700; cursor:pointer; padding:4px 8px; border-radius:6px; transition:all 0.15s ease;">
+          <i class="fa-solid fa-check-double"></i> ${isEn ? 'Check all' : 'Chọn tất cả'}
         </button>
         <span style="color:#cbd5e1;">|</span>
-        <button type="button" style="color:#dc2626; border:none; background:none; font-size:11.5px; cursor:pointer; font-weight:700; display:inline-flex; align-items:center; gap:3px;" onclick="clearCart()">
+        <button type="button" style="color:#dc2626; border:none; background:none; font-size:11.5px; cursor:pointer; font-weight:700; display:inline-flex; align-items:center; gap:3px; padding:4px 6px;" onclick="clearCart()" title="Xóa toàn bộ giỏ hàng">
           <i class="fa-solid fa-trash-can"></i> ${isEn ? 'Clear' : 'Xóa hết'}
         </button>
       </div>
@@ -1900,7 +2076,7 @@ function renderCartDrawer() {
 
     return `
       <div class="cart-item ${!isSelected ? 'is-unselected' : ''}" data-id="${it.productId}" data-pack="${pack}" style="${!isSelected ? 'opacity:0.62; background:#f8fafc; border-style:dashed;' : ''}">
-        <div class="cart-item-select-wrap" style="display:flex; align-items:center; padding-top:28px; flex-shrink:0;">
+        <div class="cart-item-select-wrap">
           <input type="checkbox" class="cart-select-checkbox" ${isSelected ? 'checked' : ''} onchange="toggleCartItemSelection(${it.productId}, '${pack}', this.checked)" title="Chọn/Bỏ chọn mẫu này để đặt cọc" style="width:18px; height:18px; accent-color:#e10600; cursor:pointer;">
         </div>
         <div class="cart-item-thumb-box">
@@ -2442,7 +2618,8 @@ function goToCheckoutStep(step) {
     return;
   }
 
-  if (step >= 2 && cart.length === 0) {
+  // Chỉ kiểm tra giỏ hàng rỗng ở Bước 2 & Bước 3. Bước 4 là màn hình Cảm ơn & VietQR thanh toán hoàn tất đơn, tuyệt đối không được chặn giỏ hàng rỗng!
+  if ((step === 2 || step === 3) && cart.length === 0) {
     showToast('Giỏ hàng của bạn đang trống! Hãy chọn mô hình trước khi thanh toán.', 'error');
     return;
   }
@@ -2632,14 +2809,55 @@ function validateStep2AndProceed() {
   goToCheckoutStep(3);
 }
 
+function getCustomerDeliveredSpent() {
+  const user = (api && api.getCurrentUser) ? api.getCurrentUser() : (typeof currentUser !== 'undefined' ? currentUser : null);
+  if (!user) return 0;
+
+  let spent = Number(user.deliveredSpent || 0);
+
+  try {
+    const allOrders = (api && api.getSharedOrders) ? api.getSharedOrders() : [];
+    const myDelivered = allOrders.filter(o => {
+      const st = String(o.status || o.Status || '').toUpperCase();
+      const isDelivered = st === 'DELIVERED';
+      const match = (user.userId && o.userId && Number(user.userId) === Number(o.userId)) ||
+                    (user.email && o.email && user.email.toLowerCase() === o.email.toLowerCase()) ||
+                    (user.phone && o.phone && user.phone === o.phone);
+      return isDelivered && match;
+    });
+    const ordersSum = myDelivered.reduce((sum, o) => sum + Number(o.total || o.totalAmount || o.Total || 0), 0);
+    spent = Math.max(spent, ordersSum);
+  } catch (_) {}
+
+  // Nếu người dùng có lịch sử mua hàng và đã đạt tổng chi tiêu từ 1.000.000đ
+  if (user.totalSpent >= 1000000 && (user.totalOrders > 0 || (user.tier && user.tier.includes('VIP')))) {
+    spent = Math.max(spent, Number(user.totalSpent));
+  }
+
+  return spent;
+}
+window.getCustomerDeliveredSpent = getCustomerDeliveredSpent;
+
 function handlePaymentMethodChange(val) {
   const hasPreOrder = cart.some(it => it.isPreOrder);
   if (hasPreOrder && val !== 'DEPOSIT') {
-    showToast('Đơn hàng có mô hình Pre-Order chỉ áp dụng phương thức Đặt cọc giữ mẫu qua MB Bank!', 'warning');
+    showToast('Đơn hàng có mô hình Pre-Order chỉ áp dụng phương thức Đặt cọc giữ mẫu qua MB Bank!', 'warning', 'Chỉ cọc Pre-Order');
     selectedCheckoutPaymentMethod = 'DEPOSIT';
     val = 'DEPOSIT';
     const depRadio = document.querySelector('input[name="checkoutPaymentMethod"][value="DEPOSIT"]');
     if (depRadio) depRadio.checked = true;
+  } else if (val === 'COD') {
+    const deliveredSpent = getCustomerDeliveredSpent();
+    if (deliveredSpent < 1000000) {
+      showToast(`🔒 Phương thức Ship COD 100% chỉ áp dụng cho tài khoản đã từng mua và nhận hàng thành công từ 1.000.000đ trở lên. Hiện tại bạn đã tích lũy: ${formatVND(deliveredSpent)} / 1.000.000đ. Vui lòng chọn Đặt cọc 30% hoặc Chuyển khoản VietQR!`, 'warning', 'Chưa đủ điều kiện COD');
+      const fallbackRadio = document.querySelector('input[name="checkoutPaymentMethod"][value="DEPOSIT"]') || document.querySelector('input[name="checkoutPaymentMethod"][value="BANK_TRANSFER"]');
+      if (fallbackRadio) fallbackRadio.checked = true;
+      selectedCheckoutPaymentMethod = fallbackRadio ? fallbackRadio.value : 'DEPOSIT';
+      renderCheckoutStep3();
+      return;
+    } else {
+      selectedCheckoutPaymentMethod = 'COD';
+    }
   } else {
     selectedCheckoutPaymentMethod = (val === 'FULL_TRANSFER') ? 'BANK_TRANSFER' : val;
   }
@@ -2678,6 +2896,12 @@ function renderCheckoutStep3() {
   const optDeposit = document.getElementById('payOptDeposit');
   const optFull = document.getElementById('payOptFull');
 
+  const deliveredSpent = getCustomerDeliveredSpent();
+  const isCodEligible = deliveredSpent >= 1000000;
+  const codRadio = document.querySelector('input[name="checkoutPaymentMethod"][value="COD"]');
+  const codBadge = document.getElementById('payOptCodBadge');
+  const codDesc = document.getElementById('payOptCodDesc');
+
   let preNotice = document.getElementById('preOrderPaymentNoticeInStep3');
   if (hasPreOrder) {
     selectedCheckoutPaymentMethod = 'DEPOSIT';
@@ -2700,9 +2924,61 @@ function renderCheckoutStep3() {
       preNotice.style.display = 'block';
     }
   } else {
-    if (optCod) optCod.style.display = 'flex';
     if (optFull) optFull.style.display = 'flex';
     if (preNotice) preNotice.style.display = 'none';
+
+    if (optCod) {
+      optCod.style.display = 'flex';
+      if (!isCodEligible) {
+        // Chưa đủ điều kiện 1.000.000đ: Khóa không cho bấm & hiện hướng dẫn
+        optCod.classList.add('is-locked');
+        optCod.style.opacity = '0.78';
+        optCod.style.background = '#f8fafc';
+        optCod.style.borderColor = '#e2e8f0';
+        optCod.style.cursor = 'not-allowed';
+        if (codRadio) {
+          codRadio.disabled = true;
+          if (codRadio.checked) codRadio.checked = false;
+        }
+        if (selectedCheckoutPaymentMethod === 'COD') {
+          selectedCheckoutPaymentMethod = 'DEPOSIT';
+          const depRadio = document.querySelector('input[name="checkoutPaymentMethod"][value="DEPOSIT"]');
+          if (depRadio) depRadio.checked = true;
+        }
+        if (codBadge) {
+          codBadge.innerHTML = '<i class="fa-solid fa-lock" style="color:#dc2626;"></i> Mở Khóa Từ 1.000.000đ';
+          codBadge.style.background = '#fef2f2';
+          codBadge.style.color = '#dc2626';
+          codBadge.style.borderColor = '#fecaca';
+        }
+        if (codDesc) {
+          codDesc.innerHTML = `🔒 <strong>Dành riêng cho khách đã từng mua & nhận hàng từ 1.000.000đ trở lên.</strong><br><span style="color:#ea580c; font-weight:700;">Hiện tại bạn đã tích lũy: ${formatVND(deliveredSpent)} / 1.000.000đ.</span> Vui lòng chọn Đặt cọc 30% hoặc Chuyển khoản Full 100%!`;
+        }
+        optCod.onclick = (e) => {
+          if (!isCodEligible) {
+            e.preventDefault();
+            e.stopPropagation();
+            showToast(`🔒 Phương thức Ship COD 100% chỉ áp dụng cho tài khoản đã từng mua và nhận hàng thành công từ 1.000.000đ trở lên. Hiện tại bạn đã tích lũy: ${formatVND(deliveredSpent)} / 1.000.000đ. Vui lòng chọn Đặt cọc 30% hoặc Chuyển khoản VietQR MB Bank!`, 'warning', 'Chưa đủ điều kiện COD');
+          }
+        };
+      } else {
+        // Đã đủ điều kiện >= 1.000.000đ
+        optCod.classList.remove('is-locked');
+        optCod.style.opacity = '1';
+        optCod.style.cursor = 'pointer';
+        optCod.onclick = null;
+        if (codRadio) codRadio.disabled = false;
+        if (codBadge) {
+          codBadge.innerHTML = '<i class="fa-solid fa-circle-check" style="color:#059669;"></i> Đã Đạt Chuẩn COD';
+          codBadge.style.background = '#ecfdf5';
+          codBadge.style.color = '#059669';
+          codBadge.style.borderColor = '#a7f3d0';
+        }
+        if (codDesc) {
+          codDesc.innerHTML = `Thanh toán toàn bộ tiền hàng cho shipper SPX Express khi nhận và đồng kiểm kiện xe nguyên seal. (Đã tích lũy nhận hàng: <strong style="color:#059669;">${formatVND(deliveredSpent)}</strong>)`;
+        }
+      }
+    }
   }
 
   const totals = calculateCheckoutTotals();
@@ -2907,7 +3183,39 @@ async function handleCheckoutSubmit(e) {
         const earnedPoints = Math.max(20, Math.floor(dep / 10000));
         currentUser.points = (currentUser.points || 0) + earnedPoints;
         currentUser.totalSpent = (currentUser.totalSpent || 0) + (createdOrder.totalAmount || dep);
+
+        // Tự động đồng bộ số điện thoại và địa chỉ nhận hàng vào hồ sơ hội viên Supabase
+        let profileChanged = false;
+        if (phone && (!currentUser.phone || currentUser.phone !== phone)) {
+          currentUser.phone = phone;
+          profileChanged = true;
+        }
+        if (address && (!currentUser.address || currentUser.address !== address)) {
+          currentUser.address = address;
+          profileChanged = true;
+        }
+        if (name && (!currentUser.fullName || currentUser.fullName !== name)) {
+          currentUser.fullName = name;
+          profileChanged = true;
+        }
+
         try { localStorage.setItem('minigt_user', JSON.stringify(currentUser)); } catch (_) {}
+
+        if (profileChanged) {
+          try {
+            safeFetch('/api/auth/profile', {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                userId: currentUser.userId || currentUser.id,
+                email: currentUser.email,
+                fullName: currentUser.fullName,
+                phone: currentUser.phone,
+                address: currentUser.address
+              })
+            }).catch(() => {});
+          } catch (_) {}
+        }
         if (api && api.getSharedUsers && api.saveSharedUsers) {
           try {
             const uList = api.getSharedUsers();
@@ -3452,7 +3760,11 @@ function switchAuthTab(tab) {
       // Reset OTP step
       const otpArea = document.getElementById('forgotStepOtpArea');
       const submitText = document.getElementById('btnForgotSubmitText');
+      const otpInput = document.getElementById('forgotOtpInput');
+      const newPwdInput = document.getElementById('forgotNewPassword');
       if (otpArea) otpArea.style.display = 'none';
+      if (otpInput) otpInput.value = '';
+      if (newPwdInput) newPwdInput.value = '';
       if (submitText) submitText.textContent = 'GỬI MÃ KHÔI PHỤC OTP';
     }
     if (title) title.textContent = 'Khôi Phục Mật Khẩu';
@@ -3690,13 +4002,11 @@ async function handleLocalRegister(e) {
         tier: json.user?.tier || 'Collector',
         points: json.user?.points || 100
       });
-      showToast('🎉 Chúc mừng bạn gia nhập MINI GT Club! Nhận ngay 100 điểm thưởng cọc.', 'success');
       loginSuccess(userObj, json.token, true);
     } else {
       showToast(json.message || 'Đăng ký không thành công', 'error');
     }
   } catch (err) {
-    showToast('🎉 Chúc mừng bạn gia nhập MINI GT Club! Nhận ngay 100 điểm thưởng cọc.', 'success');
     loginSuccess({
       fullName,
       email,
@@ -3715,10 +4025,15 @@ async function handleLocalRegister(e) {
   }
 }
 
+// =====================================================================
+// KHÔI PHỤC MẬT KHẨU (GỬI MÃ OTP VỀ GMAIL THẬT BẰNG NODEMAILER)
+// =====================================================================
 async function handleForgotPassword(e) {
   e.preventDefault();
   const emailInput = document.getElementById('forgotEmail');
   const otpArea = document.getElementById('forgotStepOtpArea');
+  const otpNoticeText = document.getElementById('forgotOtpNoticeText');
+  const simulatedEl = document.getElementById('forgotSimulatedOtp');
   const otpInput = document.getElementById('forgotOtpInput');
   const newPwdInput = document.getElementById('forgotNewPassword');
   const submitText = document.getElementById('btnForgotSubmitText');
@@ -3729,30 +4044,51 @@ async function handleForgotPassword(e) {
     return;
   }
 
-  // Bước 1: Gửi mã OTP
+  // Bước 1: Gửi mã OTP xác thực
   if (!otpArea || otpArea.style.display === 'none') {
+    const originalText = submitText ? submitText.textContent : 'GỬI MÃ KHÔI PHỤC OTP';
+    if (submitText) submitText.textContent = 'ĐANG GỬI MÃ OTP...';
     try {
       const json = await safeFetch('/api/auth/forgot', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email })
       });
-      if (json.success) {
+      if (json && json.success) {
         otpArea.style.display = 'block';
         if (submitText) submitText.textContent = 'XÁC NHẬN ĐẶT LẠI MẬT KHẨU';
-        const simulatedEl = document.getElementById('forgotSimulatedOtp');
-        if (simulatedEl) simulatedEl.textContent = json.otp || '6868';
-        if (otpInput) {
-          otpInput.value = json.otp || '6868';
-          otpInput.focus();
+
+        if (json.emailSent) {
+          if (simulatedEl) simulatedEl.textContent = 'Đã gửi tới Gmail';
+          if (otpNoticeText) {
+            otpNoticeText.innerHTML = `Mã OTP 6 số: <strong>Đã gửi tới ${json.email || email}</strong> (Kiểm tra Hộp thư đến hoặc Thư rác/Spam)`;
+          }
+          if (otpInput) {
+            otpInput.value = '';
+            otpInput.placeholder = 'Nhập mã 6 số từ Gmail (hoặc 6868)...';
+            otpInput.focus();
+          }
+          showToast(json.message || 'Mã OTP 6 chữ số đã được gửi tới Gmail của bạn!', 'success');
+        } else {
+          const code = json.otp || '6868';
+          if (simulatedEl) simulatedEl.textContent = code;
+          if (otpNoticeText) {
+            otpNoticeText.innerHTML = `Mã OTP xác thực: <strong>${code}</strong>`;
+          }
+          if (otpInput) {
+            otpInput.value = code;
+            otpInput.focus();
+          }
+          showToast(json.message || `Mã OTP xác thực: ${code}`, 'info');
         }
-        showToast(json.message || 'Mã OTP xác thực đã được gửi: 6868', 'success');
       } else {
-        showToast(json.message || 'Không tìm thấy tài khoản với thông tin này!', 'error');
+        if (submitText) submitText.textContent = originalText;
+        showToast(json?.message || 'Không tìm thấy tài khoản với thông tin này!', 'error');
       }
     } catch (err) {
-      otpArea.style.display = 'block';
       if (submitText) submitText.textContent = 'XÁC NHẬN ĐẶT LẠI MẬT KHẨU';
+      otpArea.style.display = 'block';
+      if (simulatedEl) simulatedEl.textContent = '6868';
       if (otpInput) {
         otpInput.value = '6868';
         otpInput.focus();
@@ -3767,7 +4103,7 @@ async function handleForgotPassword(e) {
   const newPassword = newPwdInput ? newPwdInput.value : '';
 
   if (!otp) {
-    showToast('Vui lòng nhập mã OTP xác thực (6868)!', 'error');
+    showToast('Vui lòng nhập mã OTP xác thực 6 chữ số từ Gmail (hoặc 6868)!', 'error');
     otpInput?.focus();
     return;
   }
@@ -3783,7 +4119,7 @@ async function handleForgotPassword(e) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, otp, newPassword })
     });
-    if (json.success) {
+    if (json && json.success) {
       showToast('✅ Đặt lại mật khẩu thành công! Vui lòng đăng nhập bằng mật khẩu mới.', 'success');
       switchAuthTab('login');
       const loginEmail = document.getElementById('loginEmail');
@@ -3794,7 +4130,7 @@ async function handleForgotPassword(e) {
         loginPwd.focus();
       }
     } else {
-      showToast(json.message || 'Mã OTP hoặc thông tin không hợp lệ!', 'error');
+      showToast(json?.message || 'Mã OTP hoặc thông tin không hợp lệ!', 'error');
     }
   } catch (err) {
     showToast('✅ Đặt lại mật khẩu thành công! Vui lòng đăng nhập với mật khẩu mới.', 'success');
@@ -3802,47 +4138,226 @@ async function handleForgotPassword(e) {
   }
 }
 
-// Xử lý đăng nhập nhanh Google
-async function handleGoogleLoginClick() {
-  const gmailInput = prompt('Đăng nhập nhanh với Google (Nhập địa chỉ Gmail của bạn):', 'collector.bienhoa@gmail.com');
-  if (!gmailInput) return;
+// =====================================================================
+// GOOGLE IDENTITY SERVICES (GSI) & GOOGLE SIGN-IN THẬT 100%
+// =====================================================================
+window.GOOGLE_CLIENT_ID = '1088463836173-fake-placeholder.apps.googleusercontent.com';
+let googleTokenClient = null;
+
+function initGoogleIdentityServices() {
+  const tryInitGsi = () => {
+    if (typeof google === 'undefined' || !google.accounts) return false;
+
+    // Tải Client ID cấu hình từ backend
+    safeFetch('/api/auth/google/config').then(cfg => {
+      if (cfg && cfg.clientId) window.GOOGLE_CLIENT_ID = cfg.clientId;
+    }).catch(() => {}).finally(() => {
+      const clientId = window.GOOGLE_CLIENT_ID || '1088463836173-fake-placeholder.apps.googleusercontent.com';
+
+      // 1. Khởi tạo Google One-Tap & Credential API
+      try {
+        if (google.accounts.id) {
+          google.accounts.id.initialize({
+            client_id: clientId,
+            callback: handleGoogleCredentialResponse,
+            auto_select: false,
+            cancel_on_tap_outside: true
+          });
+
+          const officialContainer = document.getElementById('googleOfficialBtnContainer');
+          if (officialContainer) {
+            google.accounts.id.renderButton(officialContainer, {
+              theme: 'outline',
+              size: 'large',
+              type: 'standard',
+              text: 'continue_with',
+              shape: 'rectangular',
+              logo_alignment: 'left',
+              width: 320
+            });
+          }
+        }
+      } catch (err) {
+        console.warn('[GSI ID Init Notice]:', err.message);
+      }
+
+      // 2. Khởi tạo Google OAuth2 Token Client (Dùng cho popup chọn Gmail chính thức)
+      try {
+        if (google.accounts.oauth2) {
+          googleTokenClient = google.accounts.oauth2.initTokenClient({
+            client_id: clientId,
+            scope: 'email profile openid',
+            callback: handleGoogleOAuthResponse
+          });
+        }
+      } catch (err) {
+        console.warn('[GSI OAuth2 Init Notice]:', err.message);
+      }
+    });
+
+    return true;
+  };
+
+  if (!tryInitGsi()) {
+    let retries = 0;
+    const gTimer = setInterval(() => {
+      retries++;
+      if (tryInitGsi() || retries > 10) clearInterval(gTimer);
+    }, 600);
+  }
+}
+
+// Xử lý phản hồi OAuth2 từ cửa sổ Google chọn tài khoản Gmail thật
+async function handleGoogleOAuthResponse(tokenResponse) {
+  resetGoogleButtonState();
+
+  if (!tokenResponse || tokenResponse.error) {
+    if (tokenResponse?.error === 'popup_closed_by_user') {
+      showToast('Bạn đã đóng cửa sổ đăng nhập Google.', 'info');
+      return;
+    }
+    showToast('Chưa thể đăng nhập Google: ' + (tokenResponse?.error_description || tokenResponse?.error || 'Vui lòng kiểm tra quyền truy cập'), 'error');
+    return;
+  }
 
   try {
-    const json = await safeFetch('/api/auth/google', {
+    // Lấy thông tin tài khoản thật từ Google UserInfo API
+    const userinfoRes = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+      headers: { Authorization: `Bearer ${tokenResponse.access_token}` }
+    });
+    const profile = await userinfoRes.json();
+
+    if (!profile || !profile.email) {
+      showToast('Không lấy được địa chỉ Gmail từ Google. Vui lòng kiểm tra lại!', 'error');
+      return;
+    }
+
+    // Đồng bộ tài khoản Google thật lên Supabase PostgreSQL thông qua Backend Render / Node.js
+    const res = await safeFetch('/api/auth/google', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         userInfo: {
-          email: gmailInput.trim(),
-          name: gmailInput.split('@')[0].toUpperCase(),
-          picture: DEFAULT_USER_AVATAR,
-          googleId: 'google_' + Date.now()
+          email: profile.email,
+          name: profile.name || profile.given_name || profile.email.split('@')[0],
+          picture: profile.picture || DEFAULT_USER_AVATAR,
+          googleId: profile.sub
         }
       })
     });
-    if (json.success) {
-      const userObj = Object.assign({}, json.user, { avatarUrl: DEFAULT_USER_AVATAR });
-      loginSuccess(userObj, json.token, true);
+
+    if (res && res.success) {
+      const u = res.user || res.data?.user;
+      const tok = res.token || res.data?.token;
+      closeModal('authModal');
+      loginSuccess(u, tok, true);
     } else {
-      loginSuccess({
-        fullName: gmailInput.split('@')[0],
-        email: gmailInput,
-        avatarUrl: DEFAULT_USER_AVATAR,
-        role: 'customer',
-        tier: 'Collector',
-        points: 100
-      }, 'demo_token_' + Date.now(), true);
+      showToast(res?.message || 'Đăng nhập Google thất bại!', 'error');
     }
   } catch (err) {
-    loginSuccess({
-      fullName: gmailInput.split('@')[0],
-      email: gmailInput,
-      avatarUrl: DEFAULT_USER_AVATAR,
-      role: 'customer',
-      tier: 'Collector',
-      points: 100
-    }, 'demo_token_' + Date.now(), true);
+    console.error('[Google OAuth UserInfo Error]:', err);
+    showToast('Lỗi kết nối tài khoản Google: ' + err.message, 'error');
   }
+}
+
+// Xử lý JWT Credential phản hồi từ Google Identity Services (One Tap hoặc nút Google Button)
+async function handleGoogleCredentialResponse(response) {
+  resetGoogleButtonState();
+  if (!response || !response.credential) {
+    showToast('Không nhận được mã xác thực từ Google!', 'error');
+    return;
+  }
+  try {
+    const res = await safeFetch('/api/auth/google', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        credential: response.credential
+      })
+    });
+
+    if (res && res.success) {
+      const u = res.user || res.data?.user;
+      const tok = res.token || res.data?.token;
+      closeModal('authModal');
+      loginSuccess(u, tok, true);
+    } else {
+      showToast(res?.message || 'Đăng nhập Google thất bại!', 'error');
+    }
+  } catch (err) {
+    console.error('[Google Credential Error]:', err);
+    showToast('Lỗi xử lý xác thực Google: ' + err.message, 'error');
+  }
+}
+
+// Khôi phục trạng thái nút Google
+function resetGoogleButtonState() {
+  const btn = document.getElementById('googleLoginBtn');
+  if (btn) {
+    btn.disabled = false;
+    btn.innerHTML = `
+      <svg viewBox="0 0 24 24" width="20" height="20">
+        <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.8-2.4 3.66v3.05h3.88c2.27-2.09 3.66-5.17 3.66-9.15z"/>
+        <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.24v3.15C3.26 21.36 7.33 24 12 24z"/>
+        <path fill="#FBBC05" d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.24C.45 8.15 0 9.99 0 12s.45 3.85 1.24 5.42l4.04-3.15z"/>
+        <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.33 0 3.26 2.64 1.24 6.58l4.04 3.15c.95-2.83 3.6-4.98 6.72-4.98z"/>
+      </svg>
+      <span>Tiếp tục với tài khoản Google</span>
+    `;
+  }
+}
+
+// Xử lý khi người dùng nhấn nút Đăng nhập Google trên giao diện (Mở cửa sổ chọn Gmail thật của Google)
+async function handleGoogleLoginClick() {
+  const btn = document.getElementById('googleLoginBtn');
+  if (btn) {
+    btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> <span>Đang mở cửa sổ Google...</span>`;
+    btn.disabled = true;
+  }
+
+  // 1. Nếu Google OAuth2 Token Client đã sẵn sàng, mở cửa sổ chính thức của Google
+  if (googleTokenClient) {
+    try {
+      googleTokenClient.requestAccessToken({ prompt: 'select_account' });
+      return;
+    } catch (e) {
+      console.warn('[GSI requestAccessToken Error]:', e);
+    }
+  }
+
+  // 2. Thử khởi tạo ngay nếu thư viện Google đã nạp
+  if (typeof google !== 'undefined' && google.accounts?.oauth2) {
+    try {
+      const clientId = window.GOOGLE_CLIENT_ID || '1088463836173-fake-placeholder.apps.googleusercontent.com';
+      googleTokenClient = google.accounts.oauth2.initTokenClient({
+        client_id: clientId,
+        scope: 'email profile openid',
+        callback: handleGoogleOAuthResponse
+      });
+      googleTokenClient.requestAccessToken({ prompt: 'select_account' });
+      return;
+    } catch (err) {
+      console.warn('[GSI Direct Init Error]:', err);
+    }
+  }
+
+  // 3. Nếu chưa sẵn sàng, mở One Tap Prompt nếu có
+  if (typeof google !== 'undefined' && google.accounts?.id) {
+    try {
+      google.accounts.id.prompt((notification) => {
+        if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
+          resetGoogleButtonState();
+          showToast('Vui lòng kiểm tra Google Client ID trong Google Cloud Console và thêm tên miền hiện tại vào Authorized JavaScript Origins.', 'warning');
+        }
+      });
+      return;
+    } catch (e) {
+      console.warn('[GSI Prompt Error]:', e);
+    }
+  }
+
+  resetGoogleButtonState();
+  showToast('Đang tải thư viện Google Identity Services... Vui lòng thử lại sau 2 giây.', 'info');
 }
 
 function loginSuccess(user, token, rememberMe = true) {
@@ -3868,46 +4383,87 @@ function loginSuccess(user, token, rememberMe = true) {
   const checkoutEmail = document.getElementById('checkoutEmail');
   const checkoutPhone = document.getElementById('checkoutPhone');
   const checkoutAddress = document.getElementById('checkoutAddress');
-  if (checkoutName && !checkoutName.value) checkoutName.value = cleanUser.fullName || '';
-  if (checkoutEmail && !checkoutEmail.value) checkoutEmail.value = cleanUser.email || '';
-  if (checkoutPhone && !checkoutPhone.value && cleanUser.phone) checkoutPhone.value = cleanUser.phone;
-  if (checkoutAddress && !checkoutAddress.value && cleanUser.address) checkoutAddress.value = cleanUser.address;
+  if (checkoutName) checkoutName.value = cleanUser.fullName || checkoutName.value || '';
+  if (checkoutEmail) checkoutEmail.value = cleanUser.email || checkoutEmail.value || '';
+  if (checkoutPhone && cleanUser.phone) checkoutPhone.value = cleanUser.phone;
+  if (checkoutAddress && cleanUser.address) checkoutAddress.value = cleanUser.address;
 
   updateUserHeaderUI();
   closeModal('authModal');
 
-  // Khôi phục giỏ hàng riêng của người dùng nếu có lưu trước đó
+  // Khôi phục giỏ hàng riêng của người dùng nếu có lưu trước đó (tài khoản mới luôn là giỏ hàng rỗng)
   const uKey = cleanUser.userId || cleanUser.id || cleanUser.email;
   if (uKey) {
     try {
       const savedUserCart = localStorage.getItem('minigt_cart_user_' + uKey);
       if (savedUserCart) {
         const parsed = JSON.parse(savedUserCart);
-        if (Array.isArray(parsed) && parsed.length) {
-          cart = parsed;
-          saveCart();
-        }
+        cart = Array.isArray(parsed) ? parsed : [];
+      } else {
+        cart = [];
       }
-    } catch (_) {}
+      localStorage.setItem('minigt_cart', JSON.stringify(cart));
+    } catch (_) {
+      cart = [];
+    }
+
+    // Khôi phục wishlist riêng của người dùng nếu có lưu trước đó (tài khoản mới luôn là wishlist rỗng)
+    try {
+      const savedUserWishlist = localStorage.getItem('minigt_wishlist_user_' + uKey);
+      if (savedUserWishlist) {
+        const parsedW = JSON.parse(savedUserWishlist);
+        wishlist = Array.isArray(parsedW) ? parsedW : [];
+      } else {
+        wishlist = [];
+      }
+      localStorage.setItem('minigt_wishlist', JSON.stringify(wishlist));
+    } catch (_) {
+      wishlist = [];
+    }
   }
+
   updateCartBadge();
   renderCartDrawer();
+  updateWishlistBadge();
+  if (typeof renderWishlistModal === 'function') renderWishlistModal();
 
+  // Thông báo đăng nhập thông minh & duy nhất (Tránh spam nhiều thông báo chồng chéo)
   const isEn = typeof currentSiteLang !== 'undefined' && currentSiteLang === 'en';
-  showToast(
-    isEn
-      ? `Welcome, ${cleanUser.fullName || cleanUser.email}! Signed in successfully.`
-      : `Xin chào, ${cleanUser.fullName || cleanUser.email}! Đăng nhập thành công.`,
-    'success'
-  );
+  const hasFullInfo = Boolean(cleanUser.phone && cleanUser.address);
+
+  if (!hasFullInfo) {
+    // Tài khoản mới (hoặc đăng nhập bằng Google lần đầu chưa có SĐT / Địa chỉ)
+    showToast(
+      isEn
+        ? `🔔 Welcome, ${cleanUser.fullName || cleanUser.email}! Please complete your phone & shipping address in "Collector Pass & Address".`
+        : `🔔 Xin chào, ${cleanUser.fullName || cleanUser.email}! Vui lòng điền đầy đủ thông tin ở mục "Hồ sơ hội viên & Địa chỉ" để nhận hàng qua SPX Express.`,
+      'info',
+      6000
+    );
+    // Tự động mở form Hồ sơ hội viên & Địa chỉ sau 600ms để khách hàng dễ dàng cập nhật
+    setTimeout(() => {
+      openUserProfileModal();
+    }, 600);
+  } else {
+    // Tài khoản đã có đầy đủ thông tin -> Chỉ 1 thông báo ngắn gọn chào mừng
+    showToast(
+      isEn
+        ? `Welcome back, ${cleanUser.fullName || cleanUser.email}!`
+        : `Xin chào, ${cleanUser.fullName || cleanUser.email}! Đăng nhập thành công.`,
+      'success'
+    );
+  }
 }
 
 function logout() {
-  // 1. Lưu giỏ hàng của tài khoản đang đăng xuất để khôi phục khi họ đăng nhập lại
+  // 1. Lưu giỏ hàng & wishlist của tài khoản đang đăng xuất để khôi phục khi họ đăng nhập lại
   if (currentUser) {
     const uKey = currentUser.userId || currentUser.id || currentUser.email;
-    if (uKey && cart && cart.length) {
-      try { localStorage.setItem('minigt_cart_user_' + uKey, JSON.stringify(cart)); } catch (_) {}
+    if (uKey) {
+      try {
+        localStorage.setItem('minigt_cart_user_' + uKey, JSON.stringify(cart || []));
+        localStorage.setItem('minigt_wishlist_user_' + uKey, JSON.stringify(wishlist || []));
+      } catch (_) {}
     }
   }
 
@@ -3916,14 +4472,30 @@ function logout() {
   currentUser = null;
   currentToken = null;
 
-  // 3. Reset giỏ hàng của phiên khách về rỗng, đóng giỏ hàng nếu đang mở
+  // 3. Reset giỏ hàng và danh sách yêu thích của phiên khách về rỗng
   cart = [];
-  try { localStorage.removeItem('minigt_cart'); } catch (_) {}
+  wishlist = [];
+  try {
+    localStorage.removeItem('minigt_cart');
+    localStorage.setItem('minigt_wishlist', '[]');
+  } catch (_) {}
   updateCartBadge();
+  updateWishlistBadge();
   closeCartDrawer();
   renderCartDrawer();
+  if (typeof renderWishlistModal === 'function') renderWishlistModal();
 
-  // 4. Cập nhật giao diện header
+  // 4. Reset form thông tin thanh toán
+  const checkoutName = document.getElementById('checkoutName');
+  const checkoutEmail = document.getElementById('checkoutEmail');
+  const checkoutPhone = document.getElementById('checkoutPhone');
+  const checkoutAddress = document.getElementById('checkoutAddress');
+  if (checkoutName) checkoutName.value = '';
+  if (checkoutEmail) checkoutEmail.value = '';
+  if (checkoutPhone) checkoutPhone.value = '';
+  if (checkoutAddress) checkoutAddress.value = '';
+
+  // 5. Cập nhật giao diện header
   updateUserHeaderUI();
 
   const isEn = typeof currentSiteLang !== 'undefined' && currentSiteLang === 'en';
@@ -3986,7 +4558,7 @@ function toggleUserDropdown(e) {
   if (menu) menu.classList.toggle('active');
 }
 
-// User Profile Modal Logic
+// User Profile Modal Logic (Giao diện lớn, to rõ, hiện đại & logic nhất)
 function openUserProfileModal() {
   if (!currentUser) {
     openAuthModal('login');
@@ -3997,105 +4569,209 @@ function openUserProfileModal() {
   if (!modal || !body) return;
 
   const pts = currentUser.points != null ? currentUser.points : 100;
-  const tier = currentUser.tier || 'Collector';
   const totalOrders = currentUser.totalOrders || 0;
   const totalSpent = currentUser.totalSpent || 0;
+  const vip = getCustomerVipInfo(totalSpent);
 
   body.innerHTML = `
-    <!-- VIP Pass Card -->
-    <div class="user-pass-card">
-      <div class="user-pass-header">
-        <div class="user-pass-brand">
-          <i class="fa-solid fa-shield-halved"></i>
-          <span>MINI GT • DIECAST COLLECTOR PASS</span>
+    <!-- Modal Header -->
+    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; padding-bottom:12px; border-bottom:1px solid #e2e8f0;">
+      <div>
+        <h3 style="margin:0; font-size:18px; font-weight:800; color:#0f172a; display:flex; align-items:center; gap:8px;">
+          <i class="fa-solid fa-id-card-clip" style="color:#dc2626;"></i>
+          HỒ SƠ HỘI VIÊN & ĐỊA CHỈ NHẬN HÀNG
+        </h3>
+        <p style="margin:4px 0 0; font-size:12px; color:#64748b;">
+          Đồng bộ tài khoản 24/7 với hệ thống bưu cục SPX Express giao hàng toàn quốc.
+        </p>
+      </div>
+      <span class="user-pass-tier-badge" style="background:${vip.bg}; color:${vip.color}; border:1px solid ${vip.border}; display:inline-flex; align-items:center; gap:5px; padding:4px 12px; border-radius:20px; font-weight:800; font-size:12px;">
+        <i class="fa-solid ${vip.icon}"></i>
+        <span>${vip.label} • ${vip.tierName}</span>
+      </span>
+    </div>
+
+    <!-- VIP Pass Card (Thẻ Hội Viên Cao Cấp) -->
+    <div class="user-pass-card" style="border:1px solid rgba(255,255,255,0.15); box-shadow:0 15px 35px -5px rgba(15,23,42,0.45); border-radius:16px; padding:20px;">
+      <div class="user-pass-header" style="margin-bottom:14px; display:flex; justify-content:space-between; align-items:center;">
+        <div class="user-pass-brand" style="display:flex; align-items:center; gap:8px;">
+          <img src="image/logo-minigt.webp" alt="MINI GT" style="height:18px; width:auto; filter:brightness(0) invert(1);">
+          <span style="letter-spacing:1px; font-weight:800; color:#ffffff; font-size:11.5px;">MINI GT BIÊN HÒA • OFFICIAL COLLECTOR PASS</span>
         </div>
-        <div class="user-pass-tier-badge">
-          <i class="fa-solid fa-crown"></i>
-          <span>${escapeHtml(tier)}</span>
+        <div style="font-size:11px; color:#94a3b8; font-family:monospace; background:rgba(0,0,0,0.3); padding:2px 8px; border-radius:6px;">
+          ID: #${String(currentUser.userId || currentUser.id || '8888').padStart(5, '0')}
         </div>
       </div>
-      <div class="user-pass-body">
-        <img class="user-pass-avatar" src="${currentUser.avatarUrl || DEFAULT_USER_AVATAR}" alt="${escapeHtml(currentUser.fullName)}" onerror="this.src='image/anh-clone.jpg'">
-        <div>
-          <h3 class="user-pass-name">${escapeHtml(currentUser.fullName || 'Hội viên')}</h3>
-          <p class="user-pass-email">${escapeHtml(currentUser.email || '')}</p>
+
+      <div class="user-pass-body" style="display:flex; align-items:center; gap:16px; margin-bottom:16px;">
+        <div style="position:relative;">
+          <img class="user-pass-avatar" src="${currentUser.avatarUrl || DEFAULT_USER_AVATAR}" alt="${escapeHtml(currentUser.fullName)}" onerror="this.src='image/anh-clone.jpg'" style="width:72px; height:72px; border-radius:50%; border:3px solid #dc2626; box-shadow:0 0 15px rgba(220,38,38,0.4); object-fit:cover;">
+          <span style="position:absolute; bottom:0; right:0; background:#10b981; color:#fff; width:20px; height:20px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:10px; border:2px solid #0f172a;"><i class="fa-solid fa-check"></i></span>
+        </div>
+        <div style="flex:1;">
+          <h3 class="user-pass-name" style="margin:0 0 4px; font-size:20px; font-weight:900; color:#ffffff; letter-spacing:0.3px;">
+            ${escapeHtml(currentUser.fullName || 'Hội viên MINI GT')}
+          </h3>
+          <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+            <span style="font-size:13px; color:#cbd5e1;"><i class="fa-regular fa-envelope" style="margin-right:4px;"></i> ${escapeHtml(currentUser.email || '')}</span>
+            ${currentUser.authProvider === 'google' ? `
+              <span style="background:rgba(66,133,244,0.25); color:#93c5fd; border:1px solid rgba(66,133,244,0.4); padding:2px 8px; border-radius:12px; font-size:11px; font-weight:700; display:inline-flex; align-items:center; gap:4px;">
+                <svg viewBox="0 0 24 24" width="12" height="12"><path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.8-2.4 3.66v3.05h3.88c2.27-2.09 3.66-5.17 3.66-9.15z"/><path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.24v3.15C3.26 21.36 7.33 24 12 24z"/><path fill="#FBBC05" d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.24C.45 8.15 0 9.99 0 12s.45 3.85 1.24 5.42l4.04-3.15z"/><path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.33 0 3.26 2.64 1.24 6.58l4.04 3.15c.95-2.83 3.6-4.98 6.72-4.98z"/></svg> Google Verified
+              </span>
+            ` : `
+              <span style="background:rgba(16,185,129,0.25); color:#6ee7b7; border:1px solid rgba(16,185,129,0.4); padding:2px 8px; border-radius:12px; font-size:11px; font-weight:700;">
+                <i class="fa-solid fa-shield-check" style="margin-right:3px;"></i> Hội viên xác thực
+              </span>
+            `}
+          </div>
         </div>
       </div>
-      <div class="user-pass-stats">
-        <div class="user-pass-stat-box">
-          <div class="user-pass-stat-val">${pts}</div>
-          <div class="user-pass-stat-lbl">Điểm cọc</div>
+
+      <div class="user-pass-stats" style="display:grid; grid-template-columns:repeat(3, 1fr); gap:10px; background:rgba(0,0,0,0.25); border-radius:12px; padding:12px; border:1px solid rgba(255,255,255,0.08);">
+        <div class="user-pass-stat-box" style="text-align:center;">
+          <div class="user-pass-stat-val" style="font-size:22px; font-weight:900; color:#fbbf24;">${pts}</div>
+          <div class="user-pass-stat-lbl" style="font-size:11px; color:#94a3b8; text-transform:uppercase; letter-spacing:0.5px; margin-top:2px;">Điểm cọc tích lũy</div>
         </div>
-        <div class="user-pass-stat-box">
-          <div class="user-pass-stat-val">${totalOrders}</div>
-          <div class="user-pass-stat-lbl">Đơn đã đặt</div>
+        <div class="user-pass-stat-box" style="text-align:center; border-left:1px solid rgba(255,255,255,0.1); border-right:1px solid rgba(255,255,255,0.1);">
+          <div class="user-pass-stat-val" style="font-size:22px; font-weight:900; color:#38bdf8;">${totalOrders}</div>
+          <div class="user-pass-stat-lbl" style="font-size:11px; color:#94a3b8; text-transform:uppercase; letter-spacing:0.5px; margin-top:2px;">Đơn xe đã đặt</div>
         </div>
-        <div class="user-pass-stat-box">
-          <div class="user-pass-stat-val">${formatVND(totalSpent) || '0đ'}</div>
-          <div class="user-pass-stat-lbl">Tổng giá trị</div>
+        <div class="user-pass-stat-box" style="text-align:center;">
+          <div class="user-pass-stat-val" style="font-size:22px; font-weight:900; color:#4ade80;">${formatVND(totalSpent) || '0đ'}</div>
+          <div class="user-pass-stat-lbl" style="font-size:11px; color:#94a3b8; text-transform:uppercase; letter-spacing:0.5px; margin-top:2px;">Tổng giá trị cọc</div>
+        </div>
+      </div>
+
+      <!-- Thanh tiến độ VIP -->
+      <div style="margin-top:12px; background:rgba(255,255,255,0.08); border-radius:10px; padding:8px 12px; border:1px solid rgba(255,255,255,0.08);">
+        <div style="display:flex; justify-content:space-between; align-items:center; font-size:11.5px; margin-bottom:5px; color:#ffffff;">
+          <span>Phân hạng: <strong style="color:#fdba74;">${vip.label}</strong> (Chi tiêu: ${formatVND(totalSpent)})</span>
+          <span style="font-size:11px; opacity:0.9;">${vip.nextTarget ? `Mục tiêu ${vip.nextLabel}: ${formatVND(vip.nextTarget)}` : '⭐ Cấp VIP tối đa'}</span>
+        </div>
+        <div style="background:rgba(255,255,255,0.2); height:6px; border-radius:3px; overflow:hidden;">
+          <div style="background:linear-gradient(90deg, #10b981, #059669); height:100%; width:${vip.progressPercent}%; border-radius:3px; transition:width 0.5s ease;"></div>
         </div>
       </div>
     </div>
 
-    <!-- Edit Profile Form (Giao diện chuẩn hiện đại, có khung viền đẹp, icon & trạng thái xác thực) -->
+    <!-- Cảnh báo nếu chưa có SĐT hoặc Địa chỉ -->
+    ${(!currentUser.phone || !currentUser.address) ? `
+      <div style="background:#fffbeb; border:1.5px solid #fde68a; color:#92400e; border-radius:12px; padding:12px 16px; margin-bottom:16px; font-size:13px; display:flex; align-items:center; gap:12px; box-shadow:0 4px 12px rgba(245,158,11,0.08);">
+        <i class="fa-solid fa-triangle-exclamation" style="color:#d97706; font-size:20px; flex-shrink:0;"></i>
+        <div>
+          <strong style="font-size:13.5px;">Thông tin giao nhận hàng chưa hoàn thiện!</strong><br>
+          <span style="font-size:12px; color:#b45309;">Vui lòng điền <strong>Số điện thoại</strong> và <strong>Địa chỉ nhận hàng SPX</strong> bên dưới để hệ thống tự động điền khi bạn đặt cọc xe.</span>
+        </div>
+      </div>
+    ` : `
+      <div style="background:#f0fdf4; border:1.5px solid #bbf7d0; color:#166534; border-radius:12px; padding:10px 16px; margin-bottom:16px; font-size:12.5px; display:flex; align-items:center; gap:8px;">
+        <i class="fa-solid fa-circle-check" style="color:#16a34a; font-size:16px;"></i>
+        <span>Thông tin giao hàng đã được đồng bộ với hệ thống bưu cục SPX Express. Bạn có thể cập nhật bất cứ lúc nào.</span>
+      </div>
+    `}
+
     <form onsubmit="handleUpdateUserProfile(event)" class="profile-edit-form">
-      <div class="profile-form-grid">
-        <div class="auth-input-group full-width">
-          <label class="auth-label" for="profileFullName">
-            <i class="fa-solid fa-user" style="color:var(--color-primary);"></i>
-            Họ và tên hội viên <span class="required-star">*</span>
+      <div class="profile-form-grid" style="display:grid; grid-template-columns:repeat(2, 1fr); gap:16px;">
+        <!-- Họ và tên -->
+        <div class="auth-input-group">
+          <label class="auth-label" for="profileFullName" style="font-size:12.5px; font-weight:800; color:#1e293b; margin-bottom:6px; display:flex; align-items:center; gap:6px;">
+            <i class="fa-solid fa-user" style="color:#dc2626;"></i>
+            Họ và tên người nhận hàng <span class="required-star" style="color:#dc2626;">*</span>
           </label>
-          <div class="auth-input-box">
-            <i class="fa-solid fa-user auth-input-icon"></i>
-            <input type="text" id="profileFullName" class="auth-input" value="${escapeHtml(currentUser.fullName || '')}" required placeholder="Ví dụ: Đỗ Quốc Thịnh">
+          <div class="auth-input-box" style="border:1.5px solid #cbd5e1; border-radius:10px; height:46px; display:flex; align-items:center; padding:0 12px; background:#fff;">
+            <i class="fa-solid fa-user" style="color:#94a3b8; font-size:14px; margin-right:8px;"></i>
+            <input type="text" id="profileFullName" style="border:none; outline:none; width:100%; font-size:13.5px; font-weight:700; color:#0f172a;" value="${escapeHtml(currentUser.fullName || '')}" required placeholder="Ví dụ: Đỗ Quốc Thịnh">
           </div>
         </div>
 
+        <!-- Số điện thoại nhận hàng -->
         <div class="auth-input-group">
-          <label class="auth-label" for="profileEmail">
+          <label class="auth-label" for="profilePhone" style="font-size:12.5px; font-weight:800; color:#1e293b; margin-bottom:6px; display:flex; align-items:center; gap:6px;">
+            <i class="fa-solid fa-phone" style="color:#059669;"></i>
+            Số điện thoại nhận hàng SPX <span class="required-star" style="color:#dc2626;">*</span>
+          </label>
+          <div class="auth-input-box" style="border:1.5px solid #cbd5e1; border-radius:10px; height:46px; display:flex; align-items:center; padding:0 12px; background:#fff;">
+            <i class="fa-solid fa-phone" style="color:#059669; font-size:14px; margin-right:8px;"></i>
+            <input type="tel" id="profilePhone" style="border:none; outline:none; width:100%; font-size:13.5px; font-weight:700; color:#0f172a;" value="${escapeHtml(currentUser.phone || '')}" placeholder="0981 903 400" required pattern="[0-9]{10,11}">
+          </div>
+        </div>
+
+        <!-- Email tài khoản -->
+        <div class="auth-input-group">
+          <label class="auth-label" for="profileEmail" style="font-size:12.5px; font-weight:800; color:#1e293b; margin-bottom:6px; display:flex; align-items:center; gap:6px;">
             <i class="fa-regular fa-envelope" style="color:#2563eb;"></i>
             Email tài khoản
-            <span class="profile-verified-badge"><i class="fa-solid fa-circle-check"></i> Đã bảo mật</span>
+            <span style="font-size:10.5px; background:#f1f5f9; color:#475569; padding:1px 6px; border-radius:4px; margin-left:auto;"><i class="fa-solid fa-lock" style="font-size:9px;"></i> Định danh</span>
           </label>
-          <div class="auth-input-box">
-            <i class="fa-regular fa-envelope auth-input-icon"></i>
-            <input type="email" id="profileEmail" class="auth-input" value="${escapeHtml(currentUser.email || '')}" disabled>
-            <span class="profile-lock-icon" title="Email định danh bảo mật"><i class="fa-solid fa-lock"></i></span>
+          <div class="auth-input-box" style="border:1.5px solid #e2e8f0; border-radius:10px; height:46px; display:flex; align-items:center; padding:0 12px; background:#f8fafc;">
+            <i class="fa-regular fa-envelope" style="color:#94a3b8; font-size:14px; margin-right:8px;"></i>
+            <input type="email" id="profileEmail" style="border:none; outline:none; width:100%; font-size:13.5px; font-weight:600; color:#64748b; background:transparent;" value="${escapeHtml(currentUser.email || '')}" disabled>
           </div>
         </div>
 
+        <!-- Khu vực Tỉnh / Thành phố -->
         <div class="auth-input-group">
-          <label class="auth-label" for="profilePhone">
-            <i class="fa-solid fa-phone" style="color:#059669;"></i>
-            Số điện thoại nhận hàng <span class="required-star">*</span>
+          <label class="auth-label" for="profileCity" style="font-size:12.5px; font-weight:800; color:#1e293b; margin-bottom:6px; display:flex; align-items:center; gap:6px;">
+            <i class="fa-solid fa-city" style="color:#6366f1;"></i>
+            Tỉnh / Thành phố nhận hàng
           </label>
-          <div class="auth-input-box">
-            <i class="fa-solid fa-phone auth-input-icon"></i>
-            <input type="tel" id="profilePhone" class="auth-input" value="${escapeHtml(currentUser.phone || '')}" placeholder="0981 903 400" required pattern="[0-9]{10,11}">
+          <div class="auth-input-box" style="border:1.5px solid #cbd5e1; border-radius:10px; height:46px; display:flex; align-items:center; padding:0 12px; background:#fff;">
+            <i class="fa-solid fa-city" style="color:#6366f1; font-size:14px; margin-right:8px;"></i>
+            <input type="text" id="profileCity" style="border:none; outline:none; width:100%; font-size:13.5px; font-weight:700; color:#0f172a;" value="${escapeHtml(currentUser.city || 'Đồng Nai')}" placeholder="Ví dụ: Đồng Nai, TP.HCM, Bình Dương...">
           </div>
         </div>
 
-        <div class="auth-input-group full-width">
-          <label class="auth-label" for="profileAddress">
+        <!-- Địa chỉ nhận hàng chi tiết -->
+        <div class="auth-input-group" style="grid-column: 1 / -1;">
+          <label class="auth-label" for="profileAddress" style="font-size:12.5px; font-weight:800; color:#1e293b; margin-bottom:6px; display:flex; align-items:center; gap:6px;">
             <i class="fa-solid fa-location-dot" style="color:#dc2626;"></i>
-            Địa chỉ nhận hàng mặc định (SPX Express)
+            Địa chỉ nhận hàng chi tiết (Số nhà, tên đường, Phường/Xã) <span class="required-star" style="color:#dc2626;">*</span>
           </label>
-          <div class="auth-input-box">
-            <i class="fa-solid fa-location-dot auth-input-icon"></i>
-            <input type="text" id="profileAddress" class="auth-input" value="${escapeHtml(currentUser.address || '')}" placeholder="Số nhà, tên đường, Phường/Xã, TP. Biên Hòa, Đồng Nai...">
+          <div class="auth-input-box" style="border:1.5px solid #cbd5e1; border-radius:10px; height:46px; display:flex; align-items:center; padding:0 12px; background:#fff;">
+            <i class="fa-solid fa-location-dot" style="color:#dc2626; font-size:14px; margin-right:8px;"></i>
+            <input type="text" id="profileAddress" style="border:none; outline:none; width:100%; font-size:13.5px; font-weight:700; color:#0f172a;" value="${escapeHtml(currentUser.address || '')}" placeholder="Ví dụ: 38/2 Võ Thị Sáu, P. Quyết Thắng, TP. Biên Hòa, Đồng Nai" required>
           </div>
-          <div class="profile-address-tip">
-            <i class="fa-solid fa-circle-info"></i> Hệ thống sẽ tự động đồng bộ địa chỉ này vào mỗi đơn đặt cọc mô hình mới của bạn.
+          <div style="font-size:11.5px; color:#64748b; margin-top:4px; display:flex; align-items:center; gap:5px;">
+            <i class="fa-solid fa-truck-fast" style="color:#dc2626;"></i> Hệ thống sẽ tự động điền địa chỉ này vào mỗi đơn đặt cọc mô hình mới của bạn qua SPX Express.
+          </div>
+        </div>
+
+        <!-- Ghi chú giao hàng mặc định cho Shipper -->
+        <div class="auth-input-group" style="grid-column: 1 / -1;">
+          <label class="auth-label" for="profileDeliveryNote" style="font-size:12.5px; font-weight:800; color:#1e293b; margin-bottom:6px; display:flex; align-items:center; gap:6px;">
+            <i class="fa-regular fa-comment-dots" style="color:#0284c7;"></i>
+            Ghi chú giao hàng mặc định cho Shipper SPX
+          </label>
+          <div class="auth-input-box" style="border:1.5px solid #cbd5e1; border-radius:10px; height:46px; display:flex; align-items:center; padding:0 12px; background:#fff;">
+            <i class="fa-regular fa-comment-dots" style="color:#0284c7; font-size:14px; margin-right:8px;"></i>
+            <input type="text" id="profileDeliveryNote" style="border:none; outline:none; width:100%; font-size:13px; font-weight:600; color:#0f172a;" value="${escapeHtml(currentUser.deliveryNote || '')}" placeholder="Ví dụ: Gọi trước khi giao 15 phút, giao giờ hành chính, kiện mô hình bọc xốp kỹ">
           </div>
         </div>
       </div>
 
-      <div class="profile-form-actions">
-        <button type="submit" class="btn btn-primary">
-          <i class="fa-solid fa-floppy-disk"></i> Lưu Thay Đổi
+      <!-- Khối Cam Kết Đặc Quyền -->
+      <div style="margin-top:16px; display:grid; grid-template-columns:repeat(3, 1fr); gap:10px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; padding:10px 12px;">
+        <div style="display:flex; align-items:center; gap:8px; font-size:11.5px; color:#334155;">
+          <i class="fa-solid fa-box-open" style="color:#dc2626; font-size:15px;"></i>
+          <span>100% Nguyên Seal Nhà SX</span>
+        </div>
+        <div style="display:flex; align-items:center; gap:8px; font-size:11.5px; color:#334155; border-left:1px solid #e2e8f0; border-right:1px solid #e2e8f0; padding:0 8px;">
+          <i class="fa-solid fa-shield-halved" style="color:#2563eb; font-size:15px;"></i>
+          <span>Bọc xốp khí 4 lớp SPX</span>
+        </div>
+        <div style="display:flex; align-items:center; gap:8px; font-size:11.5px; color:#334155;">
+          <i class="fa-solid fa-rotate-left" style="color:#059669; font-size:15px;"></i>
+          <span>Đổi trả 7 ngày nếu lỗi hộp</span>
+        </div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div style="margin-top:18px; display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;">
+        <button type="submit" id="btnSaveProfile" style="flex:1; min-width:200px; height:46px; background:linear-gradient(135deg, #dc2626, #b91c1c); color:#ffffff; font-size:13.5px; font-weight:800; border:none; border-radius:10px; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px; box-shadow:0 8px 20px -4px rgba(220,38,38,0.4); text-transform:uppercase; letter-spacing:0.5px; transition:transform 0.15s ease;">
+          <i class="fa-solid fa-floppy-disk"></i> LƯU THAY ĐỔI HỒ SƠ
         </button>
-        <button type="button" class="btn btn-outline" onclick="closeModal('userProfileModal'); openMyOrdersModal();">
-          <i class="fa-solid fa-box-archive"></i> Đơn của tôi
+        <button type="button" class="btn btn-outline" style="height:46px; padding:0 20px; font-size:13px; font-weight:700; border-radius:10px; display:flex; align-items:center; gap:6px;" onclick="closeModal('userProfileModal'); openMyOrdersModal();">
+          <i class="fa-solid fa-box-archive"></i> Đơn mua của tôi
         </button>
       </div>
     </form>
@@ -4111,15 +4787,25 @@ async function handleUpdateUserProfile(e) {
   const fullName = document.getElementById('profileFullName')?.value.trim();
   const phone = document.getElementById('profilePhone')?.value.trim();
   const address = document.getElementById('profileAddress')?.value.trim();
+  const city = document.getElementById('profileCity')?.value.trim();
+  const deliveryNote = document.getElementById('profileDeliveryNote')?.value.trim();
 
-  if (!fullName || !phone) {
-    showToast('Họ tên và số điện thoại không được để trống!', 'error');
+  if (!fullName || !phone || !address) {
+    showToast('Vui lòng điền đầy đủ Họ tên, Số điện thoại và Địa chỉ nhận hàng!', 'error');
     return;
+  }
+
+  const btnSave = document.getElementById('btnSaveProfile');
+  if (btnSave) {
+    btnSave.disabled = true;
+    btnSave.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> ĐANG LƯU DỮ LIỆU...';
   }
 
   currentUser.fullName = fullName;
   currentUser.phone = phone;
   currentUser.address = address;
+  if (city) currentUser.city = city;
+  if (deliveryNote) currentUser.deliveryNote = deliveryNote;
 
   try {
     await safeFetch('/api/auth/profile', {
@@ -4141,9 +4827,17 @@ async function handleUpdateUserProfile(e) {
     localStorage.setItem('minigt_user', JSON.stringify(currentUser));
   } catch (_) {}
 
+  // Tự động đồng bộ sang các trường thông tin thanh toán nếu có
+  const checkoutName = document.getElementById('checkoutName');
+  const checkoutPhone = document.getElementById('checkoutPhone');
+  const checkoutAddress = document.getElementById('checkoutAddress');
+  if (checkoutName) checkoutName.value = fullName;
+  if (checkoutPhone) checkoutPhone.value = phone;
+  if (checkoutAddress) checkoutAddress.value = address;
+
   updateUserHeaderUI();
   closeModal('userProfileModal');
-  showToast('Cập nhật thông tin tài khoản hội viên thành công!', 'success');
+  showToast('✅ Cập nhật hồ sơ hội viên & địa chỉ nhận hàng thành công!', 'success');
 }
 
 document.addEventListener('click', () => {
@@ -4380,58 +5074,34 @@ function renderMyOrdersCenterUI(container) {
   ];
 
   container.innerHTML = `
-    <!-- Banner thông báo trạng thái duyệt & mã SPX mới nhất từ Admin -->
-    ${latestApprovedOrSpx ? (() => {
-      const code = latestApprovedOrSpx.OrderCode || latestApprovedOrSpx.orderCode || latestApprovedOrSpx.code;
-      const tk = String(latestApprovedOrSpx.TrackingCode || latestApprovedOrSpx.trackingCode || '').trim();
-      return `
-        <div style="background:linear-gradient(135deg, #ecfdf5 0%, #fff7ed 100%); border:1.5px solid ${tk ? '#fdba74' : '#86efac'}; border-radius:12px; padding:12px 16px; margin-bottom:14px; display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;">
-          <div style="display:flex; align-items:center; gap:10px;">
-            <div style="width:38px; height:38px; border-radius:10px; background:${tk ? '#ea580c' : '#16a34a'}; color:#fff; display:flex; align-items:center; justify-content:center; font-size:18px; flex-shrink:0;">
-              <i class="fa-solid ${tk ? 'fa-truck-fast' : 'fa-bell'}"></i>
-            </div>
-            <div>
-              <div style="font-size:13px; font-weight:800; color:#0f172a;">
-                ${tk
-                  ? `🎉 Admin đã duyệt đơn #${escapeHtml(code)} và cập nhật mã SPX Express: <span style="color:#ea580c; font-family:monospace;">${escapeHtml(tk)}</span>`
-                  : `✅ Admin đã duyệt đơn hàng #${escapeHtml(code)} của bạn! Đang đóng gói bọc xốp chống sốc.`}
-              </div>
-              <div style="font-size:11.5px; color:#475569; margin-top:2px;">
-                Dữ liệu được đồng bộ thời gian thực trực tiếp từ Hệ thống Admin Săn Xe Biên Hòa.
-              </div>
-            </div>
-          </div>
-          ${tk ? `
-            <div style="display:flex; gap:6px;">
-              <button type="button" class="btn btn-sm" style="background:#ea580c; color:#fff; border:none; font-size:11.5px; padding:6px 10px;" onclick="copyToClipboard('${escapeHtml(tk)}', 'Đã sao chép mã SPX: ${escapeHtml(tk)}')">
-                <i class="fa-regular fa-copy"></i> Copy mã SPX
-              </button>
-              <a href="https://spx.vn/vi" target="_blank" class="btn btn-sm btn-outline" style="font-size:11.5px; padding:6px 10px; border-color:#fdba74; color:#c2410c;">
-                Tra cứu SPX ↗
-              </a>
-            </div>
-          ` : ''}
+    <!-- 3 Thẻ thống kê tinh gọn, hiện đại -->
+    <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:10px; margin-bottom:14px;">
+      <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:12px; padding:10px 14px; display:flex; align-items:center; gap:12px; box-shadow:0 1px 3px rgba(0,0,0,0.03);">
+        <div style="width:36px; height:36px; border-radius:10px; background:#f1f5f9; color:#0f172a; display:flex; align-items:center; justify-content:center; font-size:16px;">
+          <i class="fa-solid fa-boxes-stacked"></i>
         </div>
-      `;
-    })() : ''}
-
-    <!-- 4 Thẻ thống kê tổng quan của khách hàng -->
-    <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(165px, 1fr)); gap:10px; margin-bottom:14px;">
-      <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:10px 12px;">
-        <div style="font-size:11px; color:#64748b; font-weight:700; text-transform:uppercase;">Tổng đơn đã đặt</div>
-        <div style="font-size:20px; font-weight:900; color:#0f172a; margin-top:2px;">${totalOrders} đơn</div>
+        <div>
+          <div style="font-size:11px; color:#64748b; font-weight:700; text-transform:uppercase;">Tổng đơn hàng</div>
+          <div style="font-size:18px; font-weight:900; color:#0f172a;">${totalOrders} đơn</div>
+        </div>
       </div>
-      <div style="background:#f0fdf4; border:1px solid #bbf7d0; border-radius:10px; padding:10px 12px;">
-        <div style="font-size:11px; color:#15803d; font-weight:700; text-transform:uppercase;">Admin đã duyệt</div>
-        <div style="font-size:20px; font-weight:900; color:#166534; margin-top:2px;">${approvedCount} đơn</div>
+      <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:12px; padding:10px 14px; display:flex; align-items:center; gap:12px; box-shadow:0 1px 3px rgba(0,0,0,0.03);">
+        <div style="width:36px; height:36px; border-radius:10px; background:#ecfdf5; color:#16a34a; display:flex; align-items:center; justify-content:center; font-size:16px;">
+          <i class="fa-solid fa-circle-check"></i>
+        </div>
+        <div>
+          <div style="font-size:11px; color:#16a34a; font-weight:700; text-transform:uppercase;">Admin đã duyệt</div>
+          <div style="font-size:18px; font-weight:900; color:#15803d;">${approvedCount} đơn</div>
+        </div>
       </div>
-      <div style="background:#fff7ed; border:1px solid #fed7aa; border-radius:10px; padding:10px 12px;">
-        <div style="font-size:11px; color:#c2410c; font-weight:700; text-transform:uppercase;">Đã có mã SPX Express</div>
-        <div style="font-size:20px; font-weight:900; color:#9a3412; margin-top:2px;">${shippingWithSpxCount} đơn</div>
-      </div>
-      <div style="background:#eff6ff; border:1px solid #bfdbfe; border-radius:10px; padding:10px 12px;">
-        <div style="font-size:11px; color:#1d4ed8; font-weight:700; text-transform:uppercase;">Tổng giá trị sưu tầm</div>
-        <div style="font-size:18px; font-weight:900; color:#1e40af; margin-top:2px;">${formatVND(totalSpent)}</div>
+      <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:12px; padding:10px 14px; display:flex; align-items:center; gap:12px; box-shadow:0 1px 3px rgba(0,0,0,0.03);">
+        <div style="width:36px; height:36px; border-radius:10px; background:#fff7ed; color:#ea580c; display:flex; align-items:center; justify-content:center; font-size:16px;">
+          <i class="fa-solid fa-truck-fast"></i>
+        </div>
+        <div>
+          <div style="font-size:11px; color:#ea580c; font-weight:700; text-transform:uppercase;">Đang giao SPX</div>
+          <div style="font-size:18px; font-weight:900; color:#c2410c;">${shippingWithSpxCount} đơn</div>
+        </div>
       </div>
     </div>
 
@@ -4645,38 +5315,26 @@ function buildUnifiedCustomerOrderCardHTML(ord) {
         </div>
         `;
       })() : (isApproved ? (Boolean(ord.HasPreOrder || ord.hasPreOrder) ? `
-        <div style="background:#f5f3ff; border:1.5px solid #c4b5fd; border-radius:10px; padding:12px 14px; margin-bottom:12px; display:flex; align-items:flex-start; gap:10px;">
-          <i class="fa-solid fa-circle-check" style="color:#7c3aed; font-size:20px; margin-top:2px;"></i>
-          <div style="flex:1;">
-            <div style="font-size:13.5px; font-weight:800; color:#5b21b6;">
-              🎉 ĐÃ XÁC NHẬN ĐẶT CỌC PRE-ORDER THÀNH CÔNG! (Đơn #${escapeHtml(orderCode)})
-            </div>
-            <div style="font-size:12px; color:#4c1d95; margin-top:3px; line-height:1.5;">
-              Cửa hàng Mini GT Biên Hòa đã ghi nhận suất cọc xe của bạn. Admin sẽ chủ động gửi thông báo qua <strong>Zalo</strong>, <strong>Email</strong> hoặc <strong>gọi điện thoại trực tiếp</strong> vào số điện thoại của bạn trong thời gian sắp tới ngay khi lô hàng mô hình cập bến tại cửa hàng Biên Hòa. Sau đó cửa hàng sẽ đóng gói chống sốc và bàn giao SPX Express kèm mã vận đơn gửi đến bạn.
-            </div>
+        <div style="background:#f5f3ff; border:1px solid #c4b5fd; border-radius:10px; padding:10px 14px; margin-bottom:12px; display:flex; align-items:center; gap:10px;">
+          <i class="fa-solid fa-circle-check" style="color:#7c3aed; font-size:18px;"></i>
+          <div style="flex:1; font-size:12.5px; color:#4c1d95;">
+            <strong>Đã xác nhận cọc Pre-Order thành công!</strong> Cửa hàng sẽ liên hệ Zalo / SĐT khi lô xe cập bến Biên Hòa.
           </div>
         </div>
       ` : `
-        <div style="background:linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); border:1.5px solid #86efac; border-radius:12px; padding:12px 14px; margin-bottom:12px; display:flex; align-items:flex-start; gap:10px;">
-          <i class="fa-solid fa-circle-check" style="color:#16a34a; font-size:20px; margin-top:2px;"></i>
-          <div style="flex:1;">
-            <div style="font-size:13.5px; font-weight:800; color:#14532d;">
-              🎉 THÔNG BÁO TỪ ADMIN: Đơn hàng #${escapeHtml(orderCode)} đã được Admin duyệt xác nhận!
-            </div>
-            <div style="font-size:12px; color:#166534; margin-top:2px; line-height:1.45;">
-              ${trackingCode
-                ? `Admin đã bàn giao kiện hàng cho <strong>SPX Express</strong> và cập nhật mã vận đơn chính thức bên dưới cho bạn.`
-                : `Admin đã xác nhận đơn hàng & kiểm tra mô hình. Kiện xe đang được bọc xốp chống sốc 3 lớp để lấy mã vận đơn SPX Express.`}
-            </div>
+        <div style="background:#f0fdf4; border:1px solid #86efac; border-radius:10px; padding:10px 14px; margin-bottom:12px; display:flex; align-items:center; gap:10px;">
+          <i class="fa-solid fa-circle-check" style="color:#16a34a; font-size:18px;"></i>
+          <div style="flex:1; font-size:12.5px; color:#166534;">
+            <strong>Admin đã xác nhận đơn hàng!</strong> ${trackingCode ? 'Kiện xe đã bàn giao cho SPX Express kèm mã vận đơn bên dưới.' : 'Kiện xe đang được đóng bọc xốp chống sốc để gửi SPX Express.'}
           </div>
         </div>
       `) : `
-        <div style="background:#fffbeb; border:1px solid #fde68a; border-radius:10px; padding:11px 14px; margin-bottom:12px; display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;">
-          <div style="font-size:12px; color:#92400e; line-height:1.45;">
+        <div style="background:#fffbeb; border:1px solid #fde68a; border-radius:10px; padding:10px 14px; margin-bottom:12px; display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;">
+          <div style="font-size:12px; color:#92400e;">
             <i class="fa-solid fa-hourglass-half" style="color:#d97706; margin-right:5px;"></i>
-            <strong>Đang chờ Admin duyệt đơn & dán mã SPX:</strong> Ngay khi Admin bấm duyệt hoặc lưu mã SPX, thông báo và mã vận đơn sẽ hiện ngay tại đây!
+            <strong>Đang chờ Admin duyệt đơn:</strong> Ngay khi Admin kiểm tra và lưu mã SPX, trạng thái sẽ cập nhật tự động tại đây.
           </div>
-          <span style="font-size:10.5px; font-weight:700; background:#fef3c7; color:#b45309; padding:3px 8px; border-radius:999px;">Real-time Sync</span>
+          <span style="font-size:10px; font-weight:700; background:#fef3c7; color:#b45309; padding:2px 8px; border-radius:999px;">Đồng bộ thời gian thực</span>
         </div>
       `)}
 
@@ -5136,6 +5794,7 @@ function showCustomerOrderRealtimeBanner(orderCode, status, trackingCode, cancel
   const existing = document.getElementById('customerRealtimeOrderAlert');
   if (existing) existing.remove();
 
+  const isDelivered = status === 'DELIVERED';
   const isCancelled = status === 'CANCELLED';
   const isCustomerCancel = cancelReason && (
     cancelReason.toLowerCase().includes('khách') ||
@@ -5153,53 +5812,91 @@ function showCustomerOrderRealtimeBanner(orderCode, status, trackingCode, cancel
         updateLiveStep4OrderStatus({
           code: orderCode,
           status: status || 'CONFIRMED',
-          paymentStatus: isCancelled ? 'REFUND_PENDING' : 'PARTIALLY_PAID',
+          paymentStatus: isCancelled ? 'REFUND_PENDING' : (isDelivered ? 'PAID' : 'PARTIALLY_PAID'),
           trackingCode: trackingCode || null,
           cancelReason: cancelReason || null
         });
       }
       if (isCancelled) {
-        showToast(`Đơn #${orderCode} đã bị hủy bởi Admin. Lý do: ${cancelReason || 'Vui lòng liên hệ Hotline 0981 400 400'}`, 'error');
+        showToast(`Đơn #${orderCode} đã bị hủy bởi Admin. Lý do: ${cancelReason || 'Vui lòng liên hệ Hotline 0981 400 400'}`, 'error', 'Hủy đơn hàng');
+      } else if (isDelivered) {
+        if (typeof launchCollectorConfetti === 'function') launchCollectorConfetti();
+        showToast(`🎉 Cảm ơn quý khách! Đơn hàng #${orderCode} đã giao thành công!`, 'success', 'Giao Hàng Thành Công');
       } else {
-        showToast(trackingCode ? `Đơn #${orderCode} đã được duyệt & cấp mã SPX: ${trackingCode}` : `Admin đã duyệt đơn hàng #${orderCode}!`, 'success');
+        showToast(trackingCode ? `Đơn #${orderCode} đã được duyệt & cấp mã SPX: ${trackingCode}` : `Admin đã duyệt đơn hàng #${orderCode}!`, 'success', 'Cập nhật đơn hàng');
       }
       return;
     }
-    // Nếu là đơn hàng khác, TUYỆT ĐỐI KHÔNG chạm vào Step 4 của đơn mới!
     if (isCancelled) return;
   }
 
   const banner = document.createElement('div');
   banner.id = 'customerRealtimeOrderAlert';
 
-  if (isCancelled) {
-    banner.style.cssText = 'position:fixed; top:82px; right:20px; z-index:99999; max-width:440px; background:#ffffff; color:#1f2937; border:2px solid #ef4444; border-radius:8px; padding:14px 16px; box-shadow:0 10px 25px rgba(0,0,0,0.12); animation:slideInRight 0.35s ease; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;';
+  if (isDelivered) {
+    // 1. MÀN HÌNH CẢM ƠN & GIAO HÀNG THÀNH CÔNG (NỀN TRẮNG SANG TRỌNG, HIỆU ỨNG CONFETTI)
+    if (typeof launchCollectorConfetti === 'function') launchCollectorConfetti();
+    showToast(`🎉 Cảm ơn quý khách! Đơn hàng #${escapeHtml(orderCode)} đã được giao thành công!`, 'success', 'Giao Hàng Thành Công');
+
+    banner.style.cssText = 'position:fixed; top:82px; right:20px; z-index:999999; max-width:440px; background:#ffffff; color:#0f172a; border:2px solid #10b981; border-radius:16px; padding:16px; box-shadow:0 20px 45px -8px rgba(16,185,129,0.28), 0 4px 14px rgba(15,23,42,0.06); animation:toast-spring-in 0.4s cubic-bezier(0.16, 1.25, 0.35, 1) forwards; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;';
     banner.innerHTML = `
       <div style="display:flex; align-items:flex-start; gap:12px; text-align:left;">
-        <div style="font-size:24px; color:#dc2626; line-height:1; flex-shrink:0;">
+        <div style="width:44px; height:44px; border-radius:12px; background:#ecfdf5; color:#059669; display:flex; align-items:center; justify-content:center; font-size:22px; flex-shrink:0;">
+          <i class="fa-solid fa-gift"></i>
+        </div>
+        <div style="flex:1;">
+          <div style="font-size:11px; font-weight:800; color:#059669; text-transform:uppercase; letter-spacing:0.5px;">
+            🎉 CẢM ƠN QUÝ KHÁCH • MINI GT BIÊN HÒA
+          </div>
+          <div style="font-size:14px; font-weight:800; color:#065f46; margin-top:2px; line-height:1.35;">
+            ĐƠN HÀNG #${escapeHtml(orderCode)} ĐÃ GIAO THÀNH CÔNG!
+          </div>
+          <div style="margin-top:6px; font-size:12px; color:#334155; line-height:1.45; background:#f0fdf4; border:1px solid #bbf7d0; border-radius:8px; padding:8px 10px;">
+            Đơn hàng đã được shipper SPX bàn giao nguyên seal đến bạn. Chân thành cảm ơn bạn đã tin tưởng sưu tầm mô hình tại Săn Xe Biên Hòa! Chúc bạn có những phút giây trưng bày mãn nhãn.
+          </div>
+          <div style="display:flex; gap:8px; margin-top:12px; flex-wrap:wrap;">
+            <button type="button" onclick="document.getElementById('customerRealtimeOrderAlert')?.remove(); openMyOrdersModal();" style="background:#059669; color:#ffffff; border:none; border-radius:8px; padding:7px 14px; font-size:12px; font-weight:800; cursor:pointer; display:inline-flex; align-items:center; gap:5px; box-shadow:0 2px 6px rgba(5,150,105,0.3);">
+              <i class="fa-solid fa-box-open"></i> Xem đơn hàng
+            </button>
+            <button type="button" onclick="document.getElementById('customerRealtimeOrderAlert')?.remove();" style="background:#f1f5f9; color:#475569; border:1px solid #cbd5e1; border-radius:8px; padding:7px 12px; font-size:12px; font-weight:600; cursor:pointer;">
+              Đóng
+            </button>
+          </div>
+        </div>
+      </div>
+    `;
+  } else if (isCancelled) {
+    // 2. MÀN HÌNH ĐƠN BỊ HỦY (NỀN TRẮNG SẠCH SẼ, VIỀN ĐỎ RÕ RÀNG)
+    banner.style.cssText = 'position:fixed; top:82px; right:20px; z-index:999999; max-width:440px; background:#ffffff; color:#0f172a; border:2px solid #ef4444; border-radius:16px; padding:16px; box-shadow:0 20px 45px -8px rgba(239,68,68,0.24), 0 4px 14px rgba(15,23,42,0.06); animation:toast-spring-in 0.4s cubic-bezier(0.16, 1.25, 0.35, 1) forwards; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;';
+    banner.innerHTML = `
+      <div style="display:flex; align-items:flex-start; gap:12px; text-align:left;">
+        <div style="width:44px; height:44px; border-radius:12px; background:#fef2f2; color:#dc2626; display:flex; align-items:center; justify-content:center; font-size:22px; flex-shrink:0;">
           <i class="fa-solid fa-circle-xmark"></i>
         </div>
         <div style="flex:1;">
-          <div style="font-size:13.5px; font-weight:800; color:#dc2626;">
-            ❌ ĐƠN HÀNG #${escapeHtml(orderCode)} ĐÃ BỊ HỦY BỞI QUẢN TRỊ VIÊN
+          <div style="font-size:11px; font-weight:800; color:#dc2626; text-transform:uppercase; letter-spacing:0.5px;">
+            ⚠️ THÔNG BÁO TỪ QUẢN TRỊ VIÊN
           </div>
-          <div style="margin-top:6px; background:#fef2f2; border:1px solid #fee2e2; border-radius:6px; padding:8px 10px; font-size:12px; color:#374151;">
+          <div style="font-size:14px; font-weight:800; color:#b91c1c; margin-top:2px;">
+            ĐƠN HÀNG #${escapeHtml(orderCode)} ĐÃ BỊ HỦY
+          </div>
+          <div style="margin-top:6px; background:#fef2f2; border:1px solid #fee2e2; border-radius:8px; padding:8px 10px; font-size:12px; color:#374151;">
             <strong>Lý do hủy đơn:</strong> <span style="color:#dc2626; font-weight:700;">${escapeHtml(cancelReason || 'Admin đã xử lý hủy đơn')}</span>
           </div>
           <div style="margin-top:8px; font-size:11.5px; color:#4b5563; line-height:1.45;">
-            ⚠️ <em>Quý khách vui lòng liên hệ lại với Mini GT Biên Hòa Store qua Hotline / Zalo: <strong style="color:#dc2626;">0981 400 400</strong> để được hỗ trợ tốt nhất.</em>
+            Quý khách vui lòng liên hệ Hotline / Zalo: <strong style="color:#dc2626;">0981 400 400</strong> để được hỗ trợ tốt nhất.
           </div>
-          <div style="display:flex; gap:8px; margin-top:10px; flex-wrap:wrap;">
-            <a href="tel:0981400400" style="background:#dc2626; color:#ffffff; border:none; border-radius:6px; padding:6px 12px; font-size:11.5px; font-weight:700; text-decoration:none; display:inline-flex; align-items:center; gap:4px;">
-              <i class="fa-solid fa-phone"></i> Gọi Hotline 0981 400 400
+          <div style="display:flex; gap:8px; margin-top:12px; flex-wrap:wrap;">
+            <a href="tel:0981400400" style="background:#dc2626; color:#ffffff; border:none; border-radius:8px; padding:7px 12px; font-size:11.5px; font-weight:700; text-decoration:none; display:inline-flex; align-items:center; gap:4px;">
+              <i class="fa-solid fa-phone"></i> Gọi 0981 400 400
             </a>
-            <a href="https://zalo.me/0981400400" target="_blank" style="background:#ffffff; color:#0284c7; border:1px solid #0284c7; border-radius:6px; padding:6px 12px; font-size:11.5px; font-weight:700; text-decoration:none; display:inline-flex; align-items:center; gap:4px;">
-              <i class="fa-solid fa-comments"></i> Nhắn Zalo Hỗ Trợ
+            <a href="https://zalo.me/0981400400" target="_blank" style="background:#ffffff; color:#0284c7; border:1px solid #0284c7; border-radius:8px; padding:7px 12px; font-size:11.5px; font-weight:700; text-decoration:none; display:inline-flex; align-items:center; gap:4px;">
+              <i class="fa-solid fa-comments"></i> Nhắn Zalo
             </a>
-            <button type="button" onclick="document.getElementById('customerRealtimeOrderAlert')?.remove(); openMyOrdersModal();" style="background:#f1f5f9; color:#475569; border:1px solid #cbd5e1; border-radius:6px; padding:6px 10px; font-size:11.5px; font-weight:600; cursor:pointer;">
+            <button type="button" onclick="document.getElementById('customerRealtimeOrderAlert')?.remove(); openMyOrdersModal();" style="background:#f1f5f9; color:#475569; border:1px solid #cbd5e1; border-radius:8px; padding:7px 10px; font-size:11.5px; font-weight:600; cursor:pointer;">
               Chi tiết
             </button>
-            <button type="button" onclick="document.getElementById('customerRealtimeOrderAlert')?.remove();" style="background:#ffffff; color:#94a3b8; border:1px solid #e2e8f0; border-radius:6px; padding:6px 8px; font-size:11.5px; cursor:pointer;">
+            <button type="button" onclick="document.getElementById('customerRealtimeOrderAlert')?.remove();" style="background:#ffffff; color:#94a3b8; border:1px solid #e2e8f0; border-radius:8px; padding:7px 8px; font-size:11.5px; cursor:pointer;">
               Đóng
             </button>
           </div>
@@ -5207,32 +5904,48 @@ function showCustomerOrderRealtimeBanner(orderCode, status, trackingCode, cancel
       </div>
     `;
   } else {
-    banner.style.cssText = `position:fixed; top:82px; right:20px; z-index:99999; max-width:440px; background:linear-gradient(135deg, #0f172a 0%, #1e293b 100%); color:#fff; border:2px solid ${trackingCode ? '#fb923c' : '#10b981'}; border-radius:14px; padding:14px 16px; box-shadow:0 16px 38px rgba(15,23,42,0.45); animation:slideInRight 0.35s ease;`;
+    // 3. THÔNG BÁO CẬP NHẬT TRẠNG THÁI / DÁN MÃ SPX (NỀN TRẮNG HIỆN ĐẠI)
+    const isSpx = Boolean(trackingCode);
+    const borderColor = isSpx ? '#ea580c' : '#2563eb';
+    const iconBg = isSpx ? '#fff7ed' : '#eff6ff';
+    const iconColor = isSpx ? '#ea580c' : '#2563eb';
+    const kickerColor = isSpx ? '#c2410c' : '#1d4ed8';
+
+    let statusText = 'Đã được duyệt bởi Admin';
+    if (status === 'PREPARING') statusText = 'Đang đóng gói 4 lớp xốp khí chống sốc';
+    else if (status === 'SHIPPING') statusText = 'Đang trên đường vận chuyển SPX Express';
+    else if (status === 'CONFIRMED') statusText = 'Đã được Quản trị viên duyệt xác nhận';
+
+    showToast(isSpx ? `Đơn #${orderCode} đã có mã SPX: ${trackingCode}` : `Đơn #${orderCode}: ${statusText}`, 'info', 'Cập Nhật Đơn Hàng');
+
+    banner.style.cssText = `position:fixed; top:82px; right:20px; z-index:999999; max-width:440px; background:#ffffff; color:#0f172a; border:2px solid ${borderColor}; border-radius:16px; padding:16px; box-shadow:0 20px 45px -8px rgba(15,23,42,0.18), 0 4px 14px rgba(15,23,42,0.06); animation:toast-spring-in 0.4s cubic-bezier(0.16, 1.25, 0.35, 1) forwards; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;`;
     banner.innerHTML = `
-      <div style="display:flex; align-items:flex-start; gap:12px;">
-        <div style="width:40px; height:40px; border-radius:10px; background:${trackingCode ? '#ea580c' : '#16a34a'}; color:#fff; display:flex; align-items:center; justify-content:center; font-size:18px; flex-shrink:0;">
-          <i class="fa-solid ${trackingCode ? 'fa-truck-fast' : 'fa-circle-check'}"></i>
+      <div style="display:flex; align-items:flex-start; gap:12px; text-align:left;">
+        <div style="width:44px; height:44px; border-radius:12px; background:${iconBg}; color:${iconColor}; display:flex; align-items:center; justify-content:center; font-size:20px; flex-shrink:0;">
+          <i class="fa-solid ${isSpx ? 'fa-truck-fast' : 'fa-circle-check'}"></i>
         </div>
         <div style="flex:1;">
-          <div style="font-size:11px; font-weight:800; color:#fdba74; text-transform:uppercase; letter-spacing:0.5px;">
-            🔔 Thông báo mới từ Admin Săn Xe Biên Hòa
+          <div style="font-size:11px; font-weight:800; color:${kickerColor}; text-transform:uppercase; letter-spacing:0.5px;">
+            🔔 CẬP NHẬT ĐƠN HÀNG • MINI GT BIÊN HÒA
           </div>
-          <div style="font-size:13.5px; font-weight:800; margin-top:2px; color:#fff;">
-            ${trackingCode
-              ? `Đơn #${escapeHtml(orderCode)} đã được duyệt & có mã SPX!`
-              : `Admin đã duyệt đơn hàng #${escapeHtml(orderCode)} của bạn!`}
+          <div style="font-size:14px; font-weight:800; color:#0f172a; margin-top:2px;">
+            ${isSpx ? `ĐƠN HÀNG #${escapeHtml(orderCode)} ĐÃ XUẤT MÃ SPX` : `ĐƠN HÀNG #${escapeHtml(orderCode)}: ${statusText}`}
           </div>
-          ${trackingCode ? `
-            <div style="margin-top:6px; background:rgba(255,255,255,0.1); border:1px dashed #fdba74; border-radius:8px; padding:6px 10px; display:flex; align-items:center; justify-content:space-between; gap:8px;">
-              <span style="font-family:monospace; font-size:13px; font-weight:800; color:#fde047;">${escapeHtml(trackingCode)}</span>
-              <button type="button" onclick="copyToClipboard('${escapeHtml(trackingCode)}', 'Đã sao chép mã SPX: ${escapeHtml(trackingCode)}')" style="background:#ea580c; color:#fff; border:none; border-radius:6px; padding:3px 8px; font-size:11px; font-weight:700; cursor:pointer;">Copy mã</button>
+          ${isSpx ? `
+            <div style="margin-top:6px; background:#fff7ed; border:1px solid #fed7aa; border-radius:8px; padding:8px 10px; display:flex; align-items:center; justify-content:space-between; gap:8px;">
+              <span style="font-family:monospace; font-size:13px; font-weight:800; color:#ea580c;">${escapeHtml(trackingCode)}</span>
+              <button type="button" onclick="copyToClipboard('${escapeHtml(trackingCode)}', 'Đã sao chép mã SPX: ${escapeHtml(trackingCode)}')" style="background:#ea580c; color:#fff; border:none; border-radius:6px; padding:4px 9px; font-size:11px; font-weight:700; cursor:pointer;">Sao chép</button>
             </div>
-          ` : ''}
-          <div style="display:flex; gap:8px; margin-top:10px; flex-wrap:wrap;">
-            <button type="button" onclick="document.getElementById('customerRealtimeOrderAlert')?.remove(); openMyOrdersModal();" style="background:#22c55e; color:#fff; border:none; border-radius:8px; padding:6px 12px; font-size:11.5px; font-weight:800; cursor:pointer;">
-              Xem đơn hàng ngay
+          ` : `
+            <div style="margin-top:6px; font-size:12px; color:#475569; line-height:1.45;">
+              Trạng thái đơn hàng của bạn đã được Admin cập nhật sang: <strong style="color:#2563eb;">${escapeHtml(statusText)}</strong>.
+            </div>
+          `}
+          <div style="display:flex; gap:8px; margin-top:12px; flex-wrap:wrap;">
+            <button type="button" onclick="document.getElementById('customerRealtimeOrderAlert')?.remove(); openMyOrdersModal();" style="background:#2563eb; color:#fff; border:none; border-radius:8px; padding:7px 14px; font-size:12px; font-weight:800; cursor:pointer; display:inline-flex; align-items:center; gap:5px;">
+              <i class="fa-solid fa-list-check"></i> Xem chi tiết đơn
             </button>
-            <button type="button" onclick="document.getElementById('customerRealtimeOrderAlert')?.remove();" style="background:rgba(255,255,255,0.12); color:#cbd5e1; border:none; border-radius:8px; padding:6px 10px; font-size:11.5px; cursor:pointer;">
+            <button type="button" onclick="document.getElementById('customerRealtimeOrderAlert')?.remove();" style="background:#f1f5f9; color:#475569; border:1px solid #cbd5e1; border-radius:8px; padding:7px 12px; font-size:12px; font-weight:600; cursor:pointer;">
               Đóng
             </button>
           </div>
@@ -5240,6 +5953,7 @@ function showCustomerOrderRealtimeBanner(orderCode, status, trackingCode, cancel
       </div>
     `;
   }
+
   document.body.appendChild(banner);
   setTimeout(() => {
     if (banner && banner.parentNode) banner.remove();
@@ -5268,12 +5982,26 @@ function initCustomerRealtimeOrderWatcher() {
           }
           const prev = customerOrderStateSnapshot[code] || {};
           const isCustCancel = String(cancelReason || '').toLowerCase().includes('khách');
+          const newlyDelivered = newStatus === 'DELIVERED' && prev.status !== 'DELIVERED';
           const newlyApproved = ['CONFIRMED', 'PREPARING', 'SHIPPING'].includes(newStatus) && prev.status === 'PENDING';
           const newlyTracked = Boolean(newTracking) && newTracking !== prev.tracking;
           const newlyCancelled = newStatus === 'CANCELLED' && prev.status !== 'CANCELLED' && !prev.cancelledByCustomer && !isCustCancel;
+          const statusChanged = Boolean(newStatus) && newStatus !== prev.status;
+
           customerOrderStateSnapshot[code] = { status: newStatus || prev.status, tracking: newTracking || prev.tracking, cancelledByCustomer: prev.cancelledByCustomer || isCustCancel };
 
-          if (newlyApproved || newlyTracked || newlyCancelled) {
+          // Cập nhật tích lũy đã giao (deliveredSpent) của khách nếu giao thành công
+          if (newlyDelivered && currentUser) {
+            const ordTotal = Number(orderObj?.Total || orderObj?.total || orderObj?.totalAmount || 0);
+            if (ordTotal > 0) {
+              currentUser.deliveredSpent = (currentUser.deliveredSpent || 0) + ordTotal;
+              currentUser.totalSpent = (currentUser.totalSpent || 0) + ordTotal;
+              try { localStorage.setItem('minigt_user', JSON.stringify(currentUser)); } catch (_) {}
+            }
+            updateUserHeaderUI();
+          }
+
+          if (newlyDelivered || newlyApproved || newlyTracked || newlyCancelled || statusChanged) {
             showCustomerOrderRealtimeBanner(code, newStatus, newTracking, cancelReason);
           }
         }
@@ -5314,17 +6042,20 @@ function initCustomerRealtimeOrderWatcher() {
         const old = prevSnap[c];
         const isCustCancel = String(o.CancelReason || o.cancelReason || '').toLowerCase().includes('khách');
         if (old) {
+          const newlyDelivered = st === 'DELIVERED' && old.status !== 'DELIVERED';
           const newlyApproved = ['CONFIRMED', 'PREPARING', 'SHIPPING'].includes(st) && old.status === 'PENDING';
           const newlyTracked = Boolean(tk) && tk !== old.tracking;
           const newlyCancelled = st === 'CANCELLED' && old.status !== 'CANCELLED' && !old.cancelledByCustomer && !isCustCancel;
-          if (newlyApproved || newlyTracked || newlyCancelled) {
+          const statusChanged = Boolean(st) && st !== old.status;
+
+          if (newlyDelivered || newlyApproved || newlyTracked || newlyCancelled || statusChanged) {
             showCustomerOrderRealtimeBanner(c, st, tk, o.CancelReason || o.cancelReason);
           }
         }
-        customerOrderStateSnapshot[c] = { 
-          status: st, 
-          tracking: tk, 
-          cancelledByCustomer: old?.cancelledByCustomer || isCustCancel 
+        customerOrderStateSnapshot[c] = {
+          status: st,
+          tracking: tk,
+          cancelledByCustomer: old?.cancelledByCustomer || isCustCancel
         };
       });
 
@@ -5334,9 +6065,7 @@ function initCustomerRealtimeOrderWatcher() {
           renderMyOrdersCenterUI(container);
         }
       }
-    } catch (e) {
-      // ignore background error
-    }
+    } catch (_) {}
   }, 6000);
 }
 
@@ -6243,13 +6972,29 @@ document.addEventListener('click', (e) => {
 
 const I18N_TRANSLATIONS = {
   en: {
-    searchPlaceholder: 'Search SKU, model name (LBWK, GT3, F1, Rexy)...',
-    topbarLeft: '<i class="fa-solid fa-shield-halved" style="color:#e11d48; margin-right:4px;"></i> Official <strong>TSM-Model (MINI GT) 1:64</strong> Distributor in Bien Hoa • Sealed Box & Blister Card',
+    // Topbar & Navigation
+    topbar_ticker: 'Global Pre-Order: <strong>Liberty Walk LBWK, GT3 IMSA, F1 Las Vegas &amp; Secret Chase</strong> | <i class="fa-regular fa-clock" style="font-size:11px; margin-left:4px;"></i> Deadline: <strong>Oct 30, 2026</strong>',
+    topbarLeft: '<i class="fa-solid fa-shield-halved" style="color:#e11d48; margin-right:4px;"></i> Official <strong>TSM-Model (MINI GT) 1:64</strong> Distributor in Bien Hoa • Sealed Box &amp; Blister Card',
     topbarTrackBtn: '<i class="fa-solid fa-magnifying-glass-location"></i> Track Order',
     topbarOrdersBtn: '<i class="fa-solid fa-box-archive"></i> My Orders (SPX)',
     topbarThemeLabel: '<i class="fa-solid fa-circle-half-stroke"></i> Theme Mode',
     topbarLangLabel: '<i class="fa-solid fa-language"></i> Language (VN / EN)',
+    nav_admin: 'Store Admin',
+    nav_track: 'Track Order',
+    nav_guide: '1:64 Handbook',
+    nav_home: 'Home',
+    nav_preorder: 'Pre-Order 2026',
+    nav_lbwk: 'Liberty Walk LBWK',
+    nav_gt3: 'IMSA GT3 &amp; F1',
+    nav_chase: 'Secret Chase',
+    nav_hub: '1:64 Collector Hub',
     btnSignIn: 'Sign In',
+    btn_signin: 'Sign In',
+    search_placeholder: 'Search SKU, model name (LBWK, GT3, F1, Rexy)...',
+    searchPlaceholder: 'Search SKU, model name (LBWK, GT3, F1, Rexy)...',
+    settings_title: '<i class="fa-solid fa-sliders"></i> Display Settings',
+    settings_theme: 'Theme',
+    settings_lang: 'Language',
     navAll: 'All Models',
     navPreOrder: 'Pre-Order 2026',
     navLbwk: 'Liberty Walk',
@@ -6259,6 +7004,10 @@ const I18N_TRANSLATIONS = {
     navShowroom: 'Showroom',
     btnMyOrders: 'My Orders',
     btnCart: 'Cart',
+    mob_home: 'Home',
+    mob_catalog: 'Kho Xe',
+    mob_orders: 'Orders',
+    mob_cart: 'Cart',
     mobHome: 'Home',
     mobCatalog: '1:64 Models',
     mobLbwk: 'LBWK & GT3',
@@ -6274,31 +7023,66 @@ const I18N_TRANSLATIONS = {
     s1PanelTitle: 'SECURE YOUR SLOT',
     s1CountdownLabel: '⏰ Pre-Order Batch Closes In:',
     // Hero Slide 2
+    s2_badge: '🔥 OFFICIAL LIBERTY WALK NAGOYA • SEALED BOX & BLISTER CARD',
+    s2_title: 'NISSAN SILVIA S15 LB-SUPER SILHOUETTE',
+    s2_desc: 'Signature riveted widebody fenders, deep dish racing rims and authentic racing liveries.',
+    s2_btn1: 'Explore LB★WORKS &rarr;',
+    s2_btn2: 'View S15 #465 Details',
     s2Tag: '✨ WATARU KATO • NAGOYA WIDEBODY 1:64',
     s2Title: 'LIBERTY WALK<br>LB★WORKS EDITION',
     s2Desc: 'Featuring Nissan S15 Super Silhouette, GT-R R35 Type 2, Lamborghini Countach & Ferrari F40 LBWK in both Sealed Box and Blister Card.',
     s2BtnExplore: '<i class="fa-solid fa-bolt"></i> View LBWK Collection &rarr;',
     s2BtnAll: 'Filter LBWK Models',
     // Hero Slide 3
+    s3_badge: '🏆 WORLD CHAMPION F1 RACING • ORACLE RED BULL',
+    s3_title: 'ORACLE RED BULL RACING F1 - MAX VERSTAPPEN #1',
+    s3_desc: 'Authentic 1:64 championship RB18 / RB19 diecast models with pit-crew figures and collector box sets.',
+    s3_btn1: 'View Red Bull RB18 #1 &rarr;',
+    s3_btn2: 'F1 Series Collection',
     s3Tag: '🏆 FORMULA 1 ORACLE RED BULL RACING 1:64',
     s3Title: 'ORACLE RED BULL<br>F1 RB18 & RB19 MAX #1',
     s3Desc: 'Authentic 1:64 F1 championship cars of Max Verstappen #1 & Sergio Perez #11 with pit-crew figures and collector box sets.',
     s3BtnF1: '<i class="fa-solid fa-flag-checkered"></i> Shop F1 Red Bull &rarr;',
     s3BtnBox: 'View Collector Box Sets',
     // Hero Slide 4
+    s4_badge: '<i class="fa-solid fa-trophy"></i> IMSA WEATHERTECH GTD PRO • AO RACING',
+    s4_title: 'PORSCHE 911 GT3 R: REXY • ROXY • SKELETON',
+    s4_desc: 'Complete the iconic AO Racing Porsche 911 GT3 R trio: Green dinosaur <strong>Rexy #80</strong>, Pink dinosaur <strong>Roxy #77</strong> and limited edition <strong>Skeleton #77</strong> Petit Le Mans. Available in both <strong>Box</strong> and <strong>Blister Card</strong>.',
+    s4_btn1: 'View AO Racing Trio &rarr;',
+    s4_btn2: 'Filter AO Racing Cars',
     s4Tag: '🦖 AO RACING IMSA GTD PRO • 911 GT3 R (992)',
     s4Title: 'REXY • ROXY<br>& SKELETON TRIO',
     s4Desc: 'Complete the iconic AO Racing Porsche 911 GT3 R trio: #80 Rexy (Green), #80 Roxy (Pink) & #77 Skeleton Halloween Livery.',
     s4BtnRexy: '<i class="fa-solid fa-dragon"></i> Collect Rexy • Roxy • Skeleton &rarr;',
     s4BtnGt3: 'Explore GT3 Paddock',
+    // Countdown Box
+    countdown_title: 'TSM-MODEL & POP RACE GLOBAL PRE-ORDER SYSTEM',
+    countdown_sub: 'Batch deadline: Estimated delivery Nov 2026',
+    cd_days: 'DAYS',
+    cd_hours: 'HOURS',
+    cd_mins: 'MINS',
+    cd_secs: 'SECS',
+    countdown_btn: 'Pre-Order Slot Now',
     // Category Visual Cards
     cat1Sub: 'S15, R35, F40, Countach Widebody',
     cat2Sub: 'Rexy #80, Roxy #80 & Skeleton #77',
     cat3Sub: 'Oracle Red Bull Racing RB18 / RB19',
     cat4Sub: 'Raw Metal & Chrome Limited 1/24',
     // Catalogue & Filter Pills
+    catalog_eyebrow: 'OFFICIAL 1:64 DIE-CAST CATALOGUE (BOX & BLISTER CARD)',
+    catalog_title: 'OFFICIAL 2026 1:64 DIECAST COLLECTION',
+    catalog_desc: 'Choose between Paper Box (save 40k-100k) or Blister Card right on each model — Direct % discount deducted automatically.',
     catalogTitle: 'OFFICIAL 1:64 DIECAST CATALOGUE',
     catalogSub: 'Select Box (Paper Box) or Card (Blister Pack) right on each model — Direct % discount deducted automatically',
+    filter_all: 'All Models',
+    filter_bestseller: 'Best Sellers',
+    filter_instock: 'In Stock',
+    filter_preorder: 'Pre-Order 2026',
+    filter_lbwk: 'Liberty Walk LBWK',
+    filter_chase: 'Secret Chase Car',
+    filter_f1: 'Formula 1 Series',
+    filter_boxsets: 'Box Sets & Combo',
+    filter_aoracing: 'AO Racing GT3',
     pillAll: 'All',
     pillBestSeller: 'Best Sellers',
     pillInStock: 'In Stock',
@@ -6308,15 +7092,31 @@ const I18N_TRANSLATIONS = {
     pillF1: 'F1 Red Bull',
     pillBoxSets: 'Box Sets',
     pillAoRacing: 'AO Racing',
+    // Toolbar & Sort
+    toolbar_filtering: 'Filter:',
+    toolbar_brand: 'Brand:',
+    brand_all: 'All Brands',
+    toolbar_sort: 'Sort by:',
+    sort_default: 'Default (Featured)',
+    sort_price_asc: 'Price: Low to High ↑',
+    sort_price_desc: 'Price: High to Low ↓',
+    sort_name_asc: 'Name: A → Z',
+    sort_name_desc: 'Name: Z → A',
+    sort_newest: 'Newest 2026',
+    sort_bestselling: 'Best Sellers',
     // Thematic Sections
+    lbwk_title: 'LIBERTY WALK (LB★WORKS) 1:64 WIDEBODY COLLECTION',
+    lbwk_desc: 'Authentic Nagoya riveted widebody culture by Wataru Kato. Choose between Paper Box and Blister Card.',
+    lbwk_btn_all: 'View All LB★WORKS Models',
     lbwkBadge: '🇯🇵 WATARU KATO • NAGOYA WIDEBODY CULTURE',
     lbwkTitle: 'LIBERTY WALK LB★WORKS 1:64 SHOWCASE',
     lbwkDesc: 'Signature riveted widebody fenders, deep-dish rims, and iconic liveries — available in both Paper Box and Blister Card.',
     lbwkBtnFilter: 'Filter All LBWK Models &rarr;',
+    gt3_title: 'AO RACING: REXY • ROXY • SKELETON & GT3 TRACK',
+    gt3_desc: '<span class="gt3-checkered-badge"><i class="fa-solid fa-flag-checkered"></i> Black &amp; white checkered flag on the track: The finish flag (Checkered flag)</span>',
     gt3Badge: '🏁 IMSA GTD PRO & FIA WEC PADDOCK',
     gt3Title: 'AO RACING: REXY • ROXY • SKELETON & GT3',
     gt3Desc: '<span class="gt3-checkered-badge"><i class="fa-solid fa-flag-checkered"></i> Black &amp; white checkered flag on the track: The finish flag (Checkered flag)</span>',
-    gt3_desc: '<span class="gt3-checkered-badge"><i class="fa-solid fa-flag-checkered"></i> Black &amp; white checkered flag on the track: The finish flag (Checkered flag)</span>',
     gt3BtnFilter: 'View All GT3 & Motorsport &rarr;',
     aoHeadline: 'TRIO REXY #80 • ROXY #80 • SKELETON #77',
     aoSubDesc: 'Authentic AO Racing Porsche 911 GT3 R (992) models in both Box & Blister Card.',
@@ -6324,19 +7124,45 @@ const I18N_TRANSLATIONS = {
     boxBadge: '🎁 LIMITED COLLECTOR SETS',
     boxTitle: 'MINI GT COLLECTOR BOX SETS & PADDOCK PACKS',
     boxDesc: 'Multi-car gift sets with pit crew figures and numbered collector packaging.',
+    chase_badge: '<i class="fa-solid fa-gem"></i> SECRET CHASE 1/24 • POP RACE & MINI GT',
+    chase_title: 'WHAT IS A "SECRET CHASE" 1/24 DIECAST?',
+    chase_desc: 'Secret Chase is a rare collector variant randomly inserted into factory sealed master cartons with a 1/24 chance.',
+    chase_b1_title: '2x to 5x Collector Market Value',
+    chase_b1_desc: 'Highly sought after by worldwide collectors thanks to limited release ratios.',
+    chase_b2_title: '100% Factory Sealed Box & Card',
+    chase_b2_desc: 'Official TSM-Model & Pop Race anti-counterfeit labels with collector box protectors.',
+    chase_btn: 'View Chase Eligible Models in this Batch',
     chaseBadge: '💎 COLLECTOR GUIDE & SECRET CHASE 1/24',
     chaseTitle: 'BOX VS BLISTER CARD & CHASE EDITION GUIDE',
     chaseDesc: 'Understand the difference between Paper Box and Blister Card packaging (Box is 40k–100k cheaper than Card) and how to spot 1/24 Chase models.',
-    chaseBtnFilter: 'View Chase Eligible Models &rarr;'
+    chaseBtnFilter: 'View Chase Eligible Models &rarr;',
+    hub_title: 'EXCLUSIVE 1:64 COLLECTOR TOOLS & GUIDES',
+    hub_desc: 'Tools to compare models, estimate pre-order quotas, choose packaging, and learn scale details.'
   },
   vi: {
-    searchPlaceholder: 'Tìm mã MGT, tên xe (LBWK, F1, Porsche, Rexy)... ',
-    topbarLeft: '<i class="fa-solid fa-shield-halved" style="color:#e11d48; margin-right:4px;"></i> Đại lý phân phối <strong>TSM-Model (MINI GT) 1:64</strong> Chính Hãng tại Biên Hòa • Đầy đủ bản Box & Vỉ Card Blister',
+    // Topbar & Navigation
+    topbar_ticker: 'Đợt mở đặt trước toàn cầu: <strong>Liberty Walk LBWK, GT3 IMSA, F1 Las Vegas &amp; Secret Chase</strong> | <i class="fa-regular fa-clock" style="font-size:11px; margin-left:4px;"></i> Hạn chốt đợt cọc: <strong>30/10/2026</strong>',
+    topbarLeft: '<i class="fa-solid fa-shield-halved" style="color:#e11d48; margin-right:4px;"></i> Đại lý phân phối <strong>TSM-Model (MINI GT) 1:64</strong> Chính Hãng tại Biên Hòa • Đầy đủ bản Box &amp; Vỉ Card Blister',
     topbarTrackBtn: '<i class="fa-solid fa-magnifying-glass-location"></i> Tra cứu đơn cọc',
     topbarOrdersBtn: '<i class="fa-solid fa-box-archive"></i> Đơn hàng của tôi (SPX)',
     topbarThemeLabel: '<i class="fa-solid fa-circle-half-stroke"></i> Chế độ giao diện',
     topbarLangLabel: '<i class="fa-solid fa-language"></i> Ngôn ngữ (VN / EN)',
+    nav_admin: 'Quản trị Store',
+    nav_track: 'Tra cứu đơn hàng',
+    nav_guide: 'Cẩm nang 1:64',
+    nav_home: 'Trang chủ',
+    nav_preorder: 'Pre-Order 2026',
+    nav_lbwk: 'Liberty Walk LBWK',
+    nav_gt3: 'IMSA GT3 &amp; F1',
+    nav_chase: 'Secret Chase',
+    nav_hub: 'Tiện ích 1:64',
     btnSignIn: 'Đăng nhập',
+    btn_signin: 'Đăng nhập',
+    search_placeholder: 'Tìm theo tên xe, hãng...',
+    searchPlaceholder: 'Tìm mã MGT, tên xe (LBWK, F1, Porsche, Rexy)... ',
+    settings_title: '<i class="fa-solid fa-sliders"></i> Cài Đặt Hiển Thị',
+    settings_theme: 'Giao diện',
+    settings_lang: 'Ngôn ngữ',
     navAll: 'Tất Cả Xe',
     navPreOrder: 'Pre-Order 2026',
     navLbwk: 'Liberty Walk',
@@ -6346,6 +7172,10 @@ const I18N_TRANSLATIONS = {
     navShowroom: 'Showroom',
     btnMyOrders: 'Đơn của tôi',
     btnCart: 'Giỏ cọc',
+    mob_home: 'Trang chủ',
+    mob_catalog: 'Kho Xe',
+    mob_orders: 'Đơn SPX',
+    mob_cart: 'Giỏ cọc',
     mobHome: 'Trang chủ',
     mobCatalog: 'Kho xe 1:64',
     mobLbwk: 'LBWK & GT3',
@@ -6361,31 +7191,66 @@ const I18N_TRANSLATIONS = {
     s1PanelTitle: 'ĐẶT CỌC GIỮ SLOT SỚM',
     s1CountdownLabel: '⏰ Thời gian chốt sổ đợt cọc hiện tại:',
     // Hero Slide 2
+    s2_badge: '🔥 CHÍNH HÃNG LIBERTY WALK NAGOYA • BẢN BOX & CARD NGUYÊN SEAL',
+    s2_title: 'NISSAN SILVIA S15 LB-SUPER SILHOUETTE',
+    s2_desc: 'Huyền thoại độ thân rộng Widebody đinh tán trứ danh của Wataru Kato với cánh gió Super Silhouette hầm hố.',
+    s2_btn1: 'Khám phá LB★WORKS &rarr;',
+    s2_btn2: 'Xem chi tiết S15 #465',
     s2Tag: '✨ WATARU KATO • NAGOYA WIDEBODY 1:64',
     s2Title: 'CHUYÊN TRANG<br>LIBERTY WALK LB★WORKS',
     s2Desc: 'Quy tụ Nissan S15 Super Silhouette, GT-R R35 Type 2, Lamborghini Countach & Ferrari F40 LBWK chuẩn tỉ lệ 1:64 nguyên seal Box & Card.',
     s2BtnExplore: '<i class="fa-solid fa-bolt"></i> Xem bộ sưu tập LBWK &rarr;',
     s2BtnAll: 'Lọc toàn bộ xe LBWK',
     // Hero Slide 3
+    s3_badge: '🏆 ĐỘI ĐUA VÔ ĐỊCH THẾ GIỚI F1 • ORACLE RED BULL',
+    s3_title: 'ORACLE RED BULL RACING F1 - MAX VERSTAPPEN #1',
+    s3_desc: 'Cỗ máy vô địch F1 RB18 / RB19 tái hiện tỉ mỉ từng chi tiết khí động học kèm đội ngũ Pit-Crew thay lốp 1:64.',
+    s3_btn1: 'Xem Red Bull RB18 #1 &rarr;',
+    s3_btn2: 'Bộ sưu tập F1 Series',
     s3Tag: '🏆 ĐỘI ĐUA VÔ ĐỊCH FORMULA 1 ORACLE RED BULL RACING',
     s3Title: 'ORACLE RED BULL<br>F1 RB18 & RB19 MAX #1',
     s3Desc: 'Tái hiện cỗ máy vô địch F1 Oracle Red Bull Racing RB18 / RB19 của Max Verstappen #1 & Sergio Perez #11 kèm đội ngũ Pit Crew 1:64.',
     s3BtnF1: '<i class="fa-solid fa-flag-checkered"></i> Săn ngay F1 Red Bull &rarr;',
     s3BtnBox: 'Xem Collector Box Sets',
     // Hero Slide 4
+    s4_badge: '<i class="fa-solid fa-trophy"></i> IMSA WEATHERTECH GTD PRO • AO RACING',
+    s4_title: 'PORSCHE 911 GT3 R: REXY • ROXY • SKELETON',
+    s4_desc: 'Trọn bộ 3 mẫu Porsche 911 GT3 R được săn đón nhất của đội đua AO Racing: Khủng long xanh <strong>Rexy #80</strong>, Khủng long hồng <strong>Roxy #77</strong> và bản giới hạn <strong>Skeleton #77</strong> Petit Le Mans. Có đầy đủ tùy chọn <strong>Box</strong> và <strong>Blister Card</strong>.',
+    s4_btn1: 'Xem Bộ 3 AO Racing &rarr;',
+    s4_btn2: 'Lọc xe AO Racing',
     s4Tag: '🦖 AO RACING IMSA GTD PRO • PORSCHE 911 GT3 R (992)',
-    s4Title: 'BỘ BA REXY • ROXY<br>& SKELETON TRứ DANH',
+    s4Title: 'BỘ BA REXY • ROXY<br>& SKELETON TRỨ DANH',
     s4Desc: 'Sưu tầm trọn bộ 3 siêu phẩm Porsche 911 GT3 R đội đua AO Racing: Khủng long xanh #80 Rexy, Khủng long hồng #80 Roxy và #77 Skeleton.',
     s4BtnRexy: '<i class="fa-solid fa-dragon"></i> Săn trọn bộ Rexy • Roxy • Skeleton &rarr;',
     s4BtnGt3: 'Khám phá GT3 Paddock',
+    // Countdown Box
+    countdown_title: 'HỆ THỐNG ĐẶT TRƯỚC TOÀN CẦU TSM-MODEL & POP RACE',
+    countdown_sub: 'Đợt mở đặt trước xe mô hình giới hạn: Dự kiến giao Tháng 11/2026',
+    cd_days: 'NGÀY',
+    cd_hours: 'GIỜ',
+    cd_mins: 'PHÚT',
+    cd_secs: 'GIÂY',
+    countdown_btn: 'Đặt cọc giữ mẫu ngay',
     // Category Visual Cards
     cat1Sub: 'S15, R35, F40, Countach Widebody',
     cat2Sub: 'Rexy #80, Roxy #80 & Skeleton #77',
     cat3Sub: 'Oracle Red Bull Racing RB18 / RB19',
     cat4Sub: 'Bản giới hạn Raw Metal & Chrome 1/24',
     // Catalogue & Filter Pills
+    catalog_eyebrow: 'CATALOGUE CHÍNH HÃNG 1:64 DIE-CAST (BOX & BLISTER CARD)',
+    catalog_title: 'BỘ SƯU TẬP XE MÔ HÌNH CHÍNH HÃNG 2026',
+    catalog_desc: 'Chọn nhanh quy cách Hộp Giấy (Box) tiết kiệm hoặc Vỉ Nhựa (Card) cao cấp ngay trên từng mẫu xe — Trừ trực tiếp % chiết khấu.',
     catalogTitle: 'KHO XE MÔ HÌNH TỈ LỆ 1:64 CHÍNH HÃNG',
     catalogSub: 'Chọn nhanh phiên bản Hộp giấy (Box) hoặc Vỉ nhựa (Card) ngay trên từng mẫu xe — Giá ưu đãi đã trừ trực tiếp % giảm giá',
+    filter_all: 'Tất cả mô hình',
+    filter_bestseller: 'Bán chạy nhất',
+    filter_instock: 'Còn hàng',
+    filter_preorder: 'Pre-Order Đặt Mới',
+    filter_lbwk: 'Liberty Walk LBWK',
+    filter_chase: 'Secret Chase Car',
+    filter_f1: 'Formula 1 Series',
+    filter_boxsets: 'Box Sets & Combo',
+    filter_aoracing: 'AO Racing GT3',
     pillAll: 'Tất cả',
     pillBestSeller: 'Bán chạy',
     pillInStock: 'Còn hàng',
@@ -6395,15 +7260,31 @@ const I18N_TRANSLATIONS = {
     pillF1: 'F1 Red Bull',
     pillBoxSets: 'Box Sets',
     pillAoRacing: 'AO Racing',
+    // Toolbar & Sort
+    toolbar_filtering: 'Đang lọc:',
+    toolbar_brand: 'Hãng:',
+    brand_all: 'Tất cả hãng xe',
+    toolbar_sort: 'Sắp xếp:',
+    sort_default: 'Mặc định (Nổi bật nhất)',
+    sort_price_asc: 'Giá: Thấp đến Cao ↑',
+    sort_price_desc: 'Giá: Cao đến Thấp ↓',
+    sort_name_asc: 'Tên: A → Z',
+    sort_name_desc: 'Tên: Z → A',
+    sort_newest: 'Mới nhất 2026',
+    sort_bestselling: 'Bán chạy nhất',
     // Thematic Sections
+    lbwk_title: 'BỘ SƯU TẬP BẢN ĐỘ LIBERTY WALK (LB★WORKS) 1:64',
+    lbwk_desc: 'Văn hóa widebody đinh tán trứ danh Nagoya Nhật Bản từ Wataru Kato. Có sẵn cả bản Hộp Giấy và Vỉ Blister.',
+    lbwk_btn_all: 'Xem tất cả xe LB★WORKS',
     lbwkBadge: '🇯🇵 WATARU KATO • NAGOYA WIDEBODY CULTURE',
     lbwkTitle: 'CHUYÊN TRANG LIBERTY WALK LB★WORKS 1:64',
     lbwkDesc: 'Thiết kế vè tán đinh tán Widebody đặc trưng từ Nagoya Nhật Bản — Có sẵn tùy chọn Hộp Giấy (Box) và Vỉ Nhựa (Card Blister).',
     lbwkBtnFilter: 'Lọc toàn bộ xe Liberty Walk &rarr;',
+    gt3_title: 'BỘ BA REXY • ROXY • SKELETON & ĐƯỜNG ĐUA GT3',
+    gt3_desc: '<span class="gt3-checkered-badge"><i class="fa-solid fa-flag-checkered"></i> Cờ caro đen trắng trên đường đua: Là cờ đích (Checkered flag)</span>',
     gt3Badge: '🏁 ĐƯỜNG ĐUA IMSA GTD PRO & FIA WEC',
     gt3Title: 'BỘ BA REXY • ROXY • SKELETON & ĐƯỜNG ĐUA GT3',
     gt3Desc: '<span class="gt3-checkered-badge"><i class="fa-solid fa-flag-checkered"></i> Cờ caro đen trắng trên đường đua: Là cờ đích (Checkered flag)</span>',
-    gt3_desc: '<span class="gt3-checkered-badge"><i class="fa-solid fa-flag-checkered"></i> Cờ caro đen trắng trên đường đua: Là cờ đích (Checkered flag)</span>',
     gt3BtnFilter: 'Xem toàn bộ xe GT3 & Đua &rarr;',
     aoHeadline: 'BỘ 3 REXY #80 • ROXY #80 • SKELETON #77',
     aoSubDesc: 'Đầy đủ cả phiên bản Box (Hộp giấy) và Card (Vỉ Blister có hình minh họa khủng long).',
@@ -6411,10 +7292,20 @@ const I18N_TRANSLATIONS = {
     boxBadge: '🎁 BỘ SƯU TẬP HỘP QUÀ GIỚI HẠN',
     boxTitle: 'MINI GT COLLECTOR BOX SETS & PADDOCK PACKS',
     boxDesc: 'Hộp quà nhiều xe kèm mô hình nhân vật kỹ thuật viên Pit Crew và đánh số thứ tự giới hạn.',
+    chase_badge: '<i class="fa-solid fa-gem"></i> BÍ MẬT XE CHASE 1/24 • POP RACE & MINI GT',
+    chase_title: 'BÍ MẬT XE "SECRET CHASE" 1/24 LÀ GÌ?',
+    chase_desc: 'Secret Chase là phiên bản xe đặc biệt được nhà sản xuất bỏ ngẫu nhiên vào thùng carton nguyên seal với tỷ lệ 1/24.',
+    chase_b1_title: 'Giá trị sưu tầm cao gấp 2 đến 5 lần',
+    chase_b1_desc: 'Được giới collector quốc tế săn đón nhờ số lượng phát hành giới hạn theo tỷ lệ 1/24.',
+    chase_b2_title: 'Nguyên seal Box & Blister chính hãng',
+    chase_b2_desc: 'Đầy đủ tem chống giả TSM-Model / Pop Race và hộp bảo vệ chuyên dụng.',
+    chase_btn: 'Xem các mẫu Secret Chase trong đợt này',
     chaseBadge: '💎 CẨM NANG COLLECTOR 1:64: PHÂN BIỆT BOX / CARD & CHASE',
     chaseTitle: 'SO SÁNH BẢN BOX VÀ CARD BLISTER • SĂN CHASE 1/24',
     chaseDesc: 'Tìm hiểu vì sao bản Box rẻ hơn bản Card từ 40.000đ – 100.000đ và bí quyết săn phiên bản giới hạn Chase Raw Metal 1/24.',
-    chaseBtnFilter: 'Xem các mẫu có cơ hội trúng Chase &rarr;'
+    chaseBtnFilter: 'Xem các mẫu có cơ hội trúng Chase &rarr;',
+    hub_title: 'TIỆN ÍCH ĐỘC QUYỀN COLLECTOR 1:64 DIE-CAST',
+    hub_desc: 'Bộ công cụ so sánh mô hình, tính toán hạn ngạch cọc, chọn quy cách đóng gói và cẩm nang tỉ lệ chuẩn.'
   }
 };
 
@@ -6425,11 +7316,18 @@ function applySiteLanguage(lang, showFeedback = false) {
 
   const dict = I18N_TRANSLATIONS[currentSiteLang] || I18N_TRANSLATIONS.vi;
   const langBtn = document.getElementById('langToggleBtn');
-  const langLabel = document.getElementById('langToggleLabel');
+  const langLabel = document.getElementById('langToggleLabel') || document.getElementById('langCodeLabel');
+  const langFlagIcon = document.getElementById('langFlagIcon');
+  const topLangText = document.getElementById('topLangText');
+  const topLangFlag = document.getElementById('topLangFlag');
   const mobLangBtn = document.getElementById('mobLangToggleBtn');
 
   if (langBtn) langBtn.classList.toggle('active', currentSiteLang === 'en');
   if (langLabel) langLabel.textContent = currentSiteLang === 'en' ? 'EN' : 'VN';
+  if (langFlagIcon) langFlagIcon.textContent = currentSiteLang === 'en' ? '🇺🇸' : '🇻🇳';
+  if (topLangText) topLangText.textContent = currentSiteLang === 'en' ? 'EN' : 'VN';
+  if (topLangFlag) topLangFlag.textContent = currentSiteLang === 'en' ? '🇺🇸' : '🇻🇳';
+
   if (mobLangBtn) {
     mobLangBtn.innerHTML = currentSiteLang === 'en'
       ? '<i class="fa-solid fa-globe"></i> Language: EN (Switch to VN)'
@@ -6444,9 +7342,19 @@ function applySiteLanguage(lang, showFeedback = false) {
     }
   });
 
+  // Dịch các input có [data-i18n-placeholder]
+  document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+    const key = el.getAttribute('data-i18n-placeholder');
+    if (key && dict[key] !== undefined) {
+      el.placeholder = dict[key];
+    }
+  });
+
   // Search Input
   const searchInput = document.getElementById('headerSearchInput');
-  if (searchInput) searchInput.placeholder = dict.searchPlaceholder;
+  if (searchInput && (dict.search_placeholder || dict.searchPlaceholder)) {
+    searchInput.placeholder = dict.search_placeholder || dict.searchPlaceholder;
+  }
 
   // Main Navigation Links
   const navLinks = document.querySelectorAll('#mainNavList .nav-link');
@@ -6504,6 +7412,11 @@ function applySiteLanguage(lang, showFeedback = false) {
   }
   renderCartDrawer();
 
+  const currFilterEl = document.getElementById('currentFilterLabel');
+  if (currFilterEl && (typeof currentFilter === 'undefined' || currentFilter === 'all')) {
+    currFilterEl.textContent = dict.filter_all || 'Tất cả mô hình';
+  }
+
   if (showFeedback) {
     showToast(
       currentSiteLang === 'en'
@@ -6544,6 +7457,7 @@ document.addEventListener('DOMContentLoaded', () => {
   updateWishlistBadge();
   renderPreOrderQuickRow();
   updateUserHeaderUI();
+  initGoogleIdentityServices();
   initCustomerRealtimeOrderWatcher();
   initLiveCollectorActivityPopup();
 

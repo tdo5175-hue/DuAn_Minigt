@@ -14,6 +14,9 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 
+  <!-- Google Identity Services (GSI Sign-In) -->
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+
   <!-- Font Awesome 6 Pro Icons -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 
@@ -39,8 +42,8 @@
         <a href="javascript:void(0)" onclick="openTrackingModal()"><i class="fa-solid fa-truck-fast"></i> <span data-i18n="nav_track">Tra cứu đơn hàng</span></a>
         <a href="#collector-hub" onclick="scrollToSection(event, 'collector-hub')"><i class="fa-solid fa-ruler-combined"></i> <span data-i18n="nav_guide">Cẩm nang 1:64</span></a>
         <a href="tel:0988164164" class="hotline-link"><i class="fa-solid fa-phone"></i> Hotline: <strong>0981.903.400</strong></a>
-        <div class="lang-switch" onclick="toggleSiteLanguage()" title="Chuyển đổi ngôn ngữ VN / EN" style="cursor:pointer;">
-          <!-- <span id="topLangVN" class="active">VN</span> / <span id="topLangEN">EN</span> -->
+        <div class="lang-switch" onclick="toggleSiteLanguage()" title="Chuyển đổi ngôn ngữ VN / EN" style="cursor:pointer; display:inline-flex; align-items:center; gap:5px; font-size:11.5px; font-weight:700; color:#fff; background:rgba(255,255,255,0.12); padding:2px 8px; border-radius:6px; border:1px solid rgba(255,255,255,0.2);">
+          <span id="topLangFlag">🇻🇳</span> <span id="topLangText">VN</span>
         </div>
       </div>
     </div>
@@ -749,22 +752,32 @@
       <div class="container">
         <div class="gt3-trio-banner" id="gt3-trio-grid">
           <!-- Card 1: Rexy #80 -->
-          <div class="gt3-dino-card rexy-theme" id="rexy-card">
+          <div class="gt3-dino-card rexy-theme" id="rexy-card" data-id="8" data-pack="box">
             <div class="gt3-card-top-row">
               <span class="gt3-sku-tag rexy-tag">#MGT00782 • REXY #80</span>
-              <span class="gt3-status-pill rexy-status">Box 380k • Card 450k</span>
+              <span class="gt3-status-pill rexy-status">Sẵn kho Biên Hòa</span>
             </div>
             <div class="gt3-dino-img-wrap">
               <img src="image/rexy.jpg" alt="Porsche 911 GT3 R #80 AO Racing Rexy" loading="lazy" decoding="async">
             </div>
             <h3>Porsche 911 GT3 R #80 AO Racing "Rexy"</h3>
             <p>
-              Phiên bản khủng long xanh T-Rex tại giải đua sức bền Sebring &amp; Daytona. Có sẵn cả bản Hộp giấy (Box) và Vỉ Blister (Card).
+              Phiên bản khủng long xanh T-Rex tại giải đua Sebring &amp; Daytona. Tùy chọn Hộp Giấy (Box) hoặc Vỉ Nhựa (Card Blister).
             </p>
+            <div class="card-pack-switch" role="group" aria-label="Chọn Box hoặc Card" style="margin-bottom:12px;">
+              <button type="button" class="card-pack-btn is-box active" onclick="selectCardPackaging(8, 'box', event)">
+                <span class="pack-label"><i class="fa-solid fa-cube"></i> Box</span>
+                <span class="pack-price">380k</span>
+              </button>
+              <button type="button" class="card-pack-btn is-card" onclick="selectCardPackaging(8, 'card', event)">
+                <span class="pack-label"><i class="fa-solid fa-shield-halved"></i> Card</span>
+                <span class="pack-price">450k</span>
+              </button>
+            </div>
             <div class="gt3-card-bottom-row">
               <div class="gt3-price-group">
                 <strong>380.000đ</strong>
-                <span>Bản Box (Card: 450.000đ)</span>
+                <span>Bản Hộp Giấy (Box Tiết Kiệm)</span>
               </div>
               <div class="gt3-actions-group">
                 <button type="button" class="btn btn-sm btn-outline" onclick="openQuickView(8)" title="Xem chi tiết"><i class="fa-solid fa-eye"></i></button>
@@ -774,7 +787,7 @@
           </div>
 
           <!-- Card 2: Roxy #77 -->
-          <div class="gt3-dino-card roxy-theme" id="roxy-card">
+          <div class="gt3-dino-card roxy-theme" id="roxy-card" data-id="7" data-pack="box">
             <div class="gt3-card-top-row">
               <span class="gt3-sku-tag roxy-tag">#MGT01093 • ROXY #77</span>
               <span class="gt3-status-pill sale">Đang giảm -5%</span>
@@ -786,10 +799,20 @@
             <p>
               Phiên bản khủng long hồng Roxy tại chặng Virginia &amp; Road America. Sơn hồng Magenta kết hợp gai lưng xanh chuẩn xác.
             </p>
+            <div class="card-pack-switch" role="group" aria-label="Chọn Box hoặc Card" style="margin-bottom:12px;">
+              <button type="button" class="card-pack-btn is-box active" onclick="selectCardPackaging(7, 'box', event)">
+                <span class="pack-label"><i class="fa-solid fa-cube"></i> Box</span>
+                <span class="pack-price">342k</span>
+              </button>
+              <button type="button" class="card-pack-btn is-card" onclick="selectCardPackaging(7, 'card', event)">
+                <span class="pack-label"><i class="fa-solid fa-shield-halved"></i> Card</span>
+                <span class="pack-price">399k</span>
+              </button>
+            </div>
             <div class="gt3-card-bottom-row">
               <div class="gt3-price-group">
                 <strong class="price-sale">342.000đ</strong>
-                <span>Bản Box -5% (Card: 399.000đ)</span>
+                <span>Bản Hộp Giấy (-5% Chiết Khấu)</span>
               </div>
               <div class="gt3-actions-group">
                 <button type="button" class="btn btn-sm btn-outline" onclick="openQuickView(7)" title="Xem chi tiết"><i class="fa-solid fa-eye"></i></button>
@@ -799,7 +822,7 @@
           </div>
 
           <!-- Card 3: Skeleton #77 -->
-          <div class="gt3-dino-card skeleton-theme" id="ske-card">
+          <div class="gt3-dino-card skeleton-theme" id="ske-card" data-id="6" data-pack="box">
             <div class="gt3-card-top-row">
               <span class="gt3-sku-tag skeleton-tag">#MGT01143 • SKELETON #77</span>
               <span class="gt3-status-pill preorder">Pre-Order (Cọc 150k)</span>
@@ -811,10 +834,20 @@
             <p>
               Bản giới hạn Halloween Petit Le Mans với đồ họa bộ xương khủng long Rexy trên nền đen mờ. Tùy chọn Box hoặc Card.
             </p>
+            <div class="card-pack-switch" role="group" aria-label="Chọn Box hoặc Card" style="margin-bottom:12px;">
+              <button type="button" class="card-pack-btn is-box active" onclick="selectCardPackaging(6, 'box', event)">
+                <span class="pack-label"><i class="fa-solid fa-cube"></i> Box</span>
+                <span class="pack-price">390k</span>
+              </button>
+              <button type="button" class="card-pack-btn is-card" onclick="selectCardPackaging(6, 'card', event)">
+                <span class="pack-label"><i class="fa-solid fa-shield-halved"></i> Card</span>
+                <span class="pack-price">470k</span>
+              </button>
+            </div>
             <div class="gt3-card-bottom-row">
               <div class="gt3-price-group">
                 <strong>390.000đ</strong>
-                <span>Bản Box (Card: 470.000đ)</span>
+                <span>Bản Hộp Giấy (Box Tiết Kiệm)</span>
               </div>
               <div class="gt3-actions-group">
                 <button type="button" class="btn btn-sm btn-outline" onclick="openQuickView(6)" title="Xem chi tiết"><i class="fa-solid fa-eye"></i></button>
@@ -1307,7 +1340,7 @@
 
           <!-- Social Quick Login -->
           <div class="auth-social-block" id="authSocialWrapper">
-            <button type="button" class="google-auth-btn-clean" onclick="handleGoogleLoginClick()">
+            <button type="button" class="google-auth-btn-clean" id="googleLoginBtn" onclick="handleGoogleLoginClick()">
               <svg viewBox="0 0 24 24" width="20" height="20">
                 <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.8-2.4 3.66v3.05h3.88c2.27-2.09 3.66-5.17 3.66-9.15z"/>
                 <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.24v3.15C3.26 21.36 7.33 24 12 24z"/>
@@ -1316,6 +1349,7 @@
               </svg>
               <span>Tiếp tục với tài khoản Google</span>
             </button>
+            <div id="googleOfficialBtnContainer" style="display:none; justify-content:center; margin-top:8px;"></div>
             <div class="auth-divider-clean">
               <span>hoặc đăng nhập bằng email / số điện thoại</span>
             </div>
@@ -1475,22 +1509,22 @@
             <div id="forgotStepOtpArea" style="display: none;">
               <div class="otp-notice-pill">
                 <i class="fa-solid fa-circle-check"></i>
-                <span>Mã OTP xác thực đã cấp: <strong id="forgotSimulatedOtp">6868</strong></span>
+                <span id="forgotOtpNoticeText">Mã OTP xác thực: <strong id="forgotSimulatedOtp">Đang gửi về Gmail...</strong></span>
               </div>
 
               <div class="form-row-grid">
                 <div class="form-field">
-                  <label class="form-field-label" for="forgotOtpInput">Mã OTP (6868) <span class="req">*</span></label>
+                  <label class="form-field-label" for="forgotOtpInput">Mã OTP 6 chữ số <span class="req">*</span></label>
                   <div class="form-input-wrap">
                     <i class="fa-solid fa-shield field-icon"></i>
-                    <input type="text" id="forgotOtpInput" class="form-field-input" placeholder="6868" maxlength="6">
+                    <input type="text" id="forgotOtpInput" class="form-field-input" placeholder="Nhập mã 6 số từ Gmail (hoặc 6868)..." maxlength="6" autocomplete="one-time-code">
                   </div>
                 </div>
                 <div class="form-field">
                   <label class="form-field-label" for="forgotNewPassword">Mật khẩu mới <span class="req">*</span></label>
                   <div class="form-input-wrap">
                     <i class="fa-solid fa-lock field-icon"></i>
-                    <input type="password" id="forgotNewPassword" class="form-field-input" placeholder="Tối thiểu 6 ký tự" minlength="6">
+                    <input type="password" id="forgotNewPassword" class="form-field-input" placeholder="Tối thiểu 6 ký tự" minlength="6" autocomplete="new-password">
                     <button type="button" class="pwd-toggle-btn" onclick="toggleAuthPasswordVisibility('forgotNewPassword', this)" aria-label="Xem mật khẩu">
                       <i class="fa-regular fa-eye"></i>
                     </button>
@@ -1823,20 +1857,17 @@
       <div class="modal-body">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; border-bottom:1px solid #e2e8f0; padding-bottom:12px; flex-wrap:wrap; gap:10px;">
           <div>
-            <div style="display:inline-flex; align-items:center; gap:6px; font-size:10.5px; font-weight:800; color:#ea580c; background:#fff7ed; border:1px solid #fdba74; padding:2px 8px; border-radius:99px; margin-bottom:4px;">
-              <span style="width:7px; height:7px; border-radius:50%; background:#10b981; display:inline-block;"></span> ĐỒNG BỘ TRỰC TIẾP VỚI ADMIN &amp; SPX EXPRESS
+            <div style="display:inline-flex; align-items:center; gap:6px; font-size:11px; font-weight:700; color:#059669; background:#ecfdf5; border:1px solid #a7f3d0; padding:2px 8px; border-radius:99px; margin-bottom:4px;">
+              <span style="width:6px; height:6px; border-radius:50%; background:#10b981; display:inline-block;"></span> Đồng bộ trực tiếp với Admin &amp; SPX Express
             </div>
-            <h3 style="font-size: var(--text-xl); color: var(--color-navy); margin-bottom: 2px;">
-              <i class="fa-solid fa-box-archive" style="color:var(--color-primary); margin-right:6px;"></i> Trung Tâm Quản Lý Đơn Hàng Của Tôi
+            <h3 style="font-size: 1.25rem; font-weight: 800; color: var(--color-navy); margin-bottom: 2px;">
+              <i class="fa-solid fa-box-archive" style="color:var(--color-primary); margin-right:6px;"></i> Quản Lý Đơn Hàng Của Tôi
             </h3>
-            <p style="font-size: 12.5px; color: var(--color-gray-500); margin:0;">
-              Theo dõi trạng thái Admin duyệt đơn, nhận mã vận đơn <strong>SPX Express</strong>, chỉnh sửa địa chỉ nhận hàng &amp; in phiếu xác nhận cọc
+            <p style="font-size: 12px; color: var(--color-gray-500); margin:0;">
+              Theo dõi tiến độ duyệt đơn, nhận mã vận đơn SPX Express &amp; in phiếu xác nhận cọc
             </p>
           </div>
           <div style="display:flex; gap:8px; align-items:center;">
-            <button class="btn btn-sm btn-outline" onclick="openTrackingModal()" title="Tra cứu theo SĐT/Mã đơn">
-              <i class="fa-solid fa-magnifying-glass" style="margin-right:4px;"></i> Tra cứu SĐT
-            </button>
             <button class="btn btn-sm btn-primary" onclick="loadMyOrdersList(true)" title="Làm mới trạng thái từ Admin">
               <i class="fa-solid fa-rotate-right" style="margin-right:4px;"></i> Cập nhật ngay
             </button>

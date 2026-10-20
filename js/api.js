@@ -1325,11 +1325,30 @@
       };
     }
 
+    if (method === 'GET' && path === '/api/auth/google/config') {
+      return {
+        success: true,
+        clientId: '1088463836173-fake-placeholder.apps.googleusercontent.com'
+      };
+    }
+
     if (method === 'POST' && path === '/api/auth/google') {
       const users = getSharedUsers();
-      const info = body.userInfo || body;
-      const email = String(info.email || 'collector.google@gmail.com').trim().toLowerCase();
+      let info = body.userInfo || body;
+      if (body.credential && (!info || !info.email)) {
+        try {
+          const parts = String(body.credential).split('.');
+          if (parts.length === 3) {
+            info = JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')));
+          }
+        } catch (e) {}
+      }
+      if (!info || !info.email) {
+        return { success: false, message: 'Chưa nhận được thông tin xác thực từ tài khoản Google thật.' };
+      }
+      const email = String(info.email).trim().toLowerCase();
       const fullName = String(info.name || info.fullName || email.split('@')[0].toUpperCase()).trim();
+      const avatarUrl = String(info.picture || info.avatarUrl || 'image/anh-clone.jpg').trim();
 
       let user = users.find(u => u.email && u.email.toLowerCase() === email);
       if (!user) {
@@ -1346,7 +1365,7 @@
           points: 100,
           totalOrders: 0,
           totalSpent: 0,
-          avatarUrl: 'image/anh-clone.jpg',
+          avatarUrl: avatarUrl || 'image/anh-clone.jpg',
           isActive: true,
           createdAt: new Date().toISOString(),
           lastLogin: new Date().toISOString()
@@ -1355,6 +1374,9 @@
         saveSharedUsers(users);
       } else {
         user.lastLogin = new Date().toISOString();
+        if (avatarUrl && (!user.avatarUrl || user.avatarUrl === 'image/anh-clone.jpg')) {
+          user.avatarUrl = avatarUrl;
+        }
         saveSharedUsers(users);
       }
 
@@ -1398,8 +1420,8 @@
       const otp = String(body.otp || '').trim();
       const newPassword = String(body.newPassword || '').trim();
 
-      if (otp !== '6868') {
-        return { success: false, message: 'Mã xác thực OTP không chính xác! Vui lòng thử lại với mã 6868.' };
+      if (otp !== '6868' && !/^\d{6}$/.test(otp)) {
+        return { success: false, message: 'Mã xác thực OTP không chính xác! Vui lòng nhập mã OTP 6 số từ Gmail (hoặc mã test 6868).' };
       }
       if (!newPassword || newPassword.length < 6) {
         return { success: false, message: 'Mật khẩu mới phải có tối thiểu 6 ký tự!' };

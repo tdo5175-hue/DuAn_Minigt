@@ -1657,7 +1657,7 @@
   right: 0;
   bottom: 0;
   width: 100%;
-  max-width: 420px;
+  max-width: 520px;
   background-color: var(--color-white);
   box-shadow: -8px 0 32px rgba(15, 23, 42, 0.18);
   z-index: 1001;
@@ -2824,12 +2824,14 @@
 
 /* User Profile Modal & Member Pass */
 .user-profile-modal-container {
-  max-width: 580px;
-  border-radius: 18px;
+  max-width: 760px;
+  width: 95%;
+  border-radius: 20px;
   background: #ffffff;
   overflow-y: auto !important;
-  max-height: 88vh;
+  max-height: 90vh;
   box-shadow: 0 25px 60px -15px rgba(11, 19, 43, 0.35);
+  border: 1px solid rgba(226, 232, 240, 0.8);
 }
 
 .user-pass-card {
@@ -3287,6 +3289,7 @@
 }
 
 /* Toast Container (Positioned top-center so it NEVER covers cart drawer or checkout buttons) */
+/* Toast Container (Positioned top-center so it NEVER covers cart drawer or checkout buttons) */
 .toast-container {
   position: fixed;
   top: 24px;
@@ -3297,42 +3300,223 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 10px;
-  z-index: 99999;
+  gap: 12px;
+  z-index: 999999;
   pointer-events: none;
-  max-width: min(440px, calc(100vw - 32px));
+  max-width: min(460px, calc(100vw - 32px));
   width: 100%;
 }
 
+/* =====================================================================
+   MODERN WHITE NOTIFICATION TOAST SYSTEM (Sleek, Clean & Pure White)
+   ===================================================================== */
 .toast {
   pointer-events: auto;
-  min-width: 260px;
-  max-width: 380px;
-  background-color: #0f172a;
-  color: #ffffff;
-  padding: 0.85rem 1.15rem;
-  border-radius: var(--radius-md);
-  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.28);
+  position: relative;
+  min-width: 300px;
+  max-width: 440px;
+  width: auto;
+  background: #ffffff;
+  color: #0f172a;
+  padding: 13px 16px 13px 14px;
+  border-radius: 14px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 16px 36px -6px rgba(15, 23, 42, 0.14), 0 4px 12px -2px rgba(15, 23, 42, 0.05);
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  font-size: 13px;
+  line-height: 1.45;
+  overflow: hidden;
+  opacity: 0;
+  transform: translateY(-20px) scale(0.96);
+  animation: toast-spring-in 0.35s cubic-bezier(0.16, 1.25, 0.35, 1) forwards;
+  transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.25s ease, box-shadow 0.25s ease;
+}
+
+.toast:hover {
+  box-shadow: 0 20px 42px -6px rgba(15, 23, 42, 0.18), 0 6px 16px -2px rgba(15, 23, 42, 0.08);
+}
+
+.toast.toast-hiding {
+  opacity: 0 !important;
+  transform: translateY(-16px) scale(0.94) !important;
+  pointer-events: none;
+}
+
+/* Toast Icon Wrapper with Soft Color Badges */
+.toast-icon-wrap {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3);
-  font-size: var(--text-xs);
-  transform: translateY(-14px);
-  opacity: 0;
-  animation: slide-toast 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-  border-left: 4px solid var(--color-primary);
+  justify-content: center;
+  font-size: 16px;
+  flex-shrink: 0;
+  margin-top: 1px;
 }
 
+.toast-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.toast-title {
+  font-size: 11.5px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 2px;
+}
+
+.toast-message {
+  font-size: 12.5px;
+  color: #334155;
+  font-weight: 500;
+  word-break: break-word;
+  line-height: 1.4;
+}
+
+.toast-close-btn {
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  font-size: 16px;
+  line-height: 1;
+  padding: 4px;
+  margin-top: -2px;
+  margin-right: -4px;
+  cursor: pointer;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.15s, background-color 0.15s;
+}
+
+.toast-close-btn:hover {
+  color: #0f172a;
+  background-color: #f1f5f9;
+}
+
+/* Color Varieties with Clean Pure White Cards */
 .toast.toast-success {
-  border-left-color: #10b981;
+  border-left: 4px solid #10b981;
+}
+.toast.toast-success .toast-icon-wrap {
+  background: #ecfdf5;
+  color: #059669;
+}
+.toast.toast-success .toast-title {
+  color: #047857;
 }
 
-@keyframes slide-toast {
-  to {
-    transform: translateY(0);
-    opacity: 1;
+.toast.toast-error {
+  border-left: 4px solid #ef4444;
+}
+.toast.toast-error .toast-icon-wrap {
+  background: #fef2f2;
+  color: #dc2626;
+}
+.toast.toast-error .toast-title {
+  color: #b91c1c;
+}
+
+.toast.toast-warning {
+  border-left: 4px solid #f59e0b;
+}
+.toast.toast-warning .toast-icon-wrap {
+  background: #fffbeb;
+  color: #d97706;
+}
+.toast.toast-warning .toast-title {
+  color: #b45309;
+}
+
+.toast.toast-info {
+  border-left: 4px solid #3b82f6;
+}
+.toast.toast-info .toast-icon-wrap {
+  background: #eff6ff;
+  color: #2563eb;
+}
+.toast.toast-info .toast-title {
+  color: #1d4ed8;
+}
+
+/* Slim animated progress line at bottom */
+.toast-progress {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  height: 3px;
+  width: 100%;
+  animation: toast-progress-anim 3.5s linear forwards;
+}
+.toast-progress-success { background: #10b981; }
+.toast-progress-error   { background: #ef4444; }
+.toast-progress-warning { background: #f59e0b; }
+.toast-progress-info    { background: #3b82f6; }
+
+@keyframes toast-spring-in {
+  0% {
+    opacity: 0;
+    transform: translateY(-24px) scale(0.92);
   }
+  60% {
+    opacity: 1;
+    transform: translateY(2px) scale(1.01);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes toast-progress-anim {
+  from { width: 100%; }
+  to { width: 0%; }
+}
+
+/* VIP Member Badges */
+.vip-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.3px;
+  white-space: nowrap;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+}
+.vip-badge.vip-1 {
+  background: #f1f5f9;
+  color: #475569;
+  border: 1px solid #cbd5e1;
+}
+.vip-badge.vip-2 {
+  background: #e0f2fe;
+  color: #0284c7;
+  border: 1px solid #bae6fd;
+}
+.vip-badge.vip-3 {
+  background: #fef3c7;
+  color: #d97706;
+  border: 1px solid #fde68a;
+}
+.vip-badge.vip-4 {
+  background: #f3e8ff;
+  color: #7c3aed;
+  border: 1px solid #ddd6fe;
+}
+.vip-badge.vip-5 {
+  background: #fee2e2;
+  color: #dc2626;
+  border: 1px solid #fca5a5;
+  box-shadow: 0 2px 8px rgba(220, 38, 38, 0.2);
 }
 
 /* =====================================================================
@@ -5801,8 +5985,9 @@ body.dark-mode {
 
 /* User Profile Modal Modern Design (Khắc phục giao diện xấu, thiếu style) */
 .user-profile-modal-container {
-  max-width: 580px;
-  border-radius: 18px;
+  max-width: 760px;
+  width: 95%;
+  border-radius: 20px;
   background: #ffffff;
   overflow-y: auto !important;
   max-height: 90vh;
@@ -6171,10 +6356,10 @@ body.dark-mode {
 }
 
 .auth-poster-img {
-  width: 100% !important;
+  /* width: 100% !important;
   height: 100% !important;
   max-width: 100% !important;
-  max-height: 100% !important;
+  max-height: 100% !important; */
   object-fit: cover !important;
   object-position: center center !important;
   display: block !important;
@@ -6274,13 +6459,111 @@ body.dark-mode {
 .cart-item-select-wrap {
   display: flex;
   align-items: center;
-  padding-top: 26px;
+  justify-content: center;
   flex-shrink: 0;
+  padding: 0 4px;
 }
 
 .btn-checkout-drawer.disabled-empty {
   opacity: 0.6 !important;
   cursor: not-allowed !important;
+}
+
+/* =====================================================================
+   QUICK VIEW BOX VS BLISTER CARD SELECTOR
+   ===================================================================== */
+.qv-pack-selector {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin: 14px 0;
+}
+
+.qv-pack-option {
+  border: 1.5px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 12px 14px;
+  background: #f8fafc;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  position: relative;
+}
+
+.qv-pack-option:hover:not(.disabled) {
+  border-color: #94a3b8;
+  background: #ffffff;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.06);
+}
+
+.qv-pack-option.active {
+  border-width: 2px !important;
+  transform: translateY(-2px);
+}
+
+.qv-pack-option.active:first-child,
+.qv-pack-option.active.is-box {
+  border-color: #dc2626 !important;
+  background: #fff7f7 !important;
+  box-shadow: 0 4px 14px rgba(220, 38, 38, 0.16) !important;
+}
+
+.qv-pack-option.active:last-child,
+.qv-pack-option.active.is-card {
+  border-color: #2563eb !important;
+  background: #eff6ff !important;
+  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.16) !important;
+}
+
+.qv-pack-option-title {
+  font-size: 13px;
+  font-weight: 800;
+  color: #0f172a;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.qv-pack-option.active:first-child .qv-pack-option-title,
+.qv-pack-option.active.is-box .qv-pack-option-title {
+  color: #dc2626 !important;
+}
+
+.qv-pack-option.active:last-child .qv-pack-option-title,
+.qv-pack-option.active.is-card .qv-pack-option-title {
+  color: #1d4ed8 !important;
+}
+
+.qv-pack-option-price {
+  font-size: 16px;
+  font-weight: 900;
+  color: #0f172a;
+  letter-spacing: -0.01em;
+}
+
+.qv-pack-option-sub {
+  font-size: 11px;
+  color: #16a34a;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.qv-pack-option:last-child .qv-pack-option-sub {
+  color: #64748b;
+}
+
+[data-theme="dark"] .qv-pack-option {
+  background: #0f172a;
+  border-color: #1e293b;
+}
+
+[data-theme="dark"] .qv-pack-option-title,
+[data-theme="dark"] .qv-pack-option-price {
+  color: #f8fafc;
 }
 
 

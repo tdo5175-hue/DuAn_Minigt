@@ -176,33 +176,56 @@ router.post('/login', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// GET /api/auth/google/config
+router.get('/google/config', (req, res) => {
+  return res.status(200).json({
+    success: true,
+    clientId: process.env.GOOGLE_CLIENT_ID || '1088463836173-fake-placeholder.apps.googleusercontent.com'
+  });
+});
+
 // POST /api/auth/google
 router.post('/google', async (req, res, next) => {
   try {
-    const userInfo = req.body.userInfo || req.body;
+    let googleData = null;
+    if (req.body.credential) {
+      try {
+        const parts = String(req.body.credential).split('.');
+        if (parts.length === 3) {
+          const payloadBase64 = parts[1];
+          const decoded = Buffer.from(payloadBase64.replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString('utf8');
+          googleData = JSON.parse(decoded);
+        }
+      } catch (jwtErr) {
+        console.warn('[GOOGLE JWT PARSE WARNING]:', jwtErr.message);
+      }
+    }
+
+    const userInfo = googleData || req.body.userInfo || req.body;
     if (!userInfo || !userInfo.email) {
       throw badRequest('Không nhận được thông tin xác thực từ Google');
     }
 
     const email = v.cleanStr(userInfo.email, 150).toLowerCase();
     const fullName = v.cleanStr(userInfo.name || userInfo.fullName || email.split('@')[0], 100);
-    const googleId = v.cleanStr(userInfo.sub || userInfo.id, 100);
-    const avatarUrl = v.cleanStr(userInfo.picture, 500) || 'image/anh-clone.jpg';
+    const googleId = v.cleanStr(userInfo.sub || userInfo.id || userInfo.googleId, 100);
+    const avatarUrl = v.cleanStr(userInfo.picture || userInfo.avatarUrl, 500) || 'image/anh-clone.jpg';
 
-    const existing = await db.query('SELECT * FROM Users WHERE LOWER(Email) = @email', { email });
+    const existing = await db.query('SELECT * FROM Users WHERE LOWER(Email) = @email OR (GoogleId IS NOT NULL AND GoogleId = @googleId)', { email, googleId: googleId || null });
     let user;
 
     if (existing.recordset.length > 0) {
       user = normalizeUserRow(existing.recordset[0]);
-      if (!user.IsActive) throw forbidden('Tài khoản của bạn đã bị khóa.');
+      if (!user.IsActive) throw forbidden('Tài khoản của bạn đã bị khóa. Vui lòng liên hệ quản trị viên.');
       const up = await db.query(`
         UPDATE Users
-        SET GoogleId = COALESCE(@googleId, GoogleId),
-            AvatarUrl = COALESCE(@avatarUrl, AvatarUrl),
+        SET GoogleId = COALESCE(GoogleId, @googleId),
+            AvatarUrl = CASE WHEN (AvatarUrl IS NULL OR AvatarUrl = '' OR AvatarUrl = 'image/anh-clone.jpg') THEN @avatarUrl ELSE AvatarUrl END,
+            FullName = COALESCE(NULLIF(@fullName, ''), FullName),
             LastLoginAt = NOW()
         WHERE UserId = @userId
         RETURNING *
-      `, { googleId: googleId || null, avatarUrl, userId: user.UserId });
+      `, { googleId: googleId || null, avatarUrl, fullName, userId: user.UserId });
       user = normalizeUserRow(up.recordset[0]);
     } else {
       const ins = await db.query(`
@@ -217,7 +240,7 @@ router.post('/google', async (req, res, next) => {
     const clean = publicUser(user);
     return res.status(200).json({
       success: true,
-      message: 'Đăng nhập Google thành công!',
+      message: `Đăng nhập Google thành công! Chào mừng ${clean.fullName}.`,
       token,
       user: clean,
       data: { token, user: clean }
@@ -249,31 +272,80 @@ router.post('/forgot', async (req, res, next) => {
 
     otpStore.set(u.Email.toLowerCase(), { otp: otpCode, expiresAt });
 
-    // Tiến hành gửi email thực tế qua Nodemailer
-    await mailTransporter.sendMail({
-      from: `"MINI GT STORE Biên Hòa" <${process.env.EMAIL_USER || 'tdo5175@gmail.com'}>`,
-      to: u.Email,
-      subject: `[MINI GT STORE] Mã xác thực OTP đặt lại mật khẩu: ${otpCode}`,
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 520px; margin: 0 auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 12px; background: #0f172a; color: #f8fafc;">
-          <h2 style="color: #ef4444; margin-top: 0;">MINI GT STORE - BIÊN HÒA</h2>
-          <p>Xin chào <strong>${u.FullName}</strong>,</p>
-          <p>Bạn vừa yêu cầu đặt lại mật khẩu cho tài khoản hội viên gắn với email <strong>${u.Email}</strong>.</p>
-          <div style="background: #1e293b; padding: 18px; border-radius: 8px; text-align: center; margin: 20px 0;">
-            <span style="font-size: 13px; color: #94a3b8; display: block; margin-bottom: 6px;">MÃ XÁC THỰC OTP CỦA BẠN</span>
-            <span style="font-size: 32px; font-weight: 800; letter-spacing: 6px; color: #38bdf8;">${otpCode}</span>
+    const emailHtml = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <style>
+          body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f1f5f9; margin: 0; padding: 20px; }
+          .container { max-width: 540px; margin: 0 auto; background: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 10px 30px rgba(15,23,42,0.08); border: 1px solid #e2e8f0; }
+          .header { background: #0f172a; padding: 28px 24px; text-align: center; border-bottom: 3px solid #dc2626; }
+          .header h1 { color: #ffffff; margin: 0; font-size: 20px; font-weight: 800; letter-spacing: 1.5px; }
+          .header p { color: #94a3b8; margin: 6px 0 0; font-size: 12px; }
+          .content { padding: 32px 28px; color: #1e293b; line-height: 1.6; }
+          .greeting { font-size: 15px; font-weight: 700; color: #0f172a; margin-bottom: 12px; }
+          .otp-box { background: #fef2f2; border: 2px dashed #dc2626; border-radius: 12px; padding: 22px 16px; text-align: center; margin: 24px 0; }
+          .otp-label { font-size: 11.5px; font-weight: 800; color: #b91c1c; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
+          .otp-code { font-family: 'Courier New', Courier, monospace; font-size: 38px; font-weight: 900; letter-spacing: 10px; color: #dc2626; margin: 0; }
+          .note { font-size: 12.5px; color: #64748b; background: #f8fafc; border-left: 3px solid #f59e0b; padding: 10px 14px; border-radius: 6px; margin: 20px 0; }
+          .footer { background: #f8fafc; padding: 20px 24px; border-top: 1px solid #e2e8f0; text-align: center; font-size: 11.5px; color: #64748b; }
+          .footer strong { color: #0f172a; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1>MINI GT STORE BIÊN HÒA</h1>
+            <p>Hệ thống mô hình tĩnh 1:64 & Pre-order Collector Pass</p>
           </div>
-          <p style="font-size: 13px; color: #cbd5e1;">Mã này có hiệu lực trong vòng <strong>5 phút</strong>. Tuyệt đối không chia sẻ mã này cho bất kỳ ai.</p>
+          <div class="content">
+            <div class="greeting">Xin chào ${u.FullName || 'Quý khách'},</div>
+            <p style="margin: 0 0 14px 0; font-size: 13.5px; color: #334155;">
+              Hệ thống nhận được yêu cầu đặt lại mật khẩu cho tài khoản hội viên liên kết với địa chỉ email: <strong>${u.Email}</strong>.
+            </p>
+            <div class="otp-box">
+              <div class="otp-label">MÃ XÁC THỰC ĐẶT LẠI MẬT KHẨU (OTP)</div>
+              <div class="otp-code">${otpCode}</div>
+            </div>
+            <div class="note">
+              ⏱️ <strong>Thời hạn hiệu lực:</strong> Mã xác thực trên chỉ có giá trị trong vòng <strong>5 phút</strong>.<br>
+              🔒 <strong>Lưu ý bảo mật:</strong> Tuyệt đối không chia sẻ mã này cho bất kỳ ai. Nếu bạn không yêu cầu hành động này, vui lòng bỏ qua email.
+            </div>
+          </div>
+          <div class="footer">
+            <p style="margin: 0 0 4px 0;"><strong>MINI GT STORE BIÊN HÒA - SĂN XE BIÊN HÒA</strong></p>
+            <p style="margin: 0 0 4px 0;">Showroom: 38/2 Võ Thị Sáu, P. Quyết Thắng, TP. Biên Hòa, Đồng Nai</p>
+            <p style="margin: 0;">Hotline / Zalo hỗ trợ: <strong>0988.164.164</strong> • Email: ${process.env.EMAIL_USER || 'tdo5175@gmail.com'}</p>
+          </div>
         </div>
-      `
-    });
+      </body>
+      </html>
+    `;
+
+    let emailSent = false;
+    try {
+      await mailTransporter.sendMail({
+        from: `"MINI GT STORE BIÊN HÒA" <${process.env.EMAIL_USER || 'tdo5175@gmail.com'}>`,
+        to: u.Email,
+        subject: `[MINI GT STORE] Mã xác thực OTP đặt lại mật khẩu: ${otpCode}`,
+        html: emailHtml
+      });
+      emailSent = true;
+      console.log(`[MAIL OTP SUCCESS]: Đã gửi OTP ${otpCode} tới ${u.Email}`);
+    } catch (err) {
+      console.error('[MAIL OTP ERROR]: Lỗi gửi email qua Gmail SMTP:', err.message);
+    }
 
     return res.status(200).json({
       success: true,
-      message: `Mã xác thực OTP gồm 6 chữ số đã được gửi tới hộp thư Gmail (${u.Email}) của bạn!`
+      emailSent,
+      email: u.Email,
+      message: emailSent
+        ? `Mã xác thực OTP gồm 6 chữ số đã được gửi tới hộp thư Gmail (${u.Email})! Vui lòng kiểm tra hộp thư đến (hoặc thư mục Spam).`
+        : `Hệ thống đã tạo mã xác thực OTP cho tài khoản ${u.Email}. Vui lòng kiểm tra Gmail hoặc dùng mã thử nghiệm 6868.`
     });
   } catch (err) {
-    console.error('[MAIL OTP ERROR]:', err.message);
     next(err);
   }
 });
@@ -282,10 +354,9 @@ router.post('/forgot', async (req, res, next) => {
 router.post('/reset-password', async (req, res, next) => {
   try {
     const identifier = v.cleanStr(req.body.email, 150).toLowerCase();
-    const otp = v.cleanStr(req.body.otp, 10);
+    const otp = v.cleanStr(req.body.otp, 10).trim();
     const newPassword = String(req.body.newPassword || '');
 
-    
     if (!v.isPassword(newPassword)) throw badRequest('Mật khẩu mới phải có tối thiểu 6 ký tự');
 
     const cleanPhone = identifier.replace(/\D/g, '');
@@ -303,11 +374,15 @@ router.post('/reset-password', async (req, res, next) => {
     const u = normalizeUserRow(userRes.recordset[0]);
     const savedRecord = otpStore.get(u.Email.toLowerCase());
 
-    // Vẫn cho phép mã dự phòng '6868' để test nhanh nếu cần
-    const isValidOtp = (otp === '6868') || (savedRecord && Date.now() <= savedRecord.expiresAt && savedRecord.otp === otp);
+    // Vẫn cho phép mã dự phòng '6868' để test nhanh theo yêu cầu
+    const isMatchOtp = savedRecord && (Date.now() <= savedRecord.expiresAt) && (savedRecord.otp === otp);
+    const isDevFallback = (otp === '6868');
 
-    if (!isValidOtp) {
-      throw badRequest('Mã xác thực OTP không chính xác hoặc đã hết hạn! Vui lòng kiểm tra lại hộp thư Gmail.');
+    if (!isMatchOtp && !isDevFallback) {
+      if (savedRecord && Date.now() > savedRecord.expiresAt) {
+        throw badRequest('Mã xác thực OTP đã hết hạn sau 5 phút! Vui lòng bấm gửi lại mã mới.');
+      }
+      throw badRequest('Mã xác thực OTP không chính xác! Vui lòng kiểm tra lại Gmail (hoặc dùng mã test 6868).');
     }
 
     const passwordHash = await bcrypt.hash(newPassword, 10);
@@ -321,7 +396,7 @@ router.post('/reset-password', async (req, res, next) => {
 
     return res.status(200).json({
       success: true,
-      message: 'Đặt lại mật khẩu thành công! Bạn có thể đăng nhập ngay với mật khẩu mới.'
+      message: 'Đặt lại mật khẩu thành công! Bạn có thể đăng nhập ngay bằng mật khẩu mới.'
     });
   } catch (err) { next(err); }
 });
@@ -337,9 +412,9 @@ router.put('/profile', async (req, res, next) => {
 
     const up = await db.query(`
       UPDATE Users
-      SET FullName = COALESCE(NULLIF(@fullName, ''), FullName),
-          Phone = COALESCE(NULLIF(@phone, ''), Phone),
-          Address = COALESCE(NULLIF(@address, ''), Address)
+      SET FullName = CASE WHEN @fullName <> '' THEN @fullName ELSE FullName END,
+          Phone = CASE WHEN @phone <> '' THEN @phone ELSE Phone END,
+          Address = CASE WHEN @address <> '' THEN @address ELSE Address END
       WHERE (UserId = @userId AND @userId > 0) OR (LOWER(Email) = @email AND @email <> '')
       RETURNING *
     `, { userId, email, fullName, phone, address });
@@ -351,9 +426,9 @@ router.put('/profile', async (req, res, next) => {
     const clean = publicUser(up.recordset[0]);
     return res.status(200).json({
       success: true,
+      message: 'Cập nhật thông tin tài khoản hội viên thành công!',
       user: clean,
-      data: clean,
-      message: 'Cập nhật hồ sơ tài khoản thành công!'
+      data: clean
     });
   } catch (err) { next(err); }
 });
