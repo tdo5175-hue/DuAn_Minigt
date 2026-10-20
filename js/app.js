@@ -1794,17 +1794,18 @@ function renderCartDrawer() {
         <div class="cart-item-details">
           <div class="cart-item-meta-top">
             <span class="cart-item-sku">#${escapeHtml(it.sku || (prod && prod.Sku) || 'MGT')}</span>
+            <span class="pack-badge ${pack === 'card' ? 'pack-card' : 'pack-box'}">${pack === 'card' ? '<i class="fa-solid fa-shield-halved"></i> VỈ CARD' : '<i class="fa-solid fa-cube"></i> HỘP BOX'}</span>
             <span class="cart-item-tag ${isPreOrder ? 'is-preorder' : 'is-instock'}">
               ${isPreOrder ? (isEn ? 'Pre-Order' : 'Cọc Trước') : (isEn ? 'In Stock' : 'Sẵn Kho')}
             </span>
           </div>
           <h4 class="cart-item-title" title="${escapeHtml(it.name)}">${escapeHtml(it.name)}</h4>
           <div class="cart-pack-switch" role="group" aria-label="Đổi Box / Card">
-            <button type="button" class="cart-pack-btn ${pack === 'box' ? 'active' : ''}" ${boxDisabled ? 'disabled title="Chỉ có bản Card"' : ''} onclick="switchCartItemPackaging(${it.productId}, '${pack}', 'box')">
-              <i class="fa-solid fa-cube"></i> Box (${formatVND(pricing.finalPriceBox)})
+            <button type="button" class="cart-pack-btn is-box ${pack === 'box' ? 'active' : ''}" ${boxDisabled ? 'disabled title="Chỉ có bản Card"' : ''} onclick="switchCartItemPackaging(${it.productId}, '${pack}', 'box')">
+              <i class="fa-solid fa-cube"></i> Box (${formatVND(pricing.finalPriceBox)}) ${pack === 'box' ? '<i class="fa-solid fa-check" style="font-size:10px; margin-left:2px;"></i>' : ''}
             </button>
-            <button type="button" class="cart-pack-btn ${pack === 'card' ? 'active is-card' : ''}" ${cardDisabled ? 'disabled title="Chỉ có bản Box"' : ''} onclick="switchCartItemPackaging(${it.productId}, '${pack}', 'card')">
-              <i class="fa-solid fa-shield-halved"></i> Card (${formatVND(pricing.finalPriceCard)})
+            <button type="button" class="cart-pack-btn is-card ${pack === 'card' ? 'active' : ''}" ${cardDisabled ? 'disabled title="Chỉ có bản Box"' : ''} onclick="switchCartItemPackaging(${it.productId}, '${pack}', 'card')">
+              <i class="fa-solid fa-shield-halved"></i> Card (${formatVND(pricing.finalPriceCard)}) ${pack === 'card' ? '<i class="fa-solid fa-check" style="font-size:10px; margin-left:2px;"></i>' : ''}
             </button>
           </div>
           <div class="cart-item-price-row">
@@ -1838,6 +1839,7 @@ function renderCartDrawer() {
 }
 
 function openCartDrawer() {
+  renderCartDrawer();
   const overlay = document.getElementById('cartDrawerOverlay');
   if (overlay) overlay.classList.add('active');
 }
@@ -2295,8 +2297,16 @@ function openCheckoutModal() {
 
 function goToCheckoutStep(step) {
   if (!Number.isInteger(step) || step < 1 || step > 4) return;
-  if (step === 2 && cart.length === 0) {
-    showToast('Giỏ hàng trống!', 'error');
+
+  // Khi đơn hàng đã hoàn tất (Step 4), không cho quay lại giỏ hàng rỗng
+  if (currentCheckoutStep === 4 && step < 4) {
+    closeModal('checkoutModal');
+    showToast('Đơn hàng đã được đặt thành công. Bạn có thể tiếp tục chọn mô hình mới!', 'info');
+    return;
+  }
+
+  if (step >= 2 && cart.length === 0) {
+    showToast('Giỏ hàng của bạn đang trống! Hãy chọn mô hình trước khi thanh toán.', 'error');
     return;
   }
 
@@ -2328,9 +2338,22 @@ function goToCheckoutStep(step) {
     const pane = document.getElementById(`checkoutStepPane${i}`);
 
     if (ind) {
-      ind.classList.remove('active', 'completed');
-      if (i === step) ind.classList.add('active');
-      else if (i < step) ind.classList.add('completed');
+      ind.classList.remove('active', 'completed', 'is-success-finish');
+      const circle = ind.querySelector('.step-circle');
+      if (i === step) {
+        ind.classList.add('active');
+        if (i === 4) {
+          ind.classList.add('is-success-finish');
+          if (circle) circle.innerHTML = '<i class="fa-solid fa-check"></i>';
+        } else if (circle) {
+          circle.textContent = i;
+        }
+      } else if (i < step) {
+        ind.classList.add('completed');
+        if (circle) circle.innerHTML = `<i class="fa-solid fa-check" style="font-size:11px;"></i>`;
+      } else if (circle) {
+        circle.textContent = i;
+      }
     }
 
     if (line) {
@@ -2359,6 +2382,22 @@ function renderCheckoutStep1() {
   if (!listEl || !summaryEl) return;
 
   const isEn = typeof currentSiteLang !== 'undefined' && currentSiteLang === 'en';
+
+  if (cart.length === 0) {
+    listEl.innerHTML = `
+      <div style="text-align:center; padding:36px 16px; color:#64748b;">
+        <div style="font-size:42px; color:#cbd5e1; margin-bottom:10px;"><i class="fa-solid fa-cart-shopping"></i></div>
+        <strong style="font-size:15px; color:#0f172a; display:block; margin-bottom:4px;">Chưa có sản phẩm nào trong giỏ hàng</strong>
+        <p style="font-size:12px; margin:0 0 16px; color:#64748b;">Hãy chọn mô hình MINI GT 1:64 (Box hoặc Card) để tiến hành đặt cọc &amp; mua hàng.</p>
+        <button type="button" class="btn btn-primary btn-sm" onclick="closeModal('checkoutModal');">
+          <i class="fa-solid fa-magnifying-glass" style="margin-right:4px;"></i> Khám phá mô hình xe ngay ➔
+        </button>
+      </div>
+    `;
+    summaryEl.innerHTML = '';
+    return;
+  }
+
   const totals = calculateCheckoutTotals();
 
   listEl.innerHTML = cart.map((it) => {
@@ -2382,22 +2421,27 @@ function renderCheckoutStep1() {
     const cardDisabled = pricing.packagingType === 'box_only';
 
     return `
-      <div style="display:flex; align-items:center; gap:12px; padding:10px 0; border-bottom:1px solid #f1f5f9;">
-        <img src="${it.imageUrl || 'image/hero-banner.jpg'}" alt="${escapeHtml(it.name)}" style="width:54px; height:54px; object-fit:contain; border-radius:6px; background:#f8fafc; border:1px solid #e2e8f0; padding:2px;">
-        <div style="flex:1;">
-          <div style="font-weight:700; font-size:13px; color:var(--color-navy); line-height:1.3;">${escapeHtml(it.name)}</div>
-          <div class="cart-pack-switch" style="margin:4px 0;">
-            <button type="button" class="cart-pack-chip ${pack === 'box' ? 'active' : ''}" ${boxDisabled ? 'disabled' : ''} onclick="switchCartItemPackaging(${it.productId}, '${pack}', 'box')">
-              📦 Box: ${formatVND(pricing.finalPriceBox)}
+      <div style="display:flex; align-items:center; gap:12px; padding:12px 0; border-bottom:1px solid #f1f5f9;">
+        <img src="${it.imageUrl || 'image/hero-banner.jpg'}" alt="${escapeHtml(it.name)}" style="width:58px; height:58px; object-fit:contain; border-radius:8px; background:#f8fafc; border:1.5px solid #e2e8f0; padding:2px; flex-shrink:0;">
+        <div style="flex:1; min-width:0;">
+          <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap; margin-bottom:3px;">
+            <span class="pack-badge ${pack === 'card' ? 'pack-card' : 'pack-box'}">${pack === 'card' ? '<i class="fa-solid fa-shield-halved"></i> VỈ CARD BLISTER' : '<i class="fa-solid fa-cube"></i> HỘP GIẤY BOX'}</span>
+            ${isPreOrder ? `<span style="font-size:10px; background:#fff1f1; color:#dc2626; padding:1px 5px; border-radius:3px; font-weight:800;">CỌC TRƯỚC</span>` : `<span style="font-size:10px; background:#ecfdf5; color:#059669; padding:1px 5px; border-radius:3px; font-weight:700;">CÓ SẴN</span>`}
+          </div>
+          <div style="font-weight:700; font-size:13px; color:var(--color-navy); line-height:1.3; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtml(it.name)}</div>
+          
+          <div class="cart-pack-switch" style="margin:5px 0;">
+            <button type="button" class="cart-pack-btn is-box ${pack === 'box' ? 'active' : ''}" ${boxDisabled ? 'disabled title="Chỉ có bản Card"' : ''} onclick="switchCartItemPackaging(${it.productId}, '${pack}', 'box'); renderCheckoutStep1();">
+              <i class="fa-solid fa-cube"></i> Box (${formatVND(pricing.finalPriceBox)}) ${pack === 'box' ? '<i class="fa-solid fa-check" style="margin-left:2px; font-size:10px;"></i>' : ''}
             </button>
-            <button type="button" class="cart-pack-chip ${pack === 'card' ? 'active' : ''}" ${cardDisabled ? 'disabled' : ''} onclick="switchCartItemPackaging(${it.productId}, '${pack}', 'card')">
-              🛡️ Card: ${formatVND(pricing.finalPriceCard)}
+            <button type="button" class="cart-pack-btn is-card ${pack === 'card' ? 'active' : ''}" ${cardDisabled ? 'disabled title="Chỉ có bản Box"' : ''} onclick="switchCartItemPackaging(${it.productId}, '${pack}', 'card'); renderCheckoutStep1();">
+              <i class="fa-solid fa-shield-halved"></i> Card (${formatVND(pricing.finalPriceCard)}) ${pack === 'card' ? '<i class="fa-solid fa-check" style="margin-left:2px; font-size:10px;"></i>' : ''}
             </button>
           </div>
-          <div style="display:flex; align-items:center; gap:6px; margin-top:2px; flex-wrap:wrap;">
-            <span style="font-size:10px; background:#f1f5f9; color:#475569; padding:1px 5px; border-radius:3px; font-weight:700;">${pack === 'card' ? 'VỈ CARD BLISTER' : 'HỘP GIẤY BOX'}</span>
-            <span style="font-size:11px; color:#64748b;">${isEn ? 'Unit:' : 'Đơn giá:'} <strong>${formatVND(unitPrice)}</strong> ${pricing.discountPercent > 0 && origPrice > unitPrice ? `<del style="color:#94a3b8;">${formatVND(origPrice)}</del> <span style="color:#e11d48; font-weight:700;">(-${pricing.discountPercent}%)</span>` : ''}</span>
-            ${isPreOrder ? `<span style="font-size:10px; background:#fff1f1; color:#dc2626; padding:1px 5px; border-radius:3px; font-weight:800;">Cọc ${formatVND(it.depositAmount)}</span>` : `<span style="font-size:10px; background:#ecfdf5; color:#059669; padding:1px 5px; border-radius:3px; font-weight:700;">CÓ SẴN</span>`}
+
+          <div style="display:flex; align-items:center; gap:6px; margin-top:2px; font-size:11.5px; color:#64748b; flex-wrap:wrap;">
+            <span>Đơn giá: <strong style="color:#0f172a;">${formatVND(unitPrice)}</strong></span>
+            ${pricing.discountPercent > 0 && origPrice > unitPrice ? `<del style="color:#94a3b8;">${formatVND(origPrice)}</del> <span style="color:#e11d48; font-weight:700;">(-${pricing.discountPercent}%)</span>` : ''}
           </div>
         </div>
         <div style="display:flex; align-items:center; gap:6px;">
@@ -2406,7 +2450,7 @@ function renderCheckoutStep1() {
           <button type="button" class="btn btn-sm btn-outline" style="padding:2px 8px; font-size:11px;" onclick="changeCartQty(${it.productId}, 1, '${pack}'); renderCheckoutStep1();">+</button>
         </div>
         <div style="text-align:right; min-width:85px;">
-          <strong style="color:var(--color-primary); font-size:13px;">${formatVND(unitPrice * it.quantity)}</strong>
+          <strong style="color:var(--color-primary); font-size:13.5px;">${formatVND(unitPrice * it.quantity)}</strong>
         </div>
       </div>
     `;
@@ -2548,7 +2592,41 @@ function renderCheckoutStep3() {
     noteText = `<i class="fa-solid fa-money-bill-transfer" style="color:#dc2626;"></i> Quét mã cọc trước <strong>${formatVND(payNowAmount)}</strong>. Số tiền còn lại <strong>${formatVND(remainingCodAmount)}</strong> thanh toán khi nhận xe.`;
   }
 
+  const itemsPreviewHtml = `
+    <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:12px; margin-bottom:12px; text-align:left;">
+      <div style="font-size:11.5px; font-weight:800; color:#475569; text-transform:uppercase; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center;">
+        <span><i class="fa-solid fa-cubes-stacked" style="color:var(--color-primary); margin-right:4px;"></i> Mô hình đã chọn (${cart.length} mẫu):</span>
+        <button type="button" onclick="goToCheckoutStep(1)" style="border:none; background:none; color:#2563eb; font-size:11.5px; font-weight:700; cursor:pointer;">
+          <i class="fa-solid fa-pen-to-square"></i> Đổi Box/Card
+        </button>
+      </div>
+      <div style="display:flex; flex-direction:column; gap:6px;">
+        ${cart.map(it => {
+          const pack = it.packType || 'box';
+          return `
+            <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; font-size:12px; border-bottom:1px dashed #e2e8f0; padding-bottom:5px;">
+              <div style="display:flex; align-items:center; gap:8px; overflow:hidden;">
+                <img src="${it.imageUrl || 'image/hero-banner.jpg'}" style="width:36px; height:36px; object-fit:contain; border-radius:6px; border:1px solid #e2e8f0; background:#fff; padding:1px; flex-shrink:0;">
+                <div style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
+                  <div style="font-weight:700; color:#0f172a; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:280px;">${escapeHtml(it.name)}</div>
+                  <div style="display:flex; align-items:center; gap:6px; margin-top:1px;">
+                    <span class="pack-badge ${pack === 'card' ? 'pack-card' : 'pack-box'}">${pack === 'card' ? '🛡️ VỈ CARD' : '📦 HỘP BOX'}</span>
+                    <span style="color:#64748b; font-size:11px;">x${it.quantity}</span>
+                  </div>
+                </div>
+              </div>
+              <div style="text-align:right; flex-shrink:0;">
+                <strong style="color:var(--color-primary); font-size:12.5px;">${formatVND(it.price * it.quantity)}</strong>
+              </div>
+            </div>
+          `;
+        }).join('')}
+      </div>
+    </div>
+  `;
+
   summaryEl.innerHTML = `
+    ${itemsPreviewHtml}
     <div style="background:#f8fafc; border-radius:10px; padding:12px 14px; border:1px solid #e2e8f0; font-size:12.5px;">
       <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
         <span style="color:#64748b;">Tổng giá trị sản phẩm (${cart.length} mẫu):</span>
@@ -2752,8 +2830,11 @@ function renderCheckoutStep4(rawOrder) {
   const orderCode = order.code || order.orderCode || order.OrderCode;
   activeStep4OrderCode = orderCode;
 
+  // Xóa giỏ hàng sạch sẽ & đồng bộ badge + drawer
   cart = [];
   saveCart();
+  renderCartDrawer();
+  updateCartBadge();
   sessionStorage.removeItem('minigt_checkout_info');
 
   goToCheckoutStep(4);
@@ -2776,6 +2857,39 @@ function renderCheckoutStep4(rawOrder) {
   const accName = storeSettings?.bank_account_name || 'DO QUOC THINH';
   const dynamicQrUrl = `https://img.vietqr.io/image/MB-${bankAcc}-compact2.png?amount=${Math.round(transferAmount)}&addInfo=${encodeURIComponent(transferDesc)}&accountName=${encodeURIComponent(accName)}`;
   const originalQrImg = 'image/qr-mb-doquocthinh.png';
+
+  const orderItemsList = Array.isArray(order.items) && order.items.length > 0 ? order.items : [];
+  const itemsPreviewStep4Html = orderItemsList.length > 0 ? `
+    <div style="background:#ffffff; border:1.5px solid #e2e8f0; border-radius:12px; padding:12px 14px; margin-bottom:14px; text-align:left;">
+      <div style="font-size:11.5px; font-weight:800; color:#475569; text-transform:uppercase; margin-bottom:8px;">
+        <i class="fa-solid fa-cube" style="color:var(--color-primary); margin-right:4px;"></i> Danh sách mô hình xe đã đặt (${orderItemsList.length} mẫu):
+      </div>
+      <div style="display:flex; flex-direction:column; gap:6px;">
+        ${orderItemsList.map(it => {
+          const pack = String(it.packagingOption || it.packType || 'box').toLowerCase();
+          const itPrice = Number(it.price || it.unitPrice || 0);
+          const itQty = Number(it.quantity || 1);
+          return `
+            <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; font-size:12px; border-bottom:1px dashed #f1f5f9; padding-bottom:5px;">
+              <div style="display:flex; align-items:center; gap:8px; overflow:hidden;">
+                <img src="${it.image || it.imageUrl || 'image/hero-banner.jpg'}" onerror="this.src='image/hero-banner.jpg'" style="width:36px; height:36px; object-fit:contain; border-radius:6px; border:1px solid #e2e8f0; background:#f8fafc; padding:1px; flex-shrink:0;">
+                <div style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
+                  <div style="font-weight:700; color:#0f172a; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:260px;">${escapeHtml(it.name || it.productName || 'Mô hình')}</div>
+                  <div style="display:flex; align-items:center; gap:6px; margin-top:1px;">
+                    <span class="pack-badge ${pack === 'card' ? 'pack-card' : 'pack-box'}">${pack === 'card' ? '🛡️ VỈ CARD' : '📦 HỘP BOX'}</span>
+                    <span style="color:#64748b; font-size:11px;">x${itQty}</span>
+                  </div>
+                </div>
+              </div>
+              <div style="text-align:right; flex-shrink:0;">
+                <strong style="color:var(--color-primary); font-size:12.5px;">${formatVND(itPrice * itQty)}</strong>
+              </div>
+            </div>
+          `;
+        }).join('')}
+      </div>
+    </div>
+  ` : '';
 
   container.innerHTML = `
     <div style="text-align:center;">
@@ -2806,6 +2920,8 @@ function renderCheckoutStep4(rawOrder) {
           </div>
         </div>
       </div>
+
+      ${itemsPreviewStep4Html}
 
       ${isCOD ? `
         <div style="background:#f8fafc; border:1.5px solid #cbd5e1; border-radius:10px; padding:12px 14px; margin-bottom:14px; text-align:left;">
@@ -2899,16 +3015,27 @@ function updateLiveStep4OrderStatus(rawOrd) {
   const box = document.getElementById('paymentLiveStatusBox');
   if (!box) return;
 
+  const code = ord.code || ord.orderCode || ord.OrderCode || '';
+
+  // CHẶN TRIỆT ĐỂ: Tuyệt đối không cho phép đơn hàng khác (kể cả đơn cũ bị hủy) ghi đè lên Step 4 của đơn đang mở!
+  if (!activeStep4OrderCode || (code && code !== activeStep4OrderCode)) {
+    return;
+  }
+
   const status = String(ord.status || ord.Status || 'PENDING').toUpperCase();
   const trackingCode = ord.trackingCode || ord.TrackingCode || null;
   const isApproved = ['CONFIRMED', 'PREPARING', 'SHIPPING', 'DELIVERED'].includes(status) || Boolean(trackingCode);
-  const code = ord.code || ord.orderCode || ord.OrderCode || '';
 
   if (status === 'CANCELLED') {
     const cancelReason = ord.cancelReason || ord.CancelReason || 'Admin đã xử lý hủy đơn';
+    const isCustCancel = cancelReason.toLowerCase().includes('khách') || cancelReason.toLowerCase().includes('chủ động') || cancelReason.toLowerCase().includes('yêu cầu');
+    const cancelTitle = isCustCancel
+      ? `⚠️ ĐƠN HÀNG #${escapeHtml(code)} ĐÃ ĐƯỢC BẠN HỦY THÀNH CÔNG`
+      : `❌ ĐƠN HÀNG #${escapeHtml(code)} ĐÃ BỊ HỦY BỞI QUẢN TRỊ VIÊN`;
+
     box.className = '';
     box.style.background = '#ffffff';
-    box.style.border = '2px solid #ef4444';
+    box.style.border = isCustCancel ? '2px solid #f59e0b' : '2px solid #ef4444';
     box.style.borderRadius = '8px';
     box.style.padding = '16px';
     box.style.color = '#1f2937';
@@ -2916,16 +3043,18 @@ function updateLiveStep4OrderStatus(rawOrd) {
 
     box.innerHTML = `
       <div style="display:flex; align-items:flex-start; gap:12px; text-align:left;">
-        <div style="font-size:24px; color:#dc2626; line-height:1; flex-shrink:0;"><i class="fa-solid fa-circle-xmark"></i></div>
+        <div style="font-size:24px; color:${isCustCancel ? '#d97706' : '#dc2626'}; line-height:1; flex-shrink:0;">
+          <i class="fa-solid ${isCustCancel ? 'fa-triangle-exclamation' : 'fa-circle-xmark'}"></i>
+        </div>
         <div style="flex:1;">
-          <div style="font-size:14px; font-weight:800; color:#dc2626;">
-            ❌ ĐƠN HÀNG #${escapeHtml(code)} ĐÃ BỊ HỦY BỞI QUẢN TRỊ VIÊN
+          <div style="font-size:14px; font-weight:800; color:${isCustCancel ? '#b45309' : '#dc2626'};">
+            ${cancelTitle}
           </div>
-          <div style="margin-top:8px; background:#fef2f2; border:1px solid #fee2e2; border-radius:6px; padding:8px 12px; font-size:13px; color:#374151;">
-            <strong>Lý do hủy đơn:</strong> <span style="color:#dc2626; font-weight:700;">${escapeHtml(cancelReason)}</span>
+          <div style="margin-top:8px; background:${isCustCancel ? '#fffbeb' : '#fef2f2'}; border:1px solid ${isCustCancel ? '#fde68a' : '#fee2e2'}; border-radius:6px; padding:8px 12px; font-size:13px; color:#374151;">
+            <strong>Lý do hủy đơn:</strong> <span style="color:${isCustCancel ? '#b45309' : '#dc2626'}; font-weight:700;">${escapeHtml(cancelReason)}</span>
           </div>
           <div style="margin-top:10px; font-size:12.5px; color:#4b5563; line-height:1.5;">
-            ⚠️ <em>Quý khách vui lòng liên hệ lại với Mini GT Biên Hòa Store qua Hotline / Zalo: <strong style="color:#dc2626; font-size:13px;">0981 400 400</strong> để được hỗ trợ tốt nhất.</em>
+            Quý khách có nhu cầu đặt lại mẫu xe hoặc cần hỗ trợ, vui lòng liên hệ Hotline / Zalo: <strong style="color:#dc2626; font-size:13px;">0981 400 400</strong>.
           </div>
           <div style="margin-top:12px; display:flex; gap:8px; flex-wrap:wrap;">
             <a href="tel:0981400400" class="btn btn-sm" style="background:#dc2626; color:#ffffff; border:none; padding:7px 14px; border-radius:6px; font-size:12px; font-weight:700; text-decoration:none; display:inline-flex; align-items:center; gap:6px;">
@@ -3073,6 +3202,11 @@ function startPaymentPolling(orderCode) {
 
   paymentPollInterval = setInterval(async () => {
     try {
+      if (!document.getElementById('checkoutModal')?.classList.contains('active') || activeStep4OrderCode !== orderCode) {
+        clearInterval(paymentPollInterval);
+        paymentPollInterval = null;
+        return;
+      }
       const json = await safeFetch(`/api/orders/check-status/${encodeURIComponent(orderCode)}`);
       if (json && json.success && json.data) {
         const ord = api.normalizeOrderObject ? api.normalizeOrderObject(json.data) : json.data;
@@ -3720,46 +3854,64 @@ function openUserProfileModal() {
       </div>
     </div>
 
-    <!-- Edit Profile Form -->
-    <form onsubmit="handleUpdateUserProfile(event)" style="display:flex; flex-direction:column; gap:12px; text-align:left;">
-      <div class="auth-input-group">
-        <label class="auth-label" for="profileFullName">Họ và tên hội viên <span class="required-star">*</span></label>
-        <div class="auth-input-box">
-          <i class="fa-solid fa-user auth-input-icon"></i>
-          <input type="text" id="profileFullName" class="auth-input" value="${escapeHtml(currentUser.fullName || '')}" required>
+    <!-- Edit Profile Form (Giao diện chuẩn hiện đại, có khung viền đẹp, icon & trạng thái xác thực) -->
+    <form onsubmit="handleUpdateUserProfile(event)" class="profile-edit-form">
+      <div class="profile-form-grid">
+        <div class="auth-input-group full-width">
+          <label class="auth-label" for="profileFullName">
+            <i class="fa-solid fa-user" style="color:var(--color-primary);"></i>
+            Họ và tên hội viên <span class="required-star">*</span>
+          </label>
+          <div class="auth-input-box">
+            <i class="fa-solid fa-user auth-input-icon"></i>
+            <input type="text" id="profileFullName" class="auth-input" value="${escapeHtml(currentUser.fullName || '')}" required placeholder="Ví dụ: Đỗ Quốc Thịnh">
+          </div>
         </div>
-      </div>
 
-      <div class="auth-grid-2">
         <div class="auth-input-group">
-          <label class="auth-label" for="profileEmail">Email tài khoản</label>
+          <label class="auth-label" for="profileEmail">
+            <i class="fa-regular fa-envelope" style="color:#2563eb;"></i>
+            Email tài khoản
+            <span class="profile-verified-badge"><i class="fa-solid fa-circle-check"></i> Đã bảo mật</span>
+          </label>
           <div class="auth-input-box">
             <i class="fa-regular fa-envelope auth-input-icon"></i>
-            <input type="email" id="profileEmail" class="auth-input" value="${escapeHtml(currentUser.email || '')}" disabled style="background:#f1f5f9; cursor:not-allowed;">
+            <input type="email" id="profileEmail" class="auth-input" value="${escapeHtml(currentUser.email || '')}" disabled>
+            <span class="profile-lock-icon" title="Email định danh bảo mật"><i class="fa-solid fa-lock"></i></span>
           </div>
         </div>
+
         <div class="auth-input-group">
-          <label class="auth-label" for="profilePhone">Số điện thoại giao hàng <span class="required-star">*</span></label>
+          <label class="auth-label" for="profilePhone">
+            <i class="fa-solid fa-phone" style="color:#059669;"></i>
+            Số điện thoại nhận hàng <span class="required-star">*</span>
+          </label>
           <div class="auth-input-box">
             <i class="fa-solid fa-phone auth-input-icon"></i>
-            <input type="tel" id="profilePhone" class="auth-input" value="${escapeHtml(currentUser.phone || '')}" placeholder="0912 345 678" required pattern="[0-9]{10,11}">
+            <input type="tel" id="profilePhone" class="auth-input" value="${escapeHtml(currentUser.phone || '')}" placeholder="0981 903 400" required pattern="[0-9]{10,11}">
+          </div>
+        </div>
+
+        <div class="auth-input-group full-width">
+          <label class="auth-label" for="profileAddress">
+            <i class="fa-solid fa-location-dot" style="color:#dc2626;"></i>
+            Địa chỉ nhận hàng mặc định (SPX Express)
+          </label>
+          <div class="auth-input-box">
+            <i class="fa-solid fa-location-dot auth-input-icon"></i>
+            <input type="text" id="profileAddress" class="auth-input" value="${escapeHtml(currentUser.address || '')}" placeholder="Số nhà, tên đường, Phường/Xã, TP. Biên Hòa, Đồng Nai...">
+          </div>
+          <div class="profile-address-tip">
+            <i class="fa-solid fa-circle-info"></i> Hệ thống sẽ tự động đồng bộ địa chỉ này vào mỗi đơn đặt cọc mô hình mới của bạn.
           </div>
         </div>
       </div>
 
-      <div class="auth-input-group">
-        <label class="auth-label" for="profileAddress">Địa chỉ nhận hàng mặc định (SPX Express)</label>
-        <div class="auth-input-box">
-          <i class="fa-solid fa-location-dot auth-input-icon"></i>
-          <input type="text" id="profileAddress" class="auth-input" value="${escapeHtml(currentUser.address || '')}" placeholder="Số nhà, tên đường, P/Xã, Q/Huyện, Tỉnh/TP...">
-        </div>
-      </div>
-
-      <div style="display:flex; gap:10px; margin-top:8px;">
-        <button type="submit" class="btn btn-primary" style="flex:1; height:44px; font-weight:700;">
+      <div class="profile-form-actions">
+        <button type="submit" class="btn btn-primary">
           <i class="fa-solid fa-floppy-disk"></i> Lưu Thay Đổi
         </button>
-        <button type="button" class="btn btn-outline" onclick="closeModal('userProfileModal'); openMyOrdersModal();" style="height:44px;">
+        <button type="button" class="btn btn-outline" onclick="closeModal('userProfileModal'); openMyOrdersModal();">
           <i class="fa-solid fa-box-archive"></i> Đơn của tôi
         </button>
       </div>
@@ -4268,22 +4420,34 @@ function buildUnifiedCustomerOrderCardHTML(ord) {
         </div>
       ` : ''}
 
-      <!-- KHỐI THÔNG BÁO ĐƠN HỦY KÈM LÝ DO TỪ ADMIN & HOTLINE LIÊN HỆ LẠI (PHÔNG TRẮNG ĐƠN GIẢN) -->
-      ${ordStatus === 'CANCELLED' ? `
-        <div style="background:#ffffff; border:2px solid #ef4444; border-radius:8px; padding:14px 16px; margin-bottom:14px; text-align:left; box-shadow:0 1px 4px rgba(0,0,0,0.06);">
+      <!-- KHỐI THÔNG BÁO ĐƠN HỦY KÈM LÝ DO (PHÂN BIỆT RÕ KHÁCH TỰ HỦY VS ADMIN HỦY) -->
+      ${ordStatus === 'CANCELLED' ? (() => {
+        const cancelReason = ord.CancelReason || ord.cancelReason || 'Admin đã xử lý hủy đơn';
+        const isCustCancel = cancelReason.toLowerCase().includes('khách') || cancelReason.toLowerCase().includes('chủ động') || cancelReason.toLowerCase().includes('yêu cầu');
+        const cancelTitle = isCustCancel
+          ? `⚠️ ĐƠN HÀNG #${escapeHtml(orderCode)} ĐÃ ĐƯỢC BẠN HỦY THÀNH CÔNG`
+          : `❌ ĐƠN HÀNG #${escapeHtml(orderCode)} ĐÃ BỊ HỦY BỞI QUẢN TRỊ VIÊN`;
+        const cancelBorder = isCustCancel ? '2px solid #f59e0b' : '2px solid #ef4444';
+        const iconColor = isCustCancel ? '#d97706' : '#dc2626';
+        const titleColor = isCustCancel ? '#b45309' : '#dc2626';
+        const bgReason = isCustCancel ? '#fffbeb' : '#fef2f2';
+        const borderReason = isCustCancel ? '#fde68a' : '#fee2e2';
+
+        return `
+        <div style="background:#ffffff; border:${cancelBorder}; border-radius:8px; padding:14px 16px; margin-bottom:14px; text-align:left; box-shadow:0 1px 4px rgba(0,0,0,0.06);">
           <div style="display:flex; align-items:flex-start; gap:12px;">
-            <div style="font-size:24px; color:#dc2626; line-height:1; flex-shrink:0;">
-              <i class="fa-solid fa-circle-xmark"></i>
+            <div style="font-size:24px; color:${iconColor}; line-height:1; flex-shrink:0;">
+              <i class="fa-solid ${isCustCancel ? 'fa-triangle-exclamation' : 'fa-circle-xmark'}"></i>
             </div>
             <div style="flex:1;">
-              <div style="font-size:14px; font-weight:800; color:#dc2626;">
-                ❌ ĐƠN HÀNG #${escapeHtml(orderCode)} ĐÃ BỊ HỦY BỞI QUẢN TRỊ VIÊN
+              <div style="font-size:14px; font-weight:800; color:${titleColor};">
+                ${cancelTitle}
               </div>
-              <div style="margin-top:8px; background:#fef2f2; border:1px solid #fee2e2; border-radius:6px; padding:8px 12px; font-size:13px; color:#374151;">
-                <strong>Lý do hủy đơn:</strong> <span style="color:#dc2626; font-weight:700;">${escapeHtml(ord.CancelReason || ord.cancelReason || 'Admin đã xử lý hủy đơn')}</span>
+              <div style="margin-top:8px; background:${bgReason}; border:1px solid ${borderReason}; border-radius:6px; padding:8px 12px; font-size:13px; color:#374151;">
+                <strong>Lý do:</strong> <span style="color:${titleColor}; font-weight:700;">${escapeHtml(cancelReason)}</span>
               </div>
               <div style="margin-top:10px; font-size:12.5px; color:#4b5563; line-height:1.5;">
-                ⚠️ <em>Quý khách vui lòng liên hệ lại với Mini GT Biên Hòa Store qua Hotline / Zalo: <strong style="color:#dc2626; font-size:13px;">0981 400 400</strong> để được hỗ trợ tốt nhất.</em>
+                Quý khách có nhu cầu đặt lại mẫu xe hoặc cần hỗ trợ, vui lòng liên hệ Hotline / Zalo: <strong style="color:#dc2626; font-size:13px;">0981 400 400</strong>.
               </div>
               <div style="margin-top:12px; display:flex; gap:8px; flex-wrap:wrap;">
                 <a href="tel:0981400400" class="btn btn-sm" style="background:#dc2626; color:#ffffff; border:none; padding:7px 14px; border-radius:6px; font-size:12px; font-weight:700; text-decoration:none; display:inline-flex; align-items:center; gap:6px;">
@@ -4296,7 +4460,8 @@ function buildUnifiedCustomerOrderCardHTML(ord) {
             </div>
           </div>
         </div>
-      ` : (isApproved ? (Boolean(ord.HasPreOrder || ord.hasPreOrder) ? `
+        `;
+      })() : (isApproved ? (Boolean(ord.HasPreOrder || ord.hasPreOrder) ? `
         <div style="background:#f5f3ff; border:1.5px solid #c4b5fd; border-radius:10px; padding:12px 14px; margin-bottom:12px; display:flex; align-items:flex-start; gap:10px;">
           <i class="fa-solid fa-circle-check" style="color:#7c3aed; font-size:20px; margin-top:2px;"></i>
           <div style="flex:1;">
@@ -4371,16 +4536,22 @@ function buildUnifiedCustomerOrderCardHTML(ord) {
           <div style="font-size:11px; font-weight:800; color:#475569; text-transform:uppercase; margin-bottom:6px;">
             <i class="fa-solid fa-car-side" style="color:var(--color-primary); margin-right:4px;"></i> Danh sách mô hình (${Array.isArray(ord.items) ? ord.items.length : 0})
           </div>
-          ${Array.isArray(ord.items) && ord.items.length > 0 ? ord.items.map(it => `
+          ${Array.isArray(ord.items) && ord.items.length > 0 ? ord.items.map(it => {
+            const pack = String(it.PackagingOption || it.packagingOption || it.PackType || it.packType || 'box').toLowerCase();
+            return `
             <div style="display:flex; align-items:center; gap:8px; padding:5px 0; border-bottom:1px dashed #e2e8f0; font-size:12px;">
-              <img src="${it.ImageUrl || it.image || 'image/hero-banner.jpg'}" onerror="this.src='image/hero-banner.jpg'" style="width:38px; height:38px; object-fit:contain; border-radius:6px; border:1px solid #cbd5e1; background:#fff; padding:2px;">
+              <img src="${it.ImageUrl || it.image || 'image/hero-banner.jpg'}" onerror="this.src='image/hero-banner.jpg'" style="width:38px; height:38px; object-fit:contain; border-radius:6px; border:1px solid #cbd5e1; background:#fff; padding:2px; flex-shrink:0;">
               <div style="flex:1; min-width:0;">
                 <div style="font-weight:700; color:#0f172a; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${escapeHtml(it.ProductName || it.name || 'Mô hình 1:64')}</div>
-                <div style="font-size:11px; color:#64748b;">SL: <strong>x${it.Quantity || it.quantity || 1}</strong> • Đơn giá: ${formatVND(it.UnitPrice || it.unitPrice || 0)}</div>
+                <div style="display:flex; align-items:center; gap:6px; margin-top:2px;">
+                  <span class="pack-badge ${pack === 'card' ? 'pack-card' : 'pack-box'}">${pack === 'card' ? '🛡️ Card' : '📦 Box'}</span>
+                  <span style="font-size:11px; color:#64748b;">SL: <strong>x${it.Quantity || it.quantity || 1}</strong> • Đơn giá: ${formatVND(it.UnitPrice || it.unitPrice || 0)}</span>
+                </div>
               </div>
               <strong style="color:#0f172a; font-size:12.5px;">${formatVND(Number(it.UnitPrice || it.unitPrice || 0) * Number(it.Quantity || it.quantity || 1))}</strong>
             </div>
-          `).join('') : `<div style="font-size:12px; color:#64748b;">Đơn hàng tiêu chuẩn Săn Xe Biên Hòa</div>`}
+            `;
+          }).join('') : `<div style="font-size:12px; color:#64748b;">Đơn hàng tiêu chuẩn Săn Xe Biên Hòa</div>`}
         </div>
 
         <!-- Cột 2: Địa chỉ giao nhận & Đối soát tài chính -->
@@ -4701,9 +4872,20 @@ async function cancelMyOrder(orderCode) {
     });
 
     if (json.success) {
+      // Đánh dấu snapshot đã hủy bởi khách để polling không thông báo cảnh báo admin
+      if (customerOrderStateSnapshot) {
+        customerOrderStateSnapshot[orderCode] = { status: 'CANCELLED', tracking: '', cancelledByCustomer: true };
+      }
       if (json.data && typeof upsertSharedOrder === 'function') upsertSharedOrder(json.data);
+
+      // Yêu cầu: khi khách tự hủy đơn thì sản phẩm đó trong giỏ hàng mất luôn (đồng bộ giỏ hàng sạch)
+      cart = [];
+      saveCart();
+      renderCartDrawer();
+      updateCartBadge();
+
       if (typeof emitRealtimeSync === 'function') {
-        emitRealtimeSync('ORDER_UPDATED', { orderCode, status: 'CANCELLED', order: json.data });
+        emitRealtimeSync('ORDER_UPDATED', { orderCode, status: 'CANCELLED', order: json.data, cancelledByCustomer: true });
       }
       showToast(`Đã hủy đơn hàng #${orderCode} thành công!`, 'success');
       loadMyOrdersList(true);
@@ -4772,24 +4954,36 @@ function showCustomerOrderRealtimeBanner(orderCode, status, trackingCode, cancel
   if (existing) existing.remove();
 
   const isCancelled = status === 'CANCELLED';
+  const isCustomerCancel = cancelReason && (
+    cancelReason.toLowerCase().includes('khách') ||
+    cancelReason.toLowerCase().includes('chủ động') ||
+    cancelReason.toLowerCase().includes('yêu cầu')
+  );
 
-  // Nếu khách đang mở trực tiếp cửa sổ Thanh Toán (Checkout Modal), cập nhật thẳng vào khung Step 4 bên trong Modal để không bị đè lên nút xác nhận
+  // Nếu là khách tự hủy đơn thì không hiện cảnh báo bị hủy bởi quản trị viên
+  if (isCancelled && isCustomerCancel) return;
+
+  // Nếu khách đang mở trực tiếp cửa sổ Thanh Toán (Checkout Modal), CHỈ CẬP NHẬT khi mã đơn đúng với activeStep4OrderCode
   if (document.getElementById('checkoutModal')?.classList.contains('active')) {
-    if (typeof updateLiveStep4OrderStatus === 'function') {
-      updateLiveStep4OrderStatus({
-        code: orderCode,
-        status: status || 'CONFIRMED',
-        paymentStatus: isCancelled ? 'REFUND_PENDING' : 'PARTIALLY_PAID',
-        trackingCode: trackingCode || null,
-        cancelReason: cancelReason || null
-      });
+    if (activeStep4OrderCode && activeStep4OrderCode === orderCode) {
+      if (typeof updateLiveStep4OrderStatus === 'function') {
+        updateLiveStep4OrderStatus({
+          code: orderCode,
+          status: status || 'CONFIRMED',
+          paymentStatus: isCancelled ? 'REFUND_PENDING' : 'PARTIALLY_PAID',
+          trackingCode: trackingCode || null,
+          cancelReason: cancelReason || null
+        });
+      }
+      if (isCancelled) {
+        showToast(`Đơn #${orderCode} đã bị hủy bởi Admin. Lý do: ${cancelReason || 'Vui lòng liên hệ Hotline 0981 400 400'}`, 'error');
+      } else {
+        showToast(trackingCode ? `Đơn #${orderCode} đã được duyệt & cấp mã SPX: ${trackingCode}` : `Admin đã duyệt đơn hàng #${orderCode}!`, 'success');
+      }
+      return;
     }
-    if (isCancelled) {
-      showToast(`Đơn #${orderCode} đã bị hủy bởi Admin. Lý do: ${cancelReason || 'Vui lòng liên hệ Hotline 0981 400 400'}`, 'error');
-    } else {
-      showToast(trackingCode ? `Đơn #${orderCode} đã được duyệt & cấp mã SPX: ${trackingCode}` : `Admin đã duyệt đơn hàng #${orderCode}!`, 'success');
-    }
-    return;
+    // Nếu là đơn hàng khác, TUYỆT ĐỐI KHÔNG chạm vào Step 4 của đơn mới!
+    if (isCancelled) return;
   }
 
   const banner = document.createElement('div');
@@ -4883,13 +5077,18 @@ function initCustomerRealtimeOrderWatcher() {
 
       if (code) {
         const myCodes = getSavedCustomerOrderCodes();
-        const isMyOrder = myCodes.includes(code) || (currentOrder && (currentOrder.code === code || currentOrder.orderCode === code));
+        const isMyOrder = myCodes.includes(code) || (activeStep4OrderCode && activeStep4OrderCode === code);
         if (isMyOrder && detail.type === 'ORDER_UPDATED') {
+          if (payload.cancelledByCustomer) {
+            customerOrderStateSnapshot[code] = { status: newStatus, tracking: newTracking, cancelledByCustomer: true };
+            return;
+          }
           const prev = customerOrderStateSnapshot[code] || {};
+          const isCustCancel = String(cancelReason || '').toLowerCase().includes('khách');
           const newlyApproved = ['CONFIRMED', 'PREPARING', 'SHIPPING'].includes(newStatus) && prev.status === 'PENDING';
           const newlyTracked = Boolean(newTracking) && newTracking !== prev.tracking;
-          const newlyCancelled = newStatus === 'CANCELLED' && prev.status !== 'CANCELLED';
-          customerOrderStateSnapshot[code] = { status: newStatus || prev.status, tracking: newTracking || prev.tracking };
+          const newlyCancelled = newStatus === 'CANCELLED' && prev.status !== 'CANCELLED' && !prev.cancelledByCustomer && !isCustCancel;
+          customerOrderStateSnapshot[code] = { status: newStatus || prev.status, tracking: newTracking || prev.tracking, cancelledByCustomer: prev.cancelledByCustomer || isCustCancel };
 
           if (newlyApproved || newlyTracked || newlyCancelled) {
             showCustomerOrderRealtimeBanner(code, newStatus, newTracking, cancelReason);
@@ -4901,10 +5100,9 @@ function initCustomerRealtimeOrderWatcher() {
       if (document.getElementById('myOrdersModal')?.classList.contains('active')) {
         loadMyOrdersList(true);
       }
-      if (document.getElementById('checkoutModal')?.classList.contains('active') && currentOrder) {
-        const activeCode = currentOrder.code || currentOrder.orderCode || currentOrder.OrderCode;
-        if (!code || activeCode === code) {
-          safeFetch(`/api/orders/check-status/${encodeURIComponent(activeCode)}`).then(res => {
+      if (document.getElementById('checkoutModal')?.classList.contains('active') && activeStep4OrderCode) {
+        if (!code || activeStep4OrderCode === code) {
+          safeFetch(`/api/orders/check-status/${encodeURIComponent(activeStep4OrderCode)}`).then(res => {
             if (res && res.success && res.data && typeof updateLiveStep4OrderStatus === 'function') {
               updateLiveStep4OrderStatus(res.data);
             }
@@ -4929,14 +5127,20 @@ function initCustomerRealtimeOrderWatcher() {
         const st = String(o.Status || o.status || 'PENDING').toUpperCase();
         const tk = String(o.TrackingCode || o.trackingCode || '').trim();
         const old = prevSnap[c];
+        const isCustCancel = String(o.CancelReason || o.cancelReason || '').toLowerCase().includes('khách');
         if (old) {
           const newlyApproved = ['CONFIRMED', 'PREPARING', 'SHIPPING'].includes(st) && old.status === 'PENDING';
           const newlyTracked = Boolean(tk) && tk !== old.tracking;
-          const newlyCancelled = st === 'CANCELLED' && old.status !== 'CANCELLED';
+          const newlyCancelled = st === 'CANCELLED' && old.status !== 'CANCELLED' && !old.cancelledByCustomer && !isCustCancel;
           if (newlyApproved || newlyTracked || newlyCancelled) {
             showCustomerOrderRealtimeBanner(c, st, tk, o.CancelReason || o.cancelReason);
           }
         }
+        customerOrderStateSnapshot[c] = { 
+          status: st, 
+          tracking: tk, 
+          cancelledByCustomer: old?.cancelledByCustomer || isCustCancel 
+        };
       });
 
       if (document.getElementById('myOrdersModal')?.classList.contains('active')) {
@@ -5105,7 +5309,16 @@ async function handleNewsletterSubmit(e) {
 function closeModal(modalId) {
   const modal = document.getElementById(modalId);
   if (modal) modal.classList.remove('active');
-  if (modalId === 'checkoutModal') document.body.classList.remove('checkout-modal-open');
+  if (modalId === 'checkoutModal') {
+    document.body.classList.remove('checkout-modal-open');
+    if (paymentPollInterval) {
+      clearInterval(paymentPollInterval);
+      paymentPollInterval = null;
+    }
+    activeStep4OrderCode = null;
+    renderCartDrawer();
+    updateCartBadge();
+  }
 }
 
 function toggleMobileNav() {

@@ -1588,8 +1588,14 @@
   <!-- CHECKOUT MODAL: MULTI-STEP STEPPER CHUẨN DESIGN (NON-OVERLAPPING STICKY ACTIONS) -->
   <div class="modal-overlay" id="checkoutModal" role="dialog" aria-modal="true" aria-label="Xác nhận thanh toán và cọc">
     <div class="modal-container checkout-stepper-container">
-      <button type="button" class="modal-close-btn" onclick="closeModal('checkoutModal')">✕</button>
-      <div class="modal-body">
+      <div class="checkout-modal-top-bar">
+        <div class="checkout-modal-title">
+          <i class="fa-solid fa-shield-halved" style="color:var(--color-primary);"></i>
+          <span>MINI GT STORE • THANH TOÁN &amp; ĐẶT CỌC</span>
+        </div>
+        <button type="button" class="checkout-close-btn" onclick="closeModal('checkoutModal')" aria-label="Đóng cửa sổ">✕</button>
+      </div>
+      <div class="modal-body" style="padding-top: 14px;">
 
         <!-- Stepper Progress Bar -->
         <div class="stepper-progress-bar">
