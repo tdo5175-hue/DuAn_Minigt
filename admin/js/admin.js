@@ -496,6 +496,7 @@
       products: 'Quản Lý Danh Mục & Mô Hình Xe',
       orders: 'Quản Lý Đơn Hàng & Vận Đơn SPX',
       users: 'Quản Lý Tài Khoản Khách Hàng',
+      coupons: 'Quản Lý Mã Giảm Giá & Voucher VIP',
       subscribers: 'Danh Sách Khách Hàng Nhận Bản Tin',
       settings: 'Cấu Hình Cửa Hàng & Thanh Toán VietQR',
       about: 'Giới Thiệu Đề Tài & Nhóm Tác Giả Thực Hiện Dự Án'
@@ -512,6 +513,7 @@
     else if (tabId === 'products') loadProducts();
     else if (tabId === 'orders') loadOrders();
     else if (tabId === 'users') loadUsers();
+    else if (tabId === 'coupons') loadCoupons();
     else if (tabId === 'subscribers') loadSubscribers();
     else if (tabId === 'settings') loadStoreSettings();
   }
@@ -3249,6 +3251,278 @@ Anh/chị phản hồi giúp shop để kiện xe được đóng gói gửi đi
   }
 
   // =====================================================================
+  // 7B. TAB: QUẢN LÝ MÃ GIẢM GIÁ & VOUCHER VIP
+  // =====================================================================
+  let cachedCoupons = [];
+
+  async function loadCoupons() {
+    startProgressBar();
+    renderTableSkeletons('couponsTbody', 8, 4);
+    try {
+      const res = await api.get('/api/admin/coupons');
+      if (res && res.success && res.data) {
+        cachedCoupons = res.data;
+        renderCouponsTable(cachedCoupons);
+      } else {
+        renderCouponsTable([]);
+      }
+    } catch (err) {
+      console.warn('[COUPONS LOAD ERROR]:', err);
+      adminToast('Không thể tải danh sách mã giảm giá: ' + (err.message || 'Lỗi mạng'), 'error');
+    } finally {
+      finishProgressBar();
+    }
+  }
+
+  function renderCouponsTable(coupons) {
+    const tbody = document.getElementById('couponsTbody');
+    if (!tbody) return;
+
+    if (!coupons || !coupons.length) {
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="9" style="text-align:center; padding:2rem; color:#64748b;">
+            <i class="fa-solid fa-ticket" style="font-size:24px; color:#cbd5e1; display:block; margin-bottom:8px;"></i>
+            Chưa có mã giảm giá nào do Admin tạo. Bấm nút <strong>"+ Tạo Mã Giảm Giá Mới"</strong> để thêm mã ưu đãi!
+          </td>
+        </tr>
+      `;
+      return;
+    }
+
+    const badgeCount = document.getElementById('sidebarCouponsCount');
+    if (badgeCount) {
+      badgeCount.textContent = coupons.filter(c => c.isActive).length;
+    }
+
+    tbody.innerHTML = coupons.map(c => {
+      const isPercent = c.discountType === 'percent';
+      const discountDisplay = isPercent
+        ? `<strong style="color:#e10600; font-size:13px;">-${c.discountValue}%</strong>`
+        : `<strong style="color:#059669; font-size:13px;">-${formatVND(c.discountValue)}</strong>`;
+      
+      const typeLabel = isPercent
+        ? '<span class="status-badge" style="background:#fef2f2; color:#dc2626; font-weight:700;">Giảm theo %</span>'
+        : '<span class="status-badge" style="background:#ecfdf5; color:#059669; font-weight:700;">Giảm tiền mặt</span>';
+
+      const minOrderText = c.minOrderAmount > 0 ? formatVND(c.minOrderAmount) : '<span style="color:#94a3b8;">Không yêu cầu</span>';
+      const usageText = `<span style="font-weight:700; color:#0f172a;">${c.usedCount || 0}</span> / ${c.usageLimit || 100}`;
+      
+      let expText = '<span style="color:#94a3b8;">Vô thời hạn</span>';
+      let isExpired = false;
+      if (c.endDate) {
+        const expDate = new Date(c.endDate + 'T23:59:59');
+        isExpired = Date.now() > expDate.getTime();
+        expText = isExpired
+          ? `<span style="color:#dc2626; font-weight:700;"><i class="fa-solid fa-clock"></i> Đã hết hạn (${c.endDate})</span>`
+          : `<span style="color:#475569;">${c.endDate}</span>`;
+      }
+
+      const activeBadge = c.isActive && !isExpired
+        ? '<span class="status-badge" style="background:#ecfdf5; color:#059669; font-weight:700; cursor:pointer;" title="Bấm để tạm ngừng"><i class="fa-solid fa-circle-check"></i> Đang Bật</span>'
+        : '<span class="status-badge" style="background:#f1f5f9; color:#94a3b8; font-weight:700; cursor:pointer;" title="Bấm để kích hoạt"><i class="fa-solid fa-circle-pause"></i> Đã Tắt</span>';
+
+      return `
+        <tr>
+          <td>
+            <div style="display:flex; align-items:center; gap:6px;">
+              <span style="font-family:monospace; font-size:13px; font-weight:800; background:#fff7ed; color:#ea580c; border:1px solid #fdba74; padding:3px 8px; border-radius:6px; letter-spacing:0.5px;">
+                ${escapeHtml(c.code)}
+              </span>
+              <button type="button" onclick="copyTextToClipboard('${escapeHtml(c.code)}', 'Đã sao chép mã ${escapeHtml(c.code)}')" style="border:none; background:none; color:#64748b; cursor:pointer; font-size:11px;" title="Sao chép mã">
+                <i class="fa-regular fa-copy"></i>
+              </button>
+            </div>
+          </td>
+          <td style="max-width:240px;">
+            <div style="font-weight:600; color:#0f172a; line-height:1.4;">${escapeHtml(c.description || '-')}</div>
+          </td>
+          <td>${typeLabel}</td>
+          <td>${discountDisplay}</td>
+          <td>${minOrderText}</td>
+          <td>${usageText}</td>
+          <td>${expText}</td>
+          <td onclick="handleToggleCouponStatus(${c.couponId || c.id}, ${!c.isActive})">${activeBadge}</td>
+          <td style="text-align:right;">
+            <div style="display:inline-flex; gap:6px;">
+              <button class="btn-admin btn-admin-outline" style="padding:3px 8px; font-size:11.5px;" onclick="openCouponModal(${c.couponId || c.id})" title="Chỉnh sửa">
+                <i class="fa-solid fa-pen-to-square"></i>
+              </button>
+              <button class="btn-admin btn-admin-outline" style="padding:3px 8px; font-size:11.5px; color:#dc2626;" onclick="handleDeleteCoupon(${c.couponId || c.id}, '${escapeHtml(c.code)}')" title="Xóa mã">
+                <i class="fa-solid fa-trash-can"></i>
+              </button>
+            </div>
+          </td>
+        </tr>
+      `;
+    }).join('');
+  }
+
+  function handleDiscountTypeChange(val) {
+    const isPct = val === 'percent';
+    const label = document.getElementById('couponValueLabel');
+    const valInput = document.getElementById('couponDiscountValue');
+    const maxGroup = document.getElementById('couponMaxDiscountGroup');
+    if (label) {
+      label.innerHTML = isPct
+        ? 'Phần trăm giảm (%) — <strong style="color:#e10600;">Tối đa 10%</strong> <span style="color:#ef4444;">*</span>'
+        : 'Số tiền giảm (VNĐ) <span style="color:#ef4444;">*</span>';
+    }
+    if (valInput) {
+      valInput.placeholder = isPct ? 'Ví dụ: 5 hoặc 10 (tối đa 10%)' : 'Ví dụ: 50000';
+      valInput.max = isPct ? 10 : '';
+    }
+    if (maxGroup) {
+      maxGroup.style.display = isPct ? 'block' : 'none';
+    }
+  }
+
+  function openCouponModal(couponId = null) {
+    const modal = document.getElementById('couponModal');
+    const titleEl = document.getElementById('couponModalTitle');
+    const editIdInput = document.getElementById('couponEditId');
+    const codeInput = document.getElementById('couponCodeInput');
+    const descInput = document.getElementById('couponDescInput');
+    const typeSelect = document.getElementById('couponDiscountType');
+    const valInput = document.getElementById('couponDiscountValue');
+    const minOrdInput = document.getElementById('couponMinOrder');
+    const maxDiscInput = document.getElementById('couponMaxDiscount');
+    const limitInput = document.getElementById('couponUsageLimit');
+    const dateInput = document.getElementById('couponEndDate');
+    const activeCheck = document.getElementById('couponIsActive');
+
+    if (!modal) return;
+
+    if (couponId) {
+      const c = cachedCoupons.find(item => (item.couponId || item.id) === Number(couponId));
+      if (!c) {
+        adminToast('Không tìm thấy thông tin mã giảm giá!', 'error');
+        return;
+      }
+      if (titleEl) titleEl.innerHTML = `<i class="fa-solid fa-ticket" style="color:var(--color-primary);"></i> Sửa Mã Giảm Giá: <strong>${escapeHtml(c.code)}</strong>`;
+      if (editIdInput) editIdInput.value = c.couponId || c.id;
+      if (codeInput) { codeInput.value = c.code; codeInput.readOnly = false; }
+      if (descInput) descInput.value = c.description || '';
+      if (typeSelect) typeSelect.value = c.discountType || 'amount';
+      if (valInput) valInput.value = c.discountValue || '';
+      if (minOrdInput) minOrdInput.value = c.minOrderAmount || 0;
+      if (maxDiscInput) maxDiscInput.value = c.maxDiscount || '';
+      if (limitInput) limitInput.value = c.usageLimit || 100;
+      if (dateInput) dateInput.value = c.endDate ? c.endDate.slice(0, 10) : '';
+      if (activeCheck) activeCheck.checked = Boolean(c.isActive);
+      handleDiscountTypeChange(c.discountType || 'amount');
+    } else {
+      if (titleEl) titleEl.innerHTML = '<i class="fa-solid fa-ticket" style="color:var(--color-primary);"></i> Tạo Mã Giảm Giá Mới';
+      if (editIdInput) editIdInput.value = '';
+      if (codeInput) { codeInput.value = ''; codeInput.readOnly = false; }
+      if (descInput) descInput.value = '';
+      if (typeSelect) typeSelect.value = 'amount';
+      if (valInput) valInput.value = '';
+      if (minOrdInput) minOrdInput.value = '0';
+      if (maxDiscInput) maxDiscInput.value = '';
+      if (limitInput) limitInput.value = '100';
+      if (dateInput) dateInput.value = '';
+      if (activeCheck) activeCheck.checked = true;
+      handleDiscountTypeChange('amount');
+    }
+
+    modal.classList.add('active');
+  }
+
+  async function handleSaveCoupon(e) {
+    if (e && e.preventDefault) e.preventDefault();
+    const editId = document.getElementById('couponEditId')?.value;
+    const code = document.getElementById('couponCodeInput')?.value.trim().toUpperCase();
+    const description = document.getElementById('couponDescInput')?.value.trim();
+    const discountType = document.getElementById('couponDiscountType')?.value;
+    const discountValue = Number(document.getElementById('couponDiscountValue')?.value || 0);
+    const minOrderAmount = Number(document.getElementById('couponMinOrder')?.value || 0);
+    const maxDiscount = document.getElementById('couponMaxDiscount')?.value ? Number(document.getElementById('couponMaxDiscount')?.value) : null;
+    const usageLimit = Number(document.getElementById('couponUsageLimit')?.value || 100);
+    const endDate = document.getElementById('couponEndDate')?.value || null;
+    const isActive = document.getElementById('couponIsActive')?.checked;
+
+    if (!code || code.length < 3) {
+      adminToast('Mã giảm giá phải có tối thiểu 3 ký tự!', 'error');
+      return;
+    }
+    if (!description) {
+      adminToast('Vui lòng nhập mô tả chương trình ưu đãi!', 'error');
+      return;
+    }
+    if (discountType === 'percent' && (discountValue <= 0 || discountValue > 10)) {
+      adminToast('Giảm theo phần trăm (%) tối đa không được vượt quá 10% theo quy định hệ thống!', 'error');
+      return;
+    }
+    if (discountType === 'amount' && discountValue < 1000) {
+      adminToast('Số tiền giảm phải từ 1.000đ trở lên!', 'error');
+      return;
+    }
+
+    const payload = {
+      code,
+      description,
+      discountType,
+      discountValue,
+      minOrderAmount,
+      maxDiscount,
+      usageLimit,
+      endDate,
+      isActive
+    };
+
+    const btn = document.getElementById('btnSaveCoupon');
+    const originalText = btn ? btn.innerHTML : '';
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Đang lưu...'; }
+
+    try {
+      let res;
+      if (editId) {
+        res = await api.put(`/api/admin/coupons/${editId}`, payload);
+      } else {
+        res = await api.post('/api/admin/coupons', payload);
+      }
+
+      if (res && res.success) {
+        adminToast(res.message || 'Lưu mã giảm giá thành công!', 'success');
+        closeAdminModal('couponModal');
+        loadCoupons();
+      } else {
+        adminToast(res?.message || 'Không thể lưu mã giảm giá', 'error');
+      }
+    } catch (err) {
+      adminToast(err.message || 'Lỗi khi lưu mã giảm giá', 'error');
+    } finally {
+      if (btn) { btn.disabled = false; btn.innerHTML = originalText; }
+    }
+  }
+
+  async function handleToggleCouponStatus(id, newStatus) {
+    try {
+      const res = await api.put(`/api/admin/coupons/${id}`, { isActive: newStatus });
+      if (res && res.success) {
+        adminToast(`Đã ${newStatus ? 'kích hoạt' : 'tạm ngừng'} mã giảm giá`, 'info');
+        loadCoupons();
+      }
+    } catch (err) {
+      adminToast('Lỗi cập nhật trạng thái mã: ' + err.message, 'error');
+    }
+  }
+
+  async function handleDeleteCoupon(id, code) {
+    if (!confirm(`Bạn có chắc chắn muốn xóa mã giảm giá "${code}" khỏi hệ thống?`)) return;
+    try {
+      const res = await api.delete(`/api/admin/coupons/${id}`);
+      if (res && res.success) {
+        adminToast(`Đã xóa mã "${code}" thành công!`, 'success');
+        loadCoupons();
+      }
+    } catch (err) {
+      adminToast('Lỗi khi xóa mã: ' + err.message, 'error');
+    }
+  }
+
+  // =====================================================================
   // 8. TAB 5: BẢN TIN (NEWSLETTER)
   // =====================================================================
   async function loadSubscribers() {
@@ -3660,5 +3934,13 @@ Anh/chị phản hồi giúp shop để kiện xe được đóng gói gửi đi
   window.deleteSubscriber = deleteSubscriber;
   window.loadStoreSettings = loadStoreSettings;
   window.saveStoreSettings = saveStoreSettings;
+
+  // Coupons Management
+  window.loadCoupons = loadCoupons;
+  window.openCouponModal = openCouponModal;
+  window.handleSaveCoupon = handleSaveCoupon;
+  window.handleToggleCouponStatus = handleToggleCouponStatus;
+  window.handleDeleteCoupon = handleDeleteCoupon;
+  window.handleDiscountTypeChange = handleDiscountTypeChange;
 
 })();
