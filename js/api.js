@@ -26,6 +26,7 @@
       if (String(global.location.port) === '5000') return true;
       if (localStorage.getItem('minigt_connect_port_5000') === 'true') return true;
       if (global.MINIGT_API_BASE) return true;
+      if (isLocalEnvironment() && localServerOffline !== true) return true;
       return false;
     } catch (e) {
       return false;
@@ -37,7 +38,8 @@
     
     // Nếu chạy cục bộ / Live Server trên máy cá nhân
     if (isLocalEnvironment()) {
-      return 'http://localhost:5000';
+      const host = (global.location && global.location.hostname) ? global.location.hostname : '127.0.0.1';
+      return `http://${host === 'localhost' ? '127.0.0.1' : host}:5000`;
     }
 
     // Khi deploy lên cloud production (Render / Vercel)
@@ -153,7 +155,7 @@
     {
       userId: 1,
       id: 1,
-      fullName: 'Đỗ Quốc Thịnh',
+      fullName: 'Đỗ Quốc Thịnh (Admin)',
       email: 'quocthinh.admin@minigt.vn',
       phone: '0988164164',
       address: '38/2 Võ Thị Sáu, P. Quyết Thắng, TP. Biên Hòa, Đồng Nai',
@@ -1120,6 +1122,21 @@
     } else if (method === 'GET' && d && (d.code || d.OrderCode) && endpoint.includes('/orders')) {
       upsertSharedOrder(d);
     }
+
+    // Tự động đồng bộ sản phẩm vào bộ nhớ dùng chung khi admin cập nhật hoặc thêm mới
+    if ((method === 'PUT' || method === 'POST') && endpoint.includes('/admin/products') && d) {
+      const all = getSharedProducts();
+      const norm = normalizeProductObject(d);
+      const pid = norm.id || norm.ProductId;
+      const idx = all.findIndex(p => Number(p.id || p.ProductId) === Number(pid));
+      if (idx >= 0) {
+        all[idx] = norm;
+      } else {
+        all.unshift(norm);
+      }
+      saveSharedProducts(all);
+      emitRealtimeSync('PRODUCTS_UPDATED', norm);
+    }
   };
 
   // =====================================================================
@@ -1151,10 +1168,10 @@
       if (u) return { success: true, data: u, user: u };
       if (isAdminContext(endpoint)) {
         const defaultAdmin = {
-          id: 1,
-          userId: 1,
-          fullName: 'Đỗ Quốc Thịnh & Nguyễn Đình Nam',
-          email: 'admin@minigt.com',
+          id: 3,
+          userId: 3,
+          fullName: 'Đỗ Quốc Thịnh (Admin)',
+          email: 'quocthinh.admin@minigt.vn',
           role: 'admin',
           avatarUrl: 'image/DoQuocThinh_anhthe.jpg'
         };
@@ -1171,12 +1188,12 @@
 
       if (inAdminPage) {
         const defaultAdmin = {
-          id: 1,
-          userId: 1,
-          fullName: 'Đỗ Quốc Thịnh & Nguyễn Đình Nam',
-          email: identifier || 'admin@minigt.com',
+          id: 3,
+          userId: 3,
+          fullName: identifier.includes('nam') ? 'Nguyễn Đình Nam' : 'Đỗ Quốc Thịnh (Admin)',
+          email: identifier || 'quocthinh.admin@minigt.vn',
           role: 'admin',
-          avatarUrl: 'image/DoQuocThinh_anhthe.jpg'
+          avatarUrl: identifier.includes('nam') ? 'image/Anh_The_Dinh_Nam.jpg' : 'image/DoQuocThinh_anhthe.jpg'
         };
         const tok = 'admin_tok_' + Date.now();
         setAuthSession(tok, defaultAdmin);
@@ -1508,19 +1525,28 @@
     if (method === 'PUT' && adminProdDetailMatch) {
       const pid = Number(adminProdDetailMatch[1]);
       const all = getSharedProducts();
-      const idx = all.findIndex(p => Number(p.id) === pid);
+      const idx = all.findIndex(p => Number(p.id || p.ProductId) === pid);
       if (idx >= 0) {
         const updated = normalizeProductObject(Object.assign({}, all[idx], body, {
           id: pid,
           ProductId: pid,
-          image: body.imageUrl || body.image || all[idx].image
+          image: body.imageUrl || body.image || all[idx].image || all[idx].imageUrl
         }));
         all[idx] = updated;
         saveSharedProducts(all);
         emitRealtimeSync('PRODUCTS_UPDATED', updated);
         return { success: true, message: 'Đã cập nhật mô hình thành công!', data: updated };
       }
-      return { success: false, message: 'Không tìm thấy sản phẩm để cập nhật' };
+      // Nếu sản phẩm chưa có trong danh sách local, upsert thêm mới luôn
+      const upserted = normalizeProductObject(Object.assign({}, body, {
+        id: pid,
+        ProductId: pid,
+        image: body.imageUrl || body.image || 'image/hero-banner.jpg'
+      }));
+      all.unshift(upserted);
+      saveSharedProducts(all);
+      emitRealtimeSync('PRODUCTS_UPDATED', upserted);
+      return { success: true, message: 'Đã cập nhật mô hình thành công!', data: upserted };
     }
 
     const adminProdCloneMatch = path.match(/^\/api\/admin\/products\/(\d+)\/clone$/);
@@ -1942,8 +1968,14 @@
       const allOrders = getSharedOrders().map(normalizeOrderObject);
 
       if (path.startsWith('/api/orders/my-orders')) {
-        const myCodes = getMyOrderCodes();
-        const myOrders = allOrders.filter(o => myCodes.includes(o.code));
+        const requestedCodes = params.codes ? params.codes.split(',').map(s => s.trim().toUpperCase()) : [];
+        const myCodes = Array.from(new Set([...getMyOrderCodes().map(c => c.toUpperCase()), ...requestedCodes]));
+        const myOrders = allOrders.filter(o => {
+          const code = (o.code || o.orderCode || o.OrderCode || '').toUpperCase();
+          const matchCode = myCodes.includes(code);
+          const matchPhone = params.phone && o.phone && o.phone.includes(params.phone);
+          return matchCode || matchPhone;
+        });
         return { success: true, data: myOrders.length > 0 ? myOrders : allOrders };
       }
 
@@ -2005,9 +2037,8 @@
     const method = (options.method || 'GET').toUpperCase();
     const rawBody = options.body;
 
-    // Khi chạy trên Live Server (127.0.0.1:5500) mà không có backend port 5000:
-    // Chuyển thẳng vào Local Storage Engine để không kích hoạt lỗi đỏ net::ERR_CONNECTION_REFUSED trong Console DevTools F12
-    if ((isLocalEnvironment() && !isDirectNodeServer()) || (isLocalEnvironment() && localServerOffline === true)) {
+    // Nếu đã xác định server offline hoặc người dùng ép offline thì chạy engine fallback ngay
+    if (localServerOffline === true || (isLocalEnvironment() && localStorage.getItem('minigt_offline_force') === 'true')) {
       const fallbackResult = handleOfflineFallback(endpoint, { method, body: rawBody });
       if (fallbackResult) return fallbackResult;
     }
@@ -2035,41 +2066,25 @@
       if (isLocalEnvironment()) {
         localServerOffline = false;
       }
-   } catch (netErr) {
-    if (isLocalEnvironment()) {
+    } catch (netErr) {
+      if (isLocalEnvironment()) {
         localServerOffline = true;
-
         const fallbackResult = handleOfflineFallback(endpoint, {
-            method,
-            body: rawBody
+          method,
+          body: rawBody
         });
-
         if (fallbackResult) {
-            return fallbackResult;
+          return fallbackResult;
         }
-    }
+      }
 
-    console.warn('[API ERROR]:', endpoint, netErr);
-
-    throw new ApiError(
+      console.warn('[API ERROR]:', endpoint, netErr);
+      throw new ApiError(
         'Không thể kết nối đến máy chủ.',
         0,
         'NETWORK_ERROR'
-    );
-}
-
-    if (!response.ok) {
-    if (isLocalEnvironment()) {
-        const fallbackResult = handleOfflineFallback(endpoint, {
-            method,
-            body: rawBody
-        });
-
-        if (fallbackResult) {
-            return fallbackResult;
-        }
+      );
     }
-}
 
     const contentType = response.headers.get('content-type') || '';
     let data = null;

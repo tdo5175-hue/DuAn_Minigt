@@ -22,6 +22,9 @@
 </head>
 <body>
 
+  <!-- Slim Top Loading Progress Bar (YouTube/GitHub-style) -->
+  <div id="siteTopProgressBar" class="site-top-progress-bar"></div>
+
   <!-- =====================================================================
        1. TOP ANNOUNCEMENT TICKER BAR
        ===================================================================== -->
@@ -1278,57 +1281,10 @@
       <button type="button" class="modal-close-btn auth-close-btn" onclick="closeModal('authModal')" aria-label="Đóng cửa sổ">✕</button>
       
       <div class="auth-modal-split">
-        <!-- LEFT COLUMN: BRANDING & REAL STORE/PROJECT SHOWCASE -->
-        <div class="auth-brand-side">
-          <div>
-            <div class="auth-brand-top">
-              <img src="image/logo-minigt.webp" alt="MINI GT Logo" class="auth-brand-logo" loading="lazy" decoding="async">
-              <span class="auth-official-tag"><i class="fa-solid fa-store"></i> BIÊN HÒA STORE</span>
-            </div>
-
-            <div class="auth-brand-hero">
-              <h3 class="auth-brand-title">Hệ Thống Mô Hình Tĩnh 1:64</h3>
-              <p class="auth-brand-desc">Đồ án Thiết Kế Website - Khoa CNTT, Trường Đại học Lạc Hồng. Nền tảng phân phối và quản lý đặt cọc mô hình diecast chính hãng tại Đồng Nai.</p>
-            </div>
-
-            <div class="auth-trust-list">
-              <div class="auth-trust-item">
-                <div class="auth-trust-icon"><i class="fa-solid fa-map-location-dot"></i></div>
-                <div class="auth-trust-text">
-                  <strong>Showroom &amp; Nhận Hàng Trực Tiếp</strong>
-                  <span>38/2 Võ Thị Sáu, P. Quyết Thắng, TP. Biên Hòa, Đồng Nai</span>
-                </div>
-              </div>
-              <div class="auth-trust-item">
-                <div class="auth-trust-icon"><i class="fa-solid fa-graduation-cap"></i></div>
-                <div class="auth-trust-text">
-                  <strong>Nhóm Tác Giả Đề Tài (ĐH Lạc Hồng)</strong>
-                  <span>Đỗ Quốc Thịnh &amp; Nguyễn Đình Nam • Chuyên ngành CNTT</span>
-                </div>
-              </div>
-              <div class="auth-trust-item">
-                <div class="auth-trust-icon"><i class="fa-solid fa-certificate"></i></div>
-                <div class="auth-trust-text">
-                  <strong>100% Nguyên Seal Nhà Sản Xuất</strong>
-                  <span>Mô hình đúc kim loại tỷ lệ 1:64 TSM-Model, Pop Race, Kaido House</span>
-                </div>
-              </div>
-              <div class="auth-trust-item">
-                <div class="auth-trust-icon"><i class="fa-solid fa-boxes-packing"></i></div>
-                <div class="auth-trust-text">
-                  <strong>Bọc Xốp Khí 4 Lớp Chống Móp Hộp</strong>
-                  <span>Giao vận chuyển chuyên nghiệp qua bưu cục SPX Express</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div class="auth-brand-footer">
-            <div class="auth-server-status">
-              <span class="auth-status-dot"></span>
-              <span>Hệ thống cơ sở dữ liệu đồng bộ tài khoản 24/7</span>
-            </div>
-          </div>
+        <!-- LEFT COLUMN: FULL-BLEED LIBERTY WALK POSTER SHOWCASE -->
+        <div class="auth-brand-side auth-brand-poster-side">
+          <img src="image/logo-minigt.webp" alt="MINI GT Logo" class="auth-poster-minigt-logo">
+          <img src="image/lbwk_login.jpg" alt="Liberty Walk Official Poster" class="auth-poster-img" loading="eager">
         </div>
 
         <!-- RIGHT COLUMN: SPACIOUS, ERGONOMIC AUTH FORM -->
@@ -1371,7 +1327,7 @@
               <label class="form-field-label" for="loginEmail">Email hoặc Số điện thoại</label>
               <div class="form-input-wrap">
                 <i class="fa-regular fa-envelope field-icon"></i>
-                <input type="text" id="loginEmail" class="form-field-input" placeholder="Ví dụ: collector@gmail.com hoặc 0988xxxxxx" required autocomplete="username">
+                <input type="text" id="loginEmail" class="form-field-input" placeholder="Nhập email hoặc số điện thoại..." required autocomplete="username">
               </div>
               <div class="field-error-text" id="loginEmailError"></div>
             </div>
@@ -1396,11 +1352,6 @@
                 <input type="checkbox" id="loginRemember" checked>
                 <span>Ghi nhớ đăng nhập</span>
               </label>
-
-              <!-- Discreet quick fill demo for evaluation & testing -->
-              <span class="demo-acc-hint" onclick="fillDemoAccount('collector@gmail.com', '123456')">
-                <i class="fa-solid fa-bolt"></i> Điền tài khoản mẫu
-              </span>
             </div>
 
             <button type="submit" class="btn-auth-primary" id="btnLoginSubmit">

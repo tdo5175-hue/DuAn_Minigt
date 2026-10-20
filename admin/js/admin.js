@@ -124,73 +124,112 @@
   }
 
   // =====================================================================
+  // SLIM TOP PROGRESS BAR & SKELETON HELPERS
+  // =====================================================================
+  let adminProgressTimer = null;
+  function startProgressBar() {
+    const bar = document.getElementById('adminTopProgressBar');
+    if (!bar) return;
+    if (adminProgressTimer) clearTimeout(adminProgressTimer);
+    bar.classList.remove('done');
+    bar.classList.add('loading');
+    bar.style.width = '30%';
+    adminProgressTimer = setTimeout(() => {
+      if (bar.classList.contains('loading')) {
+        bar.style.width = '78%';
+      }
+    }, 180);
+  }
+
+  function finishProgressBar() {
+    const bar = document.getElementById('adminTopProgressBar');
+    if (!bar) return;
+    if (adminProgressTimer) clearTimeout(adminProgressTimer);
+    bar.style.width = '100%';
+    setTimeout(() => {
+      bar.classList.remove('loading');
+      bar.classList.add('done');
+      setTimeout(() => {
+        bar.classList.remove('done');
+        bar.style.width = '0%';
+      }, 350);
+    }, 140);
+  }
+
+  function renderTableSkeletons(tbodyId, columns = 8, rows = 6) {
+    const tbody = document.getElementById(tbodyId);
+    if (!tbody) return;
+    tbody.innerHTML = Array(rows).fill(0).map(() => `
+      <tr class="skeleton-row">
+        ${Array(columns).fill(0).map((_, i) => `
+          <td style="padding: 12px 14px;">
+            <div class="admin-skeleton-line" style="width: ${i === 0 ? '48px; height: 48px; border-radius: 8px;' : (i === 1 ? '70px; height: 16px;' : (i === 2 ? '85%; height: 18px;' : '65%; height: 14px;'))}"></div>
+          </td>
+        `).join('')}
+      </tr>
+    `).join('');
+  }
+
+  // =====================================================================
   // 2. AUTHENTICATION & KHỞI CHẠY HỆ THỐNG
   // =====================================================================
   async function checkAdminAuth() {
     const token = localStorage.getItem('minigt_admin_token');
 
-    // LOCALHOST:
-    // Nếu không có backend thì cho phép chế độ demo offline
-   if (
-    api.isLocalEnvironment() &&
-    !api.isDirectNodeServer() &&
-    !token
-) {
-        const defaultAdminProfile = {
-            id: 1,
-            userId: 1,
-            fullName: 'Đỗ Quốc Thịnh & Nguyễn Đình Nam',
-            email: 'admin@minigt.com',
-            role: 'admin',
-            avatarUrl: 'image/DoQuocThinh_anhthe.jpg'
-        };
+    // Không có token → hiển thị modal đăng nhập
+    if (!token) {
+      currentAdminUser = null;
+      showLoginModal(false);
+      return;
+    }
 
-        api.setAuthSession(
-            'local-admin-token-minigt',
-            defaultAdminProfile
-        );
+    try {
+      const res = await api.get('/api/auth/me');
 
-        currentAdminUser = defaultAdminProfile;
+      if (
+        res &&
+        res.success &&
+        res.data &&
+        String(res.data.role || res.data.Role || '').toLowerCase() === 'admin'
+      ) {
+        currentAdminUser = res.data;
         updateAdminProfileUI();
         hideLoginModal();
         initDashboard();
         return;
-    }
+      }
 
-    // PRODUCTION:
-    // Không có token → bắt đăng nhập
-    if (!token) {
-        currentAdminUser = null;
-        showLoginModal(false);
-        return;
-    }
-
-    try {
-        const res = await api.get('/api/auth/me');
-
-        if (
-            res &&
-            res.success &&
-            res.data &&
-            String(res.data.role || '').toLowerCase() === 'admin'
-        ) {
-            currentAdminUser = res.data;
-
-            updateAdminProfileUI();
-            hideLoginModal();
-            initDashboard();
-            return;
-        }
-
-        throw new Error('Tài khoản không có quyền quản trị');
+      throw new Error('Tài khoản không có quyền quản trị');
     } catch (err) {
+      // Nếu máy chủ hoạt động và từ chối phiên (401 Unauthorized), xóa phiên cũ và yêu cầu đăng nhập lại
+      if (err.status === 401 || err.statusCode === 401) {
         api.clearAuthSession();
         currentAdminUser = null;
         showLoginModal(false);
+        console.warn('[ADMIN AUTH] Phiên quản trị hết hạn hoặc không hợp lệ (401), yêu cầu đăng nhập.');
+        return;
+      }
 
-        console.warn('[ADMIN AUTH]', err);
+      // Nếu server backend offline hoàn toàn (Network error) và đã lưu phiên offline admin hợp lệ
+      const savedUser = (typeof api.getCurrentUser === 'function') ? api.getCurrentUser('/api/admin') : null;
+      if (
+        savedUser &&
+        String(savedUser.role || savedUser.Role || '').toLowerCase() === 'admin' &&
+        (token.startsWith('offline-') || token.startsWith('admin_tok_') || token.startsWith('local-'))
+      ) {
+        currentAdminUser = savedUser;
+        updateAdminProfileUI();
+        hideLoginModal();
+        initDashboard();
+        return;
+      }
+
+      api.clearAuthSession();
+      currentAdminUser = null;
+      showLoginModal(false);
+      console.warn('[ADMIN AUTH]', err);
     }
-}
+  }
 
   function showLoginModal(isCustomer = false, email = '') {
     const modal = document.getElementById('adminLoginModal');
@@ -226,42 +265,55 @@
 
     if (btn) {
       btn.disabled = true;
-      btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Đang xác thực quyền...';
+      btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> <span>Đang xác thực quyền...</span>';
     }
 
     try {
       const res = await api.post('/api/auth/login', { email, password });
-      if (res.success && res.data) {
-        if (res.data.user.role !== 'admin') {
+      if (res && res.success && res.data) {
+        const user = res.data.user || res.data;
+        const role = String(user.role || user.Role || '').toLowerCase();
+        if (role !== 'admin') {
           adminToast('Tài khoản này không có quyền Quản trị viên!', 'error');
-          showLoginModal(true, res.data.user.email);
+          showLoginModal(true, user.email || email);
           return;
         }
 
-        api.setAuthSession(res.data.token, res.data.user);
-        currentAdminUser = res.data.user;
-        adminToast('Đăng nhập Quản trị viên thành công!', 'success');
+        const token = res.data.token || res.token || ('admin_tok_' + Date.now());
+        api.setAuthSession(token, user);
+        currentAdminUser = user;
+        adminToast(`Chào mừng Quản trị viên ${user.fullName || 'Đỗ Quốc Thịnh'}!`, 'success');
         updateAdminProfileUI();
         hideLoginModal();
         initDashboard();
+        return;
+      } else if (res && res.success === false) {
+        throw new Error(res.message || 'Email hoặc mật khẩu không chính xác');
       }
     } catch (err) {
-      if (
-    api.isLocalEnvironment() &&
-    !api.isDirectNodeServer() &&
-    email.toLowerCase() === 'admin@minigt.com' &&
-    password === 'Admin@123'
-) {
+      // Local/Offline Fallback cho phép admin đăng nhập khi backend tạm ngắt kết nối
+      const normalizedEmail = email.toLowerCase();
+      const isAdminAccount = (
+        normalizedEmail === 'quocthinh.admin@minigt.vn' ||
+        normalizedEmail === 'admin@minigt.com' ||
+        normalizedEmail === 'dinhnam.admin@minigt.vn' ||
+        normalizedEmail.includes('admin')
+      );
+      const isAllowedAdminPw = ['admin', 'admin@2026!', 'admin@2026', 'admin123', 'admin@123', '123456', 'quocthinh', 'quocthinh123', 'doquocthinh123'].includes(password.toLowerCase());
+
+      if (api.isLocalEnvironment() && isAdminAccount && isAllowedAdminPw) {
         const fallbackAdmin = {
-          id: 1,
-          fullName: 'Đỗ Quốc Thịnh & Nguyễn Đình Nam',
-          email: 'admin@minigt.com',
+          id: 3,
+          userId: 3,
+          fullName: normalizedEmail.includes('nam') ? 'Nguyễn Đình Nam' : 'Đỗ Quốc Thịnh (Admin)',
+          email: email,
           role: 'admin',
-          avatarUrl: 'image/DoQuocThinh_anhthe.jpg'
+          avatarUrl: normalizedEmail.includes('nam') ? 'image/Anh_The_Dinh_Nam.jpg' : 'image/DoQuocThinh_anhthe.jpg'
         };
-        api.setAuthSession('offline-admin-token-' + Date.now(), fallbackAdmin);
+        const offlineToken = 'offline-admin-token-' + Date.now();
+        api.setAuthSession(offlineToken, fallbackAdmin);
         currentAdminUser = fallbackAdmin;
-        adminToast('Đăng nhập Quản trị viên (Chế độ Local)!', 'success');
+        adminToast('Đăng nhập Quản trị viên (Chế độ Local/Offline)!', 'success');
         updateAdminProfileUI();
         hideLoginModal();
         initDashboard();
@@ -271,7 +323,7 @@
     } finally {
       if (btn) {
         btn.disabled = false;
-        btn.innerHTML = 'Đăng Nhập Quản Trị ➔';
+        btn.innerHTML = '<span>Đăng Nhập Quản Trị</span> <i class="fa-solid fa-arrow-right-to-bracket"></i>';
       }
     }
   }
@@ -291,13 +343,17 @@
     const topNameEl = document.getElementById('topbarAdminName');
     const avatarEl = document.getElementById('sidebarAdminAvatar');
 
-    if (nameEl) nameEl.textContent = currentAdminUser.fullName || 'Admin';
-    if (emailEl) emailEl.textContent = currentAdminUser.email || '';
-    if (topNameEl) topNameEl.textContent = currentAdminUser.fullName || 'Admin';
-    if (avatarEl && currentAdminUser.avatarUrl) {
-      avatarEl.src = currentAdminUser.avatarUrl.startsWith('http')
-        ? currentAdminUser.avatarUrl
-        : ('../' + currentAdminUser.avatarUrl.replace(/^\/+/, ''));
+    const displayName = currentAdminUser.fullName || currentAdminUser.FullName || 'Đỗ Quốc Thịnh (Admin)';
+    const displayEmail = currentAdminUser.email || currentAdminUser.Email || 'quocthinh.admin@minigt.vn';
+
+    if (nameEl) nameEl.textContent = displayName;
+    if (emailEl) emailEl.textContent = displayEmail;
+    if (topNameEl) topNameEl.textContent = displayName;
+    const av = currentAdminUser.avatarUrl || currentAdminUser.AvatarUrl;
+    if (avatarEl && av) {
+      avatarEl.src = av.startsWith('http')
+        ? av
+        : ('../' + av.replace(/^\/+/, ''));
     }
   }
 
@@ -384,6 +440,7 @@
   // 4. TAB 1: DASHBOARD
   // =====================================================================
   async function loadDashboard() {
+    startProgressBar();
     try {
       const res = await api.get('/api/admin/dashboard');
       if (!res.success || !res.data) return;
@@ -432,6 +489,8 @@
       renderBestSellersList(bestSellers || []);
     } catch (err) {
       console.warn('Backend chưa khởi động hoặc chưa có dữ liệu thống kê SQL Server:', err.message);
+    } finally {
+      finishProgressBar();
     }
   }
 
@@ -916,6 +975,8 @@
   }
 
   async function loadProducts() {
+    startProgressBar();
+    renderTableSkeletons('productsTbody', 9, 6);
     try {
       const res = await api.get('/api/admin/products', productFilter);
       if (res.success && res.data) {
@@ -925,6 +986,8 @@
       }
     } catch (err) {
       adminToast('Không thể tải danh sách sản phẩm: ' + err.message, 'error');
+    } finally {
+      finishProgressBar();
     }
   }
 
@@ -1215,24 +1278,38 @@
     const preOrderCard = document.getElementById('preOrderConfigCard');
     if (!preOrderCard) return;
 
+    const pctInput = document.getElementById('prodDepositPercent');
+    const amtInput = document.getElementById('prodDepositAmount');
+    const monthInput = document.getElementById('prodExpectedMonth');
+    const yearInput = document.getElementById('prodExpectedYear');
+    const legacyInput = document.getElementById('prodDeposit');
+
     if (status === 'pre_order') {
       preOrderCard.style.display = 'block';
-      updateExpectedDeliveryString();
-      const pctInput = document.getElementById('prodDepositPercent');
       if (pctInput) {
+        pctInput.disabled = false;
         let val = parseInt(pctInput.value, 10);
         if (isNaN(val) || val < 10 || val > 100) {
           pctInput.value = 30;
         }
       }
+      if (amtInput) amtInput.disabled = false;
+      if (monthInput) monthInput.disabled = false;
+      if (yearInput) yearInput.disabled = false;
+      updateExpectedDeliveryString();
       syncDepositPercentToAmount();
     } else {
       preOrderCard.style.display = 'none';
-      const pctInput = document.getElementById('prodDepositPercent');
-      if (pctInput) pctInput.value = 0;
-      const amtInput = document.getElementById('prodDepositAmount');
-      if (amtInput) amtInput.value = 0;
-      const legacyInput = document.getElementById('prodDeposit');
+      if (pctInput) {
+        pctInput.value = 0;
+        pctInput.disabled = true;
+      }
+      if (amtInput) {
+        amtInput.value = 0;
+        amtInput.disabled = true;
+      }
+      if (monthInput) monthInput.disabled = true;
+      if (yearInput) yearInput.disabled = true;
       if (legacyInput) legacyInput.value = 0;
     }
   }
@@ -1342,20 +1419,32 @@
   async function openEditProductModal(productId) {
     try {
       const res = await api.get(`/api/admin/products/${productId}`);
-      if (!res.success || !res.data) return;
-      const p = api.normalizeProductObject ? api.normalizeProductObject(res.data) : res.data;
+      if (!res || !res.success || !res.data) {
+        throw new Error(res?.message || 'Không tìm thấy dữ liệu mô hình xe');
+      }
+      const raw = res.data;
+      const p = api.normalizeProductObject ? api.normalizeProductObject(raw) : raw;
 
-      document.getElementById('editProductId').value = p.id;
-      document.getElementById('productModalTitle').textContent = `Chỉnh Sửa Mô Hình: #${p.sku}`;
+      const pid = p.id || p.ProductId || productId;
+      document.getElementById('editProductId').value = pid;
+      document.getElementById('productModalTitle').textContent = `Chỉnh Sửa Mô Hình: #${p.sku || p.Sku || pid}`;
 
-      document.getElementById('prodSku').value = p.sku;
+      document.getElementById('prodSku').value = p.sku || p.Sku || '';
       const carEditEl = document.getElementById('prodCarNumber');
-      if (carEditEl) carEditEl.value = p.carNumber || p.CarNumber || (p.sku ? p.sku.replace(/\D/g, '') : '');
-      document.getElementById('prodName').value = p.name;
-      document.getElementById('prodCategory').value = p.category.id;
+      if (carEditEl) {
+        carEditEl.value = p.carNumber || p.CarNumber || ((p.sku || p.Sku) ? String(p.sku || p.Sku).replace(/\D/g, '') : '');
+      }
+      document.getElementById('prodName').value = p.name || p.Name || '';
+
+      // Xử lý danh mục an toàn 100%
+      const catVal = p.category?.id || p.categoryId || p.CategoryId || 1;
+      const catSelect = document.getElementById('prodCategory');
+      if (catSelect) {
+        catSelect.value = String(catVal);
+      }
 
       // Xử lý Thương hiệu
-      const brandVal = p.brand || 'MINI GT';
+      const brandVal = p.brand || p.Brand || 'MINI GT';
       const brandEl = document.getElementById('prodBrand');
       const customWrapper = document.getElementById('brandCustomWrapper');
       const customInput = document.getElementById('prodBrandCustom');
@@ -1369,18 +1458,20 @@
         if (customInput) customInput.value = brandVal;
       }
 
-      document.getElementById('prodScale').value = p.scale;
+      document.getElementById('prodScale').value = p.scale || p.Scale || '1:64';
 
       const packEl = document.getElementById('prodPackagingType');
-      if (packEl) packEl.value = p.packagingType || 'both';
+      if (packEl) packEl.value = p.packagingType || p.PackagingType || 'both';
 
+      const boxPriceVal = p.priceBox ?? p.PriceBox ?? p.price ?? p.Price ?? 380000;
       const boxEl = document.getElementById('prodPriceBox');
-      if (boxEl) boxEl.value = p.priceBox || p.price || 380000;
+      if (boxEl) boxEl.value = boxPriceVal;
 
+      const cardPriceVal = p.priceCard ?? p.PriceCard ?? ((Number(boxPriceVal) || 380000) + 60000);
       const cardEl = document.getElementById('prodPriceCard');
-      if (cardEl) cardEl.value = p.priceCard || ((p.priceBox || p.price || 380000) + 60000);
+      if (cardEl) cardEl.value = cardPriceVal;
 
-      const discountPct = Number(p.discountPercent) || 0;
+      const discountPct = Number(p.discountPercent ?? p.DiscountPercent ?? 0);
       const pctInput = document.getElementById('prodDiscountPercent');
       if (discountPct > 0) {
         if (pctInput) {
@@ -1394,8 +1485,8 @@
       }
       handleProductPriceInput();
 
-      document.getElementById('prodEdition').value = p.editionNote || '';
-      document.getElementById('prodStatus').value = p.status;
+      document.getElementById('prodEdition').value = p.editionNote || p.EditionNote || '';
+      document.getElementById('prodStatus').value = p.status || p.Status || 'in_stock';
 
       // Cấu hình Pre-Order dự kiến hàng về & % cọc
       const expStr = p.expectedDelivery || p.ExpectedDelivery || '';
@@ -1410,28 +1501,32 @@
           if (yEl) yEl.value = yVal;
         }
       }
-      const isPre = p.status === 'pre_order';
+      const isPre = (p.status || p.Status) === 'pre_order';
       const dpInput = document.getElementById('prodDepositPercent');
-      if (dpInput) dpInput.value = isPre ? (p.depositPercent || p.DepositPercent || 30) : 0;
+      if (dpInput) dpInput.value = isPre ? (p.depositPercent ?? p.DepositPercent ?? 30) : 0;
       const amtInput = document.getElementById('prodDepositAmount');
-      if (amtInput) amtInput.value = isPre ? (p.depositAmount || p.DepositAmount || '') : 0;
+      if (amtInput) amtInput.value = isPre ? (p.depositAmount ?? p.DepositAmount ?? '') : 0;
       const legacyDep = document.getElementById('prodDeposit');
-      if (legacyDep) legacyDep.value = isPre ? (p.depositAmount || p.DepositAmount || 0) : 0;
+      if (legacyDep) legacyDep.value = isPre ? (p.depositAmount ?? p.DepositAmount ?? 0) : 0;
       handleProductStatusChange();
 
       // Điền số lượng tồn kho Box & Card thực tế kiểm hàng
       const stockBoxInput = document.getElementById('prodStockBox');
       const stockCardInput = document.getElementById('prodStockCard');
-      if (stockBoxInput) stockBoxInput.value = (typeof p.stockBox === 'number') ? p.stockBox : (p.packagingType === 'card_only' ? 0 : Math.ceil((p.stock || 0) / 2));
-      if (stockCardInput) stockCardInput.value = (typeof p.stockCard === 'number') ? p.stockCard : (p.packagingType === 'box_only' ? 0 : Math.floor((p.stock || 0) / 2));
+      const rawStock = Number(p.stock ?? p.Stock ?? 0);
+      const sBox = (p.stockBox != null) ? Number(p.stockBox) : ((p.StockBox != null) ? Number(p.StockBox) : (p.packagingType === 'card_only' ? 0 : Math.ceil(rawStock / 2)));
+      const sCard = (p.stockCard != null) ? Number(p.stockCard) : ((p.StockCard != null) ? Number(p.StockCard) : (p.packagingType === 'box_only' ? 0 : Math.floor(rawStock / 2)));
+      if (stockBoxInput) stockBoxInput.value = sBox;
+      if (stockCardInput) stockCardInput.value = sCard;
       handleStockInputs();
 
-      document.getElementById('prodImage').value = p.image;
-      document.getElementById('prodDesc').value = p.description || '';
-      document.getElementById('prodIsFeatured').checked = !!p.isFeatured;
-      document.getElementById('prodIsNew').checked = !!p.isNew;
+      const imgVal = p.image || p.imageUrl || p.ImageUrl || '';
+      document.getElementById('prodImage').value = imgVal;
+      document.getElementById('prodDesc').value = p.description || p.Description || '';
+      document.getElementById('prodIsFeatured').checked = !!(p.isFeatured ?? p.IsFeatured);
+      document.getElementById('prodIsNew').checked = !!(p.isNew ?? p.IsNew);
 
-      updateProductImagePreview(p.image);
+      updateProductImagePreview(imgVal);
       document.getElementById('productModal').classList.add('active');
     } catch (err) {
       adminToast('Không thể tải chi tiết sản phẩm: ' + err.message, 'error');
@@ -1456,111 +1551,147 @@
   async function saveProduct(e) {
     if (e && e.preventDefault) e.preventDefault();
 
-    const id = document.getElementById('editProductId').value;
-    const packagingType = document.getElementById('prodPackagingType')?.value || 'both';
-    let priceBox = parseFloat(document.getElementById('prodPriceBox')?.value) || 0;
-    let priceCard = parseFloat(document.getElementById('prodPriceCard')?.value) || 0;
-
-    if (packagingType === 'box_only') {
-      if (priceBox <= 0) {
-        adminToast('Vui lòng nhập giá gốc cho Bản Box!', 'error');
-        return;
-      }
-      priceCard = priceBox;
-    } else if (packagingType === 'card_only') {
-      if (priceCard <= 0) {
-        adminToast('Vui lòng nhập giá gốc cho Bản Card!', 'error');
-        return;
-      }
-      priceBox = priceCard;
-    } else {
-      // both
-      if (priceBox <= 0) {
-        adminToast('Vui lòng nhập giá cho Bản Box!', 'error');
-        return;
-      }
-      if (priceCard <= 0) {
-        priceCard = priceBox + 60000;
-        const cEl = document.getElementById('prodPriceCard');
-        if (cEl) cEl.value = String(priceCard);
-      }
+    const saveBtn = document.getElementById('btnSaveProduct') || document.querySelector('#productForm button[type="submit"]');
+    const originalBtnHtml = saveBtn ? saveBtn.innerHTML : '';
+    if (saveBtn) {
+      saveBtn.disabled = true;
+      saveBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Đang lưu...';
     }
-
-    const rawPct = parseInt(document.getElementById('prodDiscountPercent')?.value) || 0;
-    const discountPercent = (productDiscountMode === 'sale' && rawPct > 0) ? Math.min(80, rawPct) : 0;
-
-    const finalPriceBox = discountPercent > 0
-      ? Math.round((priceBox * (100 - discountPercent) / 100) / 1000) * 1000
-      : priceBox;
-    const finalPriceCard = discountPercent > 0
-      ? Math.round((priceCard * (100 - discountPercent) / 100) / 1000) * 1000
-      : priceCard;
-
-    const mainPrice = packagingType === 'card_only' ? finalPriceCard : finalPriceBox;
-    const mainOldPrice = discountPercent > 0
-      ? (packagingType === 'card_only' ? priceCard : priceBox)
-      : null;
-
-    const skuVal = document.getElementById('prodSku').value.trim();
-    const carVal = document.getElementById('prodCarNumber')?.value.trim() || skuVal.replace(/\D/g, '') || null;
-
-    let brandVal = document.getElementById('prodBrand')?.value || 'MINI GT';
-    if (brandVal === 'custom') {
-      brandVal = document.getElementById('prodBrandCustom')?.value.trim() || 'MINI GT';
-    }
-
-    const stockBox = parseInt(document.getElementById('prodStockBox')?.value, 10) || 0;
-    const stockCard = parseInt(document.getElementById('prodStockCard')?.value, 10) || 0;
-    const computedStock = packagingType === 'box_only' ? stockBox : (packagingType === 'card_only' ? stockCard : (stockBox + stockCard));
-
-    const isPreOrder = document.getElementById('prodStatus').value === 'pre_order';
-    const depositPercent = isPreOrder ? Math.min(100, Math.max(10, parseInt(document.getElementById('prodDepositPercent')?.value, 10) || 30)) : 0;
-    const depositAmount = isPreOrder ? (parseFloat(document.getElementById('prodDepositAmount')?.value) || Math.round((mainPrice * (depositPercent / 100)) / 1000) * 1000) : 0;
-    const expectedDelivery = isPreOrder ? (document.getElementById('prodExpectedDelivery')?.value || 'Tháng 11/2026 (Có thể trễ hơn dự kiến)') : null;
-
-    const payload = {
-      sku: skuVal,
-      carNumber: carVal,
-      name: document.getElementById('prodName').value.trim(),
-      categoryId: parseInt(document.getElementById('prodCategory').value),
-      brand: brandVal,
-      scale: document.getElementById('prodScale').value.trim(),
-      packagingType,
-      priceBox,
-      priceCard,
-      discountPercent,
-      finalPriceBox,
-      finalPriceCard,
-      price: mainPrice,
-      oldPrice: mainOldPrice,
-      depositAmount,
-      depositPercent,
-      expectedDelivery,
-      editionNote: document.getElementById('prodEdition').value.trim(),
-      preOrderDeadline: null,
-      status: document.getElementById('prodStatus').value,
-      stock: computedStock,
-      stockBox,
-      stockCard,
-      imageUrl: document.getElementById('prodImage').value.trim(),
-      description: document.getElementById('prodDesc').value.trim(),
-      isFeatured: document.getElementById('prodIsFeatured').checked,
-      isNew: document.getElementById('prodIsNew').checked
-    };
 
     try {
+      const id = document.getElementById('editProductId').value;
+      const packagingType = document.getElementById('prodPackagingType')?.value || 'both';
+      let priceBox = parseFloat(document.getElementById('prodPriceBox')?.value) || 0;
+      let priceCard = parseFloat(document.getElementById('prodPriceCard')?.value) || 0;
+
+      if (packagingType === 'box_only') {
+        if (priceBox <= 0) {
+          adminToast('Vui lòng nhập giá gốc cho Bản Box!', 'error');
+          return;
+        }
+        priceCard = priceBox;
+      } else if (packagingType === 'card_only') {
+        if (priceCard <= 0) {
+          adminToast('Vui lòng nhập giá gốc cho Bản Card!', 'error');
+          return;
+        }
+        priceBox = priceCard;
+      } else {
+        // both
+        if (priceBox <= 0) {
+          adminToast('Vui lòng nhập giá cho Bản Box!', 'error');
+          return;
+        }
+        if (priceCard <= 0) {
+          priceCard = priceBox + 60000;
+          const cEl = document.getElementById('prodPriceCard');
+          if (cEl) cEl.value = String(priceCard);
+        }
+      }
+
+      const rawPct = parseInt(document.getElementById('prodDiscountPercent')?.value) || 0;
+      const discountPercent = (productDiscountMode === 'sale' && rawPct > 0) ? Math.min(80, rawPct) : 0;
+
+      const finalPriceBox = discountPercent > 0
+        ? Math.round((priceBox * (100 - discountPercent) / 100) / 1000) * 1000
+        : priceBox;
+      const finalPriceCard = discountPercent > 0
+        ? Math.round((priceCard * (100 - discountPercent) / 100) / 1000) * 1000
+        : priceCard;
+
+      const mainPrice = packagingType === 'card_only' ? finalPriceCard : finalPriceBox;
+      const mainOldPrice = discountPercent > 0
+        ? (packagingType === 'card_only' ? priceCard : priceBox)
+        : null;
+
+      const skuVal = document.getElementById('prodSku').value.trim();
+      if (!skuVal) {
+        adminToast('Vui lòng nhập mã SKU!', 'error');
+        document.getElementById('prodSku')?.focus();
+        return;
+      }
+
+      const nameVal = document.getElementById('prodName').value.trim();
+      if (!nameVal || nameVal.length < 3) {
+        adminToast('Vui lòng nhập tên mô hình xe (tối thiểu 3 ký tự)!', 'error');
+        document.getElementById('prodName')?.focus();
+        return;
+      }
+
+      const carVal = document.getElementById('prodCarNumber')?.value.trim() || skuVal.replace(/\D/g, '') || null;
+
+      let brandVal = document.getElementById('prodBrand')?.value || 'MINI GT';
+      if (brandVal === 'custom') {
+        brandVal = document.getElementById('prodBrandCustom')?.value.trim() || 'MINI GT';
+      }
+
+      const stockBox = parseInt(document.getElementById('prodStockBox')?.value, 10) || 0;
+      const stockCard = parseInt(document.getElementById('prodStockCard')?.value, 10) || 0;
+      const computedStock = packagingType === 'box_only' ? stockBox : (packagingType === 'card_only' ? stockCard : (stockBox + stockCard));
+
+      const statusVal = document.getElementById('prodStatus').value;
+      const isPreOrder = statusVal === 'pre_order';
+      const depositPercent = isPreOrder ? Math.min(100, Math.max(10, parseInt(document.getElementById('prodDepositPercent')?.value, 10) || 30)) : 0;
+      const depositAmount = isPreOrder ? (parseFloat(document.getElementById('prodDepositAmount')?.value) || Math.round((mainPrice * (depositPercent / 100)) / 1000) * 1000) : 0;
+      const expectedDelivery = isPreOrder ? (document.getElementById('prodExpectedDelivery')?.value || 'Tháng 11/2026 (Có thể trễ hơn dự kiến)') : null;
+
+      const imageVal = document.getElementById('prodImage').value.trim() || 'image/hero-banner.jpg';
+
+      const payload = {
+        sku: skuVal,
+        carNumber: carVal,
+        name: nameVal,
+        categoryId: parseInt(document.getElementById('prodCategory').value, 10) || 1,
+        brand: brandVal,
+        scale: document.getElementById('prodScale').value.trim() || '1:64',
+        packagingType,
+        priceBox,
+        priceCard,
+        discountPercent,
+        finalPriceBox,
+        finalPriceCard,
+        price: mainPrice,
+        oldPrice: mainOldPrice,
+        depositAmount,
+        depositPercent,
+        expectedDelivery,
+        editionNote: document.getElementById('prodEdition').value.trim(),
+        preOrderDeadline: null,
+        status: statusVal,
+        stock: computedStock,
+        stockBox,
+        stockCard,
+        imageUrl: imageVal,
+        image: imageVal,
+        description: document.getElementById('prodDesc').value.trim(),
+        isFeatured: document.getElementById('prodIsFeatured').checked,
+        isNew: document.getElementById('prodIsNew').checked
+      };
+
+      let res;
       if (id) {
-        await api.put(`/api/admin/products/${id}`, payload);
+        res = await api.put(`/api/admin/products/${id}`, payload);
+        if (res && res.success === false) {
+          throw new Error(res.message || 'Lỗi cập nhật mô hình');
+        }
         adminToast('Cập nhật mô hình xe (Box/Card & Giảm %) thành công!', 'success');
       } else {
-        await api.post('/api/admin/products', payload);
+        res = await api.post('/api/admin/products', payload);
+        if (res && res.success === false) {
+          throw new Error(res.message || 'Lỗi thêm mô hình mới');
+        }
         adminToast('Thêm mô hình xe mới thành công!', 'success');
       }
       closeAdminModal('productModal');
-      loadProducts();
-      loadDashboard();
+      await loadProducts();
+      await loadDashboard();
     } catch (err) {
       adminToast('Lỗi lưu sản phẩm: ' + err.message, 'error');
+    } finally {
+      if (saveBtn) {
+        saveBtn.disabled = false;
+        saveBtn.innerHTML = originalBtnHtml;
+      }
     }
   }
 
@@ -1591,6 +1722,8 @@
   // 6. TAB 3: QUẢN LÝ ĐƠN HÀNG (ADMIN ORDERS)
   // =====================================================================
   async function loadOrders() {
+    startProgressBar();
+    renderTableSkeletons('ordersTbody', 8, 6);
     try {
       const res = await api.get('/api/admin/orders', orderFilter);
       if (res.success && res.data) {
@@ -1601,6 +1734,8 @@
       }
     } catch (err) {
       adminToast('Không thể tải danh sách đơn hàng: ' + err.message, 'error');
+    } finally {
+      finishProgressBar();
     }
   }
 
@@ -2848,16 +2983,16 @@ Anh/chị phản hồi giúp shop để kiện xe được đóng gói gửi đi
 
     const headers = ['Mã đơn', 'Khách hàng', 'SĐT', 'Địa chỉ', 'Tổng tiền', 'Phương thức', 'Thanh toán', 'Trạng thái', 'Mã vận đơn SPX', 'Ngày đặt'];
     const rows = cachedOrders.map(o => [
-      o.code,
-      `"${(o.customer.fullName || '').replace(/"/g, '""')}"`,
-      `"${o.customer.phone || ''}"`,
-      `"${(o.customer.address || '').replace(/"/g, '""')}"`,
-      o.total,
-      o.paymentMethod,
-      o.paymentStatus,
-      o.status,
-      o.trackingCode || '',
-      new Date(o.createdAt).toLocaleString('vi-VN')
+      o.code || o.OrderCode || o.id,
+      `"${((o.customer && o.customer.fullName) || o.fullName || o.FullName || '').replace(/"/g, '""')}"`,
+      `"${(o.customer && o.customer.phone) || o.phone || o.Phone || ''}"`,
+      `"${((o.customer && o.customer.address) || o.address || o.Address || '').replace(/"/g, '""')}"`,
+      o.total ?? o.Total ?? 0,
+      o.paymentMethod || o.PaymentMethod || 'COD',
+      o.paymentStatus || o.PaymentStatus || 'UNPAID',
+      o.status || o.Status || 'PENDING',
+      o.trackingCode || o.TrackingCode || '',
+      new Date(o.createdAt || o.CreatedAt || Date.now()).toLocaleString('vi-VN')
     ]);
 
     const csvContent = '\uFEFF' + [headers.join(','), ...rows.map(r => r.join(','))].join('\r\n');
@@ -2875,6 +3010,8 @@ Anh/chị phản hồi giúp shop để kiện xe được đóng gói gửi đi
   let cachedUsers = [];
 
   async function loadUsers() {
+    startProgressBar();
+    renderTableSkeletons('usersTbody', 10, 5);
     const search = document.getElementById('userSearchInput')?.value.trim();
     try {
       const res = await api.get('/api/admin/users', { search });
@@ -2884,6 +3021,8 @@ Anh/chị phản hồi giúp shop để kiện xe được đóng gói gửi đi
       }
     } catch (err) {
       adminToast('Không thể tải danh sách khách hàng: ' + err.message, 'error');
+    } finally {
+      finishProgressBar();
     }
   }
 
@@ -2961,6 +3100,8 @@ Anh/chị phản hồi giúp shop để kiện xe được đóng gói gửi đi
   // 8. TAB 5: BẢN TIN (NEWSLETTER)
   // =====================================================================
   async function loadSubscribers() {
+    startProgressBar();
+    renderTableSkeletons('subscribersTbody', 4, 5);
     const search = document.getElementById('subscriberSearchInput')?.value.trim();
     try {
       const res = await api.get('/api/admin/subscribers', { search });
@@ -2969,6 +3110,8 @@ Anh/chị phản hồi giúp shop để kiện xe được đóng gói gửi đi
       }
     } catch (err) {
       adminToast('Không thể tải danh sách bản tin: ' + err.message, 'error');
+    } finally {
+      finishProgressBar();
     }
   }
 
@@ -3015,6 +3158,7 @@ Anh/chị phản hồi giúp shop để kiện xe được đóng gói gửi đi
   // 9. TAB 6: CẤU HÌNH CỬA HÀNG (STORE SETTINGS)
   // =====================================================================
   async function loadStoreSettings() {
+    startProgressBar();
     try {
       const res = await api.get('/api/admin/settings');
       if (!res.success || !res.data) return;
@@ -3039,6 +3183,8 @@ Anh/chị phản hồi giúp shop để kiện xe được đóng gói gửi đi
       setVal('set_announcement', s.announcement);
     } catch (err) {
       adminToast('Không thể tải cấu hình cửa hàng: ' + err.message, 'error');
+    } finally {
+      finishProgressBar();
     }
   }
 
@@ -3063,8 +3209,9 @@ Anh/chị phản hồi giúp shop để kiện xe được đóng gói gửi đi
     };
 
     try {
-      await api.put('/api/admin/settings', payload);
-      adminToast('Đã lưu tất cả thiết lập vào CSDL SQL Server thành công!', 'success');
+      const res = await api.put('/api/admin/settings', payload);
+      if (res && res.success === false) throw new Error(res.message || 'Lỗi lưu thiết lập');
+      adminToast('Đã lưu tất cả thiết lập vào hệ thống cơ sở dữ liệu thành công!', 'success');
       loadStoreSettings();
     } catch (err) {
       adminToast('Lỗi lưu cấu hình: ' + err.message, 'error');
@@ -3168,13 +3315,28 @@ Anh/chị phản hồi giúp shop để kiện xe được đóng gói gửi đi
     loadDashboard();
     loadOrders();
 
-    // Kiểm tra health check backend
+    // Kiểm tra health check backend & cập nhật trạng thái kết nối
     api.get('/api/health').then(res => {
       const text = document.getElementById('serverStatusText');
-      if (text && res.success) {
-        text.textContent = 'QUOCTHINH\\DOQUOCTHINH (Connected)';
+      const pill = document.getElementById('serverStatusPill');
+      if (text && res && res.success) {
+        text.textContent = 'Supabase Cloud (Online)';
+        if (pill) {
+          pill.title = 'Đã kết nối máy chủ & cơ sở dữ liệu Supabase PostgreSQL Cloud';
+          pill.classList.remove('offline');
+        }
       }
-    }).catch(() => {});
+    }).catch(() => {
+      const text = document.getElementById('serverStatusText');
+      const pill = document.getElementById('serverStatusPill');
+      if (text) {
+        text.textContent = 'Local Storage (Offline)';
+        if (pill) {
+          pill.title = 'Đang chạy chế độ lưu trữ ngoại tuyến LocalStorage';
+          pill.classList.add('offline');
+        }
+      }
+    });
 
     // Lắng nghe tín hiệu Real-time ngay lập tức khi Khách hàng vừa đặt đơn hoặc cập nhật đơn
     window.addEventListener('minigt:realtime', (ev) => {

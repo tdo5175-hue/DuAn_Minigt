@@ -12,6 +12,8 @@
   <link rel="stylesheet" href="css/admin.css">
 </head>
 <body>
+  <!-- Slim Top Loading Progress Bar (YouTube/GitHub-style) -->
+  <div id="adminTopProgressBar" class="admin-top-progress-bar"></div>
 
   <!-- =====================================================================
        1. SIDEBAR NAVIGATION
@@ -54,8 +56,8 @@
       <div class="admin-user-info">
         <img src="../image/DoQuocThinh_anhthe.jpg" alt="Admin" class="admin-avatar" id="sidebarAdminAvatar">
         <div style="overflow:hidden;">
-          <div class="admin-name" id="sidebarAdminName">Đỗ Quốc Thịnh</div>
-          <div class="admin-role" id="sidebarAdminEmail">Nhóm Thực Hiện Dự Án</div>
+          <div class="admin-name" id="sidebarAdminName">Đỗ Quốc Thịnh (Admin)</div>
+          <div class="admin-role" id="sidebarAdminEmail">quocthinh.admin@minigt.vn</div>
         </div>
       </div>
       <div style="display: flex; gap: 6px;">
@@ -83,7 +85,7 @@
         <h1 class="topbar-title" id="pageTitle">Tổng Quan Quản Trị Store</h1>
       </div>
 
-      <div class="topbar-actions" style="flex-wrap:wrap;">
+      <div class="topbar-actions">
         <!-- Unified Display Settings (Theme & Language in 1 Dropdown) -->
         <div class="admin-settings-wrap" id="adminSettingsWrap">
           <button type="button" class="btn-admin btn-admin-outline" id="adminDisplaySettingsBtn" onclick="toggleAdminSettingsMenu(event)" title="Cài đặt giao diện & ngôn ngữ" aria-label="Cài đặt hiển thị">
@@ -121,11 +123,11 @@
         <a href="../index.html" class="btn-admin btn-admin-outline" style="text-decoration:none; display:inline-flex; align-items:center; gap:6px;">
           <i class="fa-solid fa-store"></i> Xem Cửa Hàng
         </a>
-        <div class="server-status-pill" id="serverStatusPill">
+        <div class="server-status-pill" id="serverStatusPill" title="Trạng thái máy chủ">
           <span class="dot"></span>
-          <span id="serverStatusText">QUOCTHINH\DOQUOCTHINH</span>
+          <span id="serverStatusText">Đang kết nối...</span>
         </div>
-        <div style="font-size: 13px; font-weight: 700; color: var(--admin-text-main);" id="topbarAdminName">
+        <div style="font-size: 13px; font-weight: 700; color: var(--admin-text-main);" id="topbarAdminName" class="topbar-admin-name">
           Admin
         </div>
       </div>
@@ -484,7 +486,7 @@
             </button>
           </div>
 
-          <form id="storeSettingsForm" onsubmit="saveStoreSettings(event)">
+          <form id="storeSettingsForm" onsubmit="saveStoreSettings(event)" novalidate>
             <div style="display:grid; grid-template-columns: 1fr 1fr; gap:1.5rem;" class="settings-form-grid">
               
               <!-- Cột 1: Thông tin liên hệ & Vận chuyển -->
@@ -695,7 +697,7 @@
       <button class="modal-close" onclick="closeAdminModal('productModal')">✕</button>
       <h3 style="font-size: 18px; font-weight: 800; margin-bottom: 1rem;" id="productModalTitle">Thêm Mô Hình Mới</h3>
       
-      <form id="productForm" onsubmit="saveProduct(event)">
+      <form id="productForm" onsubmit="saveProduct(event)" novalidate>
         <input type="hidden" id="editProductId">
 
         <div class="form-grid">
@@ -942,7 +944,7 @@
                 </label>
                 <div style="display:flex; align-items:center; gap:6px;">
                   <div style="position:relative; width:95px;">
-                    <input type="number" id="prodDepositPercent" class="form-control" value="30" min="10" max="100" style="font-weight:700; padding-right:24px;" oninput="syncDepositPercentToAmount()">
+                    <input type="number" id="prodDepositPercent" class="form-control" value="30" min="0" max="100" style="font-weight:700; padding-right:24px;" oninput="syncDepositPercentToAmount()">
                     <span style="position:absolute; right:8px; top:50%; transform:translateY(-50%); font-weight:700; color:#5b21b6; pointer-events:none;">%</span>
                   </div>
                   <div style="flex:1; position:relative;">
@@ -1039,7 +1041,9 @@
 
         <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 1rem;">
           <button type="button" class="btn-admin btn-admin-outline" onclick="closeAdminModal('productModal')">Hủy</button>
-          <button type="submit" class="btn-admin btn-admin-primary">Lưu Mô Hình</button>
+          <button type="submit" id="btnSaveProduct" class="btn-admin btn-admin-primary">
+            <i class="fa-solid fa-floppy-disk"></i> Lưu Mô Hình
+          </button>
         </div>
       </form>
     </div>
@@ -1159,57 +1163,87 @@
     </div>
   </div>
 
-  <!-- ADMIN AUTH MODAL: SECURE LOGIN (NO HARDCODED PASSWORDS) -->
+  <!-- ADMIN AUTH MODAL: SECURE ENTERPRISE LOGIN PORTAL -->
   <div class="modal-overlay" id="adminLoginModal">
-    <div class="modal-card" style="max-width: 420px;">
-      <div style="text-align: center; margin-bottom: 1.25rem;">
-        <img src="../image/logo-minigt.webp" alt="MINI GT" style="max-height: 40px; margin: 0 auto 8px auto;">
-        <div style="display:inline-block; font-size:11px; font-weight:800; background:#dc2626; color:#fff; padding:2px 8px; border-radius:4px; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:6px;">
-          ADMIN PORTAL ACCESS
+    <div class="modal-card admin-auth-card">
+      <!-- Branded Security Header -->
+      <div class="auth-header">
+        <div class="auth-security-tag">
+          <i class="fa-solid fa-shield-halved"></i> CỔNG BẢO MẬT NỘI BỘ • SSL 256-BIT
         </div>
-        <h3 style="font-size: 19px; font-weight: 800; color: var(--admin-text-main); margin-bottom: 4px;">
-          Xác Thực Quyền Quản Trị
-        </h3>
-        <p style="font-size: 12px; color: #64748b;">
-          Vui lòng đăng nhập bằng tài khoản Quản Trị Viên để tiếp tục
-        </p>
+        <img src="../image/logo-minigt.webp" alt="MINI GT Logo" class="auth-brand-logo">
+        <h3 class="auth-title">Xác Thực Quyền Quản Trị</h3>
+        <p class="auth-subtitle">Đăng nhập tài khoản Quản trị viên để quản lý hệ thống Store</p>
       </div>
 
-      <div id="authRoleWarning" style="display:none; background:#fef2f2; border:1px solid #fecaca; border-radius:8px; padding:12px; font-size:12px; color:#991b1b; margin-bottom:14px;">
-        <div style="font-weight:700; margin-bottom:4px;"><i class="fa-solid fa-ban"></i> TỪ CHỐI TRUY CẬP: Không có quyền Quản trị!</div>
-        <div id="authRoleWarningText">Tài khoản này không có quyền Quản trị viên.</div>
-        <div style="margin-top:10px;">
-          <a href="../index.html" class="btn-admin btn-admin-primary" style="padding:6px 12px; font-size:12px; text-decoration:none; display:inline-block;">
-            Quay Về Trang Mua Sắm
-          </a>
-        </div>
-      </div>
-
-      <form id="formAdminLogin" onsubmit="handleAdminLogin(event)">
-        <div class="form-group" style="text-align: left;">
-          <label class="form-label" style="font-weight:700;" for="adminLoginEmail">Email Quản Trị Viên</label>
-          <input type="email" id="adminLoginEmail" class="form-control" placeholder="admin@gmail.com" required autocomplete="email">
-        </div>
-
-        <div class="form-group" style="text-align: left;">
-          <div style="display:flex; justify-content:space-between; align-items:center;">
-            <label class="form-label" style="font-weight:700;" for="adminLoginPassword">Mật khẩu</label>
-            <span style="font-size:11px; color:#64748b; cursor:pointer;" onclick="togglePasswordVisibility('adminLoginPassword', this)">
-              <i class="fa-solid fa-eye"></i> Hiện
-            </span>
+      <!-- Auth Form Body -->
+      <div class="auth-body">
+        <div id="authRoleWarning" style="display:none; background:#fef2f2; border:1px solid #fecaca; border-radius:10px; padding:12px 14px; font-size:12px; color:#991b1b; margin-bottom:14px;">
+          <div style="font-weight:750; margin-bottom:4px; display:flex; align-items:center; gap:6px;">
+            <i class="fa-solid fa-triangle-exclamation"></i> TỪ CHỐI TRUY CẬP: Không có quyền Quản trị!
           </div>
-          <input type="password" id="adminLoginPassword" class="form-control" placeholder="••••••••" required autocomplete="current-password">
+          <div id="authRoleWarningText">Tài khoản này không có quyền Quản trị viên.</div>
+          <div style="margin-top:10px;">
+            <a href="../index.html" class="btn-admin btn-admin-primary" style="padding:6px 14px; font-size:12px; text-decoration:none; display:inline-block;">
+              Quay Về Trang Mua Sắm
+            </a>
+          </div>
         </div>
 
-        <button type="submit" id="btnAdminLoginSubmit" class="btn-admin btn-admin-primary" style="width: 100%; margin-top: 10px; padding: 0.8rem; font-size:14px; font-weight:800; letter-spacing:0.3px;">
-          Đăng Nhập Quản Trị ➔
-        </button>
-      </form>
+        <form id="formAdminLogin" onsubmit="handleAdminLogin(event)" novalidate>
+          <div class="form-group" style="text-align: left; margin-bottom: 1.15rem;">
+            <label class="form-label" style="font-weight: 700; color: var(--admin-text-main); display: flex; justify-content: space-between; align-items: center;" for="adminLoginEmail">
+              <span><i class="fa-solid fa-user-shield" style="color: #e10600; margin-right: 5px;"></i> Email Quản Trị Viên</span>
+              <span style="font-size: 11px; font-weight: 600; color: #64748b;">(Cổng bảo mật SSL)</span>
+            </label>
+            <div class="auth-input-wrapper">
+              <i class="fa-solid fa-envelope auth-field-icon"></i>
+              <input type="email" id="adminLoginEmail" class="form-control auth-input-styled" placeholder="Nhập email tài khoản quản trị..." required autocomplete="username email">
+            </div>
+          </div>
 
-      <div style="margin-top:16px; text-align:center; border-top:1px solid #f1f5f9; padding-top:12px;">
-        <a href="../index.html" style="font-size:12px; color:#64748b; text-decoration:none; display:inline-flex; align-items:center; gap:4px;">
-          ← Quay về Cửa hàng mua sắm MINI GT
-        </a>
+          <div class="form-group" style="text-align: left; margin-bottom: 1.15rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+              <label class="form-label" style="font-weight: 700; color: var(--admin-text-main); margin: 0;" for="adminLoginPassword">
+                <i class="fa-solid fa-lock" style="color: #e10600; margin-right: 5px;"></i> Mật Khẩu Bảo Mật
+              </label>
+              <button type="button" class="auth-pw-toggle-btn" onclick="togglePasswordVisibility('adminLoginPassword', this)">
+                <i class="fa-solid fa-eye"></i> <span>Hiện</span>
+              </button>
+            </div>
+            <div class="auth-input-wrapper">
+              <i class="fa-solid fa-key auth-field-icon"></i>
+              <input type="password" id="adminLoginPassword" class="form-control auth-input-styled" placeholder="Nhập mật khẩu quản trị viên..." required autocomplete="current-password">
+            </div>
+          </div>
+
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem; font-size: 12px;">
+            <label style="display: flex; align-items: center; gap: 7px; color: #475569; font-weight: 600; cursor: pointer; user-select: none;">
+              <input type="checkbox" id="adminRememberMe" checked style="width: 15px; height: 15px; accent-color: #e10600; cursor: pointer;">
+              Duy trì phiên đăng nhập
+            </label>
+            <a href="javascript:void(0)" onclick="adminToast('Quên mật khẩu? Vui lòng liên hệ Trưởng nhóm Đỗ Quốc Thịnh (0988 164 164) để cấp lại.', 'info')" style="color: #2563eb; text-decoration: none; font-weight: 600;">
+              <i class="fa-solid fa-circle-question"></i> Quên mật khẩu?
+            </a>
+          </div>
+
+          <button type="submit" id="btnAdminLoginSubmit" class="btn-admin-auth-submit">
+            <span>Đăng Nhập Quản Trị</span>
+            <i class="fa-solid fa-arrow-right-to-bracket"></i>
+          </button>
+        </form>
+
+        <div class="auth-card-footer">
+          <div class="auth-cloud-badge">
+            <span class="pulse-dot"></span>
+            <span>Cơ sở dữ liệu Supabase PostgreSQL Cloud • Bảo mật</span>
+          </div>
+          <div style="margin-top: 12px;">
+            <a href="../index.html" class="auth-back-link">
+              <i class="fa-solid fa-arrow-left"></i> Quay về Cửa hàng mua sắm MINI GT
+            </a>
+          </div>
+        </div>
       </div>
     </div>
   </div>

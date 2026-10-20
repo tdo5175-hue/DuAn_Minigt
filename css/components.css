@@ -2255,14 +2255,7 @@
 }
 
 .auth-brand-side::before {
-  content: '';
-  position: absolute;
-  top: -70px;
-  left: -70px;
-  width: 220px;
-  height: 220px;
-  background: radial-gradient(circle, rgba(225, 6, 0, 0.28) 0%, transparent 70%);
-  pointer-events: none;
+  display: none !important;
 }
 
 .auth-brand-top {
@@ -6034,6 +6027,263 @@ body.dark-mode {
   background: #334155 !important;
   color: #ffffff !important;
 }
+
+/* =====================================================================
+   HIGH-PERFORMANCE ULTRA-SMOOTH MICRO-INTERACTIONS & REVEAL EFFECTS
+   Automotive Collector Aesthetic: Carbon, Slate, Pure Racing Red
+   ===================================================================== */
+
+/* Slim Top Loading Progress Bar (YouTube / GitHub / Linear style) */
+.site-top-progress-bar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 3px;
+  width: 0%;
+  background: linear-gradient(90deg, #e10600 0%, #ff4d4f 100%);
+  z-index: 999999;
+  transition: width 0.28s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s ease;
+  pointer-events: none;
+  opacity: 0;
+  box-shadow: 0 0 10px rgba(225, 6, 0, 0.65);
+}
+
+.site-top-progress-bar.loading {
+  opacity: 1;
+  width: 72%;
+}
+
+.site-top-progress-bar.done {
+  width: 100%;
+  opacity: 0;
+  transition: width 0.16s ease, opacity 0.35s ease 0.15s;
+}
+
+/* Flying Diecast Car Clone (Add to Cart Arc Animation) */
+.flying-car-clone {
+  position: fixed !important;
+  z-index: 999999 !important;
+  pointer-events: none !important;
+  object-fit: contain !important;
+  border-radius: 8px !important;
+  background: rgba(255, 255, 255, 0.95) !important;
+  border: 1px solid rgba(225, 6, 0, 0.25) !important;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.22) !important;
+  transition: left 0.68s cubic-bezier(0.16, 1, 0.3, 1),
+              top 0.68s cubic-bezier(0.16, 1, 0.3, 1),
+              width 0.68s cubic-bezier(0.16, 1, 0.3, 1),
+              height 0.68s cubic-bezier(0.16, 1, 0.3, 1),
+              opacity 0.68s ease,
+              transform 0.68s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+/* Cart Button Pop when item arrives */
+.cart-bounce-anim {
+  animation: cartBtnPop 0.45s cubic-bezier(0.175, 0.885, 0.32, 1.275) !important;
+}
+
+@keyframes cartBtnPop {
+  0% { transform: scale(1); }
+  40% { transform: scale(1.22); }
+  75% { transform: scale(0.94); }
+  100% { transform: scale(1); }
+}
+
+/* Staggered Product Card Entrance */
+.product-card {
+  animation: productCardEntrance 0.38s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation-delay: calc(var(--stagger-idx, 0) * 35ms);
+}
+
+@keyframes productCardEntrance {
+  0% {
+    opacity: 0;
+    transform: translateY(16px) scale(0.985);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Filter Pill Micro-Physics */
+.filter-pill {
+  transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+.filter-pill:hover {
+  transform: translateY(-2px);
+}
+
+.filter-pill:active {
+  transform: scale(0.95) !important;
+}
+
+/* Tactile Active Scale on Action Buttons */
+.card-btn-buy:active,
+.card-btn-preorder:active,
+.btn-primary:active,
+.btn-secondary:active,
+.btn-quick-deposit:active,
+.card-pack-btn:active:not(:disabled),
+.pack-opt-btn:active:not(:disabled) {
+  transform: scale(0.96) !important;
+}
+
+/* Wishlist Heart Pop Animation */
+.card-wishlist-btn.heart-pop i {
+  animation: heartPop 0.45s cubic-bezier(0.175, 0.885, 0.32, 1.275) !important;
+}
+
+/* =====================================================================
+   AUTH MODAL LIBERTY WALK & MINI GT OFFICIAL POSTER SHOWCASE
+   Full-bleed expansive layout: clean, cohesive, seamless
+   ===================================================================== */
+.auth-brand-poster-side {
+  background: #ffffff !important;
+  color: #0f172a !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  border-right: 1px solid #e2e8f0 !important;
+  position: relative !important;
+  overflow: hidden !important;
+  border-top-left-radius: var(--radius-xl) !important;
+  border-bottom-left-radius: var(--radius-xl) !important;
+}
+
+[data-theme="dark"] .auth-brand-poster-side {
+  background: #ffffff !important;
+  border-right: 1px solid #1e293b !important;
+}
+
+.auth-poster-minigt-logo {
+  position: absolute;
+  top: 24px;
+  left: 24px;
+  height: 34px;
+  width: auto;
+  object-fit: contain;
+  z-index: 10;
+  pointer-events: none;
+}
+
+.auth-poster-img {
+  width: 100% !important;
+  height: 100% !important;
+  max-width: 100% !important;
+  max-height: 100% !important;
+  object-fit: cover !important;
+  object-position: center center !important;
+  display: block !important;
+  transition: transform 0.45s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+.auth-brand-poster-side:hover .auth-poster-img {
+  transform: scale(1.035) !important;
+}
+
+@media (max-width: 860px) {
+  .auth-brand-poster-side {
+    display: none !important;
+  }
+}
+
+/* =====================================================================
+   CART ITEM SELECTION CONTROLS & STATE
+   ===================================================================== */
+.cart-drawer-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+  padding: 8px 10px;
+  background: #ffffff;
+  border-radius: 10px;
+  border: 1px solid #e2e8f0;
+}
+
+[data-theme="dark"] .cart-drawer-toolbar {
+  background: #0f172a;
+  border-color: #1e293b;
+}
+
+.cart-select-all-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #334155;
+  cursor: pointer;
+  user-select: none;
+}
+
+[data-theme="dark"] .cart-select-all-label {
+  color: #cbd5e1;
+}
+
+.cart-select-checkbox {
+  width: 18px;
+  height: 18px;
+  accent-color: #e10600;
+  cursor: pointer;
+  border-radius: 4px;
+}
+
+.cart-unselect-all-btn {
+  background: #f1f5f9;
+  border: 1px solid #cbd5e1;
+  color: #2563eb;
+  font-size: 11.5px;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 3px 8px;
+  border-radius: 6px;
+  transition: all 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.cart-unselect-all-btn:hover {
+  background: #eff6ff;
+  color: #1d4ed8;
+  border-color: #93c5fd;
+}
+
+[data-theme="dark"] .cart-unselect-all-btn {
+  background: #1e293b;
+  border-color: #334155;
+  color: #60a5fa;
+}
+
+.cart-item.is-unselected {
+  opacity: 0.62;
+  background: #f8fafc;
+  border-style: dashed;
+}
+
+[data-theme="dark"] .cart-item.is-unselected {
+  background: #070b14;
+  border-color: #334155;
+}
+
+.cart-item-select-wrap {
+  display: flex;
+  align-items: center;
+  padding-top: 26px;
+  flex-shrink: 0;
+}
+
+.btn-checkout-drawer.disabled-empty {
+  opacity: 0.6 !important;
+  cursor: not-allowed !important;
+}
+
+
 
 
 

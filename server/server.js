@@ -98,8 +98,10 @@ app.use(errorHandler);
 async function startServer() {
   try {
     await db.getPool();
-    app.listen(PORT, () => {
-      console.log(`🚀 MINI GT STORE Server đang chạy tại Port: ${PORT}`);
+    // Kích hoạt kết nối pool ngay lập tức tới Supabase
+    try { await db.query('SELECT 1'); } catch (dbErr) { console.warn('Cảnh báo DB khởi động:', dbErr.message); }
+    app.listen(PORT, '0.0.0.0', () => {
+      console.log(`🚀 MINI GT STORE Server đang chạy tại Port: ${PORT} (0.0.0.0 & 127.0.0.1)`);
     });
   } catch (error) {
     console.error('Lỗi khi khởi động server:', error);

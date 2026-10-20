@@ -256,7 +256,7 @@ router.post('/products', async (req, res, next) => {
     const imageUrl = String(req.body.imageUrl || req.body.image || 'image/hero-banner.jpg').trim();
     const description = String(req.body.description || '').trim() || null;
     let status = ['in_stock', 'pre_order', 'sold_out'].includes(req.body.status) ? req.body.status : 'in_stock';
-    if (stock === 0) status = 'sold_out';
+    if (stock === 0 && status !== 'pre_order') status = 'sold_out';
 
     const isFeatured = Boolean(req.body.isFeatured);
     const isNew = Boolean(req.body.isNew);
@@ -411,7 +411,7 @@ router.put('/products/:id', async (req, res, next) => {
     let status = req.body.status !== undefined
       ? (['in_stock', 'pre_order', 'sold_out'].includes(req.body.status) ? req.body.status : existing.Status)
       : existing.Status;
-    if (stock === 0) status = 'sold_out';
+    if (stock === 0 && status !== 'pre_order') status = 'sold_out';
 
     const isPreOrder = status === 'pre_order';
     const depositPercent = isPreOrder

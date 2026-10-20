@@ -11,15 +11,40 @@ const PUBLIC_KEYS = [
 const EDITABLE_KEYS = [...PUBLIC_KEYS, 'low_stock_threshold'];
 const NUMERIC_KEYS = ['shipping_fee', 'free_shipping_threshold', 'deposit_rate', 'low_stock_threshold'];
 
+const DEFAULT_SETTINGS = {
+  store_name: 'MINI GT STORE BIÊN HÒA',
+  store_hotline: '0988.164.164',
+  store_email: 'quocthinh.admin@minigt.vn',
+  store_address: '38/2 Võ Thị Sáu, P. Quyết Thắng, TP. Biên Hòa, Đồng Nai',
+  shipping_fee: 11000,
+  free_shipping_threshold: 1000000,
+  deposit_rate: 0.3,
+  low_stock_threshold: 5,
+  preorder_deadline: 'Tháng 11/2026',
+  bank_id: 'MB',
+  bank_name: 'Ngân hàng Quân Đội (MB Bank)',
+  bank_account_no: '0988164164',
+  bank_account_name: 'DO QUOC THINH',
+  announcement: 'Chào mừng bạn đến với MINI GT STORE BIÊN HÒA - Hệ thống phân phối mô hình tĩnh 1:64 chính hãng!'
+};
+
 let cache = null;
 let cacheAt = 0;
 
 async function getAll(force = false) {
   if (!force && cache && Date.now() - cacheAt < 60000) return cache;
-  const r = await db.query('SELECT SettingKey, SettingValue FROM Settings');
-  const out = {};
-  for (const row of r.recordset) {
-    out[row.SettingKey] = NUMERIC_KEYS.includes(row.SettingKey) ? Number(row.SettingValue) || 0 : row.SettingValue;
+  const out = { ...DEFAULT_SETTINGS };
+  try {
+    const r = await db.query('SELECT SettingKey, SettingValue FROM Settings');
+    for (const row of (r.recordset || [])) {
+      const k = row.SettingKey || row.settingkey;
+      const v = row.SettingValue ?? row.settingvalue;
+      if (k) {
+        out[k] = NUMERIC_KEYS.includes(k) ? (Number(v) || 0) : v;
+      }
+    }
+  } catch (err) {
+    console.warn('Lỗi đọc bảng Settings từ DB, dùng cấu hình mặc định:', err.message);
   }
   cache = out;
   cacheAt = Date.now();
@@ -48,9 +73,11 @@ async function update(values) {
       val = String(n);
     }
     await db.query(`
-      MERGE Settings AS t USING (SELECT @k AS SettingKey) AS s ON t.SettingKey = s.SettingKey
-      WHEN MATCHED THEN UPDATE SET SettingValue = @v, UpdatedAt = SYSDATETIME()
-      WHEN NOT MATCHED THEN INSERT (SettingKey, SettingValue) VALUES (@k, @v);`, { k, v: val });
+      INSERT INTO Settings (SettingKey, SettingValue, UpdatedAt)
+      VALUES (@k, @v, NOW())
+      ON CONFLICT (SettingKey)
+      DO UPDATE SET SettingValue = EXCLUDED.SettingValue, UpdatedAt = NOW()
+    `, { k, v: val });
   }
   return getAll(true);
 }
