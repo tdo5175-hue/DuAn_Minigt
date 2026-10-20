@@ -80,18 +80,21 @@
       this.details = details;
     }
   }
-// Quản lý Token độc lập cho Admin và Khách hàng
-const getToken = (endpoint = '') => {
-  try {
-    if (isAdminContext(endpoint)) {
-      const adminTok = localStorage.getItem('minigt_admin_token') || localStorage.getItem('minigt_token');
-      return adminTok || 'admin-direct-session-token';
+
+  // Quản lý Token độc lập cho Admin và Khách hàng
+  const getToken = (endpoint = '') => {
+    // Không tự tạo token giả vì server sẽ từ chối token không hợp lệ.
+    // Admin chỉ sử dụng token quản trị riêng.
+    try {
+      if (isAdminContext(endpoint)) {
+        return localStorage.getItem('minigt_admin_token') || null;
+      }
+
+      return localStorage.getItem('minigt_token') || null;
+    } catch (e) {
+      return null;
     }
-    return localStorage.getItem('minigt_token') || null;
-  } catch (e) {
-    return isAdminContext(endpoint) ? 'admin-direct-session-token' : null;
-  }
-};
+  };
 
   const getCurrentUser = (endpoint = '') => {
     try {

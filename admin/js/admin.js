@@ -131,7 +131,11 @@
 
     // LOCALHOST:
     // Nếu không có backend thì cho phép chế độ demo offline
-    if (api.isLocalEnvironment() && !token) {
+   if (
+    api.isLocalEnvironment() &&
+    !api.isDirectNodeServer() &&
+    !token
+) {
         const defaultAdminProfile = {
             id: 1,
             userId: 1,
@@ -242,7 +246,12 @@
         initDashboard();
       }
     } catch (err) {
-      if (email.toLowerCase() === 'admin@minigt.com' && password === 'Admin@123') {
+      if (
+    api.isLocalEnvironment() &&
+    !api.isDirectNodeServer() &&
+    email.toLowerCase() === 'admin@minigt.com' &&
+    password === 'Admin@123'
+) {
         const fallbackAdmin = {
           id: 1,
           fullName: 'Đỗ Quốc Thịnh & Nguyễn Đình Nam',
