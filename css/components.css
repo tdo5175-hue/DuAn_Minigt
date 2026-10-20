@@ -4752,6 +4752,88 @@
   outline: 2px solid rgba(220,38,38,.4);
   outline-offset: 2px;
 }
+.payment-option-card.is-locked {
+  opacity: 0.65 !important;
+  background: #f8fafc !important;
+  border: 1.5px dashed #cbd5e1 !important;
+  cursor: not-allowed !important;
+  transform: none !important;
+}
+.payment-option-card.is-locked input[type="radio"] {
+  cursor: not-allowed !important;
+  pointer-events: none !important;
+}
+.payment-option-card-wrapper {
+  position: relative;
+  display: block;
+}
+.cod-lock-tooltip {
+  position: absolute;
+  bottom: calc(100% + 10px);
+  left: 50%;
+  transform: translateX(-50%);
+  width: 320px;
+  max-width: 90vw;
+  background: #0f172a;
+  color: #f8fafc;
+  border-radius: 10px;
+  padding: 12px 14px;
+  font-size: 11.5px;
+  line-height: 1.45;
+  box-shadow: 0 12px 30px -4px rgba(15, 23, 42, 0.45);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  z-index: 1000;
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.2s ease, visibility 0.2s ease, transform 0.2s ease;
+}
+.cod-lock-tooltip::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border-width: 6px;
+  border-style: solid;
+  border-color: #0f172a transparent transparent transparent;
+}
+.payment-option-card-wrapper:hover .cod-lock-tooltip.is-active,
+.payment-option-card-wrapper:hover .cod-lock-tooltip {
+  opacity: 1;
+  visibility: visible;
+}
+.cod-lock-tooltip .tooltip-header {
+  font-weight: 800;
+  color: #f59e0b;
+  font-size: 11px;
+  margin-bottom: 5px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  text-transform: uppercase;
+}
+.cod-lock-tooltip .tooltip-body {
+  color: #e2e8f0;
+  font-size: 11.5px;
+}
+.cod-lock-tooltip .tooltip-progress {
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px dashed rgba(255, 255, 255, 0.2);
+  color: #38bdf8;
+  font-size: 11px;
+  font-weight: 700;
+}
+.voucher-chip-btn.vip-chip {
+  background: #fef3c7;
+  color: #b45309;
+  border-color: #fcd34d;
+  font-weight: 800;
+}
+.voucher-chip-btn.vip-chip:hover {
+  background: #fde68a;
+}
 .checkout-stepper-container .opt-content { min-width: 0; flex: 1; }
 .checkout-stepper-container .opt-header { gap: 8px; flex-wrap: wrap; }
 .checkout-stepper-container .opt-title { line-height: 1.45; }
