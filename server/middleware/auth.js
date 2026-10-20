@@ -9,7 +9,11 @@ const db = require('../config/db');
 const { unauthorized, forbidden } = require('../utils/http');
 
 // Dự phòng JWT_SECRET an toàn nếu trên Render chưa kịp thêm biến môi trường
-const JWT_SECRET = process.env.JWT_SECRET || 'minigt_diecast_store_secret_token_2026_bien_hoa';
+const JWT_SECRET = process.env.JWT_SECRET;
+
+if (!JWT_SECRET) {
+    throw new Error('JWT_SECRET chưa được cấu hình trên server.');
+}
 
 const TOKEN_TTL = {
   admin: process.env.ADMIN_TOKEN_TTL || '8h',
@@ -195,9 +199,52 @@ async function requireActiveUser(req, res, next) {
 async function requireAdmin(req, res, next) {
   try {
     let u = req.dbUser || (req.user && req.user.userId ? await loadActiveUser(req.user.userId) : null);
-    if (!u || u.Role !== 'admin') {
-      u = await loadDefaultAdmin();
+   async function requireAdmin(req, res, next) {
+    try {
+        const userId = req.user && req.user.userId;
+
+        if (!userId) {
+            return next(
+                unauthorized(
+                    'Chưa xác thực tài khoản quản trị',
+                    'NO_ADMIN_USER'
+                )
+            );
+        }
+
+        const u = await loadActiveUser(userId);
+
+        if (!u) {
+            return next(
+                unauthorized(
+                    'Tài khoản quản trị không tồn tại',
+                    'USER_NOT_FOUND'
+                )
+            );
+        }
+
+        if (!u.IsActive) {
+            return next(
+                forbidden(
+                    'Tài khoản quản trị đã bị khóa'
+                )
+            );
+        }
+
+        if (String(u.Role).toLowerCase() !== 'admin') {
+            return next(
+                forbidden(
+                    'Tài khoản không có quyền quản trị'
+                )
+            );
+        }
+
+        req.dbUser = u;
+        next();
+    } catch (e) {
+        next(e);
     }
+}
     if (!u) return next(unauthorized('Tài khoản quản trị không tồn tại', 'TOKEN_INVALID'));
     if (!u.IsActive) return next(forbidden('Tài khoản quản trị đã bị khóa'));
     req.dbUser = u;
