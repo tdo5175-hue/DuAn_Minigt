@@ -23,7 +23,7 @@ const CANONICAL_PRODUCTS = [
     priceBox: 1850000, priceCard: 1850000, discountPercent: 0,
     price: 1850000, oldPrice: 2100000, depositAmount: 500000, quotaPercent: 92,
     editionNote: 'Box Set Đặc Biệt (Giới hạn 3000 bộ)', preOrderDeadline: '2026-10-30',
-    stock: 15, imageUrl: 'image/huracan.webp',
+    stock: 15, imageUrl: 'image/lambo-sterrato-set.png',
     description: 'Bộ 4 xe Lamborghini Huracán Sterrato địa hình kèm hộp trưng bày Collector Box cao cấp chính hãng TSM-Model.',
     status: 'pre_order', releaseDate: '2026-12-15', isFeatured: 1, isNew: 1
   },
@@ -35,7 +35,7 @@ const CANONICAL_PRODUCTS = [
     priceBox: 420000, priceCard: 480000, discountPercent: 10,
     price: 378000, oldPrice: 420000, depositAmount: 150000, quotaPercent: 88,
     editionNote: 'Kèm Figure Tay Đua F1 Las Vegas', preOrderDeadline: '2026-10-30',
-    stock: 25, imageUrl: 'image/f1.webp',
+    stock: 25, imageUrl: 'image/aston-amr24-stroll.png',
     description: 'Mô hình xe đua F1 Aston Martin AMR24 #18 chặng Las Vegas GP 2024, sơn xanh Racing Green ánh kim tuyệt đẹp.',
     status: 'pre_order', releaseDate: '2026-11-20', isFeatured: 1, isNew: 1
   },
@@ -47,7 +47,7 @@ const CANONICAL_PRODUCTS = [
     priceBox: 420000, priceCard: 480000, discountPercent: 0,
     price: 420000, oldPrice: null, depositAmount: 150000, quotaPercent: 95,
     editionNote: 'Bản Đua Đêm Las Vegas GP', preOrderDeadline: '2026-10-30',
-    stock: 18, imageUrl: 'image/amr24.webp',
+    stock: 18, imageUrl: 'image/aston-amr24-alonso.png',
     description: 'Phiên bản xe đua F1 của huyền thoại Fernando Alonso #14 tại chặng đua đêm Las Vegas 2024.',
     status: 'pre_order', releaseDate: '2026-11-20', isFeatured: 1, isNew: 1
   },
@@ -119,7 +119,7 @@ const CANONICAL_PRODUCTS = [
     priceBox: 330000, priceCard: 390000, discountPercent: 0,
     price: 330000, oldPrice: null, depositAmount: 0, quotaPercent: 75,
     editionNote: 'Đua Sức Bền Daytona 24 Hours', preOrderDeadline: null,
-    stock: 19, imageUrl: 'image/lambo.webp',
+    stock: 19, imageUrl: 'image/Minigt_Lambo_GT3.jpg',
     description: 'Mẫu xe đua Lamborghini Huracán GT3 EVO2 tham chiến giải đua sức bền 24 Giờ Daytona 2024.',
     status: 'in_stock', releaseDate: '2025-06-12', isFeatured: 0, isNew: 1
   },

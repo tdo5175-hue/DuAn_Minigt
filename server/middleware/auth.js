@@ -104,24 +104,48 @@ async function authenticate(req, res, next) {
   const isAdminRoute = fullPath.includes('/api/admin');
 
   // Nếu gọi vào bất kỳ route nào của /api/admin, cho phép xác thực qua JWT hoặc phiên Admin Portal
-  if (isAdminRoute) {
-    if (token) {
-      try {
-        const decoded = decode(token);
-        if (decoded && decoded.role === 'admin') {
-          req.user = decoded;
-          return next();
-        }
-      } catch (_) {
-        // Nếu là token dạng admin_tok_* hoặc token cũ, chuyển xuống gán defaultAdmin
-      }
+ if (isAdminRoute) {
+    if (!token) {
+        return next(
+            unauthorized(
+                'Vui lòng đăng nhập tài khoản quản trị',
+                'NO_ADMIN_TOKEN'
+            )
+        );
     }
-    const adminUser = await loadDefaultAdmin();
-    req.user = { userId: Number(adminUser.UserId), role: 'admin' };
-    req.dbUser = adminUser;
-    return next();
-  }
 
+    try {
+        const decoded = decode(token);
+
+        if (!decoded || decoded.role !== 'admin') {
+            return next(
+                forbidden(
+                    'Tài khoản không có quyền quản trị',
+                    'ADMIN_REQUIRED'
+                )
+            );
+        }
+
+        req.user = decoded;
+        return next();
+    } catch (err) {
+        if (err.name === 'TokenExpiredError') {
+            return next(
+                unauthorized(
+                    'Phiên quản trị đã hết hạn',
+                    'TOKEN_EXPIRED'
+                )
+            );
+        }
+
+        return next(
+            unauthorized(
+                'Phiên quản trị không hợp lệ',
+                'TOKEN_INVALID'
+            )
+        );
+    }
+}
   // Xác thực cho các route khách hàng thông thường
   if (token) {
     try {

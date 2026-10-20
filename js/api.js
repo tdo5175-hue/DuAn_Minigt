@@ -2046,12 +2046,17 @@
     }
 
     if (!response.ok) {
-      // Nếu chạy qua Live Server (127.0.0.1:5500) hoặc token offline, tự động chuyển qua Local Engine
-      const fallbackResult = handleOfflineFallback(endpoint, { method, body: rawBody });
-      if (fallbackResult) {
-        return fallbackResult;
-      }
+    if (isLocalEnvironment()) {
+        const fallbackResult = handleOfflineFallback(endpoint, {
+            method,
+            body: rawBody
+        });
+
+        if (fallbackResult) {
+            return fallbackResult;
+        }
     }
+}
 
     const contentType = response.headers.get('content-type') || '';
     let data = null;

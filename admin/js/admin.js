@@ -127,36 +127,66 @@
   // 2. AUTHENTICATION & KHỞI CHẠY HỆ THỐNG
   // =====================================================================
   async function checkAdminAuth() {
-    const defaultAdminProfile = {
-      id: 1,
-      fullName: 'Đỗ Quốc Thịnh & Nguyễn Đình Nam',
-      email: 'admin@minigt.com',
-      phone: '0938300164',
-      role: 'admin',
-      avatarUrl: 'image/DoQuocThinh_anhthe.jpg'
-    };
+    const token = localStorage.getItem('minigt_admin_token');
 
-    // Cho phép truy cập trực tiếp Cổng Quản Trị qua đường dẫn riêng /admin/index.html
-    // Tách biệt hoàn toàn với phiên đăng nhập Khách hàng ngoài trang chủ
-    currentAdminUser = defaultAdminProfile;
-    if (!localStorage.getItem('minigt_admin_token')) {
-      localStorage.setItem('minigt_admin_token', 'local-admin-token-minigt');
-      localStorage.setItem('minigt_admin_user', JSON.stringify(defaultAdminProfile));
+    // LOCALHOST:
+    // Nếu không có backend thì cho phép chế độ demo offline
+    if (api.isLocalEnvironment() && !token) {
+        const defaultAdminProfile = {
+            id: 1,
+            userId: 1,
+            fullName: 'Đỗ Quốc Thịnh & Nguyễn Đình Nam',
+            email: 'admin@minigt.com',
+            role: 'admin',
+            avatarUrl: 'image/DoQuocThinh_anhthe.jpg'
+        };
+
+        api.setAuthSession(
+            'local-admin-token-minigt',
+            defaultAdminProfile
+        );
+
+        currentAdminUser = defaultAdminProfile;
+        updateAdminProfileUI();
+        hideLoginModal();
+        initDashboard();
+        return;
     }
-    updateAdminProfileUI();
-    hideLoginModal();
-    initDashboard();
+
+    // PRODUCTION:
+    // Không có token → bắt đăng nhập
+    if (!token) {
+        currentAdminUser = null;
+        showLoginModal(false);
+        return;
+    }
 
     try {
-      const res = await api.get('/api/auth/me');
-      if (res && res.success && res.data && res.data.role === 'admin') {
-        currentAdminUser = res.data;
-        updateAdminProfileUI();
-      }
+        const res = await api.get('/api/auth/me');
+
+        if (
+            res &&
+            res.success &&
+            res.data &&
+            String(res.data.role || '').toLowerCase() === 'admin'
+        ) {
+            currentAdminUser = res.data;
+
+            updateAdminProfileUI();
+            hideLoginModal();
+            initDashboard();
+            return;
+        }
+
+        throw new Error('Tài khoản không có quyền quản trị');
     } catch (err) {
-      // Hoạt động mượt ở chế độ độc lập (Live Server 127.0.0.1:5500)
+        api.clearAuthSession();
+        currentAdminUser = null;
+        showLoginModal(false);
+
+        console.warn('[ADMIN AUTH]', err);
     }
-  }
+}
 
   function showLoginModal(isCustomer = false, email = '') {
     const modal = document.getElementById('adminLoginModal');
