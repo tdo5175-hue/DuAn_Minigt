@@ -79,6 +79,7 @@ function decode(token) {
     throw err;
   }
 
+  
   return {
     userId,
     role: String(payload.role || 'customer').toLowerCase(),
