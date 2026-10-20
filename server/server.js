@@ -14,6 +14,7 @@ const orderRoutes = require('./routes/orders');
 const newsletterRoutes = require('./routes/newsletter');
 const settingsRoutes = require('./routes/settings');
 const adminRoutes = require('./routes/admin');
+const couponRoutes = require('./routes/coupons');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -54,6 +55,7 @@ app.use('/api/orders', orderRoutes);
 app.use('/api/newsletter', newsletterRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/coupons', couponRoutes);
 
 app.get('/api/categories', async (req, res, next) => {
   try {

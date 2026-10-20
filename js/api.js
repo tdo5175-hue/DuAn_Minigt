@@ -54,6 +54,7 @@
   const SHARED_SETTINGS_KEY = 'minigt_store_settings_v2';
   const SHARED_USERS_KEY = 'minigt_users_list_v2';
   const SHARED_SUBSCRIBERS_KEY = 'minigt_subscribers_v2';
+  const SHARED_COUPONS_KEY = 'minigt_shared_coupons_v1';
   const MY_ORDER_CODES_KEY = 'minigt_my_order_codes';
   const REALTIME_EVENT_KEY = 'minigt_realtime_event';
 
@@ -309,6 +310,73 @@
       localStorage.setItem(SHARED_CATEGORIES_KEY, JSON.stringify(cats));
     } catch (e) {}
     return cats;
+  };
+
+  const DEFAULT_COUPONS_DATA = [
+    {
+      couponId: 1,
+      id: 1,
+      code: 'MINIGT30K',
+      description: 'Ưu đãi đặt cọc khai trương showroom Biên Hòa',
+      discountType: 'amount',
+      discountValue: 30000,
+      minOrderAmount: 300000,
+      maxDiscount: 30000,
+      usageLimit: 200,
+      usedCount: 14,
+      isActive: true,
+      endDate: '2026-12-31'
+    },
+    {
+      couponId: 2,
+      id: 2,
+      code: 'SANXE50K',
+      description: 'Giảm ngay 50.000đ cho đơn hàng xe đua từ 600.000đ',
+      discountType: 'amount',
+      discountValue: 50000,
+      minOrderAmount: 600000,
+      maxDiscount: 50000,
+      usageLimit: 100,
+      usedCount: 28,
+      isActive: true,
+      endDate: '2026-12-31'
+    },
+    {
+      couponId: 3,
+      id: 3,
+      code: 'MINIGT10P',
+      description: 'Mã giảm giá 10% đặc biệt tri ân collector Biên Hòa',
+      discountType: 'percent',
+      discountValue: 10,
+      minOrderAmount: 500000,
+      maxDiscount: 120000,
+      usageLimit: 80,
+      usedCount: 9,
+      isActive: true,
+      endDate: '2026-12-31'
+    }
+  ];
+
+  const getSharedCoupons = () => {
+    try {
+      const raw = localStorage.getItem(SHARED_COUPONS_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+      localStorage.setItem(SHARED_COUPONS_KEY, JSON.stringify(DEFAULT_COUPONS_DATA));
+      return DEFAULT_COUPONS_DATA;
+    } catch (e) {
+      return DEFAULT_COUPONS_DATA;
+    }
+  };
+
+  const saveSharedCoupons = (coupons) => {
+    try {
+      localStorage.setItem(SHARED_COUPONS_KEY, JSON.stringify(coupons));
+      emitRealtimeSync('COUPONS_UPDATED', { count: coupons.length });
+    } catch (e) {}
+    return coupons;
   };
 
   const CATEGORY_MAP = {
@@ -1931,6 +1999,167 @@
       } catch (e) {}
       emitRealtimeSync('SETTINGS_UPDATED', body);
       return { success: true, message: 'Đã lưu thiết lập cửa hàng thành công!', data: body };
+    }
+
+    // 5b. QUẢN LÝ MÃ GIẢM GIÁ & VOUCHER (GET/POST /api/coupons, GET/POST/PUT/DELETE /api/admin/coupons)
+    if (method === 'GET' && path === '/api/coupons') {
+      const list = getSharedCoupons().filter(c => c.isActive !== false);
+      return { success: true, data: list };
+    }
+
+    if (method === 'POST' && path === '/api/coupons/validate') {
+      const code = String(body.code || '').trim().toUpperCase();
+      const subtotal = Number(body.subtotal || 0);
+      const user = body.user || null;
+
+      // 1. Kiểm tra mã VIP đặc quyền (VIP1 - VIP5)
+      const VIP_TIER_COUPONS = {
+        VIP1: { code: 'VIP1', requiredLevel: 1, tierName: 'VIP 1 (Hội viên Mới)', discountPercent: 0, description: 'Đặc quyền VIP 1: Tích điểm hội viên', maxDiscount: 0 },
+        VIP2: { code: 'VIP2', requiredLevel: 2, tierName: 'VIP 2 (Collector Bạc)', discountPercent: 2, description: 'Đặc quyền VIP 2: Giảm 2% tổng đơn hàng', maxDiscount: 50000 },
+        VIP3: { code: 'VIP3', requiredLevel: 3, tierName: 'VIP 3 (Collector Vàng)', discountPercent: 4, description: 'Đặc quyền VIP 3: Giảm 4% tổng đơn hàng', maxDiscount: 100000 },
+        VIP4: { code: 'VIP4', requiredLevel: 4, tierName: 'VIP 4 (VIP Bạch Kim)', discountPercent: 7, description: 'Đặc quyền VIP 4: Giảm 7% tổng đơn + Mở khóa Ship COD', maxDiscount: 150000 },
+        VIP5: { code: 'VIP5', requiredLevel: 5, tierName: 'VIP 5 (VIP Kim Cương)', discountPercent: 10, description: 'Đặc quyền VIP 5: Giảm 10% kịch trần cao nhất hệ thống', maxDiscount: 300000 }
+      };
+
+      if (VIP_TIER_COUPONS[code]) {
+        const vipCfg = VIP_TIER_COUPONS[code];
+        if (!user) {
+          return { success: false, message: `Mã "${code}" là đặc quyền của ${vipCfg.tierName}. Vui lòng ĐĂNG NHẬP để áp dụng!` };
+        }
+        const spent = Math.max(0, Number(user.totalSpent || user.deliveredSpent || 0));
+        let userLevel = 1;
+        if (spent > 5000000) userLevel = 5;
+        else if (spent > 1000000) userLevel = 4;
+        else if (spent > 500000) userLevel = 3;
+        else if (spent > 200000) userLevel = 2;
+
+        if (userLevel < vipCfg.requiredLevel) {
+          return { success: false, message: `🔒 Mã "${code}" chỉ dành riêng cho ${vipCfg.tierName} trở lên. Cấp hiện tại của bạn là VIP ${userLevel}. Hãy mua thêm để nâng cấp!` };
+        }
+        if (vipCfg.discountPercent === 0) {
+          return { success: false, message: 'Hội viên VIP 1 đang ở cấp chào mừng. Khi tích lũy trên 200.000đ bạn sẽ lên VIP 2 và nhận mã giảm 2%!' };
+        }
+        let discount = Math.round(subtotal * (vipCfg.discountPercent / 100));
+        if (vipCfg.maxDiscount && discount > vipCfg.maxDiscount) discount = vipCfg.maxDiscount;
+        return {
+          success: true,
+          message: `Áp dụng mã đặc quyền ${code} thành công!`,
+          data: {
+            code,
+            isVip: true,
+            discount,
+            discountType: 'percent',
+            discountValue: vipCfg.discountPercent,
+            description: `${vipCfg.tierName}: Giảm ${vipCfg.discountPercent}%`
+          }
+        };
+      }
+
+      // 2. Kiểm tra mã do Admin tạo
+      const coupons = getSharedCoupons();
+      const c = coupons.find(item => item.code.toUpperCase() === code);
+      if (!c) {
+        return { success: false, message: `Mã giảm giá "${code}" không tồn tại hoặc đã bị hủy! Hệ thống chỉ áp dụng mã do Admin phát hành hoặc mã đặc quyền VIP.` };
+      }
+      if (c.isActive === false) {
+        return { success: false, message: `Mã giảm giá "${code}" hiện đang tạm ngừng áp dụng.` };
+      }
+      if (c.endDate) {
+        const exp = new Date(c.endDate + 'T23:59:59');
+        if (Date.now() > exp.getTime()) {
+          return { success: false, message: `Mã giảm giá "${code}" đã hết hạn sử dụng (${c.endDate}).` };
+        }
+      }
+      if (c.usageLimit > 0 && c.usedCount >= c.usageLimit) {
+        return { success: false, message: `Mã giảm giá "${code}" đã hết lượt sử dụng theo chương trình khuyến mãi.` };
+      }
+      if (c.minOrderAmount > 0 && subtotal < c.minOrderAmount) {
+        return { success: false, message: `Đơn hàng chưa đạt giá trị tối thiểu ${new Intl.NumberFormat('vi-VN').format(c.minOrderAmount)}đ để áp dụng mã "${code}".` };
+      }
+
+      let discount = 0;
+      if (c.discountType === 'percent') {
+        const pct = Math.min(10, Math.max(1, Number(c.discountValue || 0))); // Tối đa 10%
+        discount = Math.round(subtotal * (pct / 100));
+        if (c.maxDiscount && discount > c.maxDiscount) discount = c.maxDiscount;
+      } else {
+        discount = Math.min(subtotal, Number(c.discountValue || 0));
+      }
+
+      return {
+        success: true,
+        message: `Áp dụng mã ${c.code} thành công!`,
+        data: {
+          code: c.code,
+          isVip: false,
+          discount,
+          discountType: c.discountType,
+          discountValue: c.discountValue,
+          description: c.description || `Giảm ngay ${discount}đ`
+        }
+      };
+    }
+
+    if (method === 'GET' && path === '/api/admin/coupons') {
+      const list = getSharedCoupons();
+      return { success: true, data: list };
+    }
+
+    if (method === 'POST' && path === '/api/admin/coupons') {
+      const coupons = getSharedCoupons();
+      const code = String(body.code || '').trim().toUpperCase();
+      if (!code || code.length < 3) {
+        return { success: false, message: 'Mã giảm giá phải có tối thiểu 3 ký tự!' };
+      }
+      if (coupons.some(c => c.code.toUpperCase() === code)) {
+        return { success: false, message: `Mã giảm giá "${code}" đã tồn tại! Vui lòng đặt mã khác.` };
+      }
+      const newCoupon = {
+        couponId: Date.now(),
+        id: Date.now(),
+        code,
+        description: String(body.description || '').trim(),
+        discountType: body.discountType === 'percent' ? 'percent' : 'amount',
+        discountValue: body.discountType === 'percent' ? Math.min(10, Number(body.discountValue || 0)) : Number(body.discountValue || 0),
+        minOrderAmount: Math.max(0, Number(body.minOrderAmount || 0)),
+        maxDiscount: body.maxDiscount ? Number(body.maxDiscount) : null,
+        usageLimit: Math.max(1, Number(body.usageLimit || 100)),
+        usedCount: 0,
+        endDate: body.endDate || null,
+        isActive: body.isActive !== false,
+        createdAt: new Date().toISOString()
+      };
+      coupons.unshift(newCoupon);
+      saveSharedCoupons(coupons);
+      return { success: true, message: `Tạo mã giảm giá "${code}" thành công!`, data: newCoupon };
+    }
+
+    const couponEditMatch = path.match(/^\/api\/admin\/coupons\/(\d+)$/);
+    if (couponEditMatch) {
+      const cid = Number(couponEditMatch[1]);
+      const coupons = getSharedCoupons();
+      const idx = coupons.findIndex(c => Number(c.couponId || c.id) === cid);
+
+      if (method === 'PUT') {
+        if (idx >= 0) {
+          coupons[idx] = Object.assign({}, coupons[idx], body);
+          if (coupons[idx].discountType === 'percent' && coupons[idx].discountValue > 10) {
+            coupons[idx].discountValue = 10;
+          }
+          saveSharedCoupons(coupons);
+          return { success: true, message: 'Cập nhật mã giảm giá thành công!', data: coupons[idx] };
+        }
+        return { success: false, message: 'Không tìm thấy mã giảm giá để cập nhật' };
+      }
+
+      if (method === 'DELETE') {
+        if (idx >= 0) {
+          coupons.splice(idx, 1);
+          saveSharedCoupons(coupons);
+          return { success: true, message: 'Đã xóa mã giảm giá thành công!' };
+        }
+        return { success: false, message: 'Không tìm thấy mã để xóa' };
+      }
     }
 
     // 6. Health Check (GET /api/health)

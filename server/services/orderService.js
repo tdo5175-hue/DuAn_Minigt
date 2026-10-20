@@ -151,14 +151,40 @@ async function createOrder(payload, authUser = null) {
     const protectorFee = (payload.boxProtector || Number(payload.protectorFee) > 0) ? 15000 : 0;
     const voucherCode = String(payload.voucherCode || '').trim().toUpperCase();
     let voucherDiscount = 0;
-    if (voucherCode === 'MINIGT2026') voucherDiscount = 20000;
-    else if (voucherCode === 'FREESHIP') voucherDiscount = shippingFee;
-    else if (voucherCode === 'LBWK50K' && subtotal >= 850000) voucherDiscount = 50000;
-    else if (Number(payload.voucherDiscount) > 0) voucherDiscount = Math.min(50000, Number(payload.voucherDiscount));
+    if (voucherCode) {
+      try {
+        const couponService = require('./couponService');
+        const vRes = await couponService.validateAndApplyCoupon(voucherCode, subtotal, authUser);
+        if (vRes && vRes.valid) {
+          voucherDiscount = Number(vRes.discount || 0);
+        }
+      } catch (e) {
+        console.warn('[ORDER] Lỗi kiểm tra voucher:', e.message);
+      }
+    }
 
     const total = Math.max(0, subtotal + shippingFee + protectorFee - voucherDiscount);
     let finalPaymentMethod = paymentMethod;
     if (hasPreOrder) finalPaymentMethod = 'DEPOSIT';
+
+    // KIỂM TRA ĐIỀU KIỆN SHIP COD 100% PHÒNG CHỐNG BOM ĐƠN
+    if (finalPaymentMethod === 'COD') {
+      let isCodEligible = false;
+      if (authUser && authUser.userId) {
+        const userDeliveredRes = await q(`
+          SELECT COALESCE(SUM(Total), 0) AS total_delivered
+          FROM Orders
+          WHERE UserId = @uid AND Status = 'DELIVERED'
+        `, { uid: authUser.userId });
+        const deliveredSum = Number(userDeliveredRes.recordset[0]?.total_delivered || 0);
+        if (deliveredSum >= 1000001) {
+          isCodEligible = true;
+        }
+      }
+      if (!isCodEligible) {
+        throw badRequest('Phương thức "Thanh toán khi nhận hàng (Ship COD 100%)" chỉ dành cho thành viên VIP 4 trở lên (đã từng tích lũy mua và nhận hàng thành công từ 1.000.001đ trở lên) để đảm bảo an toàn đơn hàng và chống bom đơn. Vui lòng chọn Đặt cọc 30% hoặc Chuyển khoản VietQR MB Bank!');
+      }
+    }
 
     const depositAmount = finalPaymentMethod === 'DEPOSIT'
       ? Math.min(total, depositRequired || Math.round(total * 0.3))

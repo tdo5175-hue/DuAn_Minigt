@@ -41,7 +41,9 @@
         <!-- <a href="admin/index.html" style="color:#f59e0b; font-weight:700;"><i class="fa-solid fa-crown"></i> <span data-i18n="nav_admin">Quản trị Store</span></a> -->
         <a href="javascript:void(0)" onclick="openTrackingModal()"><i class="fa-solid fa-truck-fast"></i> <span data-i18n="nav_track">Tra cứu đơn hàng</span></a>
         <a href="#collector-hub" onclick="scrollToSection(event, 'collector-hub')"><i class="fa-solid fa-ruler-combined"></i> <span data-i18n="nav_guide">Cẩm nang 1:64</span></a>
-        <a href="tel:0988164164" class="hotline-link"><i class="fa-solid fa-phone"></i> Hotline: <strong>0981.903.400</strong></a>
+       <a href="tel:0981903400" class="hotline-link">
+  <i class="fa-solid fa-phone"></i> Hotline: <strong>0981.903.400</strong>
+</a>
         <div class="lang-switch" onclick="toggleSiteLanguage()" title="Chuyển đổi ngôn ngữ VN / EN" style="cursor:pointer; display:inline-flex; align-items:center; gap:5px; font-size:11.5px; font-weight:700; color:#fff; background:rgba(255,255,255,0.12); padding:2px 8px; border-radius:6px; border:1px solid rgba(255,255,255,0.2);">
           <span id="topLangFlag">🇻🇳</span> <span id="topLangText">VN</span>
         </div>
@@ -1349,7 +1351,6 @@
               </svg>
               <span>Tiếp tục với tài khoản Google</span>
             </button>
-            <div id="googleOfficialBtnContainer" style="display:none; justify-content:center; margin-top:8px;"></div>
             <div class="auth-divider-clean">
               <span>hoặc đăng nhập bằng email / số điện thoại</span>
             </div>
@@ -1633,7 +1634,7 @@
             <div class="form-row-grid">
               <div class="form-group">
                 <label class="form-label" for="checkoutPhone">Số điện thoại liên hệ <span class="required-star">*</span></label>
-                <input type="tel" id="checkoutPhone" class="form-input" placeholder="Ví dụ: 0988164164" required oninput="saveCheckoutFormState()">
+                <input type="tel" id="checkoutPhone" class="form-input" placeholder="Ví dụ: 0981.xxx.xxx" required oninput="saveCheckoutFormState()">
               </div>
               <div class="form-group">
                 <label class="form-label" for="checkoutEmail">Email nhận đơn (Gmail)</label>
@@ -1727,10 +1728,8 @@
               </div>
             </div>
 
-            <div class="voucher-chips-row" style="margin-bottom:10px;">
-              <button type="button" class="voucher-chip-btn" onclick="selectVoucherChip('MINIGT2026')"><i class="fa-solid fa-tag"></i> MINIGT2026 (-20k)</button>
-              <button type="button" class="voucher-chip-btn" onclick="selectVoucherChip('FREESHIP')"><i class="fa-solid fa-truck"></i> FREESHIP (-11k Ship)</button>
-              <button type="button" class="voucher-chip-btn" onclick="selectVoucherChip('LBWK50K')"><i class="fa-solid fa-bolt"></i> LBWK50K (-50k đơn từ 850k)</button>
+            <div class="voucher-chips-row" id="checkoutVoucherChipsContainer" style="margin-bottom:10px; display:flex; flex-wrap:wrap; gap:6px;">
+              <!-- Mã giảm giá Admin & Đặc quyền VIP được tạo tự động qua JS -->
             </div>
 
             <label class="protector-check-label" style="border-top:1px dashed var(--border-subtle); padding-top:8px;">
@@ -1757,20 +1756,33 @@
                 </div>
               </div>
             </label>
-            <label class="payment-option-card" id="payOptCod" style="display:flex; gap:10px; padding:12px; border:1px solid #cbd5e1; border-radius:10px; background:#f8fafc; cursor:pointer;">
-              <input type="radio" name="checkoutPaymentMethod" value="COD" onchange="handlePaymentMethodChange(this.value)">
-              <div class="opt-content">
-                <div class="opt-header" style="display:flex; justify-content:space-between; align-items:center;">
-                  <strong class="opt-title" style="color:var(--color-navy); font-size:13px;">
-                    <i class="fa-solid fa-hand-holding-dollar" style="color:#059669; margin-right:4px;"></i> Thanh toán khi nhận hàng (Ship COD)
-                  </strong>
-                  <span style="font-size:10px; font-weight:700; background:#ecfdf5; color:#059669; padding:2px 6px; border-radius:4px;">Kiểm Hàng Trước Khi Trả</span>
+
+            <div class="payment-option-card-wrapper" id="payOptCodWrapper">
+              <label class="payment-option-card" id="payOptCod" style="display:flex; gap:10px; padding:12px; border:1px solid #cbd5e1; border-radius:10px; background:#f8fafc; cursor:pointer; position:relative;">
+                <input type="radio" name="checkoutPaymentMethod" id="checkoutPaymentCodRadio" value="COD" onchange="handlePaymentMethodChange(this.value)">
+                <div class="opt-content" style="flex:1;">
+                  <div class="opt-header" style="display:flex; justify-content:space-between; align-items:center;">
+                    <strong class="opt-title" style="color:var(--color-navy); font-size:13px;">
+                      <i class="fa-solid fa-hand-holding-dollar" style="color:#059669; margin-right:4px;"></i> Thanh toán khi nhận hàng (Ship COD 100%)
+                    </strong>
+                    <span id="payOptCodBadge" style="font-size:10px; font-weight:700; background:#ecfdf5; color:#059669; padding:2px 6px; border-radius:4px; border:1px solid #a7f3d0;">Kiểm Hàng Trước Khi Trả</span>
+                  </div>
+                  <div class="opt-desc" id="payOptCodDesc" style="font-size:11.5px; color:#64748b; margin-top:3px; line-height:1.4;">
+                    Thanh toán toàn bộ tiền hàng cho shipper SPX Express khi nhận và đồng kiểm kiện xe nguyên seal.
+                  </div>
                 </div>
-                <div class="opt-desc" style="font-size:11.5px; color:#64748b; margin-top:3px; line-height:1.4;">
-                  Thanh toán toàn bộ tiền hàng cho shipper SPX Express khi nhận và đồng kiểm kiện xe nguyên seal.
+              </label>
+              <!-- Tooltip hiển thị điều kiện khi di chuột vào lúc bị khóa -->
+              <div class="cod-lock-tooltip" id="payOptCodLockTooltip">
+                <div class="tooltip-header"><i class="fa-solid fa-shield-halved"></i> ĐIỀU KIỆN MỞ KHÓA SHIP COD 100%</div>
+                <div class="tooltip-body">
+                  Chính sách chống bom đơn: Chỉ mở cho tài khoản <strong>từ VIP 4 trở lên</strong> (đã mua và nhận hàng thành công với tổng hóa đơn <strong>từ 1.000.001đ trở lên</strong>).
+                </div>
+                <div class="tooltip-progress" id="payOptCodProgressText">
+                  Cấp bậc: VIP 1 • Đã nhận hàng: 0đ / 1.000.000đ
                 </div>
               </div>
-            </label>
+            </div>
             <label class="payment-option-card" id="payOptFull" style="display:flex; gap:10px; padding:12px; border:1px solid #cbd5e1; border-radius:10px; background:#f8fafc; cursor:pointer;">
               <input type="radio" name="checkoutPaymentMethod" value="BANK_TRANSFER" onchange="handlePaymentMethodChange(this.value)">
               <div class="opt-content">

@@ -2375,20 +2375,16 @@ function calculateCheckoutTotals() {
   let voucherDiscount = 0;
   let voucherDesc = '';
   if (checkoutAppliedVoucher) {
-    const code = checkoutAppliedVoucher.code;
-    if (code === 'FREESHIP') {
-      voucherDiscount = shippingFee > 0 ? shippingFee : 11000;
-      voucherDesc = 'Miễn phí vận chuyển SPX (-11.000đ)';
-    } else if (code === 'MINIGT2026') {
-      voucherDiscount = 20000;
-      voucherDesc = 'Ưu đãi thành viên Săn Xe Biên Hòa (-20.000đ)';
-    } else if (code === 'LBWK50K') {
-      voucherDiscount = subtotal >= 800000 ? 50000 : 25000;
-      voucherDesc = subtotal >= 800000 ? 'Voucher Collector đơn từ 800K (-50.000đ)' : 'Voucher Collector hỗ trợ (-25.000đ)';
-    } else if (code === 'LACHONG10') {
-      voucherDiscount = Math.min(50000, Math.round(subtotal * 0.05));
-      voucherDesc = 'Ưu đãi Sinh viên ĐH Lạc Hồng (-5%)';
+    if (checkoutAppliedVoucher.discountType === 'percent') {
+      const pct = Math.min(10, Math.max(1, Number(checkoutAppliedVoucher.discountValue || 0)));
+      voucherDiscount = Math.round(subtotal * (pct / 100));
+      if (checkoutAppliedVoucher.maxDiscount && voucherDiscount > checkoutAppliedVoucher.maxDiscount) {
+        voucherDiscount = checkoutAppliedVoucher.maxDiscount;
+      }
+    } else {
+      voucherDiscount = Math.min(subtotal, Number(checkoutAppliedVoucher.discountValue || checkoutAppliedVoucher.discount || 0));
     }
+    voucherDesc = checkoutAppliedVoucher.description || `Mã ${checkoutAppliedVoucher.code} (-${formatVND(voucherDiscount)})`;
   }
 
   const grandTotal = Math.max(0, subtotal + shippingFee + protectorFee - voucherDiscount);
@@ -2422,7 +2418,50 @@ function selectVoucherChip(code) {
   }
 }
 
-function applyCheckoutVoucher() {
+async function renderCheckoutVoucherChips() {
+  const container = document.getElementById('checkoutVoucherChipsContainer');
+  if (!container) return;
+
+  const user = (api && api.getCurrentUser) ? api.getCurrentUser() : (typeof currentUser !== 'undefined' ? currentUser : null);
+  const spent = typeof getCustomerDeliveredSpent === 'function' ? getCustomerDeliveredSpent() : 0;
+  const vip = typeof getCustomerVipInfo === 'function' ? getCustomerVipInfo(spent) : { level: 1, label: 'VIP 1' };
+
+  let chipsHtml = '';
+
+  // 1. Mã đặc quyền VIP theo cấp bậc tài khoản (tối đa 10%)
+  if (user && vip.level >= 2) {
+    const vipCode = `VIP${vip.level}`;
+    const vipPct = vip.level === 2 ? 2 : (vip.level === 3 ? 4 : (vip.level === 4 ? 7 : 10));
+    chipsHtml += `
+      <button type="button" class="voucher-chip-btn vip-chip" onclick="selectVoucherChip('${vipCode}')" title="Mã giảm giá đặc quyền ${vip.label}">
+        <i class="fa-solid fa-crown" style="color:#d97706;"></i> ${vipCode} (VIP ${vip.level} -${vipPct}%)
+      </button>
+    `;
+  }
+
+  // 2. Lấy danh sách mã giảm giá do Admin tạo từ backend
+  try {
+    const res = await safeFetch('/api/coupons');
+    const adminCoupons = (res && res.success && Array.isArray(res.data)) ? res.data : [];
+    adminCoupons.slice(0, 4).forEach(c => {
+      const isPct = c.discountType === 'percent';
+      const label = isPct ? `-${c.discountValue}%` : `-${Math.round(c.discountValue / 1000)}k`;
+      chipsHtml += `
+        <button type="button" class="voucher-chip-btn" onclick="selectVoucherChip('${escapeHtml(c.code)}')" title="${escapeHtml(c.description || '')}">
+          <i class="fa-solid fa-ticket" style="color:#2563eb;"></i> ${escapeHtml(c.code)} (${label})
+        </button>
+      `;
+    });
+  } catch (_) {}
+
+  container.innerHTML = chipsHtml || `
+    <span style="font-size:11.5px; color:#64748b; font-style:italic;">
+      <i class="fa-solid fa-circle-info"></i> Nhập mã ưu đãi từ Showroom hoặc thăng hạng VIP để nhận thêm chiết khấu.
+    </span>
+  `;
+}
+
+async function applyCheckoutVoucher() {
   const input = document.getElementById('checkoutVoucherInput');
   const statusEl = document.getElementById('checkoutVoucherStatus');
   const rawCode = (input ? input.value : '').trim().toUpperCase();
@@ -2441,27 +2480,51 @@ function applyCheckoutVoucher() {
     return;
   }
 
-  const validCodes = ['MINIGT2026', 'FREESHIP', 'LBWK50K', 'LACHONG10'];
-  if (!validCodes.includes(rawCode)) {
+  const totals = calculateCheckoutTotals();
+  const user = (api && api.getCurrentUser) ? api.getCurrentUser() : (typeof currentUser !== 'undefined' ? currentUser : null);
+
+  try {
+    const res = await safeFetch('/api/coupons/validate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        code: rawCode,
+        subtotal: totals.subtotal,
+        user
+      })
+    });
+
+    if (res && res.success && res.data) {
+      checkoutAppliedVoucher = res.data;
+      const newTotals = calculateCheckoutTotals();
+      if (statusEl) {
+        statusEl.style.color = '#059669';
+        statusEl.innerHTML = `<i class="fa-solid fa-circle-check"></i> Đã áp dụng mã <strong>${escapeHtml(rawCode)}</strong>: Giảm ngay <strong>${formatVND(newTotals.voucherDiscount)}</strong> (${newTotals.voucherDesc})`;
+      }
+      showToast(`Áp dụng mã ${rawCode} thành công! Giảm ${formatVND(newTotals.voucherDiscount)}`, 'success');
+    } else {
+      checkoutAppliedVoucher = null;
+      const errMsg = res?.message || `Mã giảm giá "${rawCode}" không hợp lệ hoặc đã hết hạn!`;
+      if (statusEl) {
+        statusEl.style.color = '#dc2626';
+        statusEl.innerHTML = `<i class="fa-solid fa-circle-xmark"></i> ${escapeHtml(errMsg)}`;
+      }
+      showToast(errMsg, 'error', 4500);
+    }
+  } catch (err) {
     checkoutAppliedVoucher = null;
     if (statusEl) {
       statusEl.style.color = '#dc2626';
-      statusEl.innerHTML = `<i class="fa-solid fa-circle-xmark"></i> Mã "${escapeHtml(rawCode)}" không tồn tại. Gợi ý: MINIGT2026, FREESHIP, LBWK50K`;
+      statusEl.innerHTML = `<i class="fa-solid fa-circle-xmark"></i> ${escapeHtml(err.message || 'Lỗi kiểm tra mã!')}`;
     }
-    showToast('Mã ưu đãi không hợp lệ! Hãy chọn 1 trong các mã gợi ý bên dưới.', 'error');
-    renderCheckoutStep3();
-    return;
+    showToast(err.message || 'Lỗi kiểm tra mã ưu đãi!', 'error');
   }
 
-  checkoutAppliedVoucher = { code: rawCode };
-  const totals = calculateCheckoutTotals();
-  if (statusEl) {
-    statusEl.style.color = '#059669';
-    statusEl.innerHTML = `<i class="fa-solid fa-circle-check"></i> Đã áp dụng mã <strong>${escapeHtml(rawCode)}</strong>: Giảm ngay <strong>${formatVND(totals.voucherDiscount)}</strong> (${totals.voucherDesc})`;
-  }
-  showToast(`Áp dụng mã ${rawCode} thành công! Giảm ${formatVND(totals.voucherDiscount)}`, 'success');
   renderCheckoutStep3();
 }
+window.selectVoucherChip = selectVoucherChip;
+window.applyCheckoutVoucher = applyCheckoutVoucher;
+window.renderCheckoutVoucherChips = renderCheckoutVoucherChips;
 
 let currentCheckoutAddressType = 'NEW';
 
@@ -2690,6 +2753,7 @@ function goToCheckoutStep(step) {
   if (step === 1) {
     renderCheckoutStep1();
   } else if (step === 3) {
+    renderCheckoutVoucherChips();
     renderCheckoutStep3();
   }
 
@@ -2820,30 +2884,43 @@ function getCustomerDeliveredSpent() {
   const user = (api && api.getCurrentUser) ? api.getCurrentUser() : (typeof currentUser !== 'undefined' ? currentUser : null);
   if (!user) return 0;
 
-  let spent = Number(user.deliveredSpent || 0);
-
+  let spent = 0;
   try {
     const allOrders = (api && api.getSharedOrders) ? api.getSharedOrders() : [];
+    const uid = user.userId || user.id;
     const myDelivered = allOrders.filter(o => {
       const st = String(o.status || o.Status || '').toUpperCase();
       const isDelivered = st === 'DELIVERED';
-      const match = (user.userId && o.userId && Number(user.userId) === Number(o.userId)) ||
-                    (user.email && o.email && user.email.toLowerCase() === o.email.toLowerCase()) ||
-                    (user.phone && o.phone && user.phone === o.phone);
-      return isDelivered && match;
+      const matchUid = Boolean(uid && o.userId && Number(uid) === Number(o.userId));
+      const matchEmail = Boolean(user.email && o.email && user.email.toLowerCase() === o.email.toLowerCase());
+      const matchPhone = Boolean(user.phone && o.phone && String(user.phone).replace(/\D/g, '') === String(o.phone).replace(/\D/g, ''));
+      return isDelivered && (matchUid || matchEmail || matchPhone);
     });
-    const ordersSum = myDelivered.reduce((sum, o) => sum + Number(o.total || o.totalAmount || o.Total || 0), 0);
-    spent = Math.max(spent, ordersSum);
+    spent = myDelivered.reduce((sum, o) => sum + Number(o.total || o.totalAmount || o.Total || 0), 0);
   } catch (_) {}
 
-  // Nếu người dùng có lịch sử mua hàng và đã đạt tổng chi tiêu từ 1.000.000đ
-  if (user.totalSpent >= 1000000 && (user.totalOrders > 0 || (user.tier && user.tier.includes('VIP')))) {
-    spent = Math.max(spent, Number(user.totalSpent));
+  // Lấy chi tiêu thực tế cao nhất giữa đơn DELIVERED và thuộc tính user
+  if (user.deliveredSpent && Number(user.deliveredSpent) > spent) {
+    spent = Number(user.deliveredSpent);
+  }
+  if (user.totalSpent && Number(user.totalSpent) > spent) {
+    spent = Number(user.totalSpent);
   }
 
   return spent;
 }
 window.getCustomerDeliveredSpent = getCustomerDeliveredSpent;
+
+function isCustomerCodEligible() {
+  const user = (api && api.getCurrentUser) ? api.getCurrentUser() : (typeof currentUser !== 'undefined' ? currentUser : null);
+  if (!user) return false;
+  const spent = getCustomerDeliveredSpent();
+  const vip = getCustomerVipInfo(spent);
+  // BẮT BUỘC: Chỉ mở cho thành viên từ VIP 4 trở lên (tích lũy đơn nhận hàng trên 1.000.000đ)
+  // VIP 1 (0 - 200K), VIP 2 (201K - 500K), VIP 3 (501K - 1TR) -> KHÓA HOÀN TOÀN
+  return vip.level >= 4 && spent >= 1000001;
+}
+window.isCustomerCodEligible = isCustomerCodEligible;
 
 function handlePaymentMethodChange(val) {
   const hasPreOrder = cart.some(it => it.isPreOrder);
@@ -2854,9 +2931,10 @@ function handlePaymentMethodChange(val) {
     const depRadio = document.querySelector('input[name="checkoutPaymentMethod"][value="DEPOSIT"]');
     if (depRadio) depRadio.checked = true;
   } else if (val === 'COD') {
-    const deliveredSpent = getCustomerDeliveredSpent();
-    if (deliveredSpent < 1000000) {
-      showToast(`🔒 Phương thức Ship COD 100% chỉ áp dụng cho tài khoản đã từng mua và nhận hàng thành công từ 1.000.000đ trở lên. Hiện tại bạn đã tích lũy: ${formatVND(deliveredSpent)} / 1.000.000đ. Vui lòng chọn Đặt cọc 30% hoặc Chuyển khoản VietQR!`, 'warning', 'Chưa đủ điều kiện COD');
+    if (!isCustomerCodEligible()) {
+      const deliveredSpent = getCustomerDeliveredSpent();
+      const vip = getCustomerVipInfo(deliveredSpent);
+      showToast(`🔒 Phương thức Ship COD 100% đang bị khóa để chống bom đơn! Chỉ áp dụng cho tài khoản từ VIP 4 trở lên (đã mua & nhận hàng trên 1.000.000đ). Cấp hiện tại của bạn: ${vip.label} (Đã tích lũy: ${formatVND(deliveredSpent)} / 1.000.000đ). Vui lòng chọn Đặt cọc 30% hoặc Chuyển khoản VietQR MB Bank!`, 'warning', 5000);
       const fallbackRadio = document.querySelector('input[name="checkoutPaymentMethod"][value="DEPOSIT"]') || document.querySelector('input[name="checkoutPaymentMethod"][value="BANK_TRANSFER"]');
       if (fallbackRadio) fallbackRadio.checked = true;
       selectedCheckoutPaymentMethod = fallbackRadio ? fallbackRadio.value : 'DEPOSIT';
@@ -2904,10 +2982,14 @@ function renderCheckoutStep3() {
   const optFull = document.getElementById('payOptFull');
 
   const deliveredSpent = getCustomerDeliveredSpent();
-  const isCodEligible = deliveredSpent >= 1000000;
-  const codRadio = document.querySelector('input[name="checkoutPaymentMethod"][value="COD"]');
+  const vip = getCustomerVipInfo(deliveredSpent);
+  const isCodEligible = isCustomerCodEligible();
+
+  const codRadio = document.querySelector('input[name="checkoutPaymentMethod"][value="COD"]') || document.getElementById('checkoutPaymentCodRadio');
   const codBadge = document.getElementById('payOptCodBadge');
   const codDesc = document.getElementById('payOptCodDesc');
+  const codProgressText = document.getElementById('payOptCodProgressText');
+  const codTooltip = document.getElementById('payOptCodLockTooltip');
 
   let preNotice = document.getElementById('preOrderPaymentNoticeInStep3');
   if (hasPreOrder) {
@@ -2937,11 +3019,11 @@ function renderCheckoutStep3() {
     if (optCod) {
       optCod.style.display = 'flex';
       if (!isCodEligible) {
-        // Chưa đủ điều kiện 1.000.000đ: Khóa không cho bấm & hiện hướng dẫn
+        // Chưa đủ điều kiện VIP 4 (>= 1.000.001đ): Khóa hoàn toàn không cho bấm
         optCod.classList.add('is-locked');
-        optCod.style.opacity = '0.78';
+        optCod.style.opacity = '0.65';
         optCod.style.background = '#f8fafc';
-        optCod.style.borderColor = '#e2e8f0';
+        optCod.style.borderColor = '#cbd5e1';
         optCod.style.cursor = 'not-allowed';
         if (codRadio) {
           codRadio.disabled = true;
@@ -2953,23 +3035,28 @@ function renderCheckoutStep3() {
           if (depRadio) depRadio.checked = true;
         }
         if (codBadge) {
-          codBadge.innerHTML = '<i class="fa-solid fa-lock" style="color:#dc2626;"></i> Mở Khóa Từ 1.000.000đ';
+          codBadge.innerHTML = '<i class="fa-solid fa-lock" style="color:#dc2626;"></i> Khóa: Cần VIP 4 (trên 1.000.000đ)';
           codBadge.style.background = '#fef2f2';
           codBadge.style.color = '#dc2626';
           codBadge.style.borderColor = '#fecaca';
         }
         if (codDesc) {
-          codDesc.innerHTML = `🔒 <strong>Dành riêng cho khách đã từng mua & nhận hàng từ 1.000.000đ trở lên.</strong><br><span style="color:#ea580c; font-weight:700;">Hiện tại bạn đã tích lũy: ${formatVND(deliveredSpent)} / 1.000.000đ.</span> Vui lòng chọn Đặt cọc 30% hoặc Chuyển khoản Full 100%!`;
+          codDesc.innerHTML = `🔒 <strong>Phương thức bị khóa để phòng chống bom đơn.</strong> Chỉ mở cho thành viên từ VIP 4 trở lên (đã mua & nhận hàng thành công từ 1.000.001đ trở lên). Di chuột vào để xem chi tiết.`;
+        }
+        if (codProgressText) {
+          codProgressText.innerHTML = `Cấp bậc hiện tại: <strong>${vip.label} (${vip.tierName})</strong><br>Tích lũy nhận hàng: <strong>${formatVND(deliveredSpent)} / 1.000.000đ</strong><br><span style="color:#f59e0b;">(Cần thêm ${formatVND(Math.max(0, 1000001 - deliveredSpent))} để mở khóa Ship COD)</span>`;
         }
         optCod.onclick = (e) => {
-          if (!isCodEligible) {
-            e.preventDefault();
-            e.stopPropagation();
-            showToast(`🔒 Phương thức Ship COD 100% chỉ áp dụng cho tài khoản đã từng mua và nhận hàng thành công từ 1.000.000đ trở lên. Hiện tại bạn đã tích lũy: ${formatVND(deliveredSpent)} / 1.000.000đ. Vui lòng chọn Đặt cọc 30% hoặc Chuyển khoản VietQR MB Bank!`, 'warning', 'Chưa đủ điều kiện COD');
-          }
+          e.preventDefault();
+          e.stopPropagation();
+          showToast(`🔒 Phương thức Ship COD 100% đang bị khóa để chống bom đơn! Chỉ mở cho thành viên từ VIP 4 trở lên (đã mua & nhận hàng trên 1.000.000đ). Hiện tại: ${vip.label} (${formatVND(deliveredSpent)} / 1.000.000đ). Vui lòng chọn Đặt cọc 30% hoặc Chuyển khoản VietQR MB Bank!`, 'warning', 5000);
+          const depRadio = document.querySelector('input[name="checkoutPaymentMethod"][value="DEPOSIT"]');
+          if (depRadio) depRadio.checked = true;
+          selectedCheckoutPaymentMethod = 'DEPOSIT';
+          return false;
         };
       } else {
-        // Đã đủ điều kiện >= 1.000.000đ
+        // Đã đủ điều kiện >= 1.000.001đ (VIP 4, VIP 5)
         optCod.classList.remove('is-locked');
         optCod.style.opacity = '1';
         optCod.style.cursor = 'pointer';
@@ -2982,7 +3069,10 @@ function renderCheckoutStep3() {
           codBadge.style.borderColor = '#a7f3d0';
         }
         if (codDesc) {
-          codDesc.innerHTML = `Thanh toán toàn bộ tiền hàng cho shipper SPX Express khi nhận và đồng kiểm kiện xe nguyên seal. (Đã tích lũy nhận hàng: <strong style="color:#059669;">${formatVND(deliveredSpent)}</strong>)`;
+          codDesc.innerHTML = `Thanh toán toàn bộ tiền hàng cho shipper SPX Express khi nhận và đồng kiểm kiện xe nguyên seal. (Đã tích lũy: <strong style="color:#059669;">${formatVND(deliveredSpent)}</strong> - ${vip.label})`;
+        }
+        if (codProgressText) {
+          codProgressText.innerHTML = `Tài khoản đạt chuẩn VIP 4+ (${vip.label}). Đã mở khóa quyền lợi nhận hàng COD 100%!`;
         }
       }
     }
@@ -3114,6 +3204,19 @@ async function handleCheckoutSubmit(e) {
   const normalizedPayMethod = selectedCheckoutPaymentMethod === 'FULL_TRANSFER'
     ? 'BANK_TRANSFER'
     : (selectedCheckoutPaymentMethod || 'DEPOSIT');
+
+  if (normalizedPayMethod === 'COD' && !isCustomerCodEligible()) {
+    const deliveredSpent = getCustomerDeliveredSpent();
+    const vip = getCustomerVipInfo(deliveredSpent);
+    showToast(`🔒 Phương thức Ship COD 100% đang bị khóa để chống bom đơn! Chỉ áp dụng cho tài khoản từ VIP 4 trở lên (đã mua & nhận hàng trên 1.000.000đ). Cấp hiện tại của bạn: ${vip.label} (${formatVND(deliveredSpent)} / 1.000.000đ). Vui lòng chọn Đặt cọc 30% hoặc Chuyển khoản VietQR MB Bank!`, 'error', 5500);
+    if (btn) btn.disabled = false;
+    if (btnText) btnText.innerHTML = 'Xác Nhận Đặt Cọc & Hoàn Tất Đơn Hàng <i class="fa-solid fa-arrow-right" style="margin-left:6px;"></i>';
+    selectedCheckoutPaymentMethod = 'DEPOSIT';
+    const depRadio = document.querySelector('input[name="checkoutPaymentMethod"][value="DEPOSIT"]');
+    if (depRadio) depRadio.checked = true;
+    goToCheckoutStep(3);
+    return;
+  }
 
   const totals = calculateCheckoutTotals();
   const addonTags = [];
@@ -4151,7 +4254,7 @@ async function handleForgotPassword(e) {
 // =====================================================================
 // GOOGLE IDENTITY SERVICES (GSI) & GOOGLE SIGN-IN THẬT 100%
 // =====================================================================
-window.GOOGLE_CLIENT_ID = '1088463836173-fake-placeholder.apps.googleusercontent.com';
+window.GOOGLE_CLIENT_ID = '670662206600-el2nstl8uokismch5grjt9f2g6m9rfdr.apps.googleusercontent.com';
 let googleTokenClient = null;
 
 function initGoogleIdentityServices() {
@@ -4162,7 +4265,7 @@ function initGoogleIdentityServices() {
     safeFetch('/api/auth/google/config').then(cfg => {
       if (cfg && cfg.clientId) window.GOOGLE_CLIENT_ID = cfg.clientId;
     }).catch(() => {}).finally(() => {
-      const clientId = window.GOOGLE_CLIENT_ID || '1088463836173-fake-placeholder.apps.googleusercontent.com';
+      const clientId = window.GOOGLE_CLIENT_ID || '670662206600-el2nstl8uokismch5grjt9f2g6m9rfdr.apps.googleusercontent.com';
 
       // 1. Khởi tạo Google One-Tap & Credential API
       try {
@@ -4173,19 +4276,6 @@ function initGoogleIdentityServices() {
             auto_select: false,
             cancel_on_tap_outside: true
           });
-
-          const officialContainer = document.getElementById('googleOfficialBtnContainer');
-          if (officialContainer) {
-            google.accounts.id.renderButton(officialContainer, {
-              theme: 'outline',
-              size: 'large',
-              type: 'standard',
-              text: 'continue_with',
-              shape: 'rectangular',
-              logo_alignment: 'left',
-              width: 320
-            });
-          }
         }
       } catch (err) {
         console.warn('[GSI ID Init Notice]:', err.message);
@@ -4338,7 +4428,7 @@ async function handleGoogleLoginClick() {
   // 2. Thử khởi tạo ngay nếu thư viện Google đã nạp
   if (typeof google !== 'undefined' && google.accounts?.oauth2) {
     try {
-      const clientId = window.GOOGLE_CLIENT_ID || '1088463836173-fake-placeholder.apps.googleusercontent.com';
+      const clientId = window.GOOGLE_CLIENT_ID || '670662206600-el2nstl8uokismch5grjt9f2g6m9rfdr.apps.googleusercontent.com';
       googleTokenClient = google.accounts.oauth2.initTokenClient({
         client_id: clientId,
         scope: 'email profile openid',

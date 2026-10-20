@@ -7,6 +7,7 @@ const db = require('../config/db');
 const productService = require('../services/productService');
 const orderService = require('../services/orderService');
 const settingsService = require('../services/settingsService');
+const couponService = require('../services/couponService');
 const { authenticate, requireAdmin } = require('../middleware/auth');
 const { ok, created, badRequest, notFound, conflict } = require('../utils/http');
 const v = require('../utils/validators');
@@ -908,6 +909,60 @@ router.put('/settings', async (req, res, next) => {
   try {
     const updated = settingsService.update ? await settingsService.update(req.body) : req.body;
     return ok(res, updated, 'Đã cập nhật thiết lập cửa hàng thành công!');
+  } catch (error) {
+    next(error);
+  }
+});
+
+// =====================================================================
+// 7. QUẢN LÝ MÃ GIẢM GIÁ & VOUCHER (COUPON MANAGEMENT)
+// =====================================================================
+router.get('/coupons', async (req, res, next) => {
+  try {
+    const list = await couponService.listAdminCoupons();
+    return res.status(200).json({
+      success: true,
+      data: list,
+      vipTiers: couponService.VIP_TIER_COUPONS
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post('/coupons', async (req, res, next) => {
+  try {
+    const coupon = await couponService.createCoupon(req.body);
+    return res.status(201).json({
+      success: true,
+      message: `Tạo mã giảm giá "${coupon.code}" thành công!`,
+      data: coupon
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.put('/coupons/:id', async (req, res, next) => {
+  try {
+    const coupon = await couponService.updateCoupon(req.params.id, req.body);
+    return res.status(200).json({
+      success: true,
+      message: 'Cập nhật mã giảm giá thành công!',
+      data: coupon
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.delete('/coupons/:id', async (req, res, next) => {
+  try {
+    await couponService.deleteCoupon(req.params.id);
+    return res.status(200).json({
+      success: true,
+      message: 'Đã xóa mã giảm giá thành công!'
+    });
   } catch (error) {
     next(error);
   }

@@ -209,7 +209,7 @@ router.post('/login', async (req, res, next) => {
 router.get('/google/config', (req, res) => {
   return res.status(200).json({
     success: true,
-    clientId: process.env.GOOGLE_CLIENT_ID || '1088463836173-fake-placeholder.apps.googleusercontent.com'
+    clientId: process.env.GOOGLE_CLIENT_ID || '670662206600-el2nstl8uokismch5grjt9f2g6m9rfdr.apps.googleusercontent.com'
   });
 });
 
