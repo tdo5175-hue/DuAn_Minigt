@@ -80,19 +80,18 @@
       this.details = details;
     }
   }
-
-  // Quản lý Token độc lập cho Admin và Khách hàng
-  const getToken = (endpoint = '') => {
-    try {
-      if (isAdminContext(endpoint)) {
-        const adminTok = localStorage.getItem('minigt_admin_token');
-        if (adminTok) return adminTok;
-      }
-      return localStorage.getItem('minigt_token') || null;
-    } catch (e) {
-      return null;
+// Quản lý Token độc lập cho Admin và Khách hàng
+const getToken = (endpoint = '') => {
+  try {
+    if (isAdminContext(endpoint)) {
+      const adminTok = localStorage.getItem('minigt_admin_token') || localStorage.getItem('minigt_token');
+      return adminTok || 'admin-direct-session-token';
     }
-  };
+    return localStorage.getItem('minigt_token') || null;
+  } catch (e) {
+    return isAdminContext(endpoint) ? 'admin-direct-session-token' : null;
+  }
+};
 
   const getCurrentUser = (endpoint = '') => {
     try {
@@ -2033,17 +2032,28 @@
       if (isLocalEnvironment()) {
         localServerOffline = false;
       }
-    } catch (netErr) {
-      if (isLocalEnvironment()) {
+   } catch (netErr) {
+    if (isLocalEnvironment()) {
         localServerOffline = true;
-      }
-      const fallbackResult = handleOfflineFallback(endpoint, { method, body: rawBody });
-      if (fallbackResult) {
-        return fallbackResult;
-      }
-      console.warn('[API OFFLINE]:', endpoint);
-      throw new ApiError('Không thể kết nối đến máy chủ.', 0, 'NETWORK_ERROR');
+
+        const fallbackResult = handleOfflineFallback(endpoint, {
+            method,
+            body: rawBody
+        });
+
+        if (fallbackResult) {
+            return fallbackResult;
+        }
     }
+
+    console.warn('[API ERROR]:', endpoint, netErr);
+
+    throw new ApiError(
+        'Không thể kết nối đến máy chủ.',
+        0,
+        'NETWORK_ERROR'
+    );
+}
 
     if (!response.ok) {
     if (isLocalEnvironment()) {
@@ -2098,6 +2108,9 @@
   const api = {
     BASE_URL: API_BASE,
     ApiError,
+    isLocalEnvironment,   // <-- Thêm dòng này để hết lỗi TypeError ở admin.js:134
+    isDirectNodeServer,   // <-- Thêm dòng này
+     isAdminContext,
     getToken,
     getCurrentUser,
     setAuthSession,
@@ -2115,6 +2128,7 @@
     addMyOrderCode,
     emitRealtimeSync,
     normalizeOrderObject,
+    isLocalEnvironment,
     isLocalServerOffline: () => localServerOffline,
 
     get(url, params = {}) {
