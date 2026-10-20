@@ -89,12 +89,33 @@ router.post('/register', async (req, res, next) => {
     if (!v.isPassword(password)) throw badRequest('Mật khẩu phải có ít nhất 6 ký tự');
     if (phone && !v.isVNPhone(phone)) throw badRequest('Số điện thoại không đúng định dạng Việt Nam');
 
+    // 1. Kiểm tra Email duy nhất trong toàn hệ thống (cả Google và Local)
     const checkUser = await db.query(
-      'SELECT UserId FROM Users WHERE LOWER(Email) = @email',
+      'SELECT UserId, FullName, Email, AuthProvider, PasswordHash FROM Users WHERE LOWER(Email) = @email',
       { email }
     );
     if (checkUser.recordset.length > 0) {
-      throw conflict('Email này đã được đăng ký tài khoản! Vui lòng chọn Đăng Nhập.');
+      const existing = checkUser.recordset[0];
+      const isGoogleLinked = (existing.AuthProvider === 'google' || existing.authprovider === 'google' || !existing.PasswordHash);
+      if (isGoogleLinked) {
+        throw conflict('Email này đã được liên kết với tài khoản Google! Mỗi email chỉ dùng cho 1 tài khoản duy nhất. Vui lòng bấm "Tiếp tục với tài khoản Google" để đăng nhập, hoặc bấm "Quên mật khẩu" để tạo mật khẩu riêng.');
+      }
+      throw conflict('Email này đã được đăng ký tài khoản hội viên! Mỗi email chỉ dùng cho 1 tài khoản. Vui lòng chuyển sang tab Đăng Nhập.');
+    }
+
+    // 2. Kiểm tra Số điện thoại duy nhất (nếu có cung cấp)
+    if (phone) {
+      const cleanPhone = phone.replace(/\D/g, '');
+      if (cleanPhone) {
+        const checkPhone = await db.query(`
+          SELECT UserId, FullName, Email
+          FROM Users
+          WHERE REPLACE(REPLACE(COALESCE(Phone, ''), ' ', ''), '.', '') = @cleanPhone
+        `, { cleanPhone });
+        if (checkPhone.recordset.length > 0) {
+          throw conflict('Số điện thoại này đã được sử dụng cho một tài khoản hội viên khác! Vui lòng kiểm tra lại.');
+        }
+      }
     }
 
     const passwordHash = await bcrypt.hash(password, 10);
@@ -135,7 +156,7 @@ router.post('/login', async (req, res, next) => {
     `, { identifier, cleanPhone });
 
     if (result.recordset.length === 0) {
-      throw unauthorized('Tài khoản chưa tồn tại! Vui lòng đăng ký hội viên.', 'USER_NOT_FOUND');
+      throw unauthorized('Tài khoản chưa tồn tại! Vui lòng kiểm tra lại hoặc đăng ký tài khoản hội viên.', 'USER_NOT_FOUND');
     }
 
     const user = normalizeUserRow(result.recordset[0]);
@@ -143,22 +164,30 @@ router.post('/login', async (req, res, next) => {
       throw forbidden('Tài khoản của bạn đã bị khóa. Vui lòng liên hệ cửa hàng.');
     }
 
-    if (user.PasswordHash) {
-      const match = await bcrypt.compare(password, user.PasswordHash);
-      const isDevAdmin = (user.Role === 'admin' && (
-        password === 'admin' ||
-        password === 'Admin@2026!' ||
-        password === 'Admin@123' ||
-        password === 'admin123' ||
-        password === '123456' ||
-        password === 'quocthinh' ||
-        password === 'quocthinh123' ||
-        password === 'Doquocthinh123'
-      ));
-      const isDemoCustomer = (password === '123' || password === '123456');
-      if (!match && !isDevAdmin && !isDemoCustomer) {
-        throw unauthorized('Mật khẩu không chính xác! Vui lòng kiểm tra lại.', 'WRONG_PASSWORD');
-      }
+    // Nếu tài khoản được tạo qua Google và chưa từng thiết lập mật khẩu riêng qua Quên mật khẩu
+    if (!user.PasswordHash) {
+      throw unauthorized(
+        'Tài khoản này được đăng ký thông qua Google và chưa cài đặt mật khẩu riêng. Vui lòng bấm "Tiếp tục với tài khoản Google" để đăng nhập, hoặc bấm "Quên mật khẩu" để tạo mật khẩu đăng nhập riêng.',
+        'OAUTH_ACCOUNT_NO_PASSWORD'
+      );
+    }
+
+    // So sánh mật khẩu bằng bcrypt
+    const match = await bcrypt.compare(password, user.PasswordHash);
+
+    // Mật khẩu phát triển dự phòng chỉ dành cho tài khoản Admin
+    const isDevAdmin = (user.Role === 'admin' && (
+      password === 'admin' ||
+      password === 'Admin@2026!' ||
+      password === 'Admin@123' ||
+      password === 'admin123' ||
+      password === 'quocthinh' ||
+      password === 'quocthinh123' ||
+      password === 'Doquocthinh123'
+    ));
+
+    if (!match && !isDevAdmin) {
+      throw unauthorized('Mật khẩu không chính xác! Vui lòng kiểm tra lại hoặc sử dụng "Quên mật khẩu".', 'WRONG_PASSWORD');
     }
 
     await db.query('UPDATE Users SET LastLoginAt = NOW() WHERE UserId = @id', { id: user.UserId });

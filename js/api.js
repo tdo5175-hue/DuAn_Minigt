@@ -1227,8 +1227,17 @@
         };
       }
 
-      // Kiểm tra mật khẩu (nếu user có mật khẩu cài đặt)
-      if (user.password && user.password !== password) {
+      // Kiểm tra mật khẩu (nếu user tạo qua Google chưa cài mật khẩu)
+      const isGoogleNoPass = (user.authProvider === 'google' || !user.password || user.password === 'google_oauth_pass');
+      if (isGoogleNoPass) {
+        return {
+          success: false,
+          code: 'OAUTH_ACCOUNT_NO_PASSWORD',
+          message: 'Tài khoản này được đăng ký thông qua Google và chưa cài đặt mật khẩu riêng. Vui lòng bấm "Tiếp tục với tài khoản Google" để đăng nhập, hoặc bấm "Quên mật khẩu" để tạo mật khẩu đăng nhập riêng.'
+        };
+      }
+
+      if (user.password !== password) {
         return {
           success: false,
           code: 'WRONG_PASSWORD',
@@ -1286,10 +1295,18 @@
       });
 
       if (existing) {
+        const isGoogle = (existing.authProvider === 'google' || !existing.password || existing.password === 'google_oauth_pass');
+        if (isGoogle) {
+          return {
+            success: false,
+            code: 'USER_EXISTS',
+            message: 'Email này đã được liên kết với tài khoản Google! Mỗi email chỉ dùng cho 1 tài khoản duy nhất. Vui lòng bấm "Tiếp tục với tài khoản Google" để đăng nhập, hoặc bấm "Quên mật khẩu" để tạo mật khẩu đăng nhập riêng.'
+          };
+        }
         return {
           success: false,
           code: 'USER_EXISTS',
-          message: 'Email hoặc số điện thoại này đã được đăng ký tài khoản! Bạn vui lòng chọn Đăng Nhập.'
+          message: 'Email hoặc số điện thoại này đã được đăng ký tài khoản! Bạn vui lòng chọn tab Đăng Nhập.'
         };
       }
 
@@ -1359,7 +1376,8 @@
           email,
           phone: '',
           address: '',
-          password: 'google_oauth_pass',
+          password: null,
+          authProvider: 'google',
           role: 'customer',
           tier: 'Collector',
           points: 100,

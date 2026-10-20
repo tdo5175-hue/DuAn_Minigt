@@ -713,7 +713,14 @@ async function safeFetch(url, options = {}) {
     return await api.get(url);
   } catch (err) {
     console.warn(`[SAFE FETCH] (${url}):`, err.message || err);
-    return { success: false, data: null, error: err.message };
+    return {
+      success: false,
+      data: null,
+      error: err.message,
+      message: err.message,
+      code: err.code || 'API_ERROR',
+      status: err.status || 500
+    };
   } finally {
     finishSiteProgressBar();
   }
@@ -3905,26 +3912,29 @@ async function handleLocalLogin(e) {
       body: JSON.stringify({ email: identifier, password, rememberMe })
     });
 
-    if (json.success && json.user) {
+    if (json && json.success && json.user) {
       loginSuccess(json.user, json.token, rememberMe);
     } else {
-      if (json.code === 'WRONG_PASSWORD' && pwdError) {
-        pwdError.textContent = json.message || 'Mật khẩu không chính xác!';
+      const errMsg = json?.message || json?.error || 'Đăng nhập không thành công!';
+      if (json?.code === 'WRONG_PASSWORD' && pwdError) {
+        pwdError.textContent = errMsg;
+        pwdInput?.focus();
+      } else if (json?.code === 'OAUTH_ACCOUNT_NO_PASSWORD') {
+        if (pwdError) pwdError.textContent = errMsg;
+        const ggBtn = document.getElementById('googleLoginBtn');
+        if (ggBtn) {
+          ggBtn.style.boxShadow = '0 0 0 3px rgba(66, 133, 244, 0.45)';
+          setTimeout(() => { if (ggBtn) ggBtn.style.boxShadow = ''; }, 3500);
+        }
       } else if (emailError) {
-        emailError.textContent = json.message || 'Đăng nhập không thành công';
+        emailError.textContent = errMsg;
+        emailInput?.focus();
       }
-      showToast(json.message || 'Đăng nhập không thành công', 'error');
+      showToast(errMsg, 'error', 4500);
     }
   } catch (err) {
-    console.warn('Lỗi kết nối auth login, sử dụng Local Fallback Session:', err);
-    loginSuccess({
-      fullName: identifier.split('@')[0],
-      email: identifier,
-      avatarUrl: DEFAULT_USER_AVATAR,
-      role: 'customer',
-      tier: 'Collector',
-      points: 100
-    }, 'offline_token_' + Date.now(), rememberMe);
+    console.error('[AUTH LOGIN ERROR]:', err);
+    showToast(err.message || 'Không thể kết nối đến máy chủ xác thực. Vui lòng thử lại!', 'error');
   } finally {
     if (btnSubmit) {
       btnSubmit.disabled = false;
@@ -3996,27 +4006,27 @@ async function handleLocalRegister(e) {
       body: JSON.stringify({ fullName, email, phone, address, password, avatarUrl: DEFAULT_USER_AVATAR })
     });
 
-    if (json.success) {
+    if (json && json.success) {
       const userObj = Object.assign({}, json.user, {
         avatarUrl: DEFAULT_USER_AVATAR,
         tier: json.user?.tier || 'Collector',
         points: json.user?.points || 100
       });
+      showToast('Đăng ký tài khoản thành công! Tặng bạn 100 điểm thưởng hội viên chào mừng.', 'success');
       loginSuccess(userObj, json.token, true);
     } else {
-      showToast(json.message || 'Đăng ký không thành công', 'error');
+      const errMsg = json?.message || json?.error || 'Đăng ký không thành công!';
+      showToast(errMsg, 'error', 5000);
+      const regEmail = document.getElementById('regEmail');
+      if (regEmail && (errMsg.toLowerCase().includes('email') || json?.code === 'USER_EXISTS')) {
+        regEmail.focus();
+        regEmail.style.borderColor = '#ef4444';
+        setTimeout(() => { if (regEmail) regEmail.style.borderColor = ''; }, 3500);
+      }
     }
   } catch (err) {
-    loginSuccess({
-      fullName,
-      email,
-      phone,
-      address,
-      avatarUrl: DEFAULT_USER_AVATAR,
-      role: 'customer',
-      tier: 'Collector',
-      points: 100
-    }, 'offline_reg_token_' + Date.now(), true);
+    console.error('[AUTH REGISTER ERROR]:', err);
+    showToast(err.message || 'Có lỗi xảy ra trong quá trình đăng ký tài khoản!', 'error');
   } finally {
     if (btnSubmit) {
       btnSubmit.disabled = false;
@@ -4133,8 +4143,8 @@ async function handleForgotPassword(e) {
       showToast(json?.message || 'Mã OTP hoặc thông tin không hợp lệ!', 'error');
     }
   } catch (err) {
-    showToast('✅ Đặt lại mật khẩu thành công! Vui lòng đăng nhập với mật khẩu mới.', 'success');
-    switchAuthTab('login');
+    console.error('[AUTH RESET PWD ERROR]:', err);
+    showToast(err.message || 'Có lỗi xảy ra khi đặt lại mật khẩu! Vui lòng thử lại.', 'error');
   }
 }
 
