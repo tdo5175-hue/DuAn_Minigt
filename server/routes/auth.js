@@ -1,12 +1,25 @@
 /**
- * AUTH ROUTES (/api/auth) — ĐỒNG BỘ VỚI SUPABASE POSTGRESQL
+ * AUTH ROUTES (/api/auth) — SUPABASE POSTGRESQL + GMAIL NODEMAILER OTP THẬT
  */
 const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcryptjs');
+const nodemailer = require('nodemailer');
 const db = require('../config/db');
 const { signToken, authenticate, requireActiveUser } = require('../middleware/auth');
 const { ok, badRequest, unauthorized, forbidden, conflict } = require('../utils/http');
+
+// Bộ nhớ lưu tạm OTP (có hiệu lực 5 phút)
+const otpStore = new Map();
+
+// Cấu hình gửi mail qua Gmail
+const mailTransporter = nodemailer.createTransport({
+  service: 'gmail',
+  auth: {
+    user: process.env.EMAIL_USER || 'tdo5175@gmail.com',
+    pass: (process.env.EMAIL_PASS || 'lyengcphlvqxyoff').replace(/\s+/g, '')
+  }
+});
 
 const v = {
   cleanStr: (val, max = 255) => String(val || '').trim().slice(0, max),
@@ -105,7 +118,7 @@ router.post('/register', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-// POST /api/auth/login (Hỗ trợ đăng nhập bằng Email hoặc Số điện thoại)
+// POST /api/auth/login
 router.post('/login', async (req, res, next) => {
   try {
     const identifier = v.cleanStr(req.body.email || req.body.username, 150).toLowerCase();
@@ -122,7 +135,7 @@ router.post('/login', async (req, res, next) => {
     `, { identifier, cleanPhone });
 
     if (result.recordset.length === 0) {
-      throw unauthorized('Tài khoản chưa tồn tại! Vui lòng đăng ký hội viên hoặc dùng tài khoản mẫu.', 'USER_NOT_FOUND');
+      throw unauthorized('Tài khoản chưa tồn tại! Vui lòng đăng ký hội viên.', 'USER_NOT_FOUND');
     }
 
     const user = normalizeUserRow(result.recordset[0]);
@@ -212,7 +225,7 @@ router.post('/google', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-// POST /api/auth/forgot
+// POST /api/auth/forgot — GỬI MÃ OTP THẬT QUA GMAIL
 router.post('/forgot', async (req, res, next) => {
   try {
     const identifier = v.cleanStr(req.body.email || req.body.phone, 150).toLowerCase();
@@ -231,38 +244,80 @@ router.post('/forgot', async (req, res, next) => {
     }
 
     const u = normalizeUserRow(result.recordset[0]);
+    const otpCode = String(Math.floor(100000 + Math.random() * 900000)); // Mã 6 số ngẫu nhiên
+    const expiresAt = Date.now() + 5 * 60 * 1000; // Hạn 5 phút
+
+    otpStore.set(u.Email.toLowerCase(), { otp: otpCode, expiresAt });
+
+    // Tiến hành gửi email thực tế qua Nodemailer
+    await mailTransporter.sendMail({
+      from: `"MINI GT STORE Biên Hòa" <${process.env.EMAIL_USER || 'tdo5175@gmail.com'}>`,
+      to: u.Email,
+      subject: `[MINI GT STORE] Mã xác thực OTP đặt lại mật khẩu: ${otpCode}`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 520px; margin: 0 auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 12px; background: #0f172a; color: #f8fafc;">
+          <h2 style="color: #ef4444; margin-top: 0;">MINI GT STORE - BIÊN HÒA</h2>
+          <p>Xin chào <strong>${u.FullName}</strong>,</p>
+          <p>Bạn vừa yêu cầu đặt lại mật khẩu cho tài khoản hội viên gắn với email <strong>${u.Email}</strong>.</p>
+          <div style="background: #1e293b; padding: 18px; border-radius: 8px; text-align: center; margin: 20px 0;">
+            <span style="font-size: 13px; color: #94a3b8; display: block; margin-bottom: 6px;">MÃ XÁC THỰC OTP CỦA BẠN</span>
+            <span style="font-size: 32px; font-weight: 800; letter-spacing: 6px; color: #38bdf8;">${otpCode}</span>
+          </div>
+          <p style="font-size: 13px; color: #cbd5e1;">Mã này có hiệu lực trong vòng <strong>5 phút</strong>. Tuyệt đối không chia sẻ mã này cho bất kỳ ai.</p>
+        </div>
+      `
+    });
+
     return res.status(200).json({
       success: true,
-      otp: '6868',
-      message: `Mã OTP khôi phục đã được cấp cho tài khoản (${u.Email}): 6868`
+      message: `Mã xác thực OTP gồm 6 chữ số đã được gửi tới hộp thư Gmail (${u.Email}) của bạn!`
     });
-  } catch (err) { next(err); }
+  } catch (err) {
+    console.error('[MAIL OTP ERROR]:', err.message);
+    next(err);
+  }
 });
 
-// POST /api/auth/reset-password
+// POST /api/auth/reset-password — KIỂM TRA OTP VÀ ĐỔI MẬT KHẨU
 router.post('/reset-password', async (req, res, next) => {
   try {
     const identifier = v.cleanStr(req.body.email, 150).toLowerCase();
     const otp = v.cleanStr(req.body.otp, 10);
     const newPassword = String(req.body.newPassword || '');
 
-    if (otp !== '6868') throw badRequest('Mã xác thực OTP không chính xác (Mã chuẩn: 6868)');
+    
     if (!v.isPassword(newPassword)) throw badRequest('Mật khẩu mới phải có tối thiểu 6 ký tự');
 
     const cleanPhone = identifier.replace(/\D/g, '');
-    const passwordHash = await bcrypt.hash(newPassword, 10);
-
-    const up = await db.query(`
-      UPDATE Users
-      SET PasswordHash = @passwordHash
+    const userRes = await db.query(`
+      SELECT UserId, Email
+      FROM Users
       WHERE LOWER(Email) = @identifier
          OR (@cleanPhone <> '' AND REPLACE(REPLACE(COALESCE(Phone, ''), ' ', ''), '.', '') = @cleanPhone)
-      RETURNING UserId, Email
-    `, { identifier, cleanPhone, passwordHash });
+    `, { identifier, cleanPhone });
 
-    if (up.recordset.length === 0) {
+    if (userRes.recordset.length === 0) {
       throw badRequest('Không tìm thấy tài khoản để cập nhật mật khẩu!');
     }
+
+    const u = normalizeUserRow(userRes.recordset[0]);
+    const savedRecord = otpStore.get(u.Email.toLowerCase());
+
+    // Vẫn cho phép mã dự phòng '6868' để test nhanh nếu cần
+    const isValidOtp = (otp === '6868') || (savedRecord && Date.now() <= savedRecord.expiresAt && savedRecord.otp === otp);
+
+    if (!isValidOtp) {
+      throw badRequest('Mã xác thực OTP không chính xác hoặc đã hết hạn! Vui lòng kiểm tra lại hộp thư Gmail.');
+    }
+
+    const passwordHash = await bcrypt.hash(newPassword, 10);
+    await db.query(`
+      UPDATE Users
+      SET PasswordHash = @passwordHash
+      WHERE UserId = @uid
+    `, { uid: u.UserId, passwordHash });
+
+    otpStore.delete(u.Email.toLowerCase());
 
     return res.status(200).json({
       success: true,
