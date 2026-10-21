@@ -58,18 +58,19 @@ router.get('/', optionalAuth, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-// GET /api/orders/my-orders — Trung tâm đơn hàng của khách
+// GET /api/orders/my-orders — Trung tâm đơn hàng của khách (Bảo mật & Phân lập tuyệt đối theo tài khoản)
 router.get('/my-orders', optionalAuth, async (req, res, next) => {
   try {
     const { phone, codes } = req.query;
+
+    // 1. NẾU KHÁCH ĐÃ ĐĂNG NHẬP: CHỈ LẤY ĐƠN THUỘC VỀ ĐÚNG USER HIỆN TẠI
+    // Tuyệt đối không fallback sang đơn của người khác dù tài khoản mới chưa có đơn nào!
     if (req.user && req.user.userId) {
       const r = await orderService.listOrders({ userId: req.user.userId, pageSize: 50 });
-      if (r.items && r.items.length > 0) return ok(res, r.items);
+      return ok(res, r.items || []);
     }
-    if (phone && v.isVNPhone(phone)) {
-      const r = await orderService.listOrders({ phone, pageSize: 50 });
-      if (r.items && r.items.length > 0) return ok(res, r.items);
-    }
+
+    // 2. NẾU LÀ KHÁCH VÃNG LAI (CHƯA ĐĂNG NHẬP): Tra cứu đúng các mã đơn hoặc SĐT trong phiên hiện tại
     if (codes) {
       const codeList = String(codes).split(',').map(c => c.trim().toUpperCase()).filter(Boolean);
       const results = [];
@@ -77,10 +78,16 @@ router.get('/my-orders', optionalAuth, async (req, res, next) => {
         const o = await orderService.getOrderByCodeOrId(c);
         if (o) results.push(o);
       }
-      if (results.length > 0) return ok(res, results);
+      return ok(res, results);
     }
-    const allRecent = await orderService.listOrders({ pageSize: 30 });
-    return ok(res, allRecent.items || []);
+
+    if (phone && v.isVNPhone(phone)) {
+      const r = await orderService.listOrders({ phone, pageSize: 50 });
+      return ok(res, r.items || []);
+    }
+
+    // Mặc định trả về mảng rỗng [] nếu khách chưa có dữ liệu tra cứu
+    return ok(res, []);
   } catch (err) {
     console.error('[my-orders error]:', err.message);
     // Trả về mảng rỗng an toàn thay vì quăng lỗi 500 làm treo frontend

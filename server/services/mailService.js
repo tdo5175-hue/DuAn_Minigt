@@ -175,7 +175,13 @@ async function sendOrderConfirmationEmail(order) {
       from: `"MINI GT STORE BIÊN HÒA" <${process.env.EMAIL_USER || 'tdo5175@gmail.com'}>`,
       to: email,
       subject: `[MINI GT STORE] 🎉 Cảm ơn bạn đã đặt đơn hàng #${orderCode}!`,
-      html
+      text: `Xin chào ${fullName},\n\nCửa hàng Săn Xe Biên Hòa đã tiếp nhận đơn hàng #${orderCode} của bạn.\nTổng đơn hàng: ${formatVND(total)}.\nĐịa chỉ nhận hàng: ${address}.\n\nCảm ơn bạn đã tin tưởng và đồng hành cùng cộng đồng sưu tầm mô hình Săn Xe Biên Hòa!\nHotline/Zalo: 0988.164.164`,
+      html,
+      headers: {
+        'X-Priority': '1 (Highest)',
+        'X-MSMail-Priority': 'High',
+        'Importance': 'High'
+      }
     });
 
     console.log(`[MAIL CONFIRMATION SUCCESS]: Đã gửi email xác nhận đơn #${orderCode} tới ${email}`);
@@ -272,7 +278,13 @@ async function sendOrderDeliveredEmail(order) {
       from: `"MINI GT STORE BIÊN HÒA" <${process.env.EMAIL_USER || 'tdo5175@gmail.com'}>`,
       to: email,
       subject: `[MINI GT STORE] 🏆 Chúc mừng bạn đã nhận kiện xe #${orderCode} thành công!`,
-      html
+      text: `Xin chào ${fullName},\n\nHệ thống ghi nhận bạn đã nhận được kiện mô hình tĩnh 1:64 cho đơn hàng #${orderCode} thành công.\nGiá trị đơn hàng: ${formatVND(total)} đã được ghi nhận vào tài khoản của bạn để tích điểm hội viên.\n\nCảm ơn bạn đã tin tưởng và đồng hành cùng cộng đồng sưu tầm mô hình Săn Xe Biên Hòa!\nHotline/Zalo hỗ trợ: 0988.164.164`,
+      html,
+      headers: {
+        'X-Priority': '1 (Highest)',
+        'X-MSMail-Priority': 'High',
+        'Importance': 'High'
+      }
     });
 
     console.log(`[MAIL DELIVERED SUCCESS]: Đã gửi email cảm ơn giao hàng đơn #${orderCode} tới ${email}`);

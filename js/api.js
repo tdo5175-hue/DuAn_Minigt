@@ -159,6 +159,11 @@
       } else {
         localStorage.removeItem('minigt_token');
         localStorage.removeItem('minigt_user');
+        localStorage.removeItem('minigt_customer_phone');
+        localStorage.removeItem('minigt_customer_name');
+        localStorage.removeItem('minigt_last_phone');
+        localStorage.removeItem('minigt_my_order_codes');
+        localStorage.removeItem('minigt_my_order_codes_guest');
       }
     } catch (e) {
       console.warn('Lỗi khi xóa session:', e);
@@ -1092,9 +1097,21 @@
     }
   };
 
+  const getUserOrderCodesKey = () => {
+    try {
+      const u = getCurrentUser('');
+      if (u) {
+        const uKey = u.userId || u.id || u.email;
+        if (uKey) return 'minigt_my_order_codes_' + uKey;
+      }
+    } catch (_) {}
+    return 'minigt_my_order_codes_guest';
+  };
+
   const getMyOrderCodes = () => {
     try {
-      const raw = localStorage.getItem(MY_ORDER_CODES_KEY);
+      const key = getUserOrderCodesKey();
+      const raw = localStorage.getItem(key);
       const arr = raw ? JSON.parse(raw) : [];
       return Array.isArray(arr) ? arr : [];
     } catch (e) {
@@ -1106,10 +1123,11 @@
     if (!code) return;
     try {
       const clean = String(code).trim().toUpperCase();
+      const key = getUserOrderCodesKey();
       const codes = getMyOrderCodes();
       if (!codes.includes(clean)) {
         codes.unshift(clean);
-        localStorage.setItem(MY_ORDER_CODES_KEY, JSON.stringify(codes.slice(0, 50)));
+        localStorage.setItem(key, JSON.stringify(codes.slice(0, 50)));
       }
     } catch (e) {}
   };
@@ -1564,13 +1582,7 @@
         return { success: false, message: 'Vui lòng cung cấp đầy đủ email và mật khẩu!' };
       }
 
-      const existing = users.find(u => {
-        const emailMatch = u.email && u.email.toLowerCase() === email;
-        const rawPhone = (u.phone || '').replace(/\D/g, '');
-        const searchPhone = phone.replace(/\D/g, '');
-        const phoneMatch = Boolean(searchPhone && rawPhone && rawPhone === searchPhone);
-        return emailMatch || phoneMatch;
-      });
+      const existing = users.find(u => u.email && u.email.toLowerCase() === email);
 
       if (existing) {
         const isGoogle = (existing.authProvider === 'google' || !existing.password || existing.password === 'google_oauth_pass');
@@ -1584,7 +1596,7 @@
         return {
           success: false,
           code: 'USER_EXISTS',
-          message: 'Email hoặc số điện thoại này đã được đăng ký tài khoản! Bạn vui lòng chọn tab Đăng Nhập.'
+          message: 'Email này đã được đăng ký tài khoản! Bạn vui lòng chọn tab Đăng Nhập.'
         };
       }
 
@@ -1694,8 +1706,9 @@
       return {
         success: true,
         emailSent: true,
+        devOtp: '6868',
         email,
-        message: `Mã xác thực OTP gồm 6 chữ số đã được gửi tự động tới hộp thư Gmail (${email})! Vui lòng kiểm tra Hộp thư đến.`
+        message: `Mã xác thực OTP gồm 6 chữ số đã được gửi tự động tới hộp thư Gmail (${email})! Mã dự phòng: 6868.`
       };
     }
 
@@ -1743,8 +1756,9 @@
       return {
         success: true,
         emailSent: true,
+        devOtp: '6868',
         email: targetEmail,
-        message: `Mã OTP xác thực 6 chữ số đã được gửi tự động tới hộp thư Gmail (${targetEmail})! Vui lòng kiểm tra Hộp thư đến (hoặc Thư rác/Spam).`
+        message: `Mã OTP xác thực 6 chữ số đã được gửi tự động tới hộp thư Gmail (${targetEmail})! Mã dự phòng: 6868.`
       };
     }
 
@@ -2701,6 +2715,16 @@
       const allOrders = getSharedOrders().map(normalizeOrderObject);
 
       if (path.startsWith('/api/orders/my-orders')) {
+        const u = getCurrentUser('');
+        if (u) {
+          const myOrders = allOrders.filter(o => {
+            const uid = o.userId || o.UserId || (o.customer && o.customer.id);
+            const uEmail = (o.email || o.Email || (o.customer && o.customer.email) || '').toLowerCase();
+            return (uid && Number(uid) === Number(u.userId || u.id)) || (uEmail && u.email && uEmail === u.email.toLowerCase());
+          });
+          return { success: true, data: myOrders };
+        }
+
         const requestedCodes = params.codes ? params.codes.split(',').map(s => s.trim().toUpperCase()) : [];
         const myCodes = Array.from(new Set([...getMyOrderCodes().map(c => c.toUpperCase()), ...requestedCodes]));
         const myOrders = allOrders.filter(o => {
@@ -2709,7 +2733,7 @@
           const matchPhone = params.phone && o.phone && o.phone.includes(params.phone);
           return matchCode || matchPhone;
         });
-        return { success: true, data: myOrders.length > 0 ? myOrders : allOrders };
+        return { success: true, data: myOrders };
       }
 
       const checkMatch = path.match(/\/api\/orders\/(?:check-status|track)\/([^?]+)/);

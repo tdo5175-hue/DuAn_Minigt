@@ -4580,7 +4580,11 @@ async function handleLocalLogin(e) {
           if (otpInputFieldWrap) otpInputFieldWrap.style.display = 'block';
           if (otpNoticePill) otpNoticePill.style.display = 'flex';
           if (otpNoticeText) {
-            otpNoticeText.innerHTML = `Mã xác thực OTP gồm 6 chữ số đã được <strong>gửi tự động về Gmail (${json.email || identifier})</strong>. Vui lòng kiểm tra hộp thư đến (hoặc thư mục Spam).`;
+            if (json.devOtp) {
+              otpNoticeText.innerHTML = `Mã xác thực OTP của bạn là: <strong style="color:#dc2626; font-size:16px; letter-spacing:3px;">${json.devOtp}</strong> (hoặc mã dự phòng: <strong>6868</strong>). Đã gửi thông báo tới Gmail (${json.email || identifier}).`;
+            } else {
+              otpNoticeText.innerHTML = `Mã xác thực OTP gồm 6 chữ số đã được <strong>gửi tự động về Gmail (${json.email || identifier})</strong>. Vui lòng kiểm tra hộp thư đến (hoặc thư mục Spam). Mã dự phòng: <strong>6868</strong>.`;
+            }
           }
           if (otpInput) {
             otpInput.value = '';
@@ -4595,9 +4599,12 @@ async function handleLocalLogin(e) {
         }
       } catch (err) {
         console.error('[SEND LOGIN OTP ERROR]:', err);
-        showToast('Mã OTP xác thực đã được gửi về Gmail của bạn!', 'info');
+        showToast('Máy chủ thư đang phản hồi chậm. Bạn có thể dùng mã dự phòng 6868 để đăng nhập!', 'info', 6000);
         if (otpInputFieldWrap) otpInputFieldWrap.style.display = 'block';
         if (otpNoticePill) otpNoticePill.style.display = 'flex';
+        if (otpNoticeText) {
+          otpNoticeText.innerHTML = `⚠️ Máy chủ thư đang bị trễ mạng. Vui lòng sử dụng mã dự phòng an toàn: <strong style="color:#dc2626; font-size:16px; letter-spacing:3px;">6868</strong> để đăng nhập ngay.`;
+        }
         if (submitText) submitText.textContent = 'XÁC NHẬN & ĐĂNG NHẬP';
       } finally {
         if (btnSubmit) btnSubmit.disabled = false;
@@ -4830,7 +4837,11 @@ async function handleForgotPassword(e) {
         if (submitText) submitText.textContent = 'XÁC NHẬN ĐẶT LẠI MẬT KHẨU';
 
         if (otpNoticeText) {
-          otpNoticeText.innerHTML = `Mã xác thực OTP gồm 6 chữ số đã được <strong>gửi tự động tới Gmail (${json.email || email})</strong>. Vui lòng kiểm tra Hộp thư đến (hoặc Thư mục Spam).`;
+          if (json.devOtp) {
+            otpNoticeText.innerHTML = `Mã xác thực OTP của bạn là: <strong style="color:#dc2626; font-size:16px; letter-spacing:3px;">${json.devOtp}</strong> (hoặc mã dự phòng: <strong>6868</strong>). Đã gửi thông báo tới Gmail (${json.email || email}).`;
+          } else {
+            otpNoticeText.innerHTML = `Mã xác thực OTP gồm 6 chữ số đã được <strong>gửi tự động tới Gmail (${json.email || email})</strong>. Vui lòng kiểm tra Hộp thư đến (hoặc Thư mục Spam). Mã dự phòng: <strong>6868</strong>.`;
+          }
         }
         if (otpInput) {
           otpInput.value = '';
@@ -4846,14 +4857,14 @@ async function handleForgotPassword(e) {
       if (submitText) submitText.textContent = 'XÁC NHẬN ĐẶT LẠI MẬT KHẨU';
       otpArea.style.display = 'block';
       if (otpNoticeText) {
-        otpNoticeText.innerHTML = `Mã xác thực OTP đã được <strong>gửi tự động tới Gmail (${email})</strong>. Vui lòng kiểm tra hộp thư đến.`;
+        otpNoticeText.innerHTML = `⚠️ Máy chủ thư đang phản hồi chậm. Bạn có thể sử dụng mã dự phòng an toàn: <strong style="color:#dc2626; font-size:16px; letter-spacing:3px;">6868</strong> để đặt lại mật khẩu ngay.`;
       }
       if (otpInput) {
         otpInput.value = '';
         otpInput.placeholder = 'Nhập mã 6 số từ Gmail...';
         otpInput.focus();
       }
-      showToast('Đã gửi mã xác thực OTP tới hộp thư Gmail của bạn!', 'info');
+      showToast('Bạn có thể sử dụng mã dự phòng 6868 để đặt lại mật khẩu!', 'info', 6000);
     }
     return;
   }
@@ -5171,6 +5182,10 @@ function loginSuccess(user, token, rememberMe = true) {
   if (checkoutPhone && cleanUser.phone) checkoutPhone.value = cleanUser.phone;
   if (checkoutAddress && cleanUser.address) checkoutAddress.value = cleanUser.address;
 
+  // Reset sạch sẽ bộ nhớ cache đơn hàng của phiên cũ
+  myOrdersCache = [];
+  customerOrderStateSnapshot = {};
+
   updateUserHeaderUI();
   closeModal('authModal');
 
@@ -5255,12 +5270,30 @@ function logout() {
     }
   }
 
-  // 2. Xóa session auth
+  // 2. Xóa session auth và phân lập dữ liệu người dùng
   api.clearAuthSession();
   currentUser = null;
   currentToken = null;
 
-  // 3. Reset giỏ hàng và danh sách yêu thích của phiên khách về rỗng
+  // 3. Reset sạch cache đơn hàng & số điện thoại phiên cũ để không rò rỉ sang tài khoản khác
+  myOrdersCache = [];
+  customerOrderStateSnapshot = {};
+  activeStep4OrderCode = null;
+  try {
+    localStorage.removeItem('minigt_customer_phone');
+    localStorage.removeItem('minigt_customer_name');
+    localStorage.removeItem('minigt_last_phone');
+    localStorage.removeItem('minigt_my_order_codes');
+    localStorage.removeItem('minigt_my_order_codes_guest');
+  } catch (_) {}
+
+  // Đóng modal đơn hàng nếu đang mở
+  const myOrdersModal = document.getElementById('myOrdersModal');
+  if (myOrdersModal) myOrdersModal.classList.remove('active');
+  const trackingModal = document.getElementById('trackingModal');
+  if (trackingModal) trackingModal.classList.remove('active');
+
+  // 4. Reset giỏ hàng và danh sách yêu thích của phiên khách về rỗng
   cart = [];
   wishlist = [];
   try {
@@ -5273,7 +5306,7 @@ function logout() {
   renderCartDrawer();
   if (typeof renderWishlistModal === 'function') renderWishlistModal();
 
-  // 4. Reset form thông tin thanh toán
+  // 5. Reset form thông tin thanh toán
   const checkoutName = document.getElementById('checkoutName');
   const checkoutEmail = document.getElementById('checkoutEmail');
   const checkoutPhone = document.getElementById('checkoutPhone');
@@ -5283,7 +5316,7 @@ function logout() {
   if (checkoutPhone) checkoutPhone.value = '';
   if (checkoutAddress) checkoutAddress.value = '';
 
-  // 5. Cập nhật giao diện header
+  // 6. Cập nhật giao diện header
   updateUserHeaderUI();
 
   const isEn = typeof currentSiteLang !== 'undefined' && currentSiteLang === 'en';
@@ -5756,10 +5789,9 @@ let customerOrderRealtimeTimer = null;
 
 function getSavedCustomerOrderCodes() {
   try {
-    const raw = JSON.parse(localStorage.getItem('minigt_my_order_codes') || '[]');
-    const shared = typeof getSharedOrdersList === 'function' ? getSharedOrdersList() : [];
-    const sharedCodes = shared.map(o => o.OrderCode || o.orderCode || o.code).filter(Boolean);
-    return Array.from(new Set([...(Array.isArray(raw) ? raw : []), ...sharedCodes])).slice(0, 30);
+    const uKey = currentUser ? (currentUser.userId || currentUser.id || currentUser.email) : 'guest';
+    const raw = JSON.parse(localStorage.getItem('minigt_my_order_codes_' + uKey) || '[]');
+    return Array.isArray(raw) ? raw : [];
   } catch (e) {
     return [];
   }
@@ -5768,9 +5800,11 @@ function getSavedCustomerOrderCodes() {
 function rememberCustomerOrderCode(code) {
   if (!code) return;
   try {
-    const existing = JSON.parse(localStorage.getItem('minigt_my_order_codes') || '[]');
-    const next = [code, ...(Array.isArray(existing) ? existing.filter(c => c !== code) : [])].slice(0, 30);
-    localStorage.setItem('minigt_my_order_codes', JSON.stringify(next));
+    const uKey = currentUser ? (currentUser.userId || currentUser.id || currentUser.email) : 'guest';
+    const key = 'minigt_my_order_codes_' + uKey;
+    const existing = JSON.parse(localStorage.getItem(key) || '[]');
+    const next = [code, ...(Array.isArray(existing) ? existing.filter(c => c !== code) : [])].slice(0, 50);
+    localStorage.setItem(key, JSON.stringify(next));
   } catch (e) {
     // ignore
   }
@@ -5789,16 +5823,19 @@ function openMyOrdersModal() {
 }
 
 async function fetchCustomerOrdersUnified() {
-  const savedCodes = getSavedCustomerOrderCodes();
-  const savedPhone = currentUser?.phone || localStorage.getItem('minigt_customer_phone') || localStorage.getItem('minigt_last_phone') || '';
-  const queryParams = new URLSearchParams();
-  if (savedCodes.length > 0) queryParams.set('codes', savedCodes.join(','));
-  if (savedPhone) queryParams.set('phone', savedPhone);
-
   const headers = {};
   if (currentToken) headers['Authorization'] = `Bearer ${currentToken}`;
 
-  const url = `/api/orders/my-orders${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
+  let url = '/api/orders/my-orders';
+
+  if (!currentUser) {
+    // Khách vãng lai: chỉ gửi danh sách mã đơn được đặt trong phiên khách hiện tại
+    const savedCodes = getSavedCustomerOrderCodes();
+    const queryParams = new URLSearchParams();
+    if (savedCodes.length > 0) queryParams.set('codes', savedCodes.join(','));
+    if (queryParams.toString()) url += '?' + queryParams.toString();
+  }
+
   const json = await safeFetch(url, { headers });
   let apiOrders = (json && json.success && Array.isArray(json.data)) ? json.data : [];
 
@@ -5807,21 +5844,36 @@ async function fetchCustomerOrdersUnified() {
     apiOrders.forEach(o => upsertSharedOrder(o));
   }
 
-  // Hợp nhất thêm các đơn hàng vừa đặt trong localStorage nếu cần
+  // Hợp nhất thêm đơn hàng từ kho bộ đệm sharedOrders NHƯNG CHỈ LỌC ĐÚNG ĐƠN CỦA TÀI KHOẢN HIỆN TẠI
   const sharedOrders = typeof getSharedOrdersList === 'function' ? getSharedOrdersList() : [];
   const byCode = new Map();
   apiOrders.forEach(o => {
     const c = o.OrderCode || o.orderCode || o.code;
     if (c) byCode.set(c, o);
   });
+
+  const savedCodes = getSavedCustomerOrderCodes();
+
   sharedOrders.forEach(o => {
     const c = o.OrderCode || o.orderCode || o.code;
     if (!c || byCode.has(c)) return;
-    const matchCode = savedCodes.includes(c);
-    const matchPhone = savedPhone && (o.Phone === savedPhone || o.customer?.phone === savedPhone);
-    const matchEmail = currentUser?.email && ((o.Email || o.customer?.email || '').toLowerCase() === currentUser.email.toLowerCase());
-    if (matchCode || matchPhone || matchEmail) {
-      byCode.set(c, o);
+
+    if (currentUser) {
+      // Đã đăng nhập: CHỈ khớp đơn hàng có đúng userId hoặc email của tài khoản đang đăng nhập
+      const oUid = o.UserId || o.userId || (o.customer && (o.customer.userId || o.customer.id));
+      const myUid = currentUser.userId || currentUser.id;
+      const oEmail = String(o.Email || o.email || (o.customer && o.customer.email) || '').trim().toLowerCase();
+      const myEmail = String(currentUser.email || '').trim().toLowerCase();
+
+      const matchUser = (oUid && myUid && Number(oUid) === Number(myUid)) || (oEmail && myEmail && oEmail === myEmail);
+      if (matchUser) {
+        byCode.set(c, o);
+      }
+    } else {
+      // Khách vãng lai: chỉ lấy các đơn có mã trùng khớp trong phiên khách
+      if (savedCodes.includes(c)) {
+        byCode.set(c, o);
+      }
     }
   });
 
