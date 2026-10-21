@@ -1524,8 +1524,8 @@
       }
 
       // Kiểm tra mật khẩu (nếu user tạo qua Google chưa cài mật khẩu)
-      const isGoogleNoPass = (user.authProvider === 'google' || !user.password || user.password === 'google_oauth_pass');
-      if (isGoogleNoPass) {
+      const hasNoPassword = (!user.password || user.password === 'google_oauth_pass');
+      if (hasNoPassword && user.authProvider === 'google') {
         return {
           success: false,
           code: 'OAUTH_ACCOUNT_NO_PASSWORD',
@@ -1812,6 +1812,9 @@
         if (body.password) {
           user.password = String(body.password).trim();
           user.hasPassword = true;
+          if (user.authProvider === 'google') {
+            user.authProvider = 'google+local';
+          }
         }
         saveSharedUsers(users);
         return { success: true, user, message: 'Cập nhật thông tin tài khoản thành công!' };

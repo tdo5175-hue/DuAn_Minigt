@@ -699,28 +699,69 @@ router.put('/profile', async (req, res, next) => {
       passwordHash = await bcrypt.hash(password, 10);
     }
 
-    const up = await db.query(`
-      UPDATE Users
-      SET FullName = CASE WHEN @fullName <> '' THEN @fullName ELSE FullName END,
-          Phone = CASE WHEN @phone <> '' THEN @phone ELSE Phone END,
-          Address = CASE WHEN @address <> '' THEN @address ELSE Address END,
-          PasswordHash = CASE WHEN @passwordHash IS NOT NULL THEN @passwordHash ELSE PasswordHash END
-      WHERE (UserId = @userId AND @userId > 0) OR (LOWER(Email) = @email AND @email <> '')
-      RETURNING *
-    `, { userId, email, fullName, phone, address, passwordHash });
+    // 1. Tìm tài khoản theo userId hoặc email
+    let user = null;
+    if (userId > 0) {
+      const r = await db.query('SELECT * FROM Users WHERE UserId = @userId', { userId });
+      if (r.recordset && r.recordset.length > 0) user = normalizeUserRow(r.recordset[0]);
+    }
+    if (!user && email) {
+      const r = await db.query('SELECT * FROM Users WHERE LOWER(Email) = @email', { email });
+      if (r.recordset && r.recordset.length > 0) user = normalizeUserRow(r.recordset[0]);
+    }
 
-    if (up.recordset.length === 0) {
+    if (!user) {
       throw badRequest('Không tìm thấy tài khoản để cập nhật');
     }
 
-    const clean = publicUser(up.recordset[0]);
+    // 2. Cập nhật tường minh vào Postgres
+    const targetUserId = user.UserId;
+    const updates = [];
+    const params = { targetUserId };
+
+    if (fullName) {
+      updates.push('FullName = @fullName');
+      params.fullName = fullName;
+    }
+    if (phone) {
+      updates.push('Phone = @phone');
+      params.phone = phone;
+    }
+    if (address) {
+      updates.push('Address = @address');
+      params.address = address;
+    }
+    if (passwordHash) {
+      updates.push('PasswordHash = @passwordHash');
+      params.passwordHash = passwordHash;
+      if (user.AuthProvider === 'google') {
+        updates.push("AuthProvider = 'google+local'");
+      }
+    }
+
+    let updatedRow = user;
+    if (updates.length > 0) {
+      const up = await db.query(`
+        UPDATE Users
+        SET ${updates.join(', ')}
+        WHERE UserId = @targetUserId
+        RETURNING *
+      `, params);
+      if (up.recordset && up.recordset.length > 0) {
+        updatedRow = normalizeUserRow(up.recordset[0]);
+      }
+    }
+
+    const token = signToken(updatedRow);
+    const clean = publicUser(updatedRow);
     return res.status(200).json({
       success: true,
       message: password
         ? 'Cập nhật hồ sơ và tạo mật khẩu thành công! Giờ đây bạn có thể đăng nhập bằng cả Google lẫn Email + Mật khẩu.'
         : 'Cập nhật thông tin tài khoản hội viên thành công!',
+      token,
       user: clean,
-      data: clean
+      data: { token, user: clean }
     });
   } catch (err) { next(err); }
 });

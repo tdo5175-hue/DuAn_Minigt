@@ -4496,59 +4496,9 @@ function fillDemoAccount(email, password) {
 
 let currentLoginMode = 'password';
 
+// No-op for backward compatibility
 function switchLoginMode(mode) {
-  currentLoginMode = mode;
-  const btnPwd = document.getElementById('btnSubtabPassword');
-  const btnOtp = document.getElementById('btnSubtabOtp');
-  const pwdArea = document.getElementById('loginModePasswordArea');
-  const otpArea = document.getElementById('loginModeOtpArea');
-  const submitText = document.getElementById('btnLoginSubmitText');
-  const submitIcon = document.getElementById('btnLoginSubmitIcon');
-  const otpInputFieldWrap = document.getElementById('loginOtpInputFieldWrap');
-  const emailInput = document.getElementById('loginEmail');
-  const emailLabel = document.getElementById('loginEmailLabel');
-
-  if (mode === 'otp') {
-    if (btnOtp) {
-      btnOtp.style.background = '#ffffff';
-      btnOtp.style.color = '#dc2626';
-      btnOtp.style.boxShadow = '0 1px 3px rgba(0,0,0,0.1)';
-    }
-    if (btnPwd) {
-      btnPwd.style.background = 'transparent';
-      btnPwd.style.color = '#64748b';
-      btnPwd.style.boxShadow = 'none';
-    }
-    if (pwdArea) pwdArea.style.display = 'none';
-    if (otpArea) otpArea.style.display = 'block';
-    if (emailLabel) emailLabel.textContent = 'Địa chỉ Email nhận mã OTP';
-    if (emailInput) emailInput.placeholder = 'Nhập email của bạn (Ví dụ: ldo5175@gmail.com)...';
-
-    if (otpInputFieldWrap && otpInputFieldWrap.style.display === 'block') {
-      if (submitText) submitText.textContent = 'XÁC NHẬN & ĐĂNG NHẬP';
-      if (submitIcon) submitIcon.className = 'fa-solid fa-arrow-right-to-bracket';
-    } else {
-      if (submitText) submitText.textContent = 'GỬI MÃ OTP VỀ MAIL';
-      if (submitIcon) submitIcon.className = 'fa-solid fa-paper-plane';
-    }
-  } else {
-    if (btnPwd) {
-      btnPwd.style.background = '#ffffff';
-      btnPwd.style.color = '#0f172a';
-      btnPwd.style.boxShadow = '0 1px 3px rgba(0,0,0,0.1)';
-    }
-    if (btnOtp) {
-      btnOtp.style.background = 'transparent';
-      btnOtp.style.color = '#64748b';
-      btnOtp.style.boxShadow = 'none';
-    }
-    if (pwdArea) pwdArea.style.display = 'block';
-    if (otpArea) otpArea.style.display = 'none';
-    if (emailLabel) emailLabel.textContent = 'Email hoặc Số điện thoại';
-    if (emailInput) emailInput.placeholder = 'Nhập email hoặc số điện thoại...';
-    if (submitText) submitText.textContent = 'ĐĂNG NHẬP';
-    if (submitIcon) submitIcon.className = 'fa-solid fa-arrow-right';
-  }
+  currentLoginMode = 'password';
 }
 
 async function handleLocalLogin(e) {
@@ -4559,8 +4509,6 @@ async function handleLocalLogin(e) {
   const emailError = document.getElementById('loginEmailError');
   const pwdError = document.getElementById('loginPasswordError');
   const btnSubmit = document.getElementById('btnLoginSubmit');
-  const submitText = document.getElementById('btnLoginSubmitText');
-  const submitIcon = document.getElementById('btnLoginSubmitIcon');
 
   if (emailError) emailError.textContent = '';
   if (pwdError) pwdError.textContent = '';
@@ -4569,105 +4517,11 @@ async function handleLocalLogin(e) {
   const rememberMe = rememberCheckbox ? rememberCheckbox.checked : true;
 
   if (!identifier) {
-    if (emailError) emailError.textContent = 'Vui lòng nhập địa chỉ email của bạn';
+    if (emailError) emailError.textContent = 'Vui lòng nhập email hoặc số điện thoại của bạn';
     emailInput?.focus();
     return;
   }
 
-  // ==========================================
-  // CHẾ ĐỘ 1: ĐĂNG NHẬP BẰNG MÃ OTP QUA EMAIL
-  // ==========================================
-  if (currentLoginMode === 'otp') {
-    const otpNoticePill = document.getElementById('loginOtpNoticePill');
-    const otpNoticeText = document.getElementById('loginOtpNoticeText');
-    const otpInputFieldWrap = document.getElementById('loginOtpInputFieldWrap');
-    const otpInput = document.getElementById('loginOtpInput');
-    const otpError = document.getElementById('loginOtpError');
-    if (otpError) otpError.textContent = '';
-
-    // Bước 1: Gửi mã OTP về email
-    if (!otpInputFieldWrap || otpInputFieldWrap.style.display !== 'block') {
-      const origText = submitText ? submitText.textContent : 'GỬI MÃ OTP VỀ MAIL';
-      if (btnSubmit) btnSubmit.disabled = true;
-      if (submitText) submitText.textContent = 'ĐANG GỬI MÃ OTP VỀ MAIL...';
-
-      try {
-        const json = await safeFetch('/api/auth/send-login-otp', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email: identifier })
-        });
-
-        if (json && json.success) {
-          if (otpInputFieldWrap) otpInputFieldWrap.style.display = 'block';
-          if (otpNoticePill) otpNoticePill.style.display = 'flex';
-          if (otpNoticeText) {
-            otpNoticeText.innerHTML = `<i class="fa-solid fa-envelope-circle-check" style="color:#059669; font-size:16px; margin-right:4px;"></i> Mã xác thực OTP gồm 6 chữ số đã được <strong>gửi tới Gmail (${escapeHtml(json.email || identifier)})</strong>.<br><span style="font-size:11.5px; color:#64748b;">Vui lòng kiểm tra Hộp thư đến (Inbox) hoặc Thư mục Spam trong Gmail của bạn.</span>`;
-          }
-          if (otpInput) {
-            otpInput.value = '';
-            otpInput.focus();
-          }
-          if (submitText) submitText.textContent = 'XÁC NHẬN & ĐĂNG NHẬP';
-          if (submitIcon) submitIcon.className = 'fa-solid fa-arrow-right-to-bracket';
-          showToast(json.message || 'Mã xác thực OTP 6 số đã được gửi tới Gmail của bạn!', 'success');
-        } else {
-          showToast(json?.message || 'Không thể gửi mã OTP, vui lòng kiểm tra lại địa chỉ email!', 'error');
-          if (submitText) submitText.textContent = origText;
-        }
-      } catch (err) {
-        console.error('[SEND LOGIN OTP ERROR]:', err);
-        showToast('Lỗi gửi mã OTP về Gmail. Vui lòng kiểm tra lại địa chỉ email hoặc thử lại sau!', 'error', 5000);
-        if (submitText) submitText.textContent = origText;
-      } finally {
-        if (btnSubmit) btnSubmit.disabled = false;
-      }
-      return;
-    }
-
-    // Bước 2: Xác nhận mã OTP và đăng nhập
-    const otp = otpInput ? otpInput.value.trim() : '';
-    if (!otp) {
-      if (otpError) otpError.textContent = 'Vui lòng nhập mã OTP 6 số từ hộp thư Gmail của bạn';
-      otpInput?.focus();
-      return;
-    }
-
-    if (btnSubmit) {
-      btnSubmit.disabled = true;
-      if (submitText) submitText.textContent = 'ĐANG XÁC THỰC OTP...';
-    }
-
-    try {
-      const json = await safeFetch('/api/auth/login-otp', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: identifier, otp })
-      });
-
-      if (json && json.success && json.user) {
-        showToast(json.message || 'Đăng nhập thành công!', 'success');
-        loginSuccess(json.user, json.token, rememberMe);
-      } else {
-        const errMsg = json?.message || 'Mã OTP không chính xác hoặc đã hết hạn!';
-        if (otpError) otpError.textContent = errMsg;
-        showToast(errMsg, 'error');
-      }
-    } catch (err) {
-      console.error('[VERIFY LOGIN OTP ERROR]:', err);
-      showToast(err.message || 'Không thể xác thực mã OTP. Vui lòng thử lại!', 'error');
-    } finally {
-      if (btnSubmit) {
-        btnSubmit.disabled = false;
-        if (submitText) submitText.textContent = 'XÁC NHẬN & ĐĂNG NHẬP';
-      }
-    }
-    return;
-  }
-
-  // ==========================================
-  // CHẾ ĐỘ 2: ĐĂNG NHẬP TRUYỀN THỐNG BẰNG MẬT KHẨU
-  // ==========================================
   const password = pwdInput ? pwdInput.value : '';
   if (!password) {
     if (pwdError) pwdError.textContent = 'Vui lòng nhập mật khẩu';
@@ -4706,7 +4560,7 @@ async function handleLocalLogin(e) {
         emailError.textContent = errMsg;
         emailInput?.focus();
       }
-      showToast(errMsg, 'error', 4500);
+      showToast(errMsg, 'error');
     }
   } catch (err) {
     console.error('[AUTH LOGIN ERROR]:', err);
@@ -5820,8 +5674,19 @@ async function handleUpdateUserProfile(e) {
         password: password || undefined
       })
     });
-    if (updateRes && updateRes.user) {
-      currentUser = Object.assign({}, currentUser, updateRes.user);
+
+    if (updateRes && updateRes.success === false) {
+      if (btnSave) {
+        btnSave.disabled = false;
+        btnSave.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> LƯU THAY ĐỔI HỒ SƠ';
+      }
+      showToast(updateRes.message || 'Không thể lưu thông tin hồ sơ. Vui lòng kiểm tra lại!', 'error');
+      return;
+    }
+
+    if (updateRes && (updateRes.user || updateRes.data)) {
+      const updatedData = updateRes.user || updateRes.data;
+      currentUser = Object.assign({}, currentUser, updatedData);
       if (updateRes.token) {
         currentToken = updateRes.token;
         if (api && api.setAuthSession) api.setAuthSession(updateRes.token, currentUser);
@@ -5830,6 +5695,29 @@ async function handleUpdateUserProfile(e) {
   } catch (err) {
     console.warn('Lưu profile offline fallback:', err);
   }
+
+  // Đảm bảo đồng bộ thông tin mật khẩu vào Shared Users & LocalStorage
+  try {
+    if (api && typeof api.getSharedUsers === 'function' && typeof api.saveSharedUsers === 'function') {
+      const uList = api.getSharedUsers();
+      const uItem = uList.find(u => (u.userId == currentUser.userId || u.id == currentUser.id || (u.email && u.email.toLowerCase() === currentUser.email?.toLowerCase())));
+      if (uItem) {
+        uItem.fullName = fullName;
+        uItem.phone = phone;
+        uItem.address = address;
+        uItem.addressType = addressType;
+        uItem.oldAddressNote = oldWardNote;
+        uItem.city = city;
+        uItem.deliveryNote = deliveryNote;
+        if (password) {
+          uItem.password = password;
+          uItem.hasPassword = true;
+          if (uItem.authProvider === 'google') uItem.authProvider = 'google+local';
+        }
+        api.saveSharedUsers(uList);
+      }
+    }
+  } catch (_) {}
 
   try {
     localStorage.setItem('minigt_user', JSON.stringify(currentUser));
