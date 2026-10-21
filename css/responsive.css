@@ -316,8 +316,8 @@ header nav.desktop-only,
     flex-shrink: 0 !important;
   }
 
-  .user-profile-btn > div,
-  .user-profile-btn > span {
+  .user-profile-btn > .user-info-text,
+  .user-profile-btn > span.user-caret {
     display: none !important;
   }
 
@@ -331,11 +331,16 @@ header nav.desktop-only,
   }
 
   .user-dropdown {
-    position: absolute !important;
-    top: calc(100% + 8px) !important;
-    right: 0 !important;
+    position: fixed !important;
+    top: 56px !important;
+    right: 12px !important;
+    width: min(320px, calc(100vw - 24px)) !important;
     max-width: calc(100vw - 24px) !important;
-    z-index: 105 !important;
+    z-index: 99999 !important;
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.28) !important;
+    border: 1.5px solid var(--border-subtle) !important;
+    border-radius: 14px !important;
+    background: var(--bg-surface) !important;
   }
 
   .header-settings-menu {

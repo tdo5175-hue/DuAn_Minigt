@@ -2530,7 +2530,11 @@ function calculateCheckoutTotals() {
   }
 
   const grandTotal = Math.max(0, subtotal + shippingFee + protectorFee - voucherDiscount);
-  const depositAmount = hasPreOrder ? Math.min(grandTotal, totalDepositRaw) : 0;
+  const isDepositChosen = typeof selectedCheckoutPaymentMethod !== 'undefined' && selectedCheckoutPaymentMethod === 'DEPOSIT';
+  const inStockDeposit = Math.min(grandTotal, Math.max(50000, Math.round(grandTotal * 0.3)));
+  const depositAmount = hasPreOrder 
+    ? Math.min(grandTotal, totalDepositRaw) 
+    : (isDepositChosen ? inStockDeposit : 0);
 
   return {
     subtotal,
@@ -3172,18 +3176,19 @@ function getCustomerDeliveredSpent() {
   try {
     const allOrders = (api && api.getSharedOrders) ? api.getSharedOrders() : [];
     const uid = user.userId || user.id;
-    const myDelivered = allOrders.filter(o => {
+    const myOrders = allOrders.filter(o => {
       const st = String(o.status || o.Status || '').toUpperCase();
-      const isDelivered = st === 'DELIVERED';
-      const matchUid = Boolean(uid && o.userId && Number(uid) === Number(o.userId));
-      const matchEmail = Boolean(user.email && o.email && user.email.toLowerCase() === o.email.toLowerCase());
-      const matchPhone = Boolean(user.phone && o.phone && String(user.phone).replace(/\D/g, '') === String(o.phone).replace(/\D/g, ''));
-      return isDelivered && (matchUid || matchEmail || matchPhone);
+      const pst = String(o.paymentStatus || o.PaymentStatus || '').toUpperCase();
+      if (st === 'CANCELLED') return false;
+      const isValid = (st === 'DELIVERED') || ['PAID', 'PARTIALLY_PAID'].includes(pst) || ['CONFIRMED', 'PREPARING', 'SHIPPING'].includes(st);
+      const matchUid = Boolean(uid && (o.userId || o.UserId) && Number(uid) === Number(o.userId || o.UserId));
+      const matchEmail = Boolean(user.email && (o.email || o.Email) && user.email.toLowerCase() === String(o.email || o.Email).toLowerCase());
+      return isValid && (matchUid || matchEmail);
     });
-    spent = myDelivered.reduce((sum, o) => sum + Number(o.total || o.totalAmount || o.Total || 0), 0);
+    spent = myOrders.reduce((sum, o) => sum + Number(o.total || o.totalAmount || o.Total || 0), 0);
   } catch (_) {}
 
-  // Lấy chi tiêu thực tế cao nhất giữa đơn DELIVERED và thuộc tính user
+  // Lấy chi tiêu thực tế cao nhất giữa đơn hợp lệ và thuộc tính user
   if (user.deliveredSpent && Number(user.deliveredSpent) > spent) {
     spent = Number(user.deliveredSpent);
   }
@@ -3302,7 +3307,18 @@ function renderCheckoutStep3() {
     }
     if (optCod) optCod.style.display = 'none';
     if (optFull) optFull.style.display = 'none';
-    if (optDeposit) optDeposit.style.display = 'flex';
+    if (optDeposit) {
+      optDeposit.style.display = 'flex';
+      const depTitle = optDeposit.querySelector('.opt-title');
+      const depBadge = optDeposit.querySelector('.opt-header span');
+      const depDesc = optDeposit.querySelector('.opt-desc');
+      if (depTitle) depTitle.innerHTML = '<i class="fa-solid fa-bolt" style="color:#dc2626; margin-right:4px;"></i> Đặt cọc giữ mẫu (VietQR PayOS Tự Động)';
+      if (depBadge) {
+        depBadge.textContent = '⚡ Khuyên Dùng Pre-Order • Tự Động Duyệt';
+        depBadge.style.background = '#dc2626';
+      }
+      if (depDesc) depDesc.innerHTML = 'Quét mã VietQR chuyển cọc 30% giữ slot xe giới hạn. Hệ thống tự động xác nhận &amp; duyệt đơn ngay tức thì. Số tiền còn lại thanh toán COD khi nhận xe.';
+    }
     if (optPayOS) optPayOS.style.display = 'flex';
 
     if (!preNotice && optPayOS && optPayOS.parentNode) {
@@ -3317,15 +3333,28 @@ function renderCheckoutStep3() {
   } else {
     if (optPayOS) optPayOS.style.display = 'flex';
     if (optFull) optFull.style.display = 'flex';
-    if (optDeposit) optDeposit.style.display = 'none';
     if (preNotice) preNotice.style.display = 'none';
+
+    // Tùy chọn Đặt cọc trước 30% cho hàng có sẵn
+    if (optDeposit) {
+      optDeposit.style.display = 'flex';
+      const depTitle = optDeposit.querySelector('.opt-title');
+      const depBadge = optDeposit.querySelector('.opt-header span');
+      const depDesc = optDeposit.querySelector('.opt-desc');
+      if (depTitle) depTitle.innerHTML = '<i class="fa-solid fa-money-bill-transfer" style="color:#dc2626; margin-right:4px;"></i> Đặt cọc trước 30% + COD khi nhận xe (PayOS VietQR)';
+      if (depBadge) {
+        depBadge.textContent = '⚡ Đặt Cọc Linh Hoạt (30%)';
+        depBadge.style.background = '#ea580c';
+      }
+      if (depDesc) depDesc.innerHTML = 'Quét mã VietQR chuyển cọc 30% chốt đơn giữ xe. Số tiền còn lại sẽ thanh toán COD cho Shipper SPX khi nhận xe.';
+    }
 
     if (optCod) {
       optCod.style.display = 'flex';
       if (!isCodEligible) {
-        // Chưa đủ điều kiện VIP 4 (>= 1.000.001đ): Khóa hoàn toàn không cho bấm
+        // Chưa đủ điều kiện VIP 4 (>= 1.000.001đ): Làm mờ và khóa tương tác
         optCod.classList.add('is-locked');
-        optCod.style.opacity = '0.65';
+        optCod.style.opacity = '0.55';
         optCod.style.background = '#f8fafc';
         optCod.style.borderColor = '#cbd5e1';
         optCod.style.cursor = 'not-allowed';
@@ -3333,7 +3362,7 @@ function renderCheckoutStep3() {
           codRadio.disabled = true;
           if (codRadio.checked) codRadio.checked = false;
         }
-        if (selectedCheckoutPaymentMethod === 'COD' || selectedCheckoutPaymentMethod === 'DEPOSIT') {
+        if (selectedCheckoutPaymentMethod === 'COD') {
           selectedCheckoutPaymentMethod = 'VIETQR_PAYOS';
           const payosRadio = document.querySelector('input[name="checkoutPaymentMethod"][value="VIETQR_PAYOS"]');
           if (payosRadio) payosRadio.checked = true;
@@ -3353,10 +3382,7 @@ function renderCheckoutStep3() {
         optCod.onclick = (e) => {
           e.preventDefault();
           e.stopPropagation();
-          showToast(`🔒 Phương thức Ship COD 100% đang bị khóa để chống bom đơn! Chỉ mở cho thành viên từ VIP 4 trở lên (đã mua & nhận hàng trên 1.000.000đ). Hiện tại: ${vip.label} (${formatVND(deliveredSpent)} / 1.000.000đ). Vui lòng chọn Thanh toán PayOS VietQR hoặc Chuyển khoản MB Bank!`, 'warning', 5000);
-          const payosRadio = document.querySelector('input[name="checkoutPaymentMethod"][value="VIETQR_PAYOS"]');
-          if (payosRadio) payosRadio.checked = true;
-          selectedCheckoutPaymentMethod = 'VIETQR_PAYOS';
+          showToast(`🔒 Phương thức Ship COD 100% đang bị khóa để chống bom đơn! Chỉ mở cho thành viên từ VIP 4 trở lên (đã mua & nhận hàng trên 1.000.000đ). Hiện tại: ${vip.label} (${formatVND(deliveredSpent)} / 1.000.000đ). Bạn có thể chọn Đặt cọc 30% hoặc Thanh toán PayOS VietQR!`, 'warning', 5000);
           return false;
         };
       } else {
@@ -3377,10 +3403,6 @@ function renderCheckoutStep3() {
         }
         if (codProgressText) {
           codProgressText.innerHTML = `Tài khoản đạt chuẩn VIP 4+ (${vip.label}). Đã mở khóa quyền lợi nhận hàng COD 100%!`;
-        }
-        if (selectedCheckoutPaymentMethod === 'DEPOSIT') {
-          selectedCheckoutPaymentMethod = 'COD';
-          if (codRadio) codRadio.checked = true;
         }
       }
     }
@@ -4580,11 +4602,7 @@ async function handleLocalLogin(e) {
           if (otpInputFieldWrap) otpInputFieldWrap.style.display = 'block';
           if (otpNoticePill) otpNoticePill.style.display = 'flex';
           if (otpNoticeText) {
-            if (json.devOtp) {
-              otpNoticeText.innerHTML = `Mã xác thực OTP của bạn là: <strong style="color:#dc2626; font-size:16px; letter-spacing:3px;">${json.devOtp}</strong> (hoặc mã dự phòng: <strong>6868</strong>). Đã gửi thông báo tới Gmail (${json.email || identifier}).`;
-            } else {
-              otpNoticeText.innerHTML = `Mã xác thực OTP gồm 6 chữ số đã được <strong>gửi tự động về Gmail (${json.email || identifier})</strong>. Vui lòng kiểm tra hộp thư đến (hoặc thư mục Spam). Mã dự phòng: <strong>6868</strong>.`;
-            }
+            otpNoticeText.innerHTML = `<i class="fa-solid fa-envelope-circle-check" style="color:#059669; font-size:16px; margin-right:4px;"></i> Mã xác thực OTP gồm 6 chữ số đã được <strong>gửi tới Gmail (${escapeHtml(json.email || identifier)})</strong>.<br><span style="font-size:11.5px; color:#64748b;">Vui lòng kiểm tra Hộp thư đến (Inbox) hoặc Thư mục Spam trong Gmail của bạn.</span>`;
           }
           if (otpInput) {
             otpInput.value = '';
@@ -4592,20 +4610,15 @@ async function handleLocalLogin(e) {
           }
           if (submitText) submitText.textContent = 'XÁC NHẬN & ĐĂNG NHẬP';
           if (submitIcon) submitIcon.className = 'fa-solid fa-arrow-right-to-bracket';
-          showToast(json.message || 'Mã xác thực OTP 6 số đã được gửi tự động tới Gmail của bạn!', 'success');
+          showToast(json.message || 'Mã xác thực OTP 6 số đã được gửi tới Gmail của bạn!', 'success');
         } else {
           showToast(json?.message || 'Không thể gửi mã OTP, vui lòng kiểm tra lại địa chỉ email!', 'error');
           if (submitText) submitText.textContent = origText;
         }
       } catch (err) {
         console.error('[SEND LOGIN OTP ERROR]:', err);
-        showToast('Máy chủ thư đang phản hồi chậm. Bạn có thể dùng mã dự phòng 6868 để đăng nhập!', 'info', 6000);
-        if (otpInputFieldWrap) otpInputFieldWrap.style.display = 'block';
-        if (otpNoticePill) otpNoticePill.style.display = 'flex';
-        if (otpNoticeText) {
-          otpNoticeText.innerHTML = `⚠️ Máy chủ thư đang bị trễ mạng. Vui lòng sử dụng mã dự phòng an toàn: <strong style="color:#dc2626; font-size:16px; letter-spacing:3px;">6868</strong> để đăng nhập ngay.`;
-        }
-        if (submitText) submitText.textContent = 'XÁC NHẬN & ĐĂNG NHẬP';
+        showToast('Lỗi gửi mã OTP về Gmail. Vui lòng kiểm tra lại địa chỉ email hoặc thử lại sau!', 'error', 5000);
+        if (submitText) submitText.textContent = origText;
       } finally {
         if (btnSubmit) btnSubmit.disabled = false;
       }
@@ -4837,34 +4850,21 @@ async function handleForgotPassword(e) {
         if (submitText) submitText.textContent = 'XÁC NHẬN ĐẶT LẠI MẬT KHẨU';
 
         if (otpNoticeText) {
-          if (json.devOtp) {
-            otpNoticeText.innerHTML = `Mã xác thực OTP của bạn là: <strong style="color:#dc2626; font-size:16px; letter-spacing:3px;">${json.devOtp}</strong> (hoặc mã dự phòng: <strong>6868</strong>). Đã gửi thông báo tới Gmail (${json.email || email}).`;
-          } else {
-            otpNoticeText.innerHTML = `Mã xác thực OTP gồm 6 chữ số đã được <strong>gửi tự động tới Gmail (${json.email || email})</strong>. Vui lòng kiểm tra Hộp thư đến (hoặc Thư mục Spam). Mã dự phòng: <strong>6868</strong>.`;
-          }
+          otpNoticeText.innerHTML = `<i class="fa-solid fa-envelope-circle-check" style="color:#059669; font-size:16px; margin-right:4px;"></i> Mã xác thực OTP gồm 6 chữ số đã được <strong>gửi tới Gmail (${escapeHtml(json.email || email)})</strong>.<br><span style="font-size:11.5px; color:#64748b;">Vui lòng mở Gmail kiểm tra mã OTP khôi phục mật khẩu (trong Inbox hoặc Spam).</span>`;
         }
         if (otpInput) {
           otpInput.value = '';
           otpInput.placeholder = 'Nhập mã 6 số từ Gmail...';
           otpInput.focus();
         }
-        showToast(json.message || 'Mã xác thực OTP 6 số đã được gửi tự động tới Gmail của bạn!', 'success');
+        showToast(json.message || 'Mã xác thực OTP 6 số đã được gửi tới Gmail của bạn!', 'success');
       } else {
         if (submitText) submitText.textContent = originalText;
         showToast(json?.message || 'Không thể gửi mã OTP, vui lòng kiểm tra lại email!', 'error');
       }
     } catch (err) {
-      if (submitText) submitText.textContent = 'XÁC NHẬN ĐẶT LẠI MẬT KHẨU';
-      otpArea.style.display = 'block';
-      if (otpNoticeText) {
-        otpNoticeText.innerHTML = `⚠️ Máy chủ thư đang phản hồi chậm. Bạn có thể sử dụng mã dự phòng an toàn: <strong style="color:#dc2626; font-size:16px; letter-spacing:3px;">6868</strong> để đặt lại mật khẩu ngay.`;
-      }
-      if (otpInput) {
-        otpInput.value = '';
-        otpInput.placeholder = 'Nhập mã 6 số từ Gmail...';
-        otpInput.focus();
-      }
-      showToast('Bạn có thể sử dụng mã dự phòng 6868 để đặt lại mật khẩu!', 'info', 6000);
+      if (submitText) submitText.textContent = originalText;
+      showToast('Lỗi gửi mã OTP về Gmail. Vui lòng kiểm tra lại địa chỉ email hoặc thử lại sau!', 'error', 5000);
     }
     return;
   }
@@ -5325,9 +5325,10 @@ function logout() {
 
 function updateUserHeaderUI() {
   const container = document.getElementById('userProfileArea');
-  if (!container) return;
-
   const isEn = typeof currentSiteLang !== 'undefined' && currentSiteLang === 'en';
+  const drawerUserArea = document.getElementById('mobileDrawerUserArea');
+  const mobBottomUserLabel = document.getElementById('mobBottomUserLabel');
+  const mobBottomUserIcon = document.getElementById('mobBottomUserIcon');
 
   if (currentUser) {
     if (!currentUser.avatarUrl || currentUser.avatarUrl.includes('DoQuocThinh_anhthe')) {
@@ -5337,41 +5338,113 @@ function updateUserHeaderUI() {
     const avatarSrc = currentUser.avatarUrl || DEFAULT_USER_AVATAR;
     const tierName = currentUser.tier || 'Collector';
     const pts = currentUser.points != null ? currentUser.points : 100;
+    const shortName = currentUser.fullName ? currentUser.fullName.split(' ').slice(-1)[0] : 'Hội viên';
 
-    container.innerHTML = `
-      <div style="display: flex; align-items: center; gap: 8px;">
-        <div class="user-profile-btn" onclick="toggleUserDropdown(event)">
-          <img class="user-avatar" src="${avatarSrc}" alt="${escapeHtml(currentUser.fullName)}" onerror="this.src='image/anh-clone.jpg'">
-          <div style="display:flex; flex-direction:column; align-items:flex-start; text-align:left; line-height:1.2;">
-            <span style="font-size:12px; font-weight:700; color:var(--color-navy);">${escapeHtml(currentUser.fullName || currentUser.email)}</span>
-            <span class="user-dropdown-tier"><i class="fa-solid fa-crown" style="font-size:9px;"></i> ${escapeHtml(tierName)}</span>
-          </div>
-          <span style="font-size:10px; color:#94a3b8; margin-left:4px;"><i class="fa-solid fa-chevron-down"></i></span>
-          <div class="user-dropdown" id="userDropdownMenu">
-            <div class="user-dropdown-header">
-              <div class="user-dropdown-name">${escapeHtml(currentUser.fullName)}</div>
-              <div class="user-dropdown-email">${escapeHtml(currentUser.email)}</div>
-              <div style="font-size:11px; color:#e10600; font-weight:700; margin-top:4px;">
-                <i class="fa-solid fa-coins"></i> Điểm cọc: ${pts} pts
-              </div>
+    if (container) {
+      container.innerHTML = `
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <div class="user-profile-btn" onclick="toggleUserDropdown(event)">
+            <img class="user-avatar" src="${avatarSrc}" alt="${escapeHtml(currentUser.fullName)}" onerror="this.src='image/anh-clone.jpg'">
+            <div class="user-info-text" style="display:flex; flex-direction:column; align-items:flex-start; text-align:left; line-height:1.2;">
+              <span style="font-size:12px; font-weight:700; color:var(--color-navy);">${escapeHtml(currentUser.fullName || currentUser.email)}</span>
+              <span class="user-dropdown-tier"><i class="fa-solid fa-crown" style="font-size:9px;"></i> ${escapeHtml(tierName)}</span>
             </div>
-            <div class="user-dropdown-item" onclick="openUserProfileModal()"><i class="fa-solid fa-id-card" style="margin-right:6px; color:#e10600;"></i> ${isEn ? 'Collector Pass' : 'Hồ sơ hội viên & Địa chỉ'}</div>
-            <div class="user-dropdown-item" onclick="openMyOrdersModal()"><i class="fa-solid fa-box-archive" style="margin-right:6px;"></i> ${isEn ? 'My Orders (SPX)' : 'Đơn hàng của tôi (SPX)'}</div>
-            <div class="user-dropdown-item" onclick="openTrackingModal()"><i class="fa-solid fa-magnifying-glass" style="margin-right:6px;"></i> ${isEn ? 'Track Order' : 'Tra cứu đơn cọc'}</div>
-            <div class="user-dropdown-item" onclick="logout()"><i class="fa-solid fa-right-from-bracket" style="margin-right:6px; color:#64748b;"></i> ${isEn ? 'Sign Out' : 'Đăng xuất'}</div>
+            <span class="user-caret" style="font-size:10px; color:#94a3b8; margin-left:4px;"><i class="fa-solid fa-chevron-down"></i></span>
+            <div class="user-dropdown" id="userDropdownMenu">
+              <div class="user-dropdown-header">
+                <div class="user-dropdown-name">${escapeHtml(currentUser.fullName)}</div>
+                <div class="user-dropdown-email">${escapeHtml(currentUser.email)}</div>
+                <div style="font-size:11px; color:#e10600; font-weight:700; margin-top:4px;">
+                  <i class="fa-solid fa-coins"></i> Điểm cọc: ${pts} pts
+                </div>
+              </div>
+              <div class="user-dropdown-item" onclick="openUserProfileModal()"><i class="fa-solid fa-id-card" style="margin-right:6px; color:#e10600;"></i> ${isEn ? 'Collector Pass' : 'Hồ sơ hội viên & Địa chỉ'}</div>
+              <div class="user-dropdown-item" onclick="openMyOrdersModal()"><i class="fa-solid fa-box-archive" style="margin-right:6px;"></i> ${isEn ? 'My Orders (SPX)' : 'Đơn hàng của tôi (SPX)'}</div>
+              <div class="user-dropdown-item" onclick="openTrackingModal()"><i class="fa-solid fa-magnifying-glass" style="margin-right:6px;"></i> ${isEn ? 'Track Order' : 'Tra cứu đơn cọc'}</div>
+              <div class="user-dropdown-item" onclick="logout()"><i class="fa-solid fa-right-from-bracket" style="margin-right:6px; color:#dc2626;"></i> <strong style="color:#dc2626;">${isEn ? 'Sign Out' : 'Đăng xuất tài khoản'}</strong></div>
+            </div>
           </div>
         </div>
-      </div>
-    `;
+      `;
+    }
+
+    // Render khu vực tài khoản trong Mobile Drawer
+    if (drawerUserArea) {
+      drawerUserArea.innerHTML = `
+        <div style="background:var(--bg-card, #f8fafc); border:1px solid var(--border-subtle, #e2e8f0); border-radius:12px; padding:12px; box-shadow:0 2px 8px rgba(0,0,0,0.04);">
+          <div style="display:flex; align-items:center; gap:10px; margin-bottom:10px;">
+            <img src="${avatarSrc}" alt="${escapeHtml(currentUser.fullName)}" onerror="this.src='image/anh-clone.jpg'" style="width:44px; height:44px; border-radius:50%; object-fit:cover; border:2px solid var(--color-primary, #dc2626);">
+            <div style="overflow:hidden; flex:1;">
+              <div style="font-size:13.5px; font-weight:800; color:var(--text-primary, #0f172a); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+                ${escapeHtml(currentUser.fullName || 'Hội viên MINI GT')}
+              </div>
+              <div style="font-size:11.5px; color:var(--text-secondary, #64748b); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+                ${escapeHtml(currentUser.email || '')}
+              </div>
+              <div style="display:inline-flex; align-items:center; gap:4px; font-size:10.5px; font-weight:700; color:#b45309; background:#fef3c7; padding:1px 6px; border-radius:6px; margin-top:3px;">
+                <i class="fa-solid fa-crown" style="font-size:9px;"></i> ${escapeHtml(tierName)} • ${pts} pts
+              </div>
+            </div>
+          </div>
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-bottom:8px;">
+            <button type="button" onclick="closeMobileNav(); openUserProfileModal();" style="padding:7px 8px; font-size:11.5px; font-weight:700; border-radius:8px; border:1px solid #cbd5e1; background:#fff; color:#1e293b; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:4px;">
+              <i class="fa-solid fa-id-card" style="color:#dc2626;"></i> Hồ sơ
+            </button>
+            <button type="button" onclick="closeMobileNav(); openMyOrdersModal();" style="padding:7px 8px; font-size:11.5px; font-weight:700; border-radius:8px; border:1px solid #cbd5e1; background:#fff; color:#1e293b; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:4px;">
+              <i class="fa-solid fa-box-archive" style="color:#2563eb;"></i> Đơn SPX
+            </button>
+          </div>
+          <button type="button" onclick="closeMobileNav(); logout();" style="width:100%; padding:8px; font-size:12px; font-weight:800; border-radius:8px; border:1px solid #fecdd3; background:#fff1f2; color:#e11d48; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px;">
+            <i class="fa-solid fa-right-from-bracket"></i> ĐĂNG XUẤT TÀI KHOẢN
+          </button>
+        </div>
+      `;
+    }
+
+    if (mobBottomUserLabel) mobBottomUserLabel.textContent = shortName;
+    if (mobBottomUserIcon) {
+      mobBottomUserIcon.className = 'fa-solid fa-user-check';
+      mobBottomUserIcon.style.color = '#dc2626';
+    }
   } else {
-    container.innerHTML = `
-      <button class="btn-login-clean" onclick="openAuthModal('login')">
-        <i class="fa-regular fa-user"></i>
-        <span data-i18n="btnSignIn">${isEn ? 'Sign In' : 'Đăng nhập'}</span>
-      </button>
-    `;
+    if (container) {
+      container.innerHTML = `
+        <button class="btn-login-clean" onclick="openAuthModal('login')">
+          <i class="fa-regular fa-user"></i>
+          <span data-i18n="btnSignIn">${isEn ? 'Sign In' : 'Đăng nhập'}</span>
+        </button>
+      `;
+    }
+
+    if (drawerUserArea) {
+      drawerUserArea.innerHTML = `
+        <div style="background:var(--bg-card, #f8fafc); border:1px solid var(--border-subtle, #e2e8f0); border-radius:12px; padding:12px; text-align:center;">
+          <div style="font-size:12.5px; color:var(--text-secondary, #64748b); margin-bottom:8px;">
+            Đăng nhập để nhận cọc 11k, tích điểm và theo dõi đơn SPX Express
+          </div>
+          <button type="button" class="btn btn-primary" style="width:100%; height:40px; font-size:12.5px; font-weight:800; border-radius:8px; display:flex; align-items:center; justify-content:center; gap:6px;" onclick="closeMobileNav(); openAuthModal('login');">
+            <i class="fa-regular fa-user"></i> ĐĂNG NHẬP / ĐĂNG KÝ
+          </button>
+        </div>
+      `;
+    }
+
+    if (mobBottomUserLabel) mobBottomUserLabel.textContent = isEn ? 'Sign In' : 'Tài khoản';
+    if (mobBottomUserIcon) {
+      mobBottomUserIcon.className = 'fa-regular fa-user';
+      mobBottomUserIcon.style.color = '';
+    }
   }
 }
+
+function handleMobileBottomUserClick() {
+  if (currentUser) {
+    openUserProfileModal();
+  } else {
+    openAuthModal('login');
+  }
+}
+window.handleMobileBottomUserClick = handleMobileBottomUserClick;
 
 function toggleUserDropdown(e) {
   e.stopPropagation();
@@ -5662,6 +5735,13 @@ function openUserProfileModal() {
         </button>
         <button type="button" class="btn btn-outline" style="height:46px; padding:0 20px; font-size:13px; font-weight:700; border-radius:10px; display:flex; align-items:center; gap:6px;" onclick="closeModal('userProfileModal'); openMyOrdersModal();">
           <i class="fa-solid fa-box-archive"></i> Đơn mua của tôi
+        </button>
+      </div>
+
+      <!-- Nút Đăng xuất tiện lợi trên thiết bị di động & máy tính -->
+      <div style="margin-top:14px; border-top:1px solid #e2e8f0; padding-top:12px;">
+        <button type="button" onclick="closeModal('userProfileModal'); logout();" style="width:100%; height:44px; background:#fff1f2; border:1.5px solid #fecdd3; color:#e11d48; font-weight:800; font-size:13px; border-radius:10px; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px; transition:background 0.2s ease;">
+          <i class="fa-solid fa-right-from-bracket"></i> ĐĂNG XUẤT KHỎI TÀI KHOẢN NÀY
         </button>
       </div>
     </form>

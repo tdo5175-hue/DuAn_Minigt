@@ -2109,6 +2109,9 @@
     </form>
 
     <div class="drawer-body">
+      <!-- Mobile Drawer User Area (Đăng nhập / Hồ sơ / Đăng xuất) -->
+      <div id="mobileDrawerUserArea" style="margin-bottom: 14px;"></div>
+
       <div class="drawer-section-title">DANH MỤC KHÁM PHÁ</div>
       <ul class="drawer-links-list">
         <li><a href="index.html" class="drawer-link active" onclick="closeMobileNav()"><i class="fa-solid fa-house" style="margin-right:8px;"></i> Trang chủ</a></li>
@@ -2124,7 +2127,6 @@
         <li><a href="javascript:void(0)" class="drawer-link" onclick="closeMobileNav(); openWishlistModal()"><i class="fa-solid fa-heart" style="margin-right:8px; color:#dc2626;"></i> Danh sách yêu thích</a></li>
         <li><a href="javascript:void(0)" class="drawer-link" onclick="closeMobileNav(); openMyOrdersModal()"><i class="fa-solid fa-box-archive" style="margin-right:8px; color:#2563eb;"></i> Đơn hàng của tôi (SPX)</a></li>
         <li><a href="javascript:void(0)" class="drawer-link" onclick="closeMobileNav(); openTrackingModal()"><i class="fa-solid fa-truck-fast" style="margin-right:8px; color:#ea580c;"></i> Tra cứu đơn hàng</a></li>
-        <!-- <li><a href="admin/index.html" class="drawer-link" style="color:#d97706; font-weight:700;"><i class="fa-solid fa-crown" style="margin-right:8px;"></i> Cổng Quản Trị Admin</a></li> -->
       </ul>
 
       <div class="drawer-section-title">HỖ TRỢ TRỰC TIẾP</div>
@@ -2145,18 +2147,18 @@
       <i class="fa-solid fa-car-side"></i>
       <span data-i18n="mob_catalog">Kho Xe</span>
     </button>
-    <button type="button" class="mob-nav-item" onclick="scrollToSection(event, 'lbwk-zone')">
-      <i class="fa-solid fa-bolt"></i>
-      <span>LBWK/GT3</span>
-    </button>
     <button type="button" class="mob-nav-item" onclick="openMyOrdersModal()">
       <i class="fa-solid fa-box-archive"></i>
       <span data-i18n="mob_orders">Đơn SPX</span>
     </button>
     <button type="button" class="mob-nav-item" onclick="openCartDrawer()">
       <i class="fa-solid fa-bag-shopping"></i>
-      <span class="mob-nav-badge" id="mobCartBadgeCount">3</span>
+      <span class="mob-nav-badge" id="mobCartBadgeCount">0</span>
       <span data-i18n="mob_cart">Giỏ cọc</span>
+    </button>
+    <button type="button" class="mob-nav-item" id="mobBottomUserBtn" onclick="handleMobileBottomUserClick()">
+      <i class="fa-regular fa-user" id="mobBottomUserIcon"></i>
+      <span id="mobBottomUserLabel">Tài khoản</span>
     </button>
   </nav>
 

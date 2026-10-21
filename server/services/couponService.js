@@ -371,17 +371,21 @@ async function validateAndApplyCoupon(rawCode, subtotal = 0, user = null, custom
       };
     }
 
-    // Tính cấp VIP hiện tại của người dùng dựa trên totalSpent / deliveredSpent trong bộ nhớ và truy vấn Supabase
+    // Tính cấp VIP hiện tại của người dùng dựa trên tổng tích lũy các đơn hàng hợp lệ (Đã thanh toán/Đã xác nhận/Giao hàng)
     let spent = Math.max(0, Number(user.totalSpent || user.deliveredSpent || 0));
     const uid = user.userId || user.id;
-    if (uid) {
+    const uEmail = user.email ? String(user.email).trim().toLowerCase() : null;
+
+    if (uid || uEmail) {
       try {
         const dbSpentRes = await db.query(`
-          SELECT COALESCE(SUM(Total), 0) AS total_delivered
+          SELECT COALESCE(SUM(Total), 0) AS total_spent
           FROM Orders
-          WHERE UserId = @uid AND Status = 'DELIVERED'
-        `, { uid: parseInt(uid, 10) });
-        const dbSpent = Number(dbSpentRes.recordset[0]?.total_delivered || 0);
+          WHERE ((UserId = @uid AND @uid > 0) OR (Email IS NOT NULL AND LOWER(Email) = @uEmail AND @uEmail <> ''))
+            AND Status != 'CANCELLED'
+            AND (PaymentStatus IN ('PAID', 'PARTIALLY_PAID') OR Status IN ('CONFIRMED', 'PREPARING', 'SHIPPING', 'DELIVERED'))
+        `, { uid: uid ? parseInt(uid, 10) : 0, uEmail: uEmail || '' });
+        const dbSpent = Number(dbSpentRes.recordset[0]?.total_spent || 0);
         if (dbSpent > spent) spent = dbSpent;
       } catch (_) {}
     }

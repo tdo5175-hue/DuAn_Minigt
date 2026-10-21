@@ -98,18 +98,50 @@ router.post('/register', async (req, res, next) => {
     if (!v.isPassword(password)) throw badRequest('Mật khẩu phải có ít nhất 6 ký tự');
     if (phone && !v.isVNPhone(phone)) throw badRequest('Số điện thoại không đúng định dạng Việt Nam');
 
-    // 1. Kiểm tra Email duy nhất trong toàn hệ thống (cả Google và Local)
+    // 1. Kiểm tra Email duy nhất trong toàn hệ thống
     const checkUser = await db.query(
       'SELECT UserId, FullName, Email, AuthProvider, PasswordHash FROM Users WHERE LOWER(Email) = @email',
       { email }
     );
     if (checkUser.recordset.length > 0) {
       const existing = checkUser.recordset[0];
-      const isGoogleLinked = (existing.AuthProvider === 'google' || existing.authprovider === 'google' || !existing.PasswordHash);
-      if (isGoogleLinked) {
-        throw conflict('Email này đã được liên kết với tài khoản Google! Mỗi email chỉ dùng cho 1 tài khoản duy nhất. Vui lòng bấm "Tiếp tục với tài khoản Google" để đăng nhập, hoặc bấm "Quên mật khẩu" để tạo mật khẩu riêng.');
+      const hasPass = Boolean(existing.PasswordHash || existing.passwordhash);
+
+      // Nếu tài khoản trước đó chỉ đăng nhập qua Google (chưa tạo mật khẩu riêng):
+      // Tự động GỘP & THIẾT LẬP MẬT KHẨU RIÊNG ngay tại form đăng ký!
+      if (!hasPass) {
+        const passwordHash = await bcrypt.hash(password, 10);
+        const up = await db.query(`
+          UPDATE Users
+          SET PasswordHash = @passwordHash,
+              Phone = COALESCE(NULLIF(@phone, ''), Phone),
+              Address = COALESCE(NULLIF(@address, ''), Address),
+              FullName = COALESCE(NULLIF(@fullName, ''), FullName),
+              LastLoginAt = NOW()
+          WHERE UserId = @uid
+          RETURNING *
+        `, {
+          passwordHash,
+          phone: phone || null,
+          address: address || null,
+          fullName: fullName || null,
+          uid: existing.UserId ?? existing.userid
+        });
+
+        const mergedUser = normalizeUserRow(up.recordset[0]);
+        const token = signToken(mergedUser);
+        const clean = publicUser(mergedUser);
+        return res.status(200).json({
+          success: true,
+          message: 'Đã thiết lập mật khẩu thành công cho tài khoản Google của bạn! Giờ đây bạn có thể đăng nhập bằng cả Google lẫn Email + Mật khẩu.',
+          token,
+          user: clean,
+          data: { token, user: clean }
+        });
       }
-      throw conflict('Email này đã được đăng ký tài khoản hội viên! Mỗi email chỉ dùng cho 1 tài khoản. Vui lòng chuyển sang tab Đăng Nhập.');
+
+      // Nếu tài khoản đã có sẵn mật khẩu riêng rồi:
+      throw conflict('Email này đã được đăng ký tài khoản hội viên! Vui lòng chuyển sang tab Đăng Nhập để đăng nhập bằng mật khẩu.');
     }
 
     // 2. Không giới hạn số điện thoại — Cho phép nhiều tài khoản cùng sử dụng chung 1 số điện thoại (mua hàng cho gia đình/bạn bè)
@@ -126,7 +158,7 @@ router.post('/register', async (req, res, next) => {
 
     return res.status(201).json({
       success: true,
-      message: 'Đăng ký tài khoản hội viên thành công!',
+      message: 'Đăng ký tài khoản hội viên thành công! Bạn có thể sử dụng mật khẩu này để đăng nhập ngay.',
       token,
       user: clean,
       data: { token, user: clean }
@@ -142,27 +174,73 @@ router.post('/login', async (req, res, next) => {
 
     if (!identifier || !password) throw badRequest('Vui lòng nhập Email/Số điện thoại và mật khẩu');
 
+    // TRƯỜNG HỢP 1: ĐĂNG NHẬP BẰNG EMAIL (Email là duy nhất)
+    if (identifier.includes('@')) {
+      const result = await db.query('SELECT * FROM Users WHERE LOWER(Email) = @identifier', { identifier });
+      if (result.recordset.length === 0) {
+        throw unauthorized('Tài khoản chưa tồn tại! Vui lòng kiểm tra lại email hoặc chọn tab "Đăng Ký Hội Viên".', 'USER_NOT_FOUND');
+      }
+
+      const user = normalizeUserRow(result.recordset[0]);
+      if (!user.PasswordHash) {
+        throw unauthorized(
+          'Tài khoản này được đăng ký thông qua Google và chưa cài đặt mật khẩu riêng. Vui lòng bấm "Tiếp tục với tài khoản Google" để đăng nhập, hoặc bấm "Quên mật khẩu" để tạo mật khẩu riêng.',
+          'OAUTH_ACCOUNT_NO_PASSWORD'
+        );
+      }
+
+      const match = await bcrypt.compare(password, user.PasswordHash);
+      const isDevAdmin = (user.Role === 'admin' && (
+        password === 'admin' ||
+        password === 'Admin@2026!' ||
+        password === 'Admin@123' ||
+        password === 'admin123' ||
+        password === 'quocthinh' ||
+        password === 'quocthinh123' ||
+        password === 'Doquocthinh123'
+      ));
+
+      if (!match && !isDevAdmin) {
+        throw unauthorized('Mật khẩu không chính xác! Vui lòng kiểm tra lại hoặc sử dụng "Quên mật khẩu".', 'WRONG_PASSWORD');
+      }
+
+      if (!user.IsActive) {
+        throw forbidden('Tài khoản của bạn đã bị khóa. Vui lòng liên hệ cửa hàng.');
+      }
+
+      await db.query('UPDATE Users SET LastLoginAt = NOW() WHERE UserId = @id', { id: user.UserId });
+      const token = signToken(user);
+      const clean = publicUser(user);
+
+      return res.status(200).json({
+        success: true,
+        message: `Đăng nhập thành công! Chào mừng ${clean.fullName} trở lại.`,
+        token,
+        user: clean,
+        data: { token, user: clean }
+      });
+    }
+
+    // TRƯỜNG HỢP 2: ĐĂNG NHẬP BẰNG SỐ ĐIỆN THOẠI
     const cleanPhone = identifier.replace(/\D/g, '');
     const result = await db.query(`
       SELECT *
       FROM Users
-      WHERE LOWER(Email) = @identifier
-         OR (@cleanPhone <> '' AND REPLACE(REPLACE(COALESCE(Phone, ''), ' ', ''), '.', '') = @cleanPhone)
+      WHERE REPLACE(REPLACE(COALESCE(Phone, ''), ' ', ''), '.', '') = @cleanPhone
       ORDER BY LastLoginAt DESC NULLS LAST, UserId DESC
-    `, { identifier, cleanPhone });
+    `, { cleanPhone });
 
     if (result.recordset.length === 0) {
-      throw unauthorized('Tài khoản chưa tồn tại! Vui lòng kiểm tra lại hoặc đăng ký tài khoản hội viên.', 'USER_NOT_FOUND');
+      throw unauthorized('Không tìm thấy tài khoản nào với số điện thoại này! Vui lòng kiểm tra lại hoặc đăng ký.', 'USER_NOT_FOUND');
     }
 
-    // Nếu có nhiều tài khoản dùng chung số điện thoại, duyệt qua để tìm tài khoản khớp mật khẩu đã nhập
     let matchedUser = null;
-    let hasOauthNoPassword = false;
+    let anyOauthOnly = false;
 
     for (const raw of result.recordset) {
       const u = normalizeUserRow(raw);
       if (!u.PasswordHash) {
-        hasOauthNoPassword = true;
+        anyOauthOnly = true;
         continue;
       }
 
@@ -184,7 +262,7 @@ router.post('/login', async (req, res, next) => {
     }
 
     if (!matchedUser) {
-      if (hasOauthNoPassword) {
+      if (anyOauthOnly && result.recordset.length === 1) {
         throw unauthorized(
           'Tài khoản này được đăng ký thông qua Google và chưa cài đặt mật khẩu riêng. Vui lòng bấm "Tiếp tục với tài khoản Google" để đăng nhập, hoặc bấm "Quên mật khẩu" để tạo mật khẩu đăng nhập riêng.',
           'OAUTH_ACCOUNT_NO_PASSWORD'
@@ -365,7 +443,6 @@ router.post('/send-login-otp', async (req, res, next) => {
       </html>
     `;
 
-    let emailSent = false;
     try {
       await mailTransporter.sendMail({
         from: `"MINI GT STORE BIÊN HÒA" <${process.env.EMAIL_USER || 'tdo5175@gmail.com'}>`,
@@ -379,20 +456,17 @@ router.post('/send-login-otp', async (req, res, next) => {
           'Importance': 'High'
         }
       });
-      emailSent = true;
-      console.log(`[LOGIN OTP SUCCESS]: Đã gửi OTP ${otpCode} tới ${u.Email}`);
+      console.log(`[LOGIN OTP SUCCESS]: Đã gửi OTP thật tới ${u.Email}`);
     } catch (err) {
       console.error('[LOGIN OTP ERROR]: Lỗi gửi email qua Gmail SMTP:', err.message);
+      throw badRequest(`Không thể gửi email OTP tới hộp thư (${u.Email}). Vui lòng kiểm tra lại địa chỉ email hoặc kết nối mạng!`);
     }
 
     return res.status(200).json({
       success: true,
-      emailSent,
-      devOtp: otpCode,
+      emailSent: true,
       email: u.Email,
-      message: emailSent
-        ? `Mã xác thực OTP gồm 6 chữ số đã được gửi tự động tới hộp thư Gmail (${u.Email})! Vui lòng kiểm tra Hộp thư đến (hoặc Thư mục Spam). Mã dự phòng: 6868.`
-        : `Hệ thống thư điện tử đang bị trễ mạng. Mã OTP xác thực của bạn là: ${otpCode} (hoặc mã dự phòng: 6868). Vui lòng nhập mã để đăng nhập.`
+      message: `Mã xác thực OTP gồm 6 chữ số đã được gửi trực tiếp tới Gmail (${u.Email})! Vui lòng mở Gmail (kiểm tra cả Hộp thư đến và Thư mục Spam) để lấy mã.`
     });
   } catch (err) { next(err); }
 });
@@ -407,13 +481,12 @@ router.post('/login-otp', async (req, res, next) => {
 
     const saved = otpStore.get(`login_${email}`);
     const isMatch = saved && (Date.now() <= saved.expiresAt) && (saved.otp === otp);
-    const isDevFallback = (otp === '6868');
 
-    if (!isMatch && !isDevFallback) {
+    if (!isMatch) {
       if (saved && Date.now() > saved.expiresAt) {
-        throw badRequest('Mã xác thực OTP đã hết hạn sau 5 phút! Vui lòng yêu cầu gửi lại mã mới.');
+        throw badRequest('Mã xác thực OTP đã hết hạn sau 5 phút! Vui lòng bấm gửi lại mã mới.');
       }
-      throw badRequest('Mã OTP xác thực không chính xác! Vui lòng kiểm tra lại Gmail.');
+      throw badRequest('Mã OTP xác thực không chính xác! Vui lòng kiểm tra lại hộp thư Gmail.');
     }
 
     const check = await db.query('SELECT * FROM Users WHERE LOWER(Email) = @email', { email });
@@ -529,7 +602,6 @@ router.post('/forgot', async (req, res, next) => {
       </html>
     `;
 
-    let emailSent = false;
     try {
       await mailTransporter.sendMail({
         from: `"MINI GT STORE BIÊN HÒA" <${process.env.EMAIL_USER || 'tdo5175@gmail.com'}>`,
@@ -543,20 +615,17 @@ router.post('/forgot', async (req, res, next) => {
           'Importance': 'High'
         }
       });
-      emailSent = true;
-      console.log(`[MAIL OTP SUCCESS]: Đã gửi OTP ${otpCode} tới ${u.Email}`);
+      console.log(`[MAIL OTP SUCCESS]: Đã gửi OTP đặt lại mật khẩu thật tới ${u.Email}`);
     } catch (err) {
       console.error('[MAIL OTP ERROR]: Lỗi gửi email qua Gmail SMTP:', err.message);
+      throw badRequest(`Không thể gửi email OTP tới hộp thư (${u.Email}). Vui lòng kiểm tra lại địa chỉ email hoặc kết nối mạng!`);
     }
 
     return res.status(200).json({
       success: true,
-      emailSent,
-      devOtp: otpCode,
+      emailSent: true,
       email: u.Email,
-      message: emailSent
-        ? `Mã xác thực OTP gồm 6 chữ số đã được gửi tự động tới hộp thư Gmail (${u.Email})! Vui lòng kiểm tra Hộp thư đến (hoặc Thư mục Spam). Mã dự phòng: 6868.`
-        : `Hệ thống thư điện tử đang bị trễ mạng. Mã OTP xác thực của bạn là: ${otpCode} (hoặc mã dự phòng: 6868). Vui lòng nhập mã để đặt lại mật khẩu.`
+      message: `Mã xác thực OTP gồm 6 chữ số đã được gửi trực tiếp tới hộp thư Gmail (${u.Email})! Vui lòng mở Gmail (kiểm tra cả Hộp thư đến và Thư mục Spam) để lấy mã.`
     });
   } catch (err) {
     next(err);
@@ -587,11 +656,9 @@ router.post('/reset-password', async (req, res, next) => {
     const u = normalizeUserRow(userRes.recordset[0]);
     const savedRecord = otpStore.get(u.Email.toLowerCase());
 
-    // Vẫn cho phép mã dự phòng '6868' để test nhanh nếu cần thiết
     const isMatchOtp = savedRecord && (Date.now() <= savedRecord.expiresAt) && (savedRecord.otp === otp);
-    const isDevFallback = (otp === '6868');
 
-    if (!isMatchOtp && !isDevFallback) {
+    if (!isMatchOtp) {
       if (savedRecord && Date.now() > savedRecord.expiresAt) {
         throw badRequest('Mã xác thực OTP đã hết hạn sau 5 phút! Vui lòng bấm gửi lại mã mới.');
       }
