@@ -571,12 +571,13 @@ router.post('/products/:id/clone', async (req, res, next) => {
 
 router.get('/orders', async (req, res, next) => {
   try {
-    const { status, paymentStatus, paymentMethod, search, page = 1, limit = 50 } = req.query;
+    const { status, paymentStatus, paymentMethod, search, spxStatus, page = 1, limit = 50 } = req.query;
 
     const result = await orderService.listOrders({
       status,
       paymentStatus,
       paymentMethod,
+      spxStatus,
       q: search,
       page: parseInt(page, 10) || 1,
       pageSize: parseInt(limit, 10) || 50

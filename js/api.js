@@ -47,9 +47,15 @@
   };
 
   const API_BASE = getApiBase();
-  let localServerOffline = null;
-  const SHARED_ORDERS_KEY = 'minigt_shared_orders_v2';
-  const SHARED_PRODUCTS_KEY = 'minigt_products_catalog_v4_canonical';
+  let localServerOffline = (function() {
+    try {
+      return sessionStorage.getItem('minigt_local_offline') === 'true';
+    } catch (_) {
+      return null;
+    }
+  })();
+  const SHARED_ORDERS_KEY = 'minigt_shared_orders_v3';
+  const SHARED_PRODUCTS_KEY = 'minigt_products_catalog_v5_canonical';
   const SHARED_CATEGORIES_KEY = 'minigt_shared_categories_v2';
   const SHARED_SETTINGS_KEY = 'minigt_store_settings_v2';
   const SHARED_USERS_KEY = 'minigt_users_list_v2';
@@ -257,15 +263,121 @@
     }
   ];
 
-  const getSharedUsers = () => {
+  const DEFAULT_SUBSCRIBERS_DATA = [
+    { SubscriberId: 1, subscriberId: 1, id: 1, Email: 'collector.bienhoa@gmail.com', email: 'collector.bienhoa@gmail.com', CreatedAt: '2026-05-01T08:30:00Z', createdAt: '2026-05-01T08:30:00Z' },
+    { SubscriberId: 2, subscriberId: 2, id: 2, Email: 'lbwk.fanclub.vn@gmail.com', email: 'lbwk.fanclub.vn@gmail.com', CreatedAt: '2026-05-12T10:15:00Z', createdAt: '2026-05-12T10:15:00Z' },
+    { SubscriberId: 3, subscriberId: 3, id: 3, Email: 'porsche.gt3.vietnam@gmail.com', email: 'porsche.gt3.vietnam@gmail.com', CreatedAt: '2026-06-02T16:40:00Z', createdAt: '2026-06-02T16:40:00Z' }
+  ];
+
+  const getSharedSubscribers = () => {
     try {
-      const saved = localStorage.getItem(SHARED_USERS_KEY);
-      if (saved) {
-        const parsed = JSON.parse(saved);
+      const raw = localStorage.getItem(SHARED_SUBSCRIBERS_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
         if (Array.isArray(parsed) && parsed.length > 0) return parsed;
       }
-      localStorage.setItem(SHARED_USERS_KEY, JSON.stringify(DEFAULT_USERS_DATA));
-      return DEFAULT_USERS_DATA;
+    } catch (_) {}
+    try {
+      localStorage.setItem(SHARED_SUBSCRIBERS_KEY, JSON.stringify(DEFAULT_SUBSCRIBERS_DATA));
+    } catch (_) {}
+    return DEFAULT_SUBSCRIBERS_DATA;
+  };
+
+  const saveSharedSubscribers = (subs) => {
+    try {
+      localStorage.setItem(SHARED_SUBSCRIBERS_KEY, JSON.stringify(subs));
+      emitRealtimeSync('subscribers_updated', { count: subs.length });
+    } catch (e) {
+      console.warn('Không thể lưu subscribers vào localStorage:', e);
+    }
+    return subs;
+  };
+
+  const getSharedUsers = () => {
+    try {
+      let users = [];
+      const saved = localStorage.getItem(SHARED_USERS_KEY);
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed) && parsed.length > 0) users = parsed;
+        } catch (_) {}
+      }
+
+      // Khôi phục từ các key lưu trữ trước đó nếu key v2 trống
+      if (!users.length) {
+        const legacyKeys = ['minigt_users_list', 'minigt_users', 'minigt_users_v1'];
+        for (const k of legacyKeys) {
+          try {
+            const raw = localStorage.getItem(k);
+            if (raw) {
+              const p = JSON.parse(raw);
+              if (Array.isArray(p) && p.length > 0) {
+                users = p;
+                break;
+              }
+            }
+          } catch (_) {}
+        }
+      }
+
+      // Khởi tạo danh sách mặc định ban đầu nếu chưa có người dùng nào
+      if (!users.length) {
+        users = JSON.parse(JSON.stringify(DEFAULT_USERS_DATA));
+      }
+
+      // TỰ ĐỘNG KHÔI PHỤC VÀ ĐỒNG BỘ TÀI KHOẢN ĐANG ĐĂNG NHẬP (Self-healing từ minigt_user)
+      // Đảm bảo không bao giờ bị mất tài khoản người dùng vừa tạo hoặc đang đăng nhập
+      try {
+        const rawLocalUser = localStorage.getItem('minigt_user');
+        if (rawLocalUser) {
+          const localUser = JSON.parse(rawLocalUser);
+          if (localUser && (localUser.email || localUser.phone || localUser.id || localUser.userId)) {
+            const cleanEmail = (localUser.email || '').trim().toLowerCase();
+            const cleanPhone = (localUser.phone || '').replace(/\D/g, '');
+            const existingIdx = users.findIndex(u => {
+              const uEmail = (u.email || '').trim().toLowerCase();
+              const uPhone = (u.phone || '').replace(/\D/g, '');
+              const emailMatch = cleanEmail && uEmail && cleanEmail === uEmail;
+              const phoneMatch = cleanPhone && uPhone && cleanPhone === uPhone;
+              const idMatch = (localUser.userId && (String(u.userId) === String(localUser.userId) || String(u.id) === String(localUser.userId))) ||
+                              (localUser.id && (String(u.userId) === String(localUser.id) || String(u.id) === String(localUser.id)));
+              return emailMatch || phoneMatch || idMatch;
+            });
+
+            if (existingIdx >= 0) {
+              users[existingIdx] = Object.assign({}, users[existingIdx], localUser);
+            } else {
+              users.unshift(Object.assign({
+                id: localUser.userId || localUser.id || Date.now(),
+                userId: localUser.userId || localUser.id || Date.now(),
+                fullName: localUser.fullName || 'Hội viên MINI GT',
+                email: localUser.email || '',
+                phone: localUser.phone || '',
+                address: localUser.address || '',
+                addressType: localUser.addressType || 'NEW',
+                oldAddressNote: localUser.oldAddressNote || '',
+                role: localUser.role || 'customer',
+                tier: localUser.tier || 'Collector',
+                points: localUser.points || 100,
+                totalOrders: localUser.totalOrders || 0,
+                totalSpent: localUser.totalSpent || 0,
+                avatarUrl: localUser.avatarUrl || 'image/anh-clone.jpg',
+                isActive: localUser.isActive !== false,
+                createdAt: localUser.createdAt || new Date().toISOString()
+              }, localUser));
+            }
+          }
+        }
+      } catch (_) {}
+
+      // Chuẩn hóa và lưu lại cả 2 key để backup vĩnh viễn
+      try {
+        localStorage.setItem(SHARED_USERS_KEY, JSON.stringify(users));
+        localStorage.setItem('minigt_users_list', JSON.stringify(users));
+      } catch (_) {}
+
+      return users;
     } catch (e) {
       return DEFAULT_USERS_DATA;
     }
@@ -274,6 +386,8 @@
   const saveSharedUsers = (users) => {
     try {
       localStorage.setItem(SHARED_USERS_KEY, JSON.stringify(users));
+      localStorage.setItem('minigt_users_list', JSON.stringify(users));
+      emitRealtimeSync('USER_UPDATED', { count: users.length });
       emitRealtimeSync('users_updated', { count: users.length });
     } catch (e) {
       console.warn('Không thể lưu users vào localStorage:', e);
@@ -540,7 +654,7 @@
       PriceBox: 450000, PriceCard: 450000, DiscountPercent: 0, PackagingType: 'box_only',
       DepositAmount: 0, QuotaPercent: 86, EditionNote: 'Tháo Rời Nắp Máy Động Cơ V8',
       PreOrderDeadline: null, Stock: 14,
-      ImageUrl: 'image/Poprace_Lambo_Secret.webp',
+      ImageUrl: 'image/Poprace_Skyline.webp',
       Description: 'Huyền thoại Hakosuka độ Drift động cơ V8 của Pop Race với sơn đỏ Metallic và bánh lốp cao su thật.',
       Status: 'in_stock', IsFeatured: 0, IsNew: 1, soldCount: 26
     },
@@ -552,7 +666,7 @@
       PriceBox: 500000, PriceCard: 500000, DiscountPercent: 10, PackagingType: 'box_only',
       DepositAmount: 0, QuotaPercent: 80, EditionNote: 'Kèm Đế Da & Hộp Mica Trưng Bày',
       PreOrderDeadline: null, Stock: 10,
-      ImageUrl: 'image/TH_LamboUltraman.jpg',
+      ImageUrl: 'image/Toyota_Yaris_TrendsHobby.webp',
       Description: 'Mô hình xe đua địa hình WRC Toyota Yaris kèm đế trưng bày và hộp chống bụi Acrylic sang trọng.',
       Status: 'in_stock', IsFeatured: 0, IsNew: 1, soldCount: 31
     },
@@ -770,11 +884,25 @@
 
   const getSharedProducts = () => {
     try {
-      const raw = localStorage.getItem(SHARED_PRODUCTS_KEY);
+      const raw = localStorage.getItem(SHARED_PRODUCTS_KEY) || localStorage.getItem('minigt_products_catalog_v4_canonical');
       if (raw) {
         const parsed = JSON.parse(raw);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          return parsed.map(normalizeProductObject);
+          const healed = parsed.map(p => {
+            const pid = Number(p.id || p.ProductId);
+            if (pid === 13 && String(p.ImageUrl || p.imageUrl || p.image).includes('Lambo')) {
+              p.ImageUrl = 'image/Poprace_Skyline.webp';
+              p.imageUrl = 'image/Poprace_Skyline.webp';
+              p.image = 'image/Poprace_Skyline.webp';
+            } else if (pid === 14 && String(p.ImageUrl || p.imageUrl || p.image).includes('Ultraman')) {
+              p.ImageUrl = 'image/Toyota_Yaris_TrendsHobby.webp';
+              p.imageUrl = 'image/Toyota_Yaris_TrendsHobby.webp';
+              p.image = 'image/Toyota_Yaris_TrendsHobby.webp';
+            }
+            return normalizeProductObject(p);
+          });
+          localStorage.setItem(SHARED_PRODUCTS_KEY, JSON.stringify(healed));
+          return healed;
         }
       }
     } catch (e) {}
@@ -827,12 +955,17 @@
           productId: 1,
           sku: 'MGT00780',
           name: 'LB★WORKS Nissan GT-R R35 Type 2 Magic Purple (Pre-Order 2026)',
+          productName: 'LB★WORKS Nissan GT-R R35 Type 2 Magic Purple (Pre-Order 2026)',
+          ProductName: 'LB★WORKS Nissan GT-R R35 Type 2 Magic Purple (Pre-Order 2026)',
           packagingOption: 'box',
           packagingLabel: 'Bản Box (Hộp giấy)',
           unitPrice: 380000,
           quantity: 2,
           lineTotal: 760000,
-          productImage: 'image/hero-banner.jpg',
+          productImage: 'image/Minigt_s15chop_lbwk.jpg',
+          imageUrl: 'image/Minigt_s15chop_lbwk.jpg',
+          ImageUrl: 'image/Minigt_s15chop_lbwk.jpg',
+          image: 'image/Minigt_s15chop_lbwk.jpg',
           isPreOrder: true
         }
       ]
@@ -862,15 +995,20 @@
       createdAt: new Date(Date.now() - 3600000 * 5).toISOString(),
       items: [
         {
-          productId: 2,
+          productId: 8,
           sku: 'MGT00782',
           name: 'Porsche 911 GT3 R Rexy #80 AO Racing 2024 IMSA (Pre-Order)',
+          productName: 'Porsche 911 GT3 R Rexy #80 AO Racing 2024 IMSA (Pre-Order)',
+          ProductName: 'Porsche 911 GT3 R Rexy #80 AO Racing 2024 IMSA (Pre-Order)',
           packagingOption: 'card',
           packagingLabel: 'Bản Card (Vỉ Blister)',
           unitPrice: 440000,
           quantity: 1,
           lineTotal: 440000,
-          productImage: 'image/hero-banner.jpg',
+          productImage: 'image/rexy.jpg',
+          imageUrl: 'image/rexy.jpg',
+          ImageUrl: 'image/rexy.jpg',
+          image: 'image/rexy.jpg',
           isPreOrder: true
         }
       ]
@@ -904,12 +1042,17 @@
           productId: 5,
           sku: 'MGT01055',
           name: 'LB★WORKS Lamborghini Huracán GT Widebody Light Blue',
+          productName: 'LB★WORKS Lamborghini Huracán GT Widebody Light Blue',
+          ProductName: 'LB★WORKS Lamborghini Huracán GT Widebody Light Blue',
           packagingOption: 'box',
           packagingLabel: 'Bản Box (Hộp giấy)',
           unitPrice: 350000,
           quantity: 1,
           lineTotal: 350000,
-          productImage: 'image/hero-banner.jpg',
+          productImage: 'image/mgt01055.webp',
+          imageUrl: 'image/mgt01055.webp',
+          ImageUrl: 'image/mgt01055.webp',
+          image: 'image/mgt01055.webp',
           isPreOrder: false
         }
       ]
@@ -1099,7 +1242,50 @@
       CreatedAt: ord.CreatedAt || ord.createdAt || new Date().toISOString(),
       updatedAt: ord.updatedAt || ord.UpdatedAt || new Date().toISOString(),
       UpdatedAt: ord.UpdatedAt || ord.updatedAt || new Date().toISOString(),
-      items: Array.isArray(ord.items) ? ord.items : [],
+      items: Array.isArray(ord.items) ? ord.items.map((it, idx) => {
+        const pid = it.productId || it.ProductId || it.id || (idx + 1);
+        let pName = it.name || it.Name || it.productName || it.ProductName || '';
+        let pImg = it.image || it.imageUrl || it.ImageUrl || it.productImage || '';
+        if ((!pName || !pImg || pImg.includes('hero-banner')) && pid) {
+          const matchP = DEFAULT_CATALOG_PRODUCTS.find(p => p.id == pid || p.ProductId == pid);
+          if (matchP) {
+            if (!pName || pName === 'Mô hình 1:64') pName = matchP.Name;
+            if (!pImg || pImg.includes('hero-banner')) pImg = matchP.ImageUrl;
+          }
+        }
+        if (!pName) pName = 'Mô hình MINI GT 1:64';
+        if (!pImg) pImg = 'image/hero-banner.jpg';
+        const pSku = it.sku || it.Sku || it.productSku || '';
+        const pack = String(it.packagingOption || it.PackagingOption || it.packType || it.PackType || 'box').toLowerCase();
+        const uPrice = Number(it.unitPrice ?? it.UnitPrice ?? it.price ?? it.Price ?? 0);
+        const qty = Number(it.quantity ?? it.Quantity ?? 1);
+        const lTotal = Number(it.lineTotal ?? it.LineTotal ?? (uPrice * qty));
+        return Object.assign({}, it, {
+          productId: pid,
+          ProductId: pid,
+          sku: pSku,
+          Sku: pSku,
+          productSku: pSku,
+          name: pName,
+          Name: pName,
+          productName: pName,
+          ProductName: pName,
+          image: pImg,
+          imageUrl: pImg,
+          ImageUrl: pImg,
+          productImage: pImg,
+          packagingOption: pack,
+          PackagingOption: pack,
+          packType: pack,
+          PackType: pack,
+          unitPrice: uPrice,
+          UnitPrice: uPrice,
+          quantity: qty,
+          Quantity: qty,
+          lineTotal: lTotal,
+          LineTotal: lTotal
+        });
+      }) : [],
       history: Array.isArray(ord.history) ? ord.history : (Array.isArray(ord.timeline) ? ord.timeline.map(t => ({
         to: t.statusLabel || t.newStatus,
         note: t.note || '',
@@ -1385,6 +1571,8 @@
         email,
         phone,
         address,
+        addressType: String(body.addressType || 'NEW').toUpperCase(),
+        oldAddressNote: body.oldAddressNote || body.oldWardNote || '',
         password,
         role: 'customer',
         tier: 'Collector',
@@ -1399,6 +1587,7 @@
 
       users.unshift(newUser);
       saveSharedUsers(users);
+      emitRealtimeSync('USER_REGISTERED', newUser);
 
       const tok = 'cust_tok_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
       return {
@@ -1538,16 +1727,44 @@
     if (method === 'PUT' && path === '/api/auth/profile') {
       const users = getSharedUsers();
       const userId = body.userId || body.id;
-      const user = users.find(u => (u.userId == userId || u.id == userId || (body.email && u.email && u.email.toLowerCase() === body.email.toLowerCase())));
+      let user = users.find(u => (u.userId == userId || u.id == userId || (body.email && u.email && u.email.toLowerCase() === body.email.toLowerCase())));
 
       if (user) {
         if (body.fullName) user.fullName = body.fullName.trim();
         if (body.phone) user.phone = body.phone.trim();
         if (body.address) user.address = body.address.trim();
+        if (body.addressType) user.addressType = String(body.addressType).toUpperCase();
+        if (body.oldAddressNote !== undefined) user.oldAddressNote = body.oldAddressNote;
+        if (body.deliveryNote !== undefined) user.deliveryNote = body.deliveryNote;
+        if (body.city) user.city = body.city;
         saveSharedUsers(users);
         return { success: true, user, message: 'Cập nhật thông tin tài khoản thành công!' };
       }
-      return { success: false, message: 'Không tìm thấy tài khoản để cập nhật!' };
+
+      // Tự động khôi phục / tạo mới nếu user chưa nằm trong mảng users
+      const fallbackUser = {
+        id: userId || Date.now(),
+        userId: userId || Date.now(),
+        fullName: (body.fullName || '').trim() || 'Hội viên MINI GT',
+        email: (body.email || '').trim().toLowerCase(),
+        phone: (body.phone || '').trim(),
+        address: (body.address || '').trim(),
+        addressType: String(body.addressType || 'NEW').toUpperCase(),
+        oldAddressNote: body.oldAddressNote || '',
+        deliveryNote: body.deliveryNote || '',
+        city: body.city || '',
+        role: 'customer',
+        tier: 'Collector',
+        points: 100,
+        totalOrders: 0,
+        totalSpent: 0,
+        avatarUrl: 'image/anh-clone.jpg',
+        isActive: true,
+        createdAt: new Date().toISOString()
+      };
+      users.unshift(fallbackUser);
+      saveSharedUsers(users);
+      return { success: true, user: fallbackUser, message: 'Cập nhật hồ sơ tài khoản thành công!' };
     }
 
     // 1. DANH SÁCH SẢN PHẨM KHÁCH HÀNG & ADMIN (GET /api/products, GET /api/admin/products, POST/PUT/DELETE)
@@ -1751,20 +1968,53 @@
       const dateStr = now.toISOString().slice(0, 10).replace(/-/g, '');
       const rand = Math.floor(1000 + Math.random() * 9000);
       const code = `MGT-${dateStr}-${rand}`;
-      const items = (body.items || []).map((it, idx) => ({
-        id: idx + 1,
-        productId: it.productId || idx + 1,
-        productSku: it.sku || `MGT-${it.productId || idx + 1}`,
-        productName: it.name || `Mô hình Mini GT #${it.productId || idx + 1}`,
-        productImage: it.image || 'image/hero-banner.jpg',
-        packagingOption: it.packagingOption || 'box',
-        packagingLabel: it.packagingLabel || (it.packagingOption === 'card' ? 'Bản Card (Vỉ Blister)' : 'Bản Box (Hộp giấy)'),
-        orderType: it.orderType || 'IN_STOCK',
-        unitPrice: Number(it.price || 320000),
-        depositPrice: Number(it.deposit || 0),
-        quantity: Number(it.quantity || 1),
-        lineTotal: Number(it.price || 320000) * Number(it.quantity || 1)
-      }));
+      const items = (body.items || []).map((it, idx) => {
+        const pid = it.productId || idx + 1;
+        let pName = it.name || it.productName || it.ProductName || '';
+        let pImg = it.image || it.imageUrl || it.ImageUrl || it.productImage || '';
+        if ((!pName || !pImg || pImg.includes('hero-banner')) && pid) {
+          const matchP = DEFAULT_CATALOG_PRODUCTS.find(p => p.id == pid || p.ProductId == pid);
+          if (matchP) {
+            if (!pName || pName === 'Mô hình 1:64') pName = matchP.Name;
+            if (!pImg || pImg.includes('hero-banner')) pImg = matchP.ImageUrl;
+          }
+        }
+        if (!pName) pName = `Mô hình Mini GT #${pid}`;
+        if (!pImg) pImg = 'image/hero-banner.jpg';
+        const pSku = it.sku || `MGT-${pid}`;
+        const pack = String(it.packagingOption || it.packType || 'box').toLowerCase();
+        const uPrice = Number(it.price || it.unitPrice || 320000);
+        const qty = Number(it.quantity || 1);
+        return {
+          id: idx + 1,
+          productId: pid,
+          ProductId: pid,
+          sku: pSku,
+          Sku: pSku,
+          productSku: pSku,
+          name: pName,
+          Name: pName,
+          productName: pName,
+          ProductName: pName,
+          image: pImg,
+          imageUrl: pImg,
+          ImageUrl: pImg,
+          productImage: pImg,
+          packagingOption: pack,
+          PackagingOption: pack,
+          packType: pack,
+          PackType: pack,
+          packagingLabel: it.packagingLabel || (pack === 'card' ? 'Bản Card (Vỉ Blister)' : 'Bản Box (Hộp giấy)'),
+          orderType: it.orderType || 'IN_STOCK',
+          unitPrice: uPrice,
+          UnitPrice: uPrice,
+          depositPrice: Number(it.deposit || 0),
+          quantity: qty,
+          Quantity: qty,
+          lineTotal: uPrice * qty,
+          LineTotal: uPrice * qty
+        };
+      });
       const subtotal = items.reduce((s, i) => s + i.lineTotal, 0) || Number(body.totalAmount || 350000);
       const shippingFee = body.shippingFee !== undefined ? Number(body.shippingFee) : 11000;
       const totalAmount = Number(body.totalAmount || (subtotal + shippingFee));
@@ -1815,6 +2065,46 @@
       upsertSharedOrder(newOrder);
       addMyOrderCode(newOrder.code);
       emitRealtimeSync('ORDER_CREATED', newOrder);
+
+      // Cập nhật thống kê khách hàng và đồng bộ danh sách khách hàng dùng chung
+      try {
+        const users = getSharedUsers();
+        const oEmail = (body.email || '').trim().toLowerCase();
+        const oPhone = (body.phone || '').replace(/\D/g, '');
+        const target = users.find(u => {
+          const uEmail = (u.email || '').trim().toLowerCase();
+          const uPhone = (u.phone || '').replace(/\D/g, '');
+          return (oEmail && uEmail && oEmail === uEmail) || (oPhone && uPhone && oPhone === uPhone);
+        });
+        if (target) {
+          target.totalOrders = (Number(target.totalOrders) || 0) + 1;
+          target.totalSpent = (Number(target.totalSpent) || 0) + totalAmount;
+          if (body.address && !target.address) target.address = body.address;
+          if (body.addressType) target.addressType = body.addressType;
+          if (body.oldAddressNote) target.oldAddressNote = body.oldAddressNote;
+        } else if (oEmail || oPhone) {
+          users.unshift({
+            id: Date.now(),
+            userId: Date.now(),
+            fullName: body.fullName || 'Khách hàng',
+            email: oEmail,
+            phone: body.phone || '',
+            address: body.address || '',
+            addressType: body.addressType || 'NEW',
+            oldAddressNote: body.oldAddressNote || '',
+            role: 'customer',
+            tier: 'Collector',
+            points: 100,
+            totalOrders: 1,
+            totalSpent: totalAmount,
+            avatarUrl: 'image/anh-clone.jpg',
+            isActive: true,
+            createdAt: now.toISOString()
+          });
+        }
+        saveSharedUsers(users);
+      } catch (_) {}
+
       return {
         success: true,
         message: 'Đặt hàng thành công!',
@@ -1879,6 +2169,17 @@
       if (params.paymentMethod && params.paymentMethod !== 'ALL') {
         filtered = filtered.filter(o => o.paymentMethod === params.paymentMethod);
       }
+      if (params.addressType && params.addressType !== 'ALL') {
+        const isOld = params.addressType === 'OLD';
+        filtered = filtered.filter(o => isOld ? (o.addressType === 'OLD' || o.isOldAddress) : (o.addressType !== 'OLD' && !o.isOldAddress));
+      }
+      if (params.spxStatus && params.spxStatus !== 'ALL') {
+        if (params.spxStatus === 'UNASSIGNED') {
+          filtered = filtered.filter(o => !o.trackingCode);
+        } else if (params.spxStatus === 'ASSIGNED') {
+          filtered = filtered.filter(o => Boolean(o.trackingCode));
+        }
+      }
       if (params.search) {
         const q = params.search.toLowerCase();
         filtered = filtered.filter(o =>
@@ -1901,6 +2202,9 @@
     if (method === 'GET' && (path === '/api/admin/dashboard' || path === '/api/stats')) {
       const allOrders = getSharedOrders().map(normalizeOrderObject);
       const allProds = getSharedProducts();
+      const allUsers = getSharedUsers();
+      const allSubs = getSharedSubscribers();
+
       const totalRev = allOrders
         .filter(o => o.status !== 'CANCELLED')
         .reduce((sum, o) => sum + (o.totalAmount || 0), 0) || 15480000;
@@ -1908,16 +2212,18 @@
         .filter(o => o.paymentMethod === 'DEPOSIT' && o.status !== 'CANCELLED')
         .reduce((sum, o) => sum + (o.depositAmount || 0), 0) || 4650000;
 
+      const customerCount = allUsers.filter(u => String(u.role || '').toLowerCase() !== 'admin').length || allUsers.length;
+
       return {
         success: true,
         data: {
           stats: {
             totalRevenue: totalRev,
             totalDeposits: totalDep,
-            totalOrders: allOrders.length || 18,
+            totalOrders: allOrders.length,
             totalProducts: allProds.length,
-            totalCustomers: 45,
-            totalSubscribers: 128,
+            totalCustomers: customerCount,
+            totalSubscribers: allSubs.length,
             lowStockProducts: allProds.filter(p => p.stock > 0 && p.stock <= 5).length,
             pendingOrders: allOrders.filter(o => o.status === 'PENDING').length,
             confirmedOrders: allOrders.filter(o => o.status === 'CONFIRMED').length,
@@ -1948,26 +2254,56 @@
       let users = getSharedUsers();
       if (params.search) {
         const q = params.search.toLowerCase();
-        users = users.filter(u => u.fullName.toLowerCase().includes(q) || u.email.toLowerCase().includes(q) || (u.phone && u.phone.includes(q)));
+        users = users.filter(u =>
+          (u.fullName && u.fullName.toLowerCase().includes(q)) ||
+          (u.email && u.email.toLowerCase().includes(q)) ||
+          (u.phone && u.phone.includes(q)) ||
+          (u.address && u.address.toLowerCase().includes(q))
+        );
       }
       return { success: true, data: users };
     }
 
-    const userStatusMatch = path.match(/^\/api\/admin\/users\/(\d+)\/(status|role)$/);
+    const userStatusMatch = path.match(/^\/api\/admin\/users\/([^\/]+)\/(status|role)$/);
     if (method === 'PUT' && userStatusMatch) {
-      return { success: true, message: 'Đã cập nhật thông tin tài khoản thành công!' };
+      const targetId = userStatusMatch[1];
+      const field = userStatusMatch[2];
+      const users = getSharedUsers();
+      const targetUser = users.find(u => String(u.userId) === String(targetId) || String(u.id) === String(targetId));
+      if (targetUser) {
+        if (field === 'status' && typeof body.isActive !== 'undefined') {
+          targetUser.isActive = Boolean(body.isActive);
+        } else if (field === 'role' && body.role) {
+          targetUser.role = String(body.role).toLowerCase();
+        }
+        saveSharedUsers(users);
+        return { success: true, message: 'Đã cập nhật thông tin tài khoản thành công!', data: targetUser };
+      }
+      return { success: false, message: 'Không tìm thấy người dùng!' };
+    }
+
+    const userDeleteMatch = path.match(/^\/api\/admin\/users\/([^\/]+)$/);
+    if (method === 'DELETE' && userDeleteMatch) {
+      const targetId = userDeleteMatch[1];
+      let users = getSharedUsers();
+      const prevLen = users.length;
+      users = users.filter(u => String(u.userId) !== String(targetId) && String(u.id) !== String(targetId));
+      if (users.length < prevLen) {
+        saveSharedUsers(users);
+        return { success: true, message: 'Đã xóa tài khoản khách hàng thành công!' };
+      }
+      return { success: false, message: 'Không tìm thấy tài khoản cần xóa!' };
     }
 
     if (method === 'GET' && path === '/api/admin/subscribers') {
-      const subs = [
-        { SubscriberId: 1, Email: 'collector.bienhoa@gmail.com', CreatedAt: '2026-05-01T08:30:00Z' },
-        { SubscriberId: 2, Email: 'lbwk.fanclub.vn@gmail.com', CreatedAt: '2026-05-12T10:15:00Z' },
-        { SubscriberId: 3, Email: 'porsche.gt3.vietnam@gmail.com', CreatedAt: '2026-06-02T16:40:00Z' }
-      ];
-      return { success: true, data: subs };
+      return { success: true, data: getSharedSubscribers() };
     }
 
     if (method === 'DELETE' && path.startsWith('/api/admin/subscribers/')) {
+      const subId = path.split('/').pop();
+      let subs = getSharedSubscribers();
+      subs = subs.filter(s => String(s.SubscriberId || s.subscriberId || s.id) !== String(subId));
+      saveSharedSubscribers(subs);
       return { success: true, message: 'Đã xóa email khỏi danh sách bản tin' };
     }
 
@@ -2291,6 +2627,8 @@
           if (body.city) target.city = body.city;
           if (body.district) target.district = body.district;
           if (body.note !== undefined) target.note = body.note;
+          if (body.addressType) target.addressType = String(body.addressType).toUpperCase();
+          if (body.oldAddressNote !== undefined) target.oldAddressNote = body.oldAddressNote;
         }
         target.updatedAt = new Date().toISOString();
         const saved = upsertSharedOrder(target);
@@ -2334,10 +2672,12 @@
       response = await fetch(fullUrl, config);
       if (isLocalEnvironment()) {
         localServerOffline = false;
+        try { sessionStorage.removeItem('minigt_local_offline'); } catch (_) {}
       }
     } catch (netErr) {
       if (isLocalEnvironment()) {
         localServerOffline = true;
+        try { sessionStorage.setItem('minigt_local_offline', 'true'); } catch (_) {}
         const fallbackResult = handleOfflineFallback(endpoint, {
           method,
           body: rawBody
@@ -2408,6 +2748,8 @@
     saveSharedProducts,
     getSharedUsers,
     saveSharedUsers,
+    getSharedSubscribers,
+    saveSharedSubscribers,
     getSharedCategories,
     saveSharedCategories,
     normalizeProductObject,

@@ -131,6 +131,40 @@
           <span class="dot"></span>
           <span id="serverStatusText">Đang kết nối...</span>
         </div>
+
+        <!-- Order Notification Center with Bell & Audio Sound -->
+        <div class="admin-notif-wrap" id="adminNotifWrap">
+          <button type="button" class="btn-admin-icon-notif" id="adminNotifBtn" onclick="toggleAdminNotifDropdown(event)" title="Thông báo đơn hàng mới" aria-label="Thông báo đơn hàng">
+            <i class="fa-solid fa-bell"></i>
+            <span class="notif-badge" id="adminNotifBadge" style="display:none;">0</span>
+          </button>
+          <div class="admin-notif-dropdown" id="adminNotifDropdown">
+            <div class="notif-dropdown-header">
+              <div style="display:flex; align-items:center; gap:6px;">
+                <i class="fa-solid fa-bell" style="color:#e10600;"></i>
+                <strong style="font-size:13px; color:var(--admin-text-main);">Thông Báo Đơn Hàng</strong>
+              </div>
+              <div style="display:flex; align-items:center; gap:8px;">
+                <button type="button" class="btn-sound-toggle" id="btnAdminSoundToggle" onclick="toggleAdminOrderSound(event)" title="Bật/Tắt âm thanh chuông báo">
+                  <i class="fa-solid fa-volume-high" id="soundToggleIcon"></i>
+                </button>
+                <button type="button" class="btn-clear-notif" onclick="markAllAdminNotifsRead(event)">Đã xem</button>
+              </div>
+            </div>
+            <div class="notif-list-container" id="adminNotifList">
+              <div class="notif-empty-state">
+                <i class="fa-regular fa-bell-slash"></i>
+                <span>Chưa có thông báo đơn hàng mới</span>
+              </div>
+            </div>
+            <div class="notif-dropdown-footer">
+              <button type="button" onclick="switchTab('orders'); closeAdminNotifDropdown();" class="btn-view-all-orders">
+                <span>Quản lý danh sách đơn hàng</span> <i class="fa-solid fa-arrow-right"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+
         <div style="font-size: 13px; font-weight: 700; color: var(--admin-text-main);" id="topbarAdminName" class="topbar-admin-name">
           Admin
         </div>
@@ -399,6 +433,16 @@
               <option value="DEPOSIT">Đặt cọc MB Bank</option>
               <option value="BANK_TRANSFER">Chuyển khoản Full</option>
             </select>
+            <select id="orderAddressTypeFilter" class="form-control" style="max-width:175px;" onchange="handleOrderFilterChange()">
+              <option value="ALL">-- Tất cả loại địa chỉ --</option>
+              <option value="NEW">Địa chỉ MỚI (Đã sáp nhập)</option>
+              <option value="OLD">Địa chỉ CŨ (Cần đối chiếu ĐVHC)</option>
+            </select>
+            <select id="orderSpxFilter" class="form-control" style="max-width:165px;" onchange="handleOrderFilterChange()">
+              <option value="ALL">-- Trạng thái SPX --</option>
+              <option value="UNASSIGNED">Chưa gán SPX</option>
+              <option value="ASSIGNED">Đã có mã SPX</option>
+            </select>
           </div>
 
           <div class="table-responsive">
@@ -406,12 +450,12 @@
               <thead>
                 <tr>
                   <th style="min-width:145px; white-space:nowrap;">Mã Đơn &amp; Thời Gian</th>
-                  <th style="min-width:175px;">Khách Hàng &amp; SĐT</th>
-                  <th style="min-width:230px;">Mô Hình &amp; Quy Cách</th>
-                  <th style="min-width:135px; white-space:nowrap;">Tổng Tiền / Cọc</th>
-                  <th style="min-width:130px;">Thanh Toán</th>
-                  <th style="min-width:145px;">Trạng Thái &amp; SPX</th>
-                  <th style="min-width:165px; text-align:right;">Thao Tác Xử Lý</th>
+                  <th style="min-width:180px;">Khách Hàng &amp; SĐT</th>
+                  <th style="min-width:240px;">Mô Hình &amp; Quy Cách</th>
+                  <th style="min-width:140px; white-space:nowrap;">Tổng Tiền / Cọc</th>
+                  <th style="min-width:135px;">Thanh Toán</th>
+                  <th style="min-width:165px;">Trạng Thái &amp; SPX</th>
+                  <th style="min-width:210px; text-align:right;">Thao Tác Xử Lý</th>
                 </tr>
               </thead>
               <tbody id="ordersTbody"></tbody>

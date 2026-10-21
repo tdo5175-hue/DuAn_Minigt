@@ -28,6 +28,8 @@
     status: 'ALL',
     paymentStatus: 'ALL',
     paymentMethod: 'ALL',
+    addressType: 'ALL',
+    spxStatus: 'ALL',
     search: '',
     preStage: 'ALL',
     page: 1,
@@ -188,6 +190,244 @@
       setTimeout(() => toast.remove(), 260);
     }, 3500);
   }
+
+  // =====================================================================
+  // 1b. HỆ THỐNG THÔNG BÁO ĐƠN HÀNG MỚI & ÂM THANH CHUÔNG BÁO (AUDIO CHIME)
+  // =====================================================================
+  let adminOrderSoundEnabled = localStorage.getItem('minigt_admin_order_sound') !== 'false';
+  let audioCtx = null;
+  let adminNotifications = [];
+
+  function playOrderChimeSound() {
+    if (!adminOrderSoundEnabled) return;
+    try {
+      const AudioCtxClass = window.AudioContext || window.webkitAudioContext;
+      if (!AudioCtxClass) return;
+      if (!audioCtx) audioCtx = new AudioCtxClass();
+      if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+      }
+      const now = audioCtx.currentTime;
+
+      // Nốt 1: D5 (587.33Hz)
+      const osc1 = audioCtx.createOscillator();
+      const gain1 = audioCtx.createGain();
+      osc1.type = 'sine';
+      osc1.frequency.setValueAtTime(587.33, now);
+      gain1.gain.setValueAtTime(0, now);
+      gain1.gain.linearRampToValueAtTime(0.22, now + 0.03);
+      gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.32);
+      osc1.connect(gain1);
+      gain1.connect(audioCtx.destination);
+      osc1.start(now);
+      osc1.stop(now + 0.35);
+
+      // Nốt 2: A5 (880.00Hz) - âm chuông ngân ấm
+      const osc2 = audioCtx.createOscillator();
+      const gain2 = audioCtx.createGain();
+      osc2.type = 'sine';
+      osc2.frequency.setValueAtTime(880.0, now + 0.1);
+      gain2.gain.setValueAtTime(0, now + 0.1);
+      gain2.gain.linearRampToValueAtTime(0.28, now + 0.14);
+      gain2.gain.exponentialRampToValueAtTime(0.0001, now + 0.65);
+      osc2.connect(gain2);
+      gain2.connect(audioCtx.destination);
+      osc2.start(now + 0.1);
+      osc2.stop(now + 0.68);
+    } catch (err) {
+      console.warn('Audio chime warning:', err);
+    }
+  }
+
+  function toggleAdminOrderSound(event) {
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+    adminOrderSoundEnabled = !adminOrderSoundEnabled;
+    localStorage.setItem('minigt_admin_order_sound', String(adminOrderSoundEnabled));
+    updateAdminSoundButtonState();
+    if (adminOrderSoundEnabled) {
+      playOrderChimeSound();
+      adminToast('Đã BẬT âm thanh chuông báo có đơn hàng mới 🔔', 'success', 'Chuông Báo Đơn');
+    } else {
+      adminToast('Đã TẮT âm thanh chuông báo có đơn hàng mới 🔕', 'info', 'Chuông Báo Đơn');
+    }
+  }
+
+  function updateAdminSoundButtonState() {
+    const icon = document.getElementById('soundToggleIcon');
+    const btn = document.getElementById('btnAdminSoundToggle');
+    if (!icon || !btn) return;
+    if (adminOrderSoundEnabled) {
+      icon.className = 'fa-solid fa-volume-high';
+      icon.style.color = '#059669';
+      btn.title = 'Đang BẬT âm thanh chuông báo (Nhấn để tắt)';
+    } else {
+      icon.className = 'fa-solid fa-volume-xmark';
+      icon.style.color = '#dc2626';
+      btn.title = 'Đang TẮT âm thanh chuông báo (Nhấn để bật)';
+    }
+  }
+
+  function loadAdminNotifications() {
+    try {
+      const saved = sessionStorage.getItem('minigt_admin_notifications');
+      if (saved) {
+        adminNotifications = JSON.parse(saved);
+      }
+    } catch (e) {
+      adminNotifications = [];
+    }
+    renderAdminNotifications();
+  }
+
+  function saveAdminNotifications() {
+    try {
+      sessionStorage.setItem('minigt_admin_notifications', JSON.stringify(adminNotifications.slice(0, 30)));
+    } catch (e) {}
+  }
+
+  function addAdminNotification(ord, type = 'ORDER_CREATED') {
+    if (!ord || !ord.code) return;
+    const exists = adminNotifications.some(n => n.code === ord.code && n.type === type);
+    if (exists) return;
+
+    const notif = {
+      id: 'notif_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
+      code: ord.code,
+      orderId: ord.id || null,
+      customerName: ord.fullName || (ord.customer && ord.customer.fullName) || 'Khách hàng',
+      phone: ord.phone || (ord.customer && ord.customer.phone) || '',
+      total: ord.totalAmount ?? ord.total ?? 0,
+      paymentMethod: ord.paymentMethod || 'COD',
+      type: type,
+      time: new Date().toISOString(),
+      read: false
+    };
+
+    adminNotifications.unshift(notif);
+    if (adminNotifications.length > 30) adminNotifications.pop();
+    saveAdminNotifications();
+    renderAdminNotifications();
+    playOrderChimeSound();
+  }
+
+  function renderAdminNotifications() {
+    const badge = document.getElementById('adminNotifBadge');
+    const list = document.getElementById('adminNotifList');
+    if (!list) return;
+
+    const unreadCount = adminNotifications.filter(n => !n.read).length;
+    if (badge) {
+      if (unreadCount > 0) {
+        badge.textContent = unreadCount > 9 ? '9+' : unreadCount;
+        badge.style.display = 'inline-flex';
+      } else {
+        badge.style.display = 'none';
+      }
+    }
+
+    if (!adminNotifications.length) {
+      list.innerHTML = `
+        <div class="notif-empty-state">
+          <i class="fa-regular fa-bell-slash"></i>
+          <div>Chưa có thông báo đơn hàng mới nào</div>
+        </div>
+      `;
+      return;
+    }
+
+    list.innerHTML = adminNotifications.map(n => {
+      const isUnread = !n.read;
+      const isTransfer = n.type === 'CUSTOMER_REPORTED_TRANSFER';
+      const icon = isTransfer ? 'fa-solid fa-receipt' : 'fa-solid fa-bag-shopping';
+      const iconBg = isTransfer ? '#ecfdf5' : '#eff6ff';
+      const iconColor = isTransfer ? '#059669' : '#2563eb';
+      const title = isTransfer ? 'Khách báo đã chuyển khoản' : 'Đơn hàng mới tạo';
+
+      return `
+        <div class="notif-item ${isUnread ? 'unread' : ''}" onclick="handleNotifItemClick('${n.code}', ${n.orderId || 'null'}, '${n.id}')">
+          <div class="notif-item-icon" style="background:${iconBg}; color:${iconColor};">
+            <i class="${icon}"></i>
+          </div>
+          <div class="notif-item-content">
+            <div class="notif-item-title">
+              <span>${title} <strong style="color:#e10600; font-family:monospace;">#${escapeHtml(n.code)}</strong></span>
+              ${isUnread ? '<span class="notif-unread-dot" title="Chưa xem"></span>' : ''}
+            </div>
+            <div class="notif-item-desc">
+              ${escapeHtml(n.customerName)} • <strong style="color:#0f172a;">${formatVND(n.total)}</strong>
+            </div>
+            <div class="notif-item-time">
+              <i class="fa-regular fa-clock"></i> ${formatOrderDateTime(n.time)}
+            </div>
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  function toggleAdminNotifDropdown(event) {
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+    const dd = document.getElementById('adminNotifDropdown');
+    if (!dd) return;
+    const isShowing = dd.classList.contains('show');
+    if (isShowing) {
+      closeAdminNotifDropdown();
+    } else {
+      dd.classList.add('show');
+      renderAdminNotifications();
+    }
+  }
+
+  function closeAdminNotifDropdown() {
+    const dd = document.getElementById('adminNotifDropdown');
+    if (dd) dd.classList.remove('show');
+  }
+
+  function markAllAdminNotifsRead(event) {
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+    adminNotifications.forEach(n => { n.read = true; });
+    saveAdminNotifications();
+    renderAdminNotifications();
+    adminToast('Đã đánh dấu đã xem tất cả thông báo đơn hàng', 'info');
+  }
+
+  function handleNotifItemClick(orderCode, orderId, notifId) {
+    const notif = adminNotifications.find(n => n.id === notifId);
+    if (notif) notif.read = true;
+    saveAdminNotifications();
+    renderAdminNotifications();
+    closeAdminNotifDropdown();
+
+    if (activeTab !== 'orders') {
+      switchTab('orders');
+    }
+    const searchInput = document.getElementById('orderSearchInput');
+    if (searchInput) {
+      searchInput.value = orderCode;
+      handleOrderSearchDebounced(orderCode);
+    }
+    if (orderId) {
+      setTimeout(() => {
+        viewOrderDetail(orderId);
+      }, 300);
+    }
+  }
+
+  document.addEventListener('click', (e) => {
+    const wrap = document.getElementById('adminNotifWrap');
+    if (wrap && !wrap.contains(e.target)) {
+      closeAdminNotifDropdown();
+    }
+  });
 
   function fallbackCopyText(text, successMsg) {
     const ta = document.createElement('textarea');
@@ -1882,6 +2122,8 @@
   function handleOrderFilterChange() {
     orderFilter.paymentStatus = document.getElementById('orderPayStatusFilter')?.value || 'ALL';
     orderFilter.paymentMethod = document.getElementById('orderPayMethodFilter')?.value || 'ALL';
+    orderFilter.addressType = document.getElementById('orderAddressTypeFilter')?.value || 'ALL';
+    orderFilter.spxStatus = document.getElementById('orderSpxFilter')?.value || 'ALL';
     orderFilter.page = 1;
     loadOrders();
   }
@@ -2029,16 +2271,28 @@
       return '<span style="font-size:11px; color:#94a3b8; font-style:italic;">(Chưa có sản phẩm)</span>';
     }
     const rendered = items.slice(0, 2).map(it => {
-      const isCard = (it.packagingOption || it.PackagingOption) === 'card';
+      const isCard = (it.packagingOption || it.PackagingOption || it.packType) === 'card';
       const packBadge = isCard
         ? '<span class="badge-order-pack card"><i class="fa-solid fa-shield-halved"></i> Card</span>'
         : '<span class="badge-order-pack box"><i class="fa-solid fa-cube"></i> Box</span>';
-      let img = it.imageUrl || it.ImageUrl || it.productImage || 'image/hero-banner.jpg';
+      
+      const pid = it.productId || it.ProductId || it.id;
+      let itName = it.name || it.productName || it.ProductName || '';
+      let img = it.imageUrl || it.ImageUrl || it.productImage || it.image || '';
+      if ((!itName || !img || img.includes('hero-banner')) && pid) {
+        const pMatch = (cachedProducts && cachedProducts.length) ? cachedProducts.find(p => (p.id || p.ProductId) == pid) : null;
+        if (pMatch) {
+          if (!itName || itName === 'Mô hình 1:64') itName = pMatch.name || pMatch.Name;
+          if (!img || img.includes('hero-banner')) img = pMatch.imageUrl || pMatch.ImageUrl || pMatch.image;
+        }
+      }
+      if (!itName) itName = 'Mô hình Diecast 1:64';
+      if (!img) img = 'image/hero-banner.jpg';
       let finalImg = img.startsWith('http') ? img : ('../' + img.replace(/^\/+/, ''));
-      const itName = it.name || it.productName || 'Mô hình Diecast 1:64';
+
       return `
         <div class="order-item-chip" title="${escapeHtml(itName)}">
-          <img src="${finalImg}" alt="" style="width:24px; height:24px; object-fit:contain; border-radius:4px; border:1px solid #e2e8f0; background:#fff; flex-shrink:0;">
+          <img src="${finalImg}" onerror="this.src='../image/hero-banner.jpg'" alt="" style="width:24px; height:24px; object-fit:contain; border-radius:4px; border:1px solid #e2e8f0; background:#fff; flex-shrink:0;">
           <div style="flex:1; min-width:0; overflow:hidden;">
             <div style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:160px; font-weight:700; font-size:11.5px; color:#0f172a;">
               ${escapeHtml(itName)}
@@ -2235,65 +2489,61 @@
         `);
       }
 
-      const actions = [];
+      // Phân bổ nhóm thao tác thành 2 dòng ma trận rõ ràng, ngăn nắp, không bị che mất
+      const actionsPrimary = [];
+      const actionsSecondary = [];
 
-      // 1. Xem chi tiết
-      actions.push(`<button class="btn-admin btn-admin-outline" style="padding:3px 7px; font-size:11px;" onclick="viewOrderDetail(${o.id})" title="Xem chi tiết đơn"><i class="fa-solid fa-eye"></i> Chi tiết</button>`);
+      // 1. Thao tác tiến trình xử lý đơn chính (Workflow Primary)
+      if (o.status === 'PENDING') {
+        actionsPrimary.push(`<button class="btn-admin btn-admin-primary" style="padding:4px 8px; font-size:11px;" onclick="changeOrderStatus(${o.id}, 'CONFIRMED')" title="Duyệt đơn hàng ngay"><i class="fa-solid fa-check"></i> Duyệt</button>`);
+      } else if (o.status === 'CONFIRMED') {
+        actionsPrimary.push(`<button class="btn-admin btn-admin-primary" style="padding:4px 8px; font-size:11px; background:#7e22ce; border-color:#7e22ce;" onclick="changeOrderStatus(${o.id}, 'PREPARING')" title="Chuyển sang đóng gói"><i class="fa-solid fa-box"></i> Đóng gói</button>`);
+      } else if (o.status === 'PREPARING') {
+        actionsPrimary.push(`<button class="btn-admin btn-admin-primary" style="padding:4px 8px; font-size:11px; background:#ea580c; border-color:#ea580c;" onclick="openShipSpxModal(${o.id})" title="Gán mã vận đơn SPX Express"><i class="fa-solid fa-truck-fast"></i> ${o.trackingCode ? 'Sửa SPX' : 'Gán SPX'}</button>`);
+      } else if (o.status === 'SHIPPING') {
+        actionsPrimary.push(`<button class="btn-admin btn-admin-primary" style="padding:4px 8px; font-size:11px; background:#059669; border-color:#059669;" onclick="changeOrderStatus(${o.id}, 'DELIVERED')" title="Xác nhận đã giao hàng & thu tiền"><i class="fa-solid fa-circle-check"></i> Đã giao</button>`);
+      }
 
-      // 2. In phiếu giao hàng
-      actions.push(`<button class="btn-admin btn-admin-outline" style="padding:3px 7px; font-size:11px;" onclick="printOrderInvoice(${o.id})" title="In phiếu đóng gói / giao hàng"><i class="fa-solid fa-print"></i> In đơn</button>`);
+      // Các nút tiện ích tra cứu luôn sẵn sàng ở hàng 1
+      actionsPrimary.push(`<button class="btn-admin btn-admin-outline" style="padding:4px 7px; font-size:11px;" onclick="viewOrderDetail(${o.id})" title="Xem chi tiết đơn"><i class="fa-solid fa-eye"></i> Chi tiết</button>`);
+      actionsPrimary.push(`<button class="btn-admin btn-admin-outline" style="padding:4px 7px; font-size:11px;" onclick="printOrderInvoice(${o.id})" title="In phiếu đóng gói / giao hàng"><i class="fa-solid fa-print"></i> In đơn</button>`);
 
-      // 3. Xác nhận tiền cọc hoặc thanh toán full
+      // 2. Thao tác tài chính & bổ sung ở hàng 2 (Secondary row)
+      // Gán / Đổi mã SPX nếu ở trạng thái Confirmed hoặc Shipping mà cần chỉnh
+      if (['CONFIRMED', 'SHIPPING'].includes(o.status)) {
+        actionsSecondary.push(`<button class="btn-admin btn-admin-outline" style="padding:3px 7px; font-size:11px; color:#ea580c; border-color:#fdba74;" onclick="openShipSpxModal(${o.id})" title="Quản lý mã vận đơn SPX Express"><i class="fa-solid fa-truck-fast"></i> ${o.trackingCode ? 'Sửa SPX' : 'Gán SPX'}</button>`);
+      }
+
+      // Xác nhận tiền cọc hoặc thanh toán full
       if (o.status !== 'CANCELLED' && o.paymentStatus !== 'PAID' && o.paymentMethod !== 'COD') {
         if (o.paymentMethod === 'DEPOSIT') {
           if (o.paymentStatus === 'UNPAID') {
-            actions.push(`<button class="btn-admin btn-admin-outline" style="padding:3px 7px; font-size:11px; color:#2563eb; border-color:#93c5fd;" onclick="confirmPaymentAction(${o.id}, 'deposit')" title="Xác nhận đã nhận cọc"><i class="fa-solid fa-money-bill-transfer"></i> Nhận Cọc</button>`);
+            actionsSecondary.push(`<button class="btn-admin btn-admin-outline" style="padding:3px 7px; font-size:11px; color:#2563eb; border-color:#93c5fd;" onclick="confirmPaymentAction(${o.id}, 'deposit')" title="Xác nhận đã nhận cọc"><i class="fa-solid fa-money-bill-transfer"></i> Nhận Cọc</button>`);
           } else if (o.paymentStatus === 'PARTIALLY_PAID') {
-            actions.push(`<span class="badge-deposited" style="font-size:10px; font-weight:700; padding:2px 6px; border-radius:4px;"><i class="fa-solid fa-circle-check"></i> Đã nhận cọc</span>`);
-            actions.push(`<button class="btn-admin btn-admin-outline" style="padding:3px 7px; font-size:11px; color:#059669; border-color:#a7f3d0;" onclick="confirmPaymentAction(${o.id}, 'full')" title="Xác nhận nhận đủ tiền 100%"><i class="fa-solid fa-circle-dollar-to-slot"></i> Nhận Đủ</button>`);
+            actionsSecondary.push(`<button class="btn-admin btn-admin-outline" style="padding:3px 7px; font-size:11px; color:#059669; border-color:#a7f3d0;" onclick="confirmPaymentAction(${o.id}, 'full')" title="Xác nhận nhận đủ tiền 100%"><i class="fa-solid fa-circle-dollar-to-slot"></i> Nhận Đủ</button>`);
           }
         } else if (o.paymentMethod === 'BANK_TRANSFER' && o.paymentStatus === 'UNPAID') {
-          actions.push(`<button class="btn-admin btn-admin-outline" style="padding:3px 7px; font-size:11px; color:#2563eb; border-color:#93c5fd;" onclick="confirmPaymentAction(${o.id}, 'full')" title="Xác nhận nhận đủ tiền 100%"><i class="fa-solid fa-circle-dollar-to-slot"></i> Nhận Full</button>`);
+          actionsSecondary.push(`<button class="btn-admin btn-admin-outline" style="padding:3px 7px; font-size:11px; color:#2563eb; border-color:#93c5fd;" onclick="confirmPaymentAction(${o.id}, 'full')" title="Xác nhận nhận đủ tiền 100%"><i class="fa-solid fa-circle-dollar-to-slot"></i> Nhận Full</button>`);
         }
       }
 
-      // 4. Duyệt đơn (PENDING -> CONFIRMED)
-      if (o.status === 'PENDING') {
-        actions.push(`<button class="btn-admin btn-admin-primary" style="padding:3px 8px; font-size:11px;" onclick="changeOrderStatus(${o.id}, 'CONFIRMED')" title="Duyệt đơn hàng ngay"><i class="fa-solid fa-check"></i> Duyệt đơn</button>`);
-      }
-
-      // 5. Chuẩn bị hàng (CONFIRMED -> PREPARING)
-      if (o.status === 'CONFIRMED') {
-        actions.push(`<button class="btn-admin btn-admin-primary" style="padding:3px 8px; font-size:11px; background:#7e22ce; border-color:#7e22ce;" onclick="changeOrderStatus(${o.id}, 'PREPARING')" title="Chuyển sang đóng gói"><i class="fa-solid fa-box"></i> Đóng gói</button>`);
-      }
-
-      // 5b. Báo hàng Pre-Order đã về kho (chỉ dành riêng cho đơn có xe Pre-Order)
+      // Báo hàng Pre-Order đã về kho
       if ((o.hasPreOrder || o.HasPreOrder) && ['PENDING', 'CONFIRMED', 'PREPARING'].includes(o.status)) {
         if (!o.preOrderNotified && !o.PreOrderNotified) {
-          actions.push(`<button class="btn-admin btn-admin-primary" style="padding:3px 8px; font-size:11px; background:#d97706; border-color:#b45309;" onclick="markPreOrderArrivedAction(${o.id})" title="Báo hàng Pre-Order đã về tới kho Biên Hòa để giao"><i class="fa-solid fa-boxes-packing"></i> Báo Hàng Đã Về</button>`);
+          actionsSecondary.push(`<button class="btn-admin btn-admin-primary" style="padding:3px 7px; font-size:11px; background:#d97706; border-color:#b45309;" onclick="markPreOrderArrivedAction(${o.id})" title="Báo hàng Pre-Order đã về tới kho Biên Hòa để giao"><i class="fa-solid fa-boxes-packing"></i> Báo Hàng Về</button>`);
         } else {
-          actions.push(`<span class="badge-arrived" style="font-size:10px; font-weight:700; padding:2px 6px; border-radius:4px;"><i class="fa-solid fa-circle-check"></i> Hàng đã về kho</span>`);
+          actionsSecondary.push(`<span class="badge-arrived" style="font-size:10px; font-weight:700; padding:2px 6px; border-radius:4px;"><i class="fa-solid fa-circle-check"></i> Đã về kho</span>`);
         }
       }
 
-      // 6. Dán mã vận đơn SPX (PENDING, CONFIRMED, PREPARING, SHIPPING)
-      if (['PENDING', 'CONFIRMED', 'PREPARING', 'SHIPPING'].includes(o.status)) {
-        actions.push(`<button class="btn-admin btn-admin-primary" style="padding:3px 8px; font-size:11px; background:#ea580c; border-color:#ea580c;" onclick="openShipSpxModal(${o.id})" title="Dán mã vận đơn SPX Express"><i class="fa-solid fa-truck-fast"></i> ${o.trackingCode ? 'Sửa SPX' : 'Gán SPX'}</button>`);
-      }
-
-      // 7. Hoàn tất giao hàng (SHIPPING -> DELIVERED)
-      if (o.status === 'SHIPPING') {
-        actions.push(`<button class="btn-admin btn-admin-primary" style="padding:3px 8px; font-size:11px; background:#059669; border-color:#059669;" onclick="changeOrderStatus(${o.id}, 'DELIVERED')" title="Xác nhận đã giao hàng & thu tiền"><i class="fa-solid fa-circle-check"></i> Đã giao</button>`);
-      }
-
-      // 8. Hoàn tiền nếu đơn hủy đang chờ hoàn tiền
+      // Hoàn tiền nếu đơn hủy đang chờ hoàn tiền
       if (o.paymentStatus === 'REFUND_PENDING') {
-        actions.push(`<button class="btn-admin btn-admin-primary" style="padding:3px 8px; font-size:11px; background:#b45309; border-color:#b45309;" onclick="markRefundedAction(${o.id})" title="Xác nhận đã hoàn tiền cho khách"><i class="fa-solid fa-hand-holding-dollar"></i> Đã hoàn tiền</button>`);
+        actionsSecondary.push(`<button class="btn-admin btn-admin-primary" style="padding:3px 7px; font-size:11px; background:#b45309; border-color:#b45309;" onclick="markRefundedAction(${o.id})" title="Xác nhận đã hoàn tiền cho khách"><i class="fa-solid fa-hand-holding-dollar"></i> Đã hoàn tiền</button>`);
       }
 
-      // 9. Hủy đơn
+      // Hủy đơn
       if (['PENDING', 'CONFIRMED', 'PREPARING'].includes(o.status)) {
-        actions.push(`<button class="btn-admin btn-admin-outline" style="padding:3px 7px; font-size:11px; color:#dc2626; border-color:#fca5a5;" onclick="openCancelOrderModal(${o.id})" title="Hủy đơn hàng"><i class="fa-solid fa-ban"></i> Hủy</button>`);
+        actionsSecondary.push(`<button class="btn-admin btn-admin-outline" style="padding:3px 7px; font-size:11px; color:#dc2626; border-color:#fca5a5;" onclick="openCancelOrderModal(${o.id})" title="Hủy đơn hàng"><i class="fa-solid fa-ban"></i> Hủy</button>`);
       }
 
       const custName = (o.customer && o.customer.fullName) || o.fullName || 'Khách hàng';
@@ -2303,10 +2553,6 @@
       const isPhoneRevealed = revealedPhoneOrders.has(Number(o.id));
       const isPreOrder = Boolean(o.hasPreOrder || o.HasPreOrder);
       const preOrderExpected = o.preOrderExpected || o.PreOrderExpected || '';
-
-      const trackingBadge = o.trackingCode
-        ? `<div style="font-family:monospace; font-weight:800; color:#ea580c; font-size:11.5px; background:#fff7ed; border:1px solid #fdba74; padding:2px 6px; border-radius:4px; display:inline-block; white-space:nowrap;">${escapeHtml(o.trackingCode)}</div><div><a href="https://spx.vn/vi" target="_blank" style="font-size:10.5px; color:#c2410c; text-decoration:none; font-weight:700;">Tra cứu SPX ↗</a></div>`
-        : `<button class="btn-admin btn-admin-outline" style="padding:2px 7px; font-size:11px; color:#ea580c; border-color:#fdba74; background:#fff7ed;" onclick="openShipSpxModal(${o.id})">+ Gán SPX</button>`;
 
       rowsHtml.push(`
         <tr>
@@ -2394,18 +2640,37 @@
             ${renderPaymentBadge(o.paymentStatus, o.paymentMethod)}
           </td>
 
-          <!-- 6. Trạng thái đơn & SPX -->
+          <!-- 6. Trạng thái đơn & SPX (Tối ưu giao diện hiển thị rõ ràng, không bị che mất) -->
           <td>
-            <div style="margin-bottom:4px;">
+            <div style="margin-bottom:5px;">
               ${renderOrderBadge(o.status)}
             </div>
-            ${trackingBadge}
+            ${o.trackingCode ? `
+              <div class="badge-spx-assigned" title="Mã vận đơn SPX Express">
+                <i class="fa-solid fa-truck-fast"></i>
+                <span class="spx-code-text">${escapeHtml(o.trackingCode)}</span>
+              </div>
+              <div style="margin-top:2px;">
+                <a href="https://spx.vn/vi" target="_blank" class="spx-track-link" title="Tra cứu trực tiếp trên hệ thống SPX Express">Tra cứu SPX ↗</a>
+              </div>
+            ` : `
+              <div class="badge-spx-unassigned" onclick="openShipSpxModal(${o.id})" title="Nhấn để gán mã vận đơn SPX Express cho đơn này">
+                <i class="fa-solid fa-box-archive"></i> Chưa gán SPX
+              </div>
+            `}
           </td>
 
-          <!-- 7. Thao tác xử lý (Sticky bên phải, luôn hiển thị, không bị tràn màn hình) -->
+          <!-- 7. Thao tác xử lý (Ma trận nút được cấu trúc ngăn nắp, sticky bên phải không tràn màn hình) -->
           <td style="text-align:right;">
-            <div class="order-action-group">
-              ${actions.join('')}
+            <div class="order-action-matrix">
+              <div class="action-row primary-actions">
+                ${actionsPrimary.join('')}
+              </div>
+              ${actionsSecondary.length ? `
+                <div class="action-row secondary-actions" style="margin-top:3px;">
+                  ${actionsSecondary.join('')}
+                </div>
+              ` : ''}
             </div>
           </td>
         </tr>
@@ -3179,48 +3444,90 @@ Anh/chị phản hồi giúp shop để kiện xe được đóng gói gửi đi
     const tbody = document.getElementById('usersTbody');
     if (!tbody) return;
 
-    if (!users.length) {
+    if (!users || !users.length) {
       tbody.innerHTML = '<tr><td colspan="11" style="text-align:center; padding:2rem; color:#64748b;">Không tìm thấy khách hàng nào</td></tr>';
       return;
     }
 
     tbody.innerHTML = users.map(u => {
-      const vip = getCustomerVipInfo(u.totalSpent);
+      const uId = u.userId || u.id || '-';
+      const uFullName = u.fullName || u.name || 'Hội viên MINI GT';
+      const uEmail = u.email || '-';
+      const uPhone = u.phone || '-';
+      const uAddress = u.address || '-';
+      const uAddressType = String(u.addressType || 'NEW').toUpperCase();
+      const uOldNote = u.oldAddressNote || u.oldWardNote || '';
+      const uOrders = u.totalOrders != null ? u.totalOrders : 0;
+      const uSpent = Number(u.totalSpent || 0);
+      const uRole = String(u.role || 'customer').toLowerCase();
+      const uIsActive = u.isActive !== false;
+      const vip = getCustomerVipInfo(uSpent);
+
+      let createdDate = '-';
+      if (u.createdAt) {
+        try {
+          const d = new Date(u.createdAt);
+          if (!isNaN(d.getTime())) createdDate = d.toLocaleDateString('vi-VN');
+        } catch (_) {}
+      }
+
+      // Badge loại địa chỉ
+      const addrTypeBadge = uAddressType === 'OLD'
+        ? `<span class="badge" style="font-size:10px; background:#fffbeb; color:#b45309; border:1px solid #fde68a; border-radius:4px; padding:1px 5px; font-weight:700; margin-right:4px;" title="Địa chỉ cũ trước sáp nhập ĐVHC"><i class="fa-solid fa-clock-rotate-left"></i> ĐC CŨ</span>`
+        : `<span class="badge" style="font-size:10px; background:#ecfdf5; color:#047857; border:1px solid #a7f3d0; border-radius:4px; padding:1px 5px; font-weight:700; margin-right:4px;" title="Địa chỉ mới sau sáp nhập ĐVHC"><i class="fa-solid fa-circle-check"></i> ĐC MỚI</span>`;
+
+      const oldNoteHtml = uOldNote
+        ? `<div style="font-size:10.5px; color:#b45309; font-style:italic; margin-top:2px;" title="Ghi chú địa chỉ cũ: ${escapeHtml(uOldNote)}"><i class="fa-solid fa-info-circle"></i> Cũ: ${escapeHtml(uOldNote)}</div>`
+        : '';
+
       return `
         <tr>
-          <td>#${u.userId}</td>
+          <td><strong style="color:#0f172a;">#${escapeHtml(String(uId))}</strong></td>
           <td>
-            <div style="font-weight:700; color:#0f172a;">${escapeHtml(u.fullName)}</div>
-            <div style="font-size:11px; color:#64748b;">Tham gia: ${new Date(u.createdAt).toLocaleDateString('vi-VN')}</div>
+            <div style="font-weight:700; color:#0f172a;">${escapeHtml(uFullName)}</div>
+            <div style="font-size:11px; color:#64748b;">Tham gia: ${createdDate}</div>
           </td>
-          <td>${escapeHtml(u.email)}</td>
-          <td>${escapeHtml(u.phone || '-')}</td>
-          <td style="max-width:180px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${escapeHtml(u.address || '-')}">${escapeHtml(u.address || '-')}</td>
-          <td><strong style="color:#0f172a;">${u.totalOrders}</strong> đơn</td>
-          <td><strong style="color:#e10600;">${formatVND(u.totalSpent)}</strong></td>
+          <td><span style="font-size:12px; color:#334155;">${escapeHtml(uEmail)}</span></td>
+          <td><span style="font-size:12px; font-weight:600; color:#0f172a;">${escapeHtml(uPhone)}</span></td>
+          <td style="max-width:220px;">
+            <div style="display:flex; align-items:center; gap:4px; margin-bottom:2px;">
+              ${addrTypeBadge}
+            </div>
+            <div style="font-size:12px; color:#334155; line-height:1.3; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${escapeHtml(uAddress)}">
+              ${escapeHtml(uAddress)}
+            </div>
+            ${oldNoteHtml}
+          </td>
+          <td><strong style="color:#0f172a; font-size:13px;">${uOrders}</strong> đơn</td>
+          <td><strong style="color:#e10600; font-size:13px;">${formatVND(uSpent)}</strong></td>
           <td>
-            <span class="vip-badge vip-${vip.level}" style="background:${vip.bg}; color:${vip.color}; border:1px solid ${vip.border}; padding:3px 8px; border-radius:12px; font-weight:800; font-size:11.5px; display:inline-flex; align-items:center; gap:4px;">
+            <span class="vip-badge vip-${vip.level}" style="background:${vip.bg}; color:${vip.color}; border:1px solid ${vip.border}; padding:3px 8px; border-radius:12px; font-weight:800; font-size:11px; display:inline-flex; align-items:center; gap:4px;">
               <i class="fa-solid ${vip.icon}"></i> ${vip.label}
             </span>
             <div style="font-size:10.5px; color:#64748b; margin-top:2px;">${vip.tierName}</div>
           </td>
           <td>
-            <span class="status-badge" style="background:${u.role === 'admin' ? '#fef2f2' : '#f1f5f9'}; color:${u.role === 'admin' ? '#dc2626' : '#475569'}; font-weight:700;">
-              ${u.role.toUpperCase()}
+            <span class="status-badge" style="background:${uRole === 'admin' ? '#fef2f2' : '#f1f5f9'}; color:${uRole === 'admin' ? '#dc2626' : '#475569'}; font-weight:700; font-size:11px; text-transform:uppercase; padding:3px 7px; border-radius:4px;">
+              ${escapeHtml(uRole)}
             </span>
           </td>
           <td>
-            <span style="font-size:12px; font-weight:700; color:${u.isActive ? '#059669' : '#dc2626'};">
-              ${u.isActive ? '● Hoạt động' : '● Bị khóa'}
+            <span style="font-size:12px; font-weight:700; color:${uIsActive ? '#059669' : '#dc2626'};">
+              ${uIsActive ? '● Hoạt động' : '● Bị khóa'}
             </span>
           </td>
           <td style="text-align:right; white-space:nowrap;">
-            <button class="btn-admin btn-admin-outline" style="padding:3px 7px; font-size:11.5px;" onclick="toggleUserStatus(${u.userId}, ${!u.isActive})" title="${u.isActive ? 'Khóa tài khoản' : 'Mở khóa'}">
-              ${u.isActive ? '<i class="fa-solid fa-lock" style="color:#dc2626;"></i> Khóa' : '<i class="fa-solid fa-lock-open" style="color:#059669;"></i> Mở'}
-            </button>
-            <button class="btn-admin btn-admin-outline" style="padding:3px 7px; font-size:11.5px;" onclick="changeUserRole(${u.userId}, '${u.role === 'admin' ? 'customer' : 'admin'}')" title="Đổi quyền">
-              ${u.role === 'admin' ? 'Hạ Customer' : 'Lên Admin'}
-            </button>
+            <div style="display:inline-flex; align-items:center; gap:4px;">
+              <button class="btn-admin btn-admin-outline" style="padding:4px 8px; font-size:11.5px;" onclick="toggleUserStatus('${escapeHtml(String(uId))}', ${!uIsActive})" title="${uIsActive ? 'Khóa tài khoản' : 'Mở khóa'}">
+                ${uIsActive ? '<i class="fa-solid fa-lock" style="color:#dc2626;"></i> Khóa' : '<i class="fa-solid fa-lock-open" style="color:#059669;"></i> Mở'}
+              </button>
+              <button class="btn-admin btn-admin-outline" style="padding:4px 8px; font-size:11.5px;" onclick="changeUserRole('${escapeHtml(String(uId))}', '${uRole === 'admin' ? 'customer' : 'admin'}')" title="Đổi quyền người dùng">
+                ${uRole === 'admin' ? '<i class="fa-solid fa-arrow-down" style="color:#475569;"></i> Hạ Cust' : '<i class="fa-solid fa-shield" style="color:#2563eb;"></i> Lên Admin'}
+              </button>
+              <button class="btn-admin btn-admin-outline" style="padding:4px 8px; font-size:11.5px; color:#dc2626; border-color:#fecaca;" onclick="deleteUserAction('${escapeHtml(String(uId))}')" title="Xóa tài khoản này">
+                <i class="fa-solid fa-trash-can"></i>
+              </button>
+            </div>
           </td>
         </tr>
       `;
@@ -3229,24 +3536,38 @@ Anh/chị phản hồi giúp shop để kiện xe được đóng gói gửi đi
 
   async function toggleUserStatus(userId, willBeActive) {
     const action = willBeActive ? 'mở khóa' : 'khóa';
-    if (!confirm(`Bạn có chắc muốn ${action} tài khoản này?`)) return;
+    if (!confirm(`Bạn có chắc muốn ${action} tài khoản #${userId}?`)) return;
     try {
       const res = await api.put(`/api/admin/users/${userId}/status`, { isActive: willBeActive });
       adminToast(res.message || 'Cập nhật thành công', 'success');
       loadUsers();
+      loadDashboard();
     } catch (err) {
       adminToast('Lỗi: ' + err.message, 'error');
     }
   }
 
   async function changeUserRole(userId, newRole) {
-    if (!confirm(`Bạn có chắc muốn đổi quyền của người dùng này sang "${newRole.toUpperCase()}"?`)) return;
+    if (!confirm(`Bạn có chắc muốn đổi quyền của người dùng #${userId} sang "${newRole.toUpperCase()}"?`)) return;
     try {
       const res = await api.put(`/api/admin/users/${userId}/role`, { role: newRole });
       adminToast(res.message || 'Cập nhật vai trò thành công', 'success');
       loadUsers();
+      loadDashboard();
     } catch (err) {
       adminToast('Lỗi: ' + err.message, 'error');
+    }
+  }
+
+  async function deleteUserAction(userId) {
+    if (!confirm(`Bạn có chắc muốn xóa vĩnh viễn tài khoản #${userId}? Thao tác này không thể hoàn tác.`)) return;
+    try {
+      const res = await api.delete(`/api/admin/users/${userId}`);
+      adminToast(res.message || 'Đã xóa tài khoản thành công', 'success');
+      loadUsers();
+      loadDashboard();
+    } catch (err) {
+      adminToast('Lỗi khi xóa tài khoản: ' + err.message, 'error');
     }
   }
 
@@ -3781,17 +4102,28 @@ Anh/chị phản hồi giúp shop để kiện xe được đóng gói gửi đi
       if (detail.type === 'ORDER_CREATED' && detail.payload) {
         const ord = detail.payload;
         lastKnownOrderCode = ord.code;
-        adminToast(`🔔 ĐƠN HÀNG MỚI #${ord.code} từ ${ord.fullName || 'Khách hàng'} (${formatVND(ord.totalAmount || ord.total || 0)})!`, 'success');
+        adminToast(`🔔 ĐƠN HÀNG MỚI #${ord.code} từ ${ord.fullName || (ord.customer && ord.customer.fullName) || 'Khách hàng'} (${formatVND(ord.totalAmount || ord.total || 0)})!`, 'success', 'Có Đơn Hàng Mới!');
+        addAdminNotification(ord, 'ORDER_CREATED');
         loadDashboard();
         loadOrders();
       } else if (detail.type === 'CUSTOMER_REPORTED_TRANSFER' && detail.payload) {
         const p = detail.payload;
-        adminToast(`💳 Khách vừa báo đã chuyển khoản cho đơn #${p.code} (${formatVND(p.amount || 0)})!`, 'success');
+        adminToast(`💳 Khách vừa báo đã chuyển khoản cho đơn #${p.code || p.orderCode || ''} (${formatVND(p.amount || p.transferAmount || 0)})!`, 'info', 'Khách Đã Chuyển Khoản');
+        addAdminNotification({
+          code: p.code || p.orderCode,
+          orderId: p.orderId || null,
+          fullName: p.fullName || p.customerName || 'Khách hàng',
+          totalAmount: p.amount || p.transferAmount || 0,
+          paymentMethod: 'BANK_TRANSFER'
+        }, 'CUSTOMER_REPORTED_TRANSFER');
         loadDashboard();
         loadOrders();
       } else if (detail.type === 'ORDER_UPDATED') {
         loadDashboard();
         if (activeTab === 'orders') loadOrders();
+      } else if (detail.type === 'USER_REGISTERED' || detail.type === 'USER_UPDATED' || detail.type === 'users_updated') {
+        loadDashboard();
+        if (activeTab === 'users') loadUsers();
       }
     });
 
@@ -3804,7 +4136,8 @@ Anh/chị phản hồi giúp shop để kiện xe được đóng gói gửi đi
         if (res.success && Array.isArray(res.data)) {
           const newest = res.data[0];
           if (newest && lastKnownOrderCode && newest.code !== lastKnownOrderCode && !cachedOrders.some(o => o.code === newest.code)) {
-            adminToast(`🔔 Nhận đơn hàng mới #${newest.code} - ${newest.fullName || (newest.customer && newest.customer.fullName) || 'Khách hàng'}!`, 'success');
+            adminToast(`🔔 Nhận đơn hàng mới #${newest.code} - ${newest.fullName || (newest.customer && newest.customer.fullName) || 'Khách hàng'}!`, 'success', 'Có Đơn Hàng Mới!');
+            addAdminNotification(newest, 'ORDER_CREATED');
             loadDashboard();
           }
           if (newest) lastKnownOrderCode = newest.code;
@@ -3831,6 +4164,8 @@ Anh/chị phản hồi giúp shop để kiện xe được đóng gói gửi đi
   window.addEventListener('DOMContentLoaded', () => {
     applyAdminTheme(localStorage.getItem('minigt_theme') || 'light');
     applyAdminLang(localStorage.getItem('minigt_lang') || 'vi');
+    loadAdminNotifications();
+    updateAdminSoundButtonState();
     checkAdminAuth();
   });
 
@@ -3929,11 +4264,21 @@ Anh/chị phản hồi giúp shop để kiện xe được đóng gói gửi đi
   window.handleUserSearchDebounced = handleUserSearchDebounced;
   window.toggleUserStatus = toggleUserStatus;
   window.changeUserRole = changeUserRole;
+  window.deleteUserAction = deleteUserAction;
   window.loadSubscribers = loadSubscribers;
   window.handleSubscriberSearchDebounced = handleSubscriberSearchDebounced;
   window.deleteSubscriber = deleteSubscriber;
   window.loadStoreSettings = loadStoreSettings;
   window.saveStoreSettings = saveStoreSettings;
+
+  // Notification Center & Audio Sound
+  window.playOrderChimeSound = playOrderChimeSound;
+  window.toggleAdminOrderSound = toggleAdminOrderSound;
+  window.toggleAdminNotifDropdown = toggleAdminNotifDropdown;
+  window.closeAdminNotifDropdown = closeAdminNotifDropdown;
+  window.markAllAdminNotifsRead = markAllAdminNotifsRead;
+  window.handleNotifItemClick = handleNotifItemClick;
+  window.loadAdminNotifications = loadAdminNotifications;
 
   // Coupons Management
   window.loadCoupons = loadCoupons;

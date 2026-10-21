@@ -188,7 +188,7 @@ const FALLBACK_PRODUCTS = (typeof window !== 'undefined' && window.api && typeof
     DiscountPercent: 0, PackagingType: 'box_only',
     DepositAmount: 0, QuotaPercent: 86, EditionNote: 'Tháo Rời Nắp Máy Động Cơ V8',
     PreOrderDeadline: null, Stock: 14,
-    ImageUrl: 'image/Poprace_Lambo_Secret.webp',
+    ImageUrl: 'image/Poprace_Skyline.webp',
     Description: 'Huyền thoại Hakosuka độ Drift động cơ V8 của Pop Race với sơn đỏ Metallic và bánh lốp cao su thật.',
     Status: 'in_stock', IsFeatured: 0, IsNew: 1, soldCount: undefined
   },
@@ -202,7 +202,7 @@ const FALLBACK_PRODUCTS = (typeof window !== 'undefined' && window.api && typeof
     DiscountPercent: 10, PackagingType: 'box_only',
     DepositAmount: 0, QuotaPercent: 80, EditionNote: 'Kèm Đế Da & Hộp Mica Trưng Bày',
     PreOrderDeadline: null, Stock: 10,
-    ImageUrl: 'image/TH_LamboUltraman.jpg',
+    ImageUrl: 'image/Toyota_Yaris_TrendsHobby.webp',
     Description: 'Mô hình xe đua địa hình WRC Toyota Yaris kèm đế trưng bày và hộp chống bụi Acrylic sang trọng.',
     Status: 'in_stock', IsFeatured: 0, IsNew: 1, soldCount: undefined
   },
@@ -496,16 +496,6 @@ if (Array.isArray(cart)) {
 }
 let currentUser = JSON.parse(localStorage.getItem('minigt_user')) || null;
 let currentToken = localStorage.getItem('minigt_token') || null;
-
-// Tự động xóa phiên tài khoản demo cũ nếu có để chạy tài khoản thật
-if (currentUser && (currentUser.email === 'collector.bienhoa@gmail.com' || currentUser.email === 'collector.google@gmail.com' || (currentUser.fullName && currentUser.fullName.includes('MINI GT BIÊN HÒA VIP')))) {
-  try {
-    localStorage.removeItem('minigt_user');
-    localStorage.removeItem('minigt_token');
-  } catch (_) {}
-  currentUser = null;
-  currentToken = null;
-}
 
 // =====================================================================
 // 3. TIỆN ÍCH ĐỊNH DẠNG (FORMATTERS)
@@ -897,8 +887,6 @@ function createProductCardHTML(p, idx = 0) {
   else if (pImg.includes('f1.webp')) pImg = 'image/aston-amr24-stroll.png';
   else if (pImg.includes('huracan.webp')) pImg = 'image/lambo-sterrato-set.png';
   else if (pImg.includes('lambo.webp')) pImg = 'image/Minigt_Lambo_GT3.jpg';
-  else if (pImg.includes('Poprace_Skyline.webp')) pImg = 'image/Poprace_Lambo_Secret.webp';
-  else if (pImg.includes('Toyota_Yaris_TrendsHobby.webp')) pImg = 'image/TH_LamboUltraman.jpg';
   const statusVal = String(p.Status || p.status || 'in_stock').toLowerCase();
   const isPreOrder = statusVal === 'pre_order';
   const stockCount = typeof p.Stock === 'number' ? p.Stock : (typeof p.stock === 'number' ? p.stock : 10);
@@ -2181,8 +2169,6 @@ function openQuickView(productId) {
   else if (pImg.includes('f1.webp')) pImg = 'image/aston-amr24-stroll.png';
   else if (pImg.includes('huracan.webp')) pImg = 'image/lambo-sterrato-set.png';
   else if (pImg.includes('lambo.webp')) pImg = 'image/Minigt_Lambo_GT3.jpg';
-  else if (pImg.includes('Poprace_Skyline.webp')) pImg = 'image/Poprace_Lambo_Secret.webp';
-  else if (pImg.includes('Toyota_Yaris_TrendsHobby.webp')) pImg = 'image/TH_LamboUltraman.jpg';
   const pSku = prod.Sku || prod.sku;
   const pBrand = prod.Brand || prod.brand || 'MINI GT';
   const pScale = prod.Scale || prod.scale || '1:64';
@@ -2597,8 +2583,76 @@ function handleAddressInputDebounced(val) {
   }
 }
 
+function handleRegAddressTypeChange(type) {
+  const isOld = type === 'OLD';
+  const cardNew = document.getElementById('regAddrCardNew');
+  const cardOld = document.getElementById('regAddrCardOld');
+  const helper = document.getElementById('regOldAddrHelper');
+  if (isOld) {
+    if (cardOld) { cardOld.classList.add('active'); cardOld.style.borderColor = 'var(--color-primary)'; }
+    if (cardNew) { cardNew.classList.remove('active'); cardNew.style.borderColor = '#cbd5e1'; }
+    if (helper) helper.style.display = 'block';
+  } else {
+    if (cardNew) { cardNew.classList.add('active'); cardNew.style.borderColor = 'var(--color-primary)'; }
+    if (cardOld) { cardOld.classList.remove('active'); cardOld.style.borderColor = '#cbd5e1'; }
+    if (helper) helper.style.display = 'none';
+  }
+}
+
+function handleRegAddressInput(val) {
+  const tip = document.getElementById('regAddrMatchTip');
+  if (!tip) return;
+  if (!val || val.length < 3) {
+    tip.style.display = 'none';
+    return;
+  }
+  const matched = KNOWN_MERGED_MAP.find(m => m.match.test(val));
+  if (matched) {
+    tip.style.display = 'block';
+    tip.innerHTML = `<i class="fa-solid fa-circle-info"></i> <strong>Lưu ý (${matched.city}):</strong> Địa chỉ có chứa <strong>${matched.oldName}</strong> cũ. Trong hệ thống SPX Express, khu vực này tương ứng là <strong>${matched.newName}</strong>.`;
+  } else {
+    tip.style.display = 'none';
+  }
+}
+
+function handleProfileAddressTypeChange(type) {
+  const isOld = type === 'OLD';
+  const cardNew = document.getElementById('profileAddrCardNew');
+  const cardOld = document.getElementById('profileAddrCardOld');
+  const helper = document.getElementById('profileOldAddrHelper');
+  if (isOld) {
+    if (cardOld) { cardOld.classList.add('active'); cardOld.style.borderColor = '#dc2626'; }
+    if (cardNew) { cardNew.classList.remove('active'); cardNew.style.borderColor = '#cbd5e1'; }
+    if (helper) helper.style.display = 'block';
+  } else {
+    if (cardNew) { cardNew.classList.add('active'); cardNew.style.borderColor = '#dc2626'; }
+    if (cardOld) { cardOld.classList.remove('active'); cardOld.style.borderColor = '#cbd5e1'; }
+    if (helper) helper.style.display = 'none';
+  }
+}
+
+function handleEditShippingAddressTypeChange(type) {
+  const isOld = type === 'OLD';
+  const cardNew = document.getElementById('editShippingCardNew');
+  const cardOld = document.getElementById('editShippingCardOld');
+  const helper = document.getElementById('editShippingOldAddrHelper');
+  if (isOld) {
+    if (cardOld) { cardOld.classList.add('active'); cardOld.style.borderColor = 'var(--color-primary)'; }
+    if (cardNew) { cardNew.classList.remove('active'); cardNew.style.borderColor = '#cbd5e1'; }
+    if (helper) helper.style.display = 'block';
+  } else {
+    if (cardNew) { cardNew.classList.add('active'); cardNew.style.borderColor = 'var(--color-primary)'; }
+    if (cardOld) { cardOld.classList.remove('active'); cardOld.style.borderColor = '#cbd5e1'; }
+    if (helper) helper.style.display = 'none';
+  }
+}
+
 window.handleCheckoutAddressTypeChange = handleCheckoutAddressTypeChange;
 window.handleAddressInputDebounced = handleAddressInputDebounced;
+window.handleRegAddressTypeChange = handleRegAddressTypeChange;
+window.handleRegAddressInput = handleRegAddressInput;
+window.handleProfileAddressTypeChange = handleProfileAddressTypeChange;
+window.handleEditShippingAddressTypeChange = handleEditShippingAddressTypeChange;
 
 function saveCheckoutFormState() {
   const formState = {
@@ -2644,6 +2698,17 @@ function loadCheckoutFormState() {
     if (emailInput && !emailInput.value) emailInput.value = currentUser.email || '';
     if (phoneInput && !phoneInput.value && currentUser.phone) phoneInput.value = currentUser.phone;
     if (addressInput && !addressInput.value && currentUser.address) addressInput.value = currentUser.address;
+    if (currentUser.addressType) {
+      const radio = document.querySelector(`input[name="checkoutAddressType"][value="${currentUser.addressType}"]`);
+      if (radio) {
+        radio.checked = true;
+        handleCheckoutAddressTypeChange(currentUser.addressType);
+      }
+    }
+    if (currentUser.oldAddressNote) {
+      const oldWardInput = document.getElementById('checkoutOldWardNote');
+      if (oldWardInput && !oldWardInput.value) oldWardInput.value = currentUser.oldAddressNote;
+    }
   }
 }
 
@@ -2671,6 +2736,9 @@ function openCheckoutModal() {
   closeCartDrawer();
   const modal = document.getElementById('checkoutModal');
   if (modal) {
+    currentCheckoutStep = 1;
+    activeStep4OrderCode = null;
+    sessionStorage.removeItem('minigt_checkout_step');
     loadCheckoutFormState();
     goToCheckoutStep(1);
     modal.classList.add('active');
@@ -2681,8 +2749,8 @@ function openCheckoutModal() {
 function goToCheckoutStep(step) {
   if (!Number.isInteger(step) || step < 1 || step > 4) return;
 
-  // Khi đơn hàng đã hoàn tất (Step 4), không cho quay lại giỏ hàng rỗng
-  if (currentCheckoutStep === 4 && step < 4) {
+  // Khi đơn hàng vừa thanh toán thành công (Step 4), nếu khách bấm quay lại thì thông báo hoàn tất
+  if (currentCheckoutStep === 4 && step < 4 && activeStep4OrderCode) {
     closeModal('checkoutModal');
     showToast('Đơn hàng đã được đặt thành công. Bạn có thể tiếp tục chọn mô hình mới!', 'info');
     return;
@@ -3433,12 +3501,24 @@ function renderCheckoutStep4(rawOrder) {
           const pack = String(it.packagingOption || it.packType || 'box').toLowerCase();
           const itPrice = Number(it.price || it.unitPrice || 0);
           const itQty = Number(it.quantity || 1);
+          const pid = it.productId || it.ProductId || it.id;
+          let pName = it.name || it.productName || it.ProductName || '';
+          let pImg = it.image || it.imageUrl || it.ImageUrl || it.productImage || '';
+          if ((!pName || !pImg || pImg.includes('hero-banner')) && pid) {
+            const matched = (allProducts && allProducts.length ? allProducts : FALLBACK_PRODUCTS).find(p => (p.ProductId || p.id) == pid);
+            if (matched) {
+              if (!pName) pName = matched.Name || matched.name;
+              if (!pImg || pImg.includes('hero-banner')) pImg = matched.ImageUrl || matched.image;
+            }
+          }
+          if (!pName) pName = 'Mô hình MINI GT 1:64';
+          if (!pImg) pImg = 'image/hero-banner.jpg';
           return `
             <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; font-size:12px; border-bottom:1px dashed #f1f5f9; padding-bottom:5px;">
               <div style="display:flex; align-items:center; gap:8px; overflow:hidden;">
-                <img src="${it.image || it.imageUrl || 'image/hero-banner.jpg'}" onerror="this.src='image/hero-banner.jpg'" style="width:36px; height:36px; object-fit:contain; border-radius:6px; border:1px solid #e2e8f0; background:#f8fafc; padding:1px; flex-shrink:0;">
+                <img src="${pImg}" onerror="this.src='image/hero-banner.jpg'" style="width:36px; height:36px; object-fit:contain; border-radius:6px; border:1px solid #e2e8f0; background:#f8fafc; padding:1px; flex-shrink:0;">
                 <div style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
-                  <div style="font-weight:700; color:#0f172a; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:260px;">${escapeHtml(it.name || it.productName || 'Mô hình')}</div>
+                  <div style="font-weight:700; color:#0f172a; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:260px;" title="${escapeHtml(pName)}">${escapeHtml(pName)}</div>
                   <div style="display:flex; align-items:center; gap:6px; margin-top:1px;">
                     <span class="pack-badge ${pack === 'card' ? 'pack-card' : 'pack-box'}">${pack === 'card' ? '🛡️ VỈ CARD' : '📦 HỘP BOX'}</span>
                     <span style="color:#64748b; font-size:11px;">x${itQty}</span>
@@ -4052,6 +4132,9 @@ async function handleLocalRegister(e) {
   const email = document.getElementById('regEmail')?.value.trim();
   const phone = document.getElementById('regPhone')?.value.trim();
   const address = document.getElementById('regAddress')?.value.trim() || '';
+  const addressTypeRadio = document.querySelector('input[name="regAddressType"]:checked');
+  const addressType = addressTypeRadio ? addressTypeRadio.value : 'NEW';
+  const oldWardNote = document.getElementById('regOldWardNote')?.value.trim() || '';
   const password = document.getElementById('regPassword')?.value;
   const confirmPassword = document.getElementById('regConfirmPassword')?.value;
   const termsCheckbox = document.getElementById('regTerms');
@@ -4106,14 +4189,16 @@ async function handleLocalRegister(e) {
     const json = await safeFetch('/api/auth/register', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ fullName, email, phone, address, password, avatarUrl: DEFAULT_USER_AVATAR })
+      body: JSON.stringify({ fullName, email, phone, address, addressType, oldAddressNote: oldWardNote, password, avatarUrl: DEFAULT_USER_AVATAR })
     });
 
     if (json && json.success) {
       const userObj = Object.assign({}, json.user, {
         avatarUrl: DEFAULT_USER_AVATAR,
         tier: json.user?.tier || 'Collector',
-        points: json.user?.points || 100
+        points: json.user?.points || 100,
+        addressType,
+        oldAddressNote: oldWardNote
       });
       showToast('Đăng ký tài khoản thành công! Tặng bạn 100 điểm thưởng hội viên chào mừng.', 'success');
       loginSuccess(userObj, json.token, true);
@@ -4462,7 +4547,7 @@ async function handleGoogleLoginClick() {
 
 function loginSuccess(user, token, rememberMe = true) {
   const cleanUser = Object.assign({}, user, {
-    role: 'customer',
+    role: user?.role || 'customer',
     tier: user?.tier || 'Collector',
     points: user?.points != null ? user.points : 100,
     avatarUrl: (!user?.avatarUrl || user.avatarUrl.includes('DoQuocThinh_anhthe')) ? DEFAULT_USER_AVATAR : user.avatarUrl
@@ -4470,6 +4555,13 @@ function loginSuccess(user, token, rememberMe = true) {
   currentUser = cleanUser;
   currentToken = token;
   api.setAuthSession(token, cleanUser);
+
+  // Đảm bảo thông tin người dùng được lưu chắc chắn vào danh sách khách hàng dùng chung
+  try {
+    if (api && typeof api.getSharedUsers === 'function') {
+      api.getSharedUsers(); // Tự kích hoạt self-healing và merge session
+    }
+  } catch (_) {}
 
   // Lưu tùy chọn Remember Me
   try {
@@ -4821,6 +4913,41 @@ function openUserProfileModal() {
           </div>
         </div>
 
+        <!-- Chọn loại địa chỉ Mới hoặc Cũ -->
+        <div class="auth-input-group" style="grid-column: 1 / -1;">
+          <label class="auth-label" style="font-size:12.5px; font-weight:800; color:#1e293b; margin-bottom:6px; display:flex; align-items:center; gap:6px;">
+            <i class="fa-solid fa-map-location-dot" style="color:#dc2626;"></i>
+            Loại địa chỉ nhận hàng SPX Express
+          </label>
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:8px;">
+            <label class="addr-type-pill-card ${(!currentUser.addressType || currentUser.addressType === 'NEW') ? 'active' : ''}" id="profileAddrCardNew" style="display:flex; align-items:flex-start; gap:8px; padding:8px 12px; border:1.5px solid ${(!currentUser.addressType || currentUser.addressType === 'NEW') ? '#dc2626' : '#cbd5e1'}; border-radius:10px; background:#fff; cursor:pointer;">
+              <input type="radio" name="profileAddressType" value="NEW" ${(!currentUser.addressType || currentUser.addressType === 'NEW') ? 'checked' : ''} onchange="handleProfileAddressTypeChange('NEW')" style="margin-top:2px;">
+              <div>
+                <div style="font-weight:700; font-size:12.5px; color:#0f172a;"><i class="fa-solid fa-circle-check" style="color:#16a34a; font-size:11px;"></i> Địa chỉ MỚI (Sau sáp nhập)</div>
+                <div style="font-size:11px; color:#64748b; line-height:1.3; margin-top:2px;">Tên Phường/Xã mới nhất theo hệ thống bưu cục SPX Express</div>
+              </div>
+            </label>
+            <label class="addr-type-pill-card ${currentUser.addressType === 'OLD' ? 'active' : ''}" id="profileAddrCardOld" style="display:flex; align-items:flex-start; gap:8px; padding:8px 12px; border:1.5px solid ${currentUser.addressType === 'OLD' ? '#dc2626' : '#cbd5e1'}; border-radius:10px; background:#fff; cursor:pointer;">
+              <input type="radio" name="profileAddressType" value="OLD" ${currentUser.addressType === 'OLD' ? 'checked' : ''} onchange="handleProfileAddressTypeChange('OLD')" style="margin-top:2px;">
+              <div>
+                <div style="font-weight:700; font-size:12.5px; color:#0f172a;"><i class="fa-solid fa-clock-rotate-left" style="color:#ea580c; font-size:11px;"></i> Địa chỉ CŨ (Trước sáp nhập)</div>
+                <div style="font-size:11px; color:#64748b; line-height:1.3; margin-top:2px;">Tên Phường/Xã cũ quen thuộc (Shop tự đối chiếu khi tạo vận đơn)</div>
+              </div>
+            </label>
+          </div>
+
+          <div id="profileOldAddrHelper" style="display:${currentUser.addressType === 'OLD' ? 'block' : 'none'}; background:#fffbeb; border:1px dashed #fde68a; border-radius:8px; padding:8px 12px; font-size:12px; color:#92400e; margin-bottom:8px;">
+            <div style="font-weight:700; margin-bottom:4px; display:flex; align-items:center; gap:5px;">
+              <i class="fa-solid fa-triangle-exclamation" style="color:#d97706;"></i>
+              <span>Lưu ý khi sử dụng địa chỉ cũ trước đợt sáp nhập ĐVHC:</span>
+            </div>
+            <div style="line-height:1.45; font-size:11.5px; margin-bottom:6px;">
+              Tại TP. Biên Hòa, các phường cũ (P. Hòa Bình ➔ P. Quang Vinh, P. Thanh Bình ➔ P. Quyết Thắng...). Shop sẽ căn cứ ghi chú cũ bên dưới để đối chiếu tạo vận đơn SPX.
+            </div>
+            <input type="text" id="profileOldWardNote" style="width:100%; padding:6px 10px; font-size:12px; border:1px solid #fcd34d; border-radius:6px; outline:none; background:#ffffff; color:#78350f; font-weight:600;" value="${escapeHtml(currentUser.oldAddressNote || '')}" placeholder="Ghi chú tên Phường/Xã cũ (Ví dụ: Trước sáp nhập là Phường Hòa Bình, Biên Hòa)">
+          </div>
+        </div>
+
         <!-- Địa chỉ nhận hàng chi tiết -->
         <div class="auth-input-group" style="grid-column: 1 / -1;">
           <label class="auth-label" for="profileAddress" style="font-size:12.5px; font-weight:800; color:#1e293b; margin-bottom:6px; display:flex; align-items:center; gap:6px;">
@@ -4829,7 +4956,7 @@ function openUserProfileModal() {
           </label>
           <div class="auth-input-box" style="border:1.5px solid #cbd5e1; border-radius:10px; height:46px; display:flex; align-items:center; padding:0 12px; background:#fff;">
             <i class="fa-solid fa-location-dot" style="color:#dc2626; font-size:14px; margin-right:8px;"></i>
-            <input type="text" id="profileAddress" style="border:none; outline:none; width:100%; font-size:13.5px; font-weight:700; color:#0f172a;" value="${escapeHtml(currentUser.address || '')}" placeholder="Ví dụ: 38/2 Võ Thị Sáu, P. Quyết Thắng, TP. Biên Hòa, Đồng Nai" required>
+            <input type="text" id="profileAddress" style="border:none; outline:none; width:100%; font-size:13.5px; font-weight:700; color:#0f172a;" value="${escapeHtml(currentUser.address || '')}" placeholder="Ví dụ: 38/2 Võ Thị Sáu, P. Quyết Thắng, TP. Biên Hòa, Đồng Nai" required oninput="handleAddressInputDebounced(this.value)">
           </div>
           <div style="font-size:11.5px; color:#64748b; margin-top:4px; display:flex; align-items:center; gap:5px;">
             <i class="fa-solid fa-truck-fast" style="color:#dc2626;"></i> Hệ thống sẽ tự động điền địa chỉ này vào mỗi đơn đặt cọc mô hình mới của bạn qua SPX Express.
@@ -4904,6 +5031,11 @@ async function handleUpdateUserProfile(e) {
   currentUser.fullName = fullName;
   currentUser.phone = phone;
   currentUser.address = address;
+  const addressTypeRadio = document.querySelector('input[name="profileAddressType"]:checked');
+  const addressType = addressTypeRadio ? addressTypeRadio.value : 'NEW';
+  const oldWardNote = document.getElementById('profileOldWardNote')?.value.trim() || '';
+  currentUser.addressType = addressType;
+  currentUser.oldAddressNote = oldWardNote;
   if (city) currentUser.city = city;
   if (deliveryNote) currentUser.deliveryNote = deliveryNote;
 
@@ -4916,7 +5048,11 @@ async function handleUpdateUserProfile(e) {
         email: currentUser.email,
         fullName,
         phone,
-        address
+        address,
+        addressType,
+        oldAddressNote: oldWardNote,
+        city,
+        deliveryNote
       })
     });
   } catch (err) {
@@ -5479,17 +5615,31 @@ function buildUnifiedCustomerOrderCardHTML(ord) {
           </div>
           ${Array.isArray(ord.items) && ord.items.length > 0 ? ord.items.map(it => {
             const pack = String(it.PackagingOption || it.packagingOption || it.PackType || it.packType || 'box').toLowerCase();
+            const pid = it.productId || it.ProductId || it.id;
+            let pName = it.ProductName || it.productName || it.name || it.Name || '';
+            let pImg = it.productImage || it.ImageUrl || it.imageUrl || it.image || '';
+            if ((!pName || !pImg || pImg.includes('hero-banner')) && pid) {
+              const matched = (allProducts && allProducts.length ? allProducts : FALLBACK_PRODUCTS).find(p => (p.ProductId || p.id) == pid);
+              if (matched) {
+                if (!pName || pName === 'Mô hình 1:64') pName = matched.Name || matched.name;
+                if (!pImg || pImg.includes('hero-banner')) pImg = matched.ImageUrl || matched.image;
+              }
+            }
+            if (!pName) pName = 'Mô hình MINI GT 1:64';
+            if (!pImg) pImg = 'image/hero-banner.jpg';
+            const unitPrice = Number(it.UnitPrice ?? it.unitPrice ?? it.price ?? 0);
+            const qty = Number(it.Quantity ?? it.quantity ?? 1);
             return `
-            <div style="display:flex; align-items:center; gap:8px; padding:5px 0; border-bottom:1px dashed #e2e8f0; font-size:12px;">
-              <img src="${it.ImageUrl || it.image || 'image/hero-banner.jpg'}" onerror="this.src='image/hero-banner.jpg'" style="width:38px; height:38px; object-fit:contain; border-radius:6px; border:1px solid #cbd5e1; background:#fff; padding:2px; flex-shrink:0;">
+            <div style="display:flex; align-items:center; gap:8px; padding:6px 0; border-bottom:1px dashed #e2e8f0; font-size:12px;">
+              <img src="${pImg}" onerror="this.src='image/hero-banner.jpg'" style="width:38px; height:38px; object-fit:contain; border-radius:6px; border:1px solid #cbd5e1; background:#fff; padding:2px; flex-shrink:0;">
               <div style="flex:1; min-width:0;">
-                <div style="font-weight:700; color:#0f172a; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${escapeHtml(it.ProductName || it.name || 'Mô hình 1:64')}</div>
+                <div style="font-weight:700; color:#0f172a; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${escapeHtml(pName)}">${escapeHtml(pName)}</div>
                 <div style="display:flex; align-items:center; gap:6px; margin-top:2px;">
                   <span class="pack-badge ${pack === 'card' ? 'pack-card' : 'pack-box'}">${pack === 'card' ? '🛡️ Card' : '📦 Box'}</span>
-                  <span style="font-size:11px; color:#64748b;">SL: <strong>x${it.Quantity || it.quantity || 1}</strong> • Đơn giá: ${formatVND(it.UnitPrice || it.unitPrice || 0)}</span>
+                  <span style="font-size:11px; color:#64748b;">SL: <strong>x${qty}</strong> • Đơn giá: ${formatVND(unitPrice)}</span>
                 </div>
               </div>
-              <strong style="color:#0f172a; font-size:12.5px;">${formatVND(Number(it.UnitPrice || it.unitPrice || 0) * Number(it.Quantity || it.quantity || 1))}</strong>
+              <strong style="color:#0f172a; font-size:12.5px;">${formatVND(unitPrice * qty)}</strong>
             </div>
             `;
           }).join('') : `<div style="font-size:12px; color:#64748b;">Đơn hàng tiêu chuẩn Săn Xe Biên Hòa</div>`}
@@ -5602,6 +5752,20 @@ function openEditOrderShippingModal(orderCode) {
   document.getElementById('editShippingPhone').value = ord?.Phone || ord?.customer?.phone || '';
   document.getElementById('editShippingAddress').value = ord?.Address || ord?.customer?.address || '';
   document.getElementById('editShippingNote').value = ord?.Note || ord?.note || '';
+
+  const addrType = String(ord?.addressType || ord?.AddressType || 'NEW').toUpperCase();
+  const oldRadio = document.querySelector('input[name="editShippingAddressType"][value="OLD"]');
+  const newRadio = document.querySelector('input[name="editShippingAddressType"][value="NEW"]');
+  if (addrType === 'OLD' && oldRadio) {
+    oldRadio.checked = true;
+    handleEditShippingAddressTypeChange('OLD');
+  } else if (newRadio) {
+    newRadio.checked = true;
+    handleEditShippingAddressTypeChange('NEW');
+  }
+  const oldWardInput = document.getElementById('editShippingOldWardNote');
+  if (oldWardInput) oldWardInput.value = ord?.oldAddressNote || ord?.OldAddressNote || '';
+
   modal.classList.add('active');
 }
 
@@ -5612,6 +5776,9 @@ async function submitCustomerEditShipping(event) {
   const phone = document.getElementById('editShippingPhone')?.value.trim();
   const address = document.getElementById('editShippingAddress')?.value.trim();
   const note = document.getElementById('editShippingNote')?.value.trim();
+  const addressTypeRadio = document.querySelector('input[name="editShippingAddressType"]:checked');
+  const addressType = addressTypeRadio ? addressTypeRadio.value : 'NEW';
+  const oldAddressNote = document.getElementById('editShippingOldWardNote')?.value.trim() || '';
 
   if (!orderCode || !fullName || !phone || !address) {
     showToast('Vui lòng điền đầy đủ Họ tên, Số điện thoại và Địa chỉ nhận hàng!', 'error');
@@ -5625,7 +5792,7 @@ async function submitCustomerEditShipping(event) {
     const json = await safeFetch(`/api/orders/${encodeURIComponent(orderCode)}/shipping-info`, {
       method: 'PUT',
       headers,
-      body: JSON.stringify({ fullName, phone, address, note })
+      body: JSON.stringify({ fullName, phone, address, note, addressType, oldAddressNote })
     });
 
     if (json.success) {
@@ -6330,6 +6497,12 @@ function closeModal(modalId) {
       paymentPollInterval = null;
     }
     activeStep4OrderCode = null;
+    currentCheckoutStep = 1;
+    sessionStorage.removeItem('minigt_checkout_step');
+    const p4 = document.getElementById('checkoutStepPane4');
+    if (p4) p4.style.display = 'none';
+    const p1 = document.getElementById('checkoutStepPane1');
+    if (p1) p1.style.display = 'block';
     renderCartDrawer();
     updateCartBadge();
   }

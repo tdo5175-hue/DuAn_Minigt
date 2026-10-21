@@ -398,11 +398,18 @@ function mapOrder(o, items = [], history = []) {
     phone: o.Phone || o.phone,
     email: o.Email || o.email,
     address: o.Address || o.address,
+    addressType: String(o.AddressType || o.addresstype || (o.IsOldAddress || o.isoldaddress ? 'OLD' : 'NEW')).toUpperCase(),
+    isOldAddress: (o.AddressType || o.addresstype) === 'OLD' || Boolean(o.IsOldAddress || o.isoldaddress),
+    oldAddressNote: o.OldAddressNote || o.oldaddressnote || '',
+    newAddressEquivalent: o.NewAddressEquivalent || o.newaddressequivalent || '',
     customer: {
       fullName: o.FullName || o.fullname,
       phone: o.Phone || o.phone,
       email: o.Email || o.email || '',
-      address: o.Address || o.address
+      address: o.Address || o.address,
+      addressType: String(o.AddressType || o.addresstype || (o.IsOldAddress || o.isoldaddress ? 'OLD' : 'NEW')).toUpperCase(),
+      oldAddressNote: o.OldAddressNote || o.oldaddressnote || '',
+      newAddressEquivalent: o.NewAddressEquivalent || o.newaddressequivalent || ''
     },
     note: o.Note || o.note,
     shippingMethod: o.ShippingMethod || o.shippingmethod || 'SPX',
@@ -479,7 +486,7 @@ async function getOrderByCodeOrId(idOrCode) {
   return mapOrder(o, items, hRes.recordset);
 }
 
-async function listOrders({ status, paymentStatus, paymentMethod, q, userId, phone, page = 1, pageSize = 50 } = {}) {
+async function listOrders({ status, paymentStatus, paymentMethod, q, userId, phone, spxStatus, page = 1, pageSize = 50 } = {}) {
   const where = [];
   const params = {};
   if (status === 'PRE_ORDER' || status === 'PREORDER') {
@@ -495,6 +502,13 @@ async function listOrders({ status, paymentStatus, paymentMethod, q, userId, pho
   if (paymentMethod && paymentMethod !== 'all' && paymentMethod !== 'ALL') {
     where.push('o.PaymentMethod = @payMethod');
     params.payMethod = String(paymentMethod).toUpperCase();
+  }
+  if (spxStatus && spxStatus !== 'ALL') {
+    if (spxStatus === 'UNASSIGNED') {
+      where.push('(o.TrackingCode IS NULL OR o.TrackingCode = \'\')');
+    } else if (spxStatus === 'ASSIGNED') {
+      where.push('(o.TrackingCode IS NOT NULL AND o.TrackingCode <> \'\')');
+    }
   }
   if (userId) {
     where.push('o.UserId = @uid');
