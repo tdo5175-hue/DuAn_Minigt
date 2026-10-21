@@ -1,0 +1,231 @@
+================================================================================
+          MINI GT STORE BIÊN HÒA — HỆ THỐNG THƯƠNG MẠI ĐIỆN TỬ MÔ HÌNH 1:64
+                 TÀI LIỆU TỔNG HỢP TOÀN BỘ CHỨC NĂNG HỆ THỐNG
+================================================================================
+Ngày lập: 21/10/2026
+Phiên bản: 2.5 (Canonical Cloud Ready)
+Cơ sở dữ liệu: Supabase PostgreSQL Cloud
+Nền tảng: Node.js (Express) + Vanilla JavaScript (ES6+) + CSS3 BEM Modular
+================================================================================
+
+MỤC LỤC TỔNG QUAN:
+1. HỆ THỐNG SẢN PHẨM & DANH MỤC (CATALOG & PRODUCTS)
+2. TÌM KIẾM, BỘ LỌC & SẮP XẾP THÔNG MINH (SEARCH & FILTER)
+3. GIỎ HÀNG, QUY CÁCH ĐÓNG GÓI & VOUCHER (CART & PACKAGING)
+4. ĐẶT HÀNG, THANH TOÁN & BIÊN LAI CỌC (CHECKOUT & PAYMENT)
+5. HỆ THỐNG ĐĂNG KÝ, ĐĂNG NHẬP & BẢO MẬT (AUTHENTICATION)
+6. QUÊN MẬT KHẨU & XÁC THỰC OTP GMAIL (SECURITY RECOVERY)
+7. HỒ SƠ HỘI VIÊN, TÍCH ĐIỂM & ĐỔI MẬT KHẨU (USER PROFILE)
+8. BẢNG ĐIỀU KHIỂN QUẢN TRỊ VIÊN (ADMIN DASHBOARD)
+9. TRẢI NGHIỆM GIAO DIỆN & TỐI ƯU HIỆU NĂNG (UI/UX & ENGINE)
+
+────────────────────────────────────────────────────────────────────────────────
+1. HỆ THỐNG SẢN PHẨM & DANH MỤC (CATALOG & PRODUCTS)
+────────────────────────────────────────────────────────────────────────────────
+• Quản lý danh mục chuyên sâu:
+  - Pre-Order 2026 (Đặt trước mô hình chưa xuất xưởng).
+  - Liberty Walk LB★WORKS (Độ thân rộng Widebody bản quyền Nhật Bản).
+  - IMSA GT3 & Formula 1 (Xe đua giải vô địch thế giới F1, Daytona, Le Mans).
+  - Secret Chase & Special Editions (Bản hiếm, bản giới hạn săn đón).
+  - Xe Box Set & Xe Vận Chuyển (Transporter Truck + Supercar).
+  
+• Cơ chế tùy chọn đóng gói độc quyền (Packaging Options):
+  - Hộp Giấy (Paper Box): Giá tiêu chuẩn, tem seal chính hãng, gọn nhẹ.
+  - Vỉ Nhựa Thẻ Sưu Tầm (Blister Card): Giá cộng thêm (+40.000đ đến +100.000đ),
+    bảo vệ thẻ Art nguyên bản, thích hợp trưng bày treo tường.
+  - Hệ thống tự động tính chênh lệch giá tức thì khi khách chọn Box hoặc Card.
+
+• Xem nhanh sản phẩm (Quick View Modal):
+  - Hiển thị cửa sổ pop-up ngay trên trang không cần chuyển hướng.
+  - Xem ảnh chi tiết góc chụp sắc nét, phóng to ảnh (Image Zoom).
+  - Kiểm tra tình trạng kho (Sẵn hàng / Mở cọc / Sắp về / Cháy hàng).
+  - Đánh giá sao (Rating 5 sao) và thông số kỹ thuật xe chuẩn tỷ lệ 1:64.
+
+────────────────────────────────────────────────────────────────────────────────
+2. TÌM KIẾM, BỘ LỌC & SẮP XẾP THÔNG MINH (SEARCH & FILTER)
+────────────────────────────────────────────────────────────────────────────────
+• Tìm kiếm trực tiếp tức thời (Live Instant Search):
+  - Gõ phím tìm kiếm hiển thị ngay menu thả xuống (Dropdown gợi ý).
+  - Nhận diện theo: Tên xe, Mã sản phẩm (#MGT00465, #MGT00550,...), Hãng xe
+    (Nissan, Porsche, Lamborghini, McLaren, Ferrari, Red Bull Racing,...).
+  - Hiệu ứng gõ chữ tự động (Typewriter placeholder) gợi ý các từ khóa hot.
+
+• Bộ lọc sản phẩm đa tiêu chí (Smart Multi-Filter):
+  - Lọc theo danh mục chính và hãng độ xe.
+  - Lọc theo mức giá (Dưới 300k, 300k - 500k, Trên 500k, Box Set cao cấp).
+  - Lọc theo trạng thái đặt trước (Pre-Order) hoặc hàng có sẵn tại Showroom.
+  - Lọc theo quy cách: Chỉ tìm bản Card hoặc chỉ tìm bản Box.
+
+• Sắp xếp linh hoạt (Sorting):
+  - Mới nhất (Newest releases).
+  - Giá tăng dần / Giá giảm dần.
+  - Xe bán chạy nhất (Best Sellers) & Xe giảm giá nhiều nhất.
+
+────────────────────────────────────────────────────────────────────────────────
+3. GIỎ HÀNG, QUY CÁCH ĐÓNG GÓI & VOUCHER (CART & PACKAGING)
+────────────────────────────────────────────────────────────────────────────────
+• Ngăn kéo giỏ hàng trượt (Slide-in Cart Drawer):
+  - Mở mượt mà từ bên phải màn hình, không làm gián đoạn việc xem xe.
+  - Tăng/giảm số lượng sản phẩm trực quan kèm âm thanh thao tác.
+  - Đổi quy cách Box <-> Card ngay trong giỏ hàng, hệ thống tự động nhảy lại giá.
+
+• Mã giảm giá & Ưu đãi thành viên (Coupon & Loyalty Voucher):
+  - Nhập mã ưu đãi (Ví dụ: BANMOI, VIPMEMBER, MINIGT10,...).
+  - Kiểm tra điều kiện đơn hàng tối thiểu và tự trừ trực tiếp vào tổng bill.
+  - Hiển thị rõ ràng số tiền tiết kiệm và thông báo hợp lệ / hết hạn.
+
+• Tính toán chi phí thông minh:
+  - Phân tách rõ ràng: Tiền hàng thực tế, Tiền đặt cọc tối thiểu (cho đơn Pre-order),
+    và Phí giao hàng SPX Express toàn quốc.
+
+• Danh sách xe yêu thích (Wishlist Hub):
+  - Lưu trữ các mẫu xe người sưu tầm đang theo dõi bằng nút thả tim (Heart).
+  - Huy hiệu đếm số lượng xe yêu thích trên thanh menu header.
+
+────────────────────────────────────────────────────────────────────────────────
+4. ĐẶT HÀNG, THANH TOÁN & BIÊN LAI CỌC (CHECKOUT & PAYMENT)
+────────────────────────────────────────────────────────────────────────────────
+• Quy trình thanh toán 3 bước gọn gàng (Streamlined Checkout):
+  - Bước 1: Thông tin người nhận hàng (Tự động điền nếu đã đăng nhập hội viên).
+  - Bước 2: Chọn phương thức cọc / mua:
+    + Đặt cọc giữ xe Pre-Order (thường từ 30% - 50% hoặc mức cố định theo quy định).
+    + Thanh toán toàn bộ 100% giá trị kiện xe.
+  - Bước 3: Lựa chọn hình thức thanh toán:
+    + Chuyển khoản ngân hàng tự động (Quét mã VietQR chuẩn NAPAS 24/7).
+    + Cổng thanh toán trực tuyến PayOS.
+    + Thanh toán khi nhận hàng (COD áp dụng cho xe có sẵn).
+
+• Đồng bộ & Hóa đơn điện tử:
+  - Tự động sinh mã đơn hàng chuẩn nhận diện (Ví dụ: MGT-849201).
+  - Gửi email xác nhận đơn hàng chi tiết qua Gmail ngay khi đặt cọc thành công.
+  - Lưu trữ biên lai cọc trong lịch sử đơn hàng để đối chiếu khi xe về tới Showroom.
+
+────────────────────────────────────────────────────────────────────────────────
+5. HỆ THỐNG ĐĂNG KÝ, ĐĂNG NHẬP & BẢO MẬT (AUTHENTICATION)
+────────────────────────────────────────────────────────────────────────────────
+• Đăng ký hội viên (Register):
+  - Điền Họ tên, Số điện thoại nhận hàng SPX, Email nhận biên lai cọc, Mật khẩu.
+  - Hỗ trợ lựa chọn phân loại địa chỉ giao hàng:
+    + Địa chỉ MỚI (Tên Phường/Xã sau sáp nhập đơn vị hành chính).
+    + Địa chỉ CŨ (Tên Phường/Xã trước sáp nhập - Shop tự đối chiếu SPX).
+  - Mật khẩu được mã hóa an toàn bằng thuật toán Bcrypt 10 vòng bảo mật cao.
+
+• Đăng nhập linh hoạt (Multi-Channel Login):
+  - Đăng nhập bằng Email + Mật khẩu HOẶC Số điện thoại + Mật khẩu.
+  - Ghi nhớ đăng nhập an toàn qua Token JWT thời hạn 7 ngày.
+
+• Đăng nhập Google 1-chạm (Google OAuth 2.0 / Google Identity Services):
+  - Đăng nhập nhanh bằng tài khoản Google thật chỉ với 1 click.
+  - Tự động lấy ảnh đại diện Avatar, Họ tên và Email từ Google Profile.
+
+• Cơ chế gộp tài khoản độc quyền (Hybrid Account Merging):
+  - Khách đăng nhập bằng Google có thể tạo thêm mật khẩu riêng trong Hồ sơ hội viên.
+  - Sau khi tạo, tài khoản có thể đăng nhập bằng CẢ 2 CÁCH (Google hoặc gõ Mật khẩu).
+
+────────────────────────────────────────────────────────────────────────────────
+6. QUÊN MẬT KHẨU & XÁC THỰC OTP GMAIL (SECURITY RECOVERY)
+────────────────────────────────────────────────────────────────────────────────
+• Bảo mật tuyệt đối 100% — Không lộ OTP trên giao diện web:
+  - Khách điền Email tài khoản và bấm "GỬI MÃ KHÔI PHỤC OTP".
+  - Máy chủ tạo mã ngẫu nhiên 6 chữ số và gửi trực tiếp qua Google SMTP đến hộp thư.
+  - Hệ thống KHÔNG BAO GIỜ tự điền mã hay hiển thị mã OTP lên màn hình.
+  - Khách hàng bắt buộc phải mở Gmail (Hộp thư đến / Spam) để lấy mã.
+
+• Giao diện Email gửi từ Gmail:
+  - Bố cục Table-layout chuẩn email doanh nghiệp, màu sắc Slate & Đỏ thương hiệu.
+  - Phông chữ Web-safe Arial/Helvetica sắc nét, chống lỗi vỡ dấu tiếng Việt.
+  - Mã OTP đóng khung viền đơn nổi bật, thông báo rõ thời hạn hiệu lực 15 phút.
+  - Đầy đủ thông tin pháp lý Showroom Biên Hòa và Hotline/Zalo hỗ trợ.
+
+• Đặt lại mật khẩu & Tự động kết nối:
+  - Khách nhập đúng 6 số OTP và mật khẩu mới (tối thiểu 6 ký tự).
+  - Server xác thực mã, băm mật khẩu mới và lưu vào cơ sở dữ liệu Supabase.
+  - Tự động chuyển về form Đăng nhập, điền sẵn thông tin để sử dụng ngay.
+
+────────────────────────────────────────────────────────────────────────────────
+7. HỒ SƠ HỘI VIÊN, TÍCH ĐIỂM & ĐỔI MẬT KHẨU (USER PROFILE)
+────────────────────────────────────────────────────────────────────────────────
+• Thẻ hội viên & Điểm tích lũy (Collector Pass & VIP Tiers):
+  - Hiển thị cấp độ: Khách hàng mới ➔ Collector VIP ➔ VIP 1 ➔ Super VIP.
+  - Tích điểm cọc tích lũy theo từng giá trị đơn xe đặt thành công.
+  - Xem thanh tiến trình nâng hạng VIP để nhận đặc quyền cọc xe Secret Chase.
+
+• Quản lý & Thay đổi mật khẩu logic:
+  - Tài khoản đã có mật khẩu: Hiển thị trạng thái an toàn [🔒 Đã có mật khẩu riêng],
+    mã hóa dạng ẩn (••••••••••••), kèm nút bấm "[✏️ Đổi mật khẩu]".
+  - Khi bấm đổi mật khẩu: Xổ ra 2 ô nhập chuẩn mực:
+    + Mật khẩu mới (Tối thiểu 6 ký tự, có mắt xem/ẩn).
+    + Xác nhận mật khẩu mới (Bắt buộc khớp 100% mới cho lưu).
+  - Tài khoản chỉ dùng Google: Hiển thị bảng hướng dẫn tạo mật khẩu riêng để gộp kênh.
+  - Nếu khách chỉ đổi tên hoặc địa chỉ nhận hàng, mật khẩu cũ được giữ nguyên vẹn.
+
+• Sổ địa chỉ giao hàng nhận xe SPX Express:
+  - Cập nhật Họ tên, SĐT nhận hàng, Tỉnh/Thành phố, Địa chỉ chi tiết từng ngõ ngách.
+  - Chuyển đổi loại địa chỉ: Địa chỉ Mới (sau sáp nhập) / Địa chỉ Cũ (trước sáp nhập).
+  - Ghi chú riêng cho Shipper bưu cục (Ví dụ: Giao giờ hành chính, gọi trước 15p).
+
+• Lịch sử đơn mua & Tra cứu tiến độ đơn xe:
+  - Danh sách tất cả đơn hàng đã đặt với đầy đủ ảnh xe, mã đơn, quy cách Box/Card.
+  - Theo dõi tiến độ thời gian thực: Chờ xác nhận ➔ Đã nhận cọc ➔ Đang giao ➔ Thành công.
+
+────────────────────────────────────────────────────────────────────────────────
+8. BẢNG ĐIỀU KHIỂN QUẢN TRỊ VIÊN (ADMIN DASHBOARD)
+────────────────────────────────────────────────────────────────────────────────
+• Quản lý kho hàng & Sản phẩm (Product Management - CRUD):
+  - Thêm mới mô hình xe: Tên xe, Mã hiệu (#MGT00...), Danh mục, Hãng xe.
+  - Thiết lập giá bán linh hoạt: Giá Box, Giá Card, Tỷ lệ giảm giá %, Số lượng tồn.
+  - Tải ảnh xe và gắn cờ đặc biệt (Pre-Order, Hot, New, Chase).
+  - Sửa đổi thông tin xe hoặc xóa xe khỏi danh mục.
+
+• Quản lý đơn hàng & Cập nhật trạng thái (Order Management):
+  - Tra cứu, lọc đơn hàng theo Mã đơn, Khách hàng, Trạng thái thanh toán, Ngày tạo.
+  - Chuyển trạng thái đơn: Chờ xử lý ➔ Đã nhận cọc ➔ Đang chuyển phát ➔ Hoàn tất.
+  - Gửi email tự động chúc mừng & cẩm nang bảo quản mô hình khi đơn "ĐÃ GIAO HÀNG".
+
+• Quản lý chương trình khuyến mãi (Coupons):
+  - Tạo mới các Voucher giảm giá (theo % hoặc số tiền cố định).
+  - Cài đặt ngày bắt đầu, ngày hết hạn và giới hạn lượt sử dụng.
+
+• Thống kê kinh doanh & Báo cáo số liệu:
+  - Biểu đồ tổng doanh thu, tổng số đơn cọc xe trong tháng.
+  - Thống kê sản phẩm bán chạy nhất (Top Trending 1:64).
+  - Báo cáo danh sách hội viên VIP có lượng tích lũy đơn cao nhất.
+
+────────────────────────────────────────────────────────────────────────────────
+9. TRẢI NGHIỆM GIAO DIỆN & TỐI ƯU HIỆU NĂNG (UI/UX & ENGINE)
+────────────────────────────────────────────────────────────────────────────────
+• Thanh Menu điều hướng dính thông minh (Sticky Header):
+  - Ứng dụng CSS `position: sticky` kết hợp `overflow-x: clip`, thanh menu luôn
+    bám theo màn hình khi người dùng cuộn chuột lên/xuống mà không bị giật lag.
+  - Hiệu ứng kính mờ (Frosted glass backdrop-filter: blur(14px)) sang trọng.
+  - Tự động thu gọn khoảng đệm (padding) và tạo bóng đổ thanh mảnh khi cuộn trang.
+
+• Banner Hero chuyển động tự động 10 giây (10s Auto-Slide Carousel):
+  - Tự động đổi banner giới thiệu siêu phẩm xe mới sau mỗi 10 giây.
+  - Tích hợp thanh tiến trình chạy tuyến tính dưới các dấu chấm tròn chỉ số.
+  - Hỗ trợ vuốt chạm cảm ứng trên điện thoại (Swipe gesture) và phím mũi tên.
+  - Khi bấm chọn slide thủ công, hệ thống tự động reset lại 10 giây tính từ đầu.
+
+• Chế độ Giao diện Sáng & Tối (Light & Dark Mode):
+  - Chuyển đổi 1-chạm mượt mà, lưu trạng thái lựa chọn vào bộ nhớ trình duyệt.
+  - Giao diện tối được căn chỉnh màu chữ trắng sáng `#ffffff` và xám bạc `#e2e8f0`
+    trên nền đen xanh `#070b14`, đảm bảo độ tương phản cao và chống mỏi mắt.
+
+• Đa ngôn ngữ (Tiếng Việt / English):
+  - Hỗ trợ chuyển đổi nhanh toàn bộ giao diện giữa Tiếng Việt và Tiếng Anh.
+
+• Đồng bộ thời gian thực đa tab (Real-time BroadcastChannel):
+  - Khi Admin cập nhật đơn hàng hoặc sản phẩm, giao diện khách hàng mở ở tab
+    khác tự động cập nhật ngay lập tức mà không cần bấm F5 tải lại trang.
+
+• Kiến trúc Backend & Dữ liệu đồng bộ:
+  - Máy chủ Node.js Express Port 5000 kết nối Supabase Cloud PostgreSQL.
+  - Dịch vụ gửi Gmail SMTP qua Nodemailer ổn định, bảo mật cao.
+  - Cơ chế tự động phát hiện môi trường: Kết nối trực tiếp máy chủ cục bộ khi
+    chạy thử nghiệm và kết nối Cloud khi đưa lên máy chủ công cộng.
+
+================================================================================
+                    MINI GT STORE BIÊN HÒA — SĂN XE BIÊN HÒA
+            38/2 Võ Thị Sáu, P. Quyết Thắng, TP. Biên Hòa, Đồng Nai
+                     Hotline / Zalo hỗ trợ: 0981.903.400
+================================================================================
