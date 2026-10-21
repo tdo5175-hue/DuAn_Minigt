@@ -12,19 +12,22 @@ const { ok, badRequest, unauthorized, forbidden, conflict } = require('../utils/
 // Bộ nhớ lưu tạm OTP (có hiệu lực 5 phút)
 const otpStore = new Map();
 
-// Cấu hình gửi mail qua Gmail
+// Cấu hình gửi mail qua Gmail (Tương thích Serverless Vercel & Node.js)
 const mailTransporter = nodemailer.createTransport({
   service: 'gmail',
   host: 'smtp.gmail.com',
   port: 465,
   secure: true,
   auth: {
-    user: process.env.EMAIL_USER || 'tdo5175@gmail.com',
+    user: (process.env.EMAIL_USER || 'tdo5175@gmail.com').trim(),
     pass: (process.env.EMAIL_PASS || 'lyengcphlvqxyoff').replace(/\s+/g, '')
   },
-  connectionTimeout: 8000,
-  greetingTimeout: 8000,
-  socketTimeout: 8000
+  tls: {
+    rejectUnauthorized: false
+  },
+  connectionTimeout: 15000,
+  greetingTimeout: 15000,
+  socketTimeout: 15000
 });
 
 const v = {
