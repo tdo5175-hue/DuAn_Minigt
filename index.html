@@ -1644,9 +1644,9 @@
   <div class="modal-overlay" id="checkoutModal" role="dialog" aria-modal="true" aria-label="Xác nhận thanh toán và cọc">
     <div class="modal-container checkout-stepper-container">
       <div class="checkout-modal-top-bar">
-        <div class="checkout-modal-title">
-          <i class="fa-solid fa-shield-halved" style="color:var(--color-primary);"></i>
-          <span>MINI GT STORE • THANH TOÁN &amp; ĐẶT CỌC</span>
+        <div class="checkout-modal-title" id="checkoutModalTitle">
+          <i class="fa-solid fa-cart-shopping" style="color:var(--color-primary);"></i>
+          <span>MINI GT STORE • THANH TOÁN ĐƠN HÀNG</span>
         </div>
         <button type="button" class="checkout-close-btn" onclick="closeModal('checkoutModal')" aria-label="Đóng cửa sổ">✕</button>
       </div>
@@ -1656,7 +1656,7 @@
         <div class="stepper-progress-bar">
           <div class="step-indicator active" id="stepIndicator1" onclick="goToCheckoutStep(1)">
             <div class="step-circle">1</div>
-            <div class="step-label">Giỏ Hàng &amp; Cọc</div>
+            <div class="step-label" id="step1IndicatorLabel">Kiểm Tra Đơn</div>
           </div>
           <div class="step-line" id="stepLine1"></div>
           <div class="step-indicator" id="stepIndicator2" onclick="goToCheckoutStep(2)">
@@ -1679,7 +1679,7 @@
         <div class="checkout-step-pane" id="checkoutStepPane1">
           <div class="step-pane-header">
             <h3 class="step-pane-title"><i class="fa-solid fa-cart-shopping" style="color:var(--color-primary); margin-right:6px;"></i> 1. Kiểm Tra Mô Hình &amp; Đơn Hàng</h3>
-            <p class="step-pane-desc">Xem lại danh sách mô hình diecast 1:64 và số tiền cọc cần thanh toán giữ mẫu.</p>
+            <p class="step-pane-desc" id="checkoutStep1Desc">Xem lại danh sách mô hình diecast 1:64 và tổng tiền đơn hàng cần thanh toán.</p>
           </div>
           <div id="checkoutStep1ItemList" class="checkout-items-list"></div>
           <div id="checkoutStep1SummaryBox" class="checkout-summary-box"></div>
@@ -1812,11 +1812,11 @@
 
           <div class="payment-method-options" style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 14px;">
             <!-- PayOS VietQR Tự Động 24/7 -->
-            <label class="payment-option-card" id="payOptPayOS" style="display:flex; gap:10px; padding:12px; border:1px solid #cbd5e1; border-radius:10px; background:#f8fafc; cursor:pointer;">
-              <input type="radio" name="checkoutPaymentMethod" id="checkoutPaymentPayosRadio" value="VIETQR_PAYOS" onchange="handlePaymentMethodChange(this.value)">
+            <label class="payment-option-card active" id="payOptPayOS" style="display:flex; gap:10px; padding:12px; border:2px solid #0284c7; border-radius:10px; background:#f0f9ff; cursor:pointer;">
+              <input type="radio" name="checkoutPaymentMethod" id="checkoutPaymentPayosRadio" value="VIETQR_PAYOS" checked onchange="handlePaymentMethodChange(this.value)">
               <div class="opt-content" style="flex:1;">
                 <div class="opt-header" style="display:flex; justify-content:space-between; align-items:center;">
-                  <strong class="opt-title" style="color:var(--color-navy); font-size:13px;">
+                  <strong class="opt-title" style="color:#0284c7; font-size:13.5px;">
                     <i class="fa-solid fa-qrcode" style="color:#0284c7; margin-right:4px;"></i> VietQR PayOS (Quét mã thanh toán tự động 24/7)
                   </strong>
                   <span style="font-size:10px; font-weight:800; background:#0284c7; color:#fff; padding:2px 8px; border-radius:12px; display:inline-flex; align-items:center; gap:3px;">
@@ -1829,8 +1829,8 @@
               </div>
             </label>
 
-            <label class="payment-option-card active" id="payOptDeposit" style="display:flex; gap:10px; padding:12px; border:1.5px solid var(--color-primary); border-radius:10px; background:#fff7f7; cursor:pointer;">
-              <input type="radio" name="checkoutPaymentMethod" value="DEPOSIT" checked onchange="handlePaymentMethodChange(this.value)">
+            <label class="payment-option-card" id="payOptDeposit" style="display:none; gap:10px; padding:12px; border:1px solid #cbd5e1; border-radius:10px; background:#f8fafc; cursor:pointer;">
+              <input type="radio" name="checkoutPaymentMethod" value="DEPOSIT" onchange="handlePaymentMethodChange(this.value)">
               <div class="opt-content">
                 <div class="opt-header" style="display:flex; justify-content:space-between; align-items:center;">
                   <strong class="opt-title" style="color:var(--color-navy); font-size:13px;">

@@ -525,13 +525,20 @@ try {
   cart = [];
 }
 
-// Tự động chuẩn hóa ảnh trong giỏ nếu cache trình duyệt còn lưu URL cũ không tồn tại
+// Tự động chuẩn hóa ảnh và làm sạch cờ Pre-Order nếu cache trình duyệt còn lưu dữ liệu cũ
 if (Array.isArray(cart)) {
   cart.forEach(item => {
     if (!item.imageUrl || item.imageUrl.includes('amr24.webp')) item.imageUrl = 'image/aston-amr24-alonso.png';
     else if (item.imageUrl.includes('f1.webp')) item.imageUrl = 'image/aston-amr24-stroll.png';
     else if (item.imageUrl.includes('huracan.webp')) item.imageUrl = 'image/lambo-sterrato-set.png';
     else if (item.imageUrl.includes('lambo.webp')) item.imageUrl = 'image/Minigt_Lambo_GT3.jpg';
+
+    // Rà soát lại với FALLBACK_PRODUCTS: nếu không phải xe pre_order thì reset isPreOrder = false, depositAmount = 0
+    const matchedP = FALLBACK_PRODUCTS.find(p => (p.ProductId || p.id) == item.productId);
+    if (matchedP && String(matchedP.Status || matchedP.status || '').toLowerCase() !== 'pre_order') {
+      item.isPreOrder = false;
+      item.depositAmount = 0;
+    }
   });
 }
 let currentUser = JSON.parse(localStorage.getItem('minigt_user')) || null;
@@ -902,6 +909,26 @@ async function loadProducts() {
   } catch (err) {
     console.warn('Sử dụng dữ liệu cục bộ:', err.message);
     allProducts = FALLBACK_PRODUCTS.map(p => (window.api && window.api.normalizeProductObject) ? window.api.normalizeProductObject(p) : p);
+  }
+
+  // Tự động kiểm tra và chuẩn hóa lại giỏ hàng theo trạng thái thực tế của sản phẩm
+  if (Array.isArray(cart) && cart.length > 0) {
+    let cartModified = false;
+    cart.forEach(it => {
+      const p = allProducts.find(prod => (prod.ProductId || prod.id) == it.productId);
+      if (p) {
+        const isPre = String(p.Status || p.status || '').toLowerCase() === 'pre_order';
+        if (it.isPreOrder !== isPre) {
+          it.isPreOrder = isPre;
+          it.depositAmount = isPre ? Math.round((it.price || 350000) * 0.3) : 0;
+          cartModified = true;
+        }
+      }
+    });
+    if (cartModified) {
+      saveCart();
+      renderCartDrawer();
+    }
   }
 
   await loadAppCategories();
@@ -1817,9 +1844,9 @@ function addToCart(productId, quantity = 1, explicitPackType = null) {
   }
 
   const isPreOrder = String(prod.Status || prod.status || '').toLowerCase() === 'pre_order';
-  const depPct = Number(prod.DepositPercent || prod.depositPercent || 30);
-  const pDeposit = Math.round((unitFinalPrice * (depPct / 100)) / 1000) * 1000;
-  const expDelivery = prod.ExpectedDelivery || prod.expectedDelivery || null;
+  const depPct = isPreOrder ? Number(prod.DepositPercent || prod.depositPercent || 30) : 0;
+  const pDeposit = isPreOrder ? (Math.round((unitFinalPrice * (depPct / 100)) / 1000) * 1000) : 0;
+  const expDelivery = isPreOrder ? (prod.ExpectedDelivery || prod.expectedDelivery || null) : null;
 
   if (existing) {
     existing.quantity += quantity;
@@ -1834,6 +1861,7 @@ function addToCart(productId, quantity = 1, explicitPackType = null) {
     existing.packagingType = pricing.packagingType;
     existing.depositAmount = pDeposit;
     existing.depositPercent = depPct;
+    existing.isPreOrder = isPreOrder;
     existing.expectedDelivery = expDelivery;
   } else {
     cart.push({
@@ -2104,11 +2132,16 @@ function renderCartDrawer() {
     const unitPrice = pack === 'card' ? pricing.finalPriceCard : pricing.finalPriceBox;
     const origPrice = pack === 'card' ? pricing.priceCard : pricing.priceBox;
     it.price = unitPrice;
-    it.depositAmount = Math.round(unitPrice * 0.3);
+
+    const isPreOrder = Boolean(it.isPreOrder || (prod && String(prod.Status || prod.status || '').toLowerCase() === 'pre_order'));
+    it.isPreOrder = isPreOrder;
+    it.depositAmount = isPreOrder ? Math.round(unitPrice * 0.3) : 0;
 
     if (isSelected) {
       total += unitPrice * it.quantity;
-      totalDeposit += it.depositAmount * it.quantity;
+      if (isPreOrder) {
+        totalDeposit += it.depositAmount * it.quantity;
+      }
     }
 
     const boxDisabled = pricing.packagingType === 'card_only';
@@ -2120,8 +2153,6 @@ function renderCartDrawer() {
     else if (itemImg.includes('f1.webp')) itemImg = 'image/aston-amr24-stroll.png';
     else if (itemImg.includes('huracan.webp')) itemImg = 'image/lambo-sterrato-set.png';
     else if (itemImg.includes('lambo.webp')) itemImg = 'image/Minigt_Lambo_GT3.jpg';
-
-    const isPreOrder = it.isPreOrder || (prod && String(prod.Status || prod.status || '').toLowerCase() === 'pre_order');
 
     return `
       <div class="cart-item ${!isSelected ? 'is-unselected' : ''}" data-id="${it.productId}" data-pack="${pack}" style="${!isSelected ? 'opacity:0.62; background:#f8fafc; border-style:dashed;' : ''}">
@@ -2453,7 +2484,18 @@ let checkoutAppliedVoucher = null;
 function calculateCheckoutTotals() {
   const selectedItems = cart.filter(it => it.selected !== false);
   const subtotal = selectedItems.reduce((acc, it) => acc + (it.price * it.quantity), 0);
-  const totalDepositRaw = selectedItems.reduce((acc, it) => acc + ((it.depositAmount || Math.round(it.price * 0.35)) * it.quantity), 0);
+
+  const hasPreOrder = selectedItems.some(it => {
+    const prod = (allProducts && allProducts.length ? allProducts : FALLBACK_PRODUCTS).find(p => (p.ProductId || p.id) == it.productId);
+    return it.isPreOrder || (prod && String(prod.Status || prod.status || '').toLowerCase() === 'pre_order');
+  });
+
+  const totalDepositRaw = selectedItems
+    .filter(it => {
+      const prod = (allProducts && allProducts.length ? allProducts : FALLBACK_PRODUCTS).find(p => (p.ProductId || p.id) == it.productId);
+      return it.isPreOrder || (prod && String(prod.Status || prod.status || '').toLowerCase() === 'pre_order');
+    })
+    .reduce((acc, it) => acc + ((it.depositAmount || Math.round(it.price * 0.3)) * it.quantity), 0);
 
   let shippingFee = 11000;
   let shippingLabel = 'SPX Express Tiêu Chuẩn (Đồng giá toàn quốc)';
@@ -2470,7 +2512,10 @@ function calculateCheckoutTotals() {
   let voucherDiscount = 0;
   let voucherDesc = '';
   if (checkoutAppliedVoucher) {
-    if (checkoutAppliedVoucher.discountType === 'percent') {
+    if (checkoutAppliedVoucher.minOrderAmount && subtotal < checkoutAppliedVoucher.minOrderAmount) {
+      voucherDiscount = 0;
+      voucherDesc = `(Chưa đạt đơn tối thiểu ${formatVND(checkoutAppliedVoucher.minOrderAmount)})`;
+    } else if (checkoutAppliedVoucher.discountType === 'percent') {
       const pct = Math.min(10, Math.max(1, Number(checkoutAppliedVoucher.discountValue || 0)));
       voucherDiscount = Math.round(subtotal * (pct / 100));
       if (checkoutAppliedVoucher.maxDiscount && voucherDiscount > checkoutAppliedVoucher.maxDiscount) {
@@ -2479,11 +2524,13 @@ function calculateCheckoutTotals() {
     } else {
       voucherDiscount = Math.min(subtotal, Number(checkoutAppliedVoucher.discountValue || checkoutAppliedVoucher.discount || 0));
     }
-    voucherDesc = checkoutAppliedVoucher.description || `Mã ${checkoutAppliedVoucher.code} (-${formatVND(voucherDiscount)})`;
+    if (voucherDiscount > 0) {
+      voucherDesc = checkoutAppliedVoucher.description || `Mã ${checkoutAppliedVoucher.code} (-${formatVND(voucherDiscount)})`;
+    }
   }
 
   const grandTotal = Math.max(0, subtotal + shippingFee + protectorFee - voucherDiscount);
-  const depositAmount = Math.min(grandTotal, totalDepositRaw > 0 ? totalDepositRaw : Math.round(grandTotal * 0.35));
+  const depositAmount = hasPreOrder ? Math.min(grandTotal, totalDepositRaw) : 0;
 
   return {
     subtotal,
@@ -2493,7 +2540,8 @@ function calculateCheckoutTotals() {
     voucherDiscount,
     voucherDesc,
     grandTotal,
-    depositAmount
+    depositAmount,
+    hasPreOrder
   };
 }
 
@@ -2527,8 +2575,9 @@ async function renderCheckoutVoucherChips() {
   if (user && vip.level >= 2) {
     const vipCode = `VIP${vip.level}`;
     const vipPct = vip.level === 2 ? 2 : (vip.level === 3 ? 4 : (vip.level === 4 ? 7 : 10));
+    const isVipActive = checkoutAppliedVoucher && checkoutAppliedVoucher.code === vipCode;
     chipsHtml += `
-      <button type="button" class="voucher-chip-btn vip-chip" onclick="selectVoucherChip('${vipCode}')" title="Mã giảm giá đặc quyền ${vip.label}">
+      <button type="button" class="voucher-chip-btn vip-chip ${isVipActive ? 'active' : ''}" onclick="selectVoucherChip('${vipCode}')" title="Mã giảm giá đặc quyền ${vip.label} (Giảm ${vipPct}%)">
         <i class="fa-solid fa-crown" style="color:#d97706;"></i> ${vipCode} (VIP ${vip.level} -${vipPct}%)
       </button>
     `;
@@ -2541,8 +2590,9 @@ async function renderCheckoutVoucherChips() {
     adminCoupons.slice(0, 4).forEach(c => {
       const isPct = c.discountType === 'percent';
       const label = isPct ? `-${c.discountValue}%` : `-${Math.round(c.discountValue / 1000)}k`;
+      const isActive = checkoutAppliedVoucher && checkoutAppliedVoucher.code === c.code;
       chipsHtml += `
-        <button type="button" class="voucher-chip-btn" onclick="selectVoucherChip('${escapeHtml(c.code)}')" title="${escapeHtml(c.description || '')}">
+        <button type="button" class="voucher-chip-btn ${isActive ? 'active' : ''}" onclick="selectVoucherChip('${escapeHtml(c.code)}')" title="${escapeHtml(c.description || '')} (Đơn từ ${formatVND(c.minOrderAmount || 0)})">
           <i class="fa-solid fa-ticket" style="color:#2563eb;"></i> ${escapeHtml(c.code)} (${label})
         </button>
       `;
@@ -2577,6 +2627,8 @@ async function applyCheckoutVoucher() {
 
   const totals = calculateCheckoutTotals();
   const user = (api && api.getCurrentUser) ? api.getCurrentUser() : (typeof currentUser !== 'undefined' ? currentUser : null);
+  const phone = document.getElementById('checkoutPhone')?.value.trim() || user?.phone || localStorage.getItem('minigt_customer_phone') || '';
+  const email = document.getElementById('checkoutEmail')?.value.trim() || user?.email || '';
 
   try {
     const res = await safeFetch('/api/coupons/validate', {
@@ -2585,7 +2637,9 @@ async function applyCheckoutVoucher() {
       body: JSON.stringify({
         code: rawCode,
         subtotal: totals.subtotal,
-        user
+        user,
+        phone,
+        email
       })
     });
 
@@ -2839,7 +2893,7 @@ function openCheckoutModal() {
 
   const selectedItems = cart.filter(it => it.selected !== false);
   if (selectedItems.length === 0) {
-    showToast('Vui lòng tích chọn ít nhất 1 mô hình xe trong giỏ hàng để tiến hành đặt cọc!', 'warning');
+    showToast('Vui lòng tích chọn ít nhất 1 mô hình xe trong giỏ hàng để tiến hành mua hàng!', 'warning');
     return;
   }
   closeCartDrawer();
@@ -2849,6 +2903,31 @@ function openCheckoutModal() {
     activeStep4OrderCode = null;
     sessionStorage.removeItem('minigt_checkout_step');
     loadCheckoutFormState();
+
+    const hasPreOrder = selectedItems.some(it => {
+      const prod = (allProducts && allProducts.length ? allProducts : FALLBACK_PRODUCTS).find(p => (p.ProductId || p.id) == it.productId);
+      return it.isPreOrder || (prod && String(prod.Status || prod.status || '').toLowerCase() === 'pre_order');
+    });
+
+    const modalTitle = document.getElementById('checkoutModalTitle');
+    if (modalTitle) {
+      modalTitle.innerHTML = hasPreOrder
+        ? '<i class="fa-solid fa-shield-halved" style="color:var(--color-primary); margin-right:6px;"></i><span>MINI GT STORE • THANH TOÁN &amp; ĐẶT CỌC PRE-ORDER</span>'
+        : '<i class="fa-solid fa-cart-shopping" style="color:var(--color-primary); margin-right:6px;"></i><span>MINI GT STORE • THANH TOÁN ĐƠN HÀNG SẴN KHO</span>';
+    }
+
+    const step1IndLabel = document.getElementById('step1IndicatorLabel');
+    if (step1IndLabel) {
+      step1IndLabel.textContent = hasPreOrder ? 'Giỏ Hàng & Cọc' : 'Kiểm Tra Đơn';
+    }
+
+    const step1Desc = document.querySelector('#checkoutStepPane1 .step-pane-desc');
+    if (step1Desc) {
+      step1Desc.textContent = hasPreOrder
+        ? 'Xem lại danh sách mô hình diecast 1:64 và số tiền cọc cần thanh toán giữ mẫu giới hạn.'
+        : 'Xem lại danh sách mô hình diecast 1:64 có sẵn trong kho và tổng tiền cần thanh toán 100%.';
+    }
+
     goToCheckoutStep(1);
     modal.classList.add('active');
     document.body.classList.add('checkout-modal-open');
@@ -2950,7 +3029,7 @@ function renderCheckoutStep1() {
     listEl.innerHTML = `
       <div style="text-align:center; padding:36px 16px; color:#64748b;">
         <div style="font-size:42px; color:#cbd5e1; margin-bottom:10px;"><i class="fa-solid fa-cart-shopping"></i></div>
-        <strong style="font-size:15px; color:#0f172a; display:block; margin-bottom:4px;">Chưa chọn mẫu xe nào để đặt cọc</strong>
+        <strong style="font-size:15px; color:#0f172a; display:block; margin-bottom:4px;">Chưa chọn mẫu xe nào để mua hàng</strong>
         <p style="font-size:12px; margin:0 0 16px; color:#64748b;">Vui lòng mở giỏ hàng và tích chọn các mô hình xe bạn muốn mua.</p>
         <button type="button" class="btn btn-primary btn-sm" onclick="closeModal('checkoutModal'); openCartDrawer();">
           <i class="fa-solid fa-cart-plus" style="margin-right:4px;"></i> Mở giỏ hàng chọn xe ➔
@@ -2959,6 +3038,25 @@ function renderCheckoutStep1() {
     `;
     summaryEl.innerHTML = '';
     return;
+  }
+
+  const hasPreOrder = selectedItems.some(it => {
+    const prod = (allProducts && allProducts.length ? allProducts : FALLBACK_PRODUCTS).find(p => (p.ProductId || p.id) == it.productId);
+    return it.isPreOrder || (prod && String(prod.Status || prod.status || '').toLowerCase() === 'pre_order');
+  });
+
+  const step1Desc = document.querySelector('#checkoutStepPane1 .step-pane-desc');
+  if (step1Desc) {
+    step1Desc.textContent = hasPreOrder
+      ? 'Xem lại danh sách mô hình diecast 1:64 và số tiền cọc cần thanh toán giữ mẫu giới hạn.'
+      : 'Xem lại danh sách mô hình diecast 1:64 có sẵn trong kho và tổng tiền cần thanh toán 100%.';
+  }
+
+  const modalTitle = document.getElementById('checkoutModalTitle');
+  if (modalTitle) {
+    modalTitle.innerHTML = hasPreOrder
+      ? '<i class="fa-solid fa-shield-halved" style="color:var(--color-primary); margin-right:6px;"></i><span>MINI GT STORE • THANH TOÁN &amp; ĐẶT CỌC PRE-ORDER</span>'
+      : '<i class="fa-solid fa-cart-shopping" style="color:var(--color-primary); margin-right:6px;"></i><span>MINI GT STORE • THANH TOÁN ĐƠN HÀNG SẴN KHO</span>';
   }
 
   const totals = calculateCheckoutTotals();
@@ -2977,9 +3075,13 @@ function renderCheckoutStep1() {
     const unitPrice = pack === 'card' ? pricing.finalPriceCard : pricing.finalPriceBox;
     const origPrice = pack === 'card' ? pricing.priceCard : pricing.priceBox;
     it.price = unitPrice;
-    it.depositAmount = Math.round(unitPrice * 0.3);
 
-    const isPreOrder = it.isPreOrder || (it.depositAmount && it.depositAmount > 0);
+    // CHỈ tính tiền cọc nếu sản phẩm THỰC SỰ là xe Pre-Order, hàng có sẵn (IN_STOCK) tiền cọc luôn là 0đ!
+    const isRealPreOrder = Boolean(it.isPreOrder || (prod && String(prod.Status || prod.status || '').toLowerCase() === 'pre_order'));
+    it.isPreOrder = isRealPreOrder;
+    it.depositAmount = isRealPreOrder ? Math.round(unitPrice * 0.3) : 0;
+    const isPreOrder = isRealPreOrder;
+
     const boxDisabled = pricing.packagingType === 'card_only';
     const cardDisabled = pricing.packagingType === 'box_only';
 
@@ -2989,7 +3091,7 @@ function renderCheckoutStep1() {
         <div style="flex:1; min-width:0;">
           <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap; margin-bottom:3px;">
             <span class="pack-badge ${pack === 'card' ? 'pack-card' : 'pack-box'}">${pack === 'card' ? '<i class="fa-solid fa-shield-halved"></i> VỈ CARD BLISTER' : '<i class="fa-solid fa-cube"></i> HỘP GIẤY BOX'}</span>
-            ${isPreOrder ? `<span style="font-size:10px; background:#fff1f1; color:#dc2626; padding:1px 5px; border-radius:3px; font-weight:800;">CỌC TRƯỚC</span>` : `<span style="font-size:10px; background:#ecfdf5; color:#059669; padding:1px 5px; border-radius:3px; font-weight:700;">CÓ SẴN</span>`}
+            ${isPreOrder ? `<span style="font-size:10px; background:#fff1f1; color:#dc2626; padding:1px 5px; border-radius:3px; font-weight:800;">CỌC TRƯỚC</span>` : `<span style="font-size:10px; background:#ecfdf5; color:#059669; padding:1px 5px; border-radius:3px; font-weight:700;">CÓ SẴN (100%)</span>`}
           </div>
           <div style="font-weight:700; font-size:13px; color:var(--color-navy); line-height:1.3; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtml(it.name)}</div>
           
@@ -3034,12 +3136,17 @@ function renderCheckoutStep1() {
         <span style="color:var(--color-navy);">${isEn ? 'Estimated Total:' : 'Tạm tính tổng đơn:'}</span>
         <span style="color:var(--color-primary);">${formatVND(recalcTotals.grandTotal)}</span>
       </div>
-      ${recalcTotals.depositAmount > 0 ? `
+      ${hasPreOrder ? `
         <div style="margin-top:8px; padding:8px 10px; background:#fff1f1; border-radius:6px; font-size:12px; color:#b91c1c; display:flex; justify-content:space-between; align-items:center;">
           <span><strong>${isEn ? '30% Pre-Order Deposit:' : 'Tiền cọc giữ slot đợt này:'}</strong></span>
           <span style="font-size:14px; font-weight:800;">${formatVND(recalcTotals.depositAmount)}</span>
         </div>
-      ` : ''}
+      ` : `
+        <div style="margin-top:8px; padding:8px 10px; background:#ecfdf5; border-radius:6px; font-size:12px; color:#047857; display:flex; justify-content:space-between; align-items:center;">
+          <span><strong>${isEn ? 'Order Type:' : 'Loại đơn hàng:'}</strong></span>
+          <span style="font-weight:700;"><i class="fa-solid fa-circle-check"></i> Hàng có sẵn trong kho (Thanh toán 100%)</span>
+        </div>
+      `}
     </div>
   `;
 }
@@ -3100,7 +3207,12 @@ function isCustomerCodEligible() {
 window.isCustomerCodEligible = isCustomerCodEligible;
 
 function handlePaymentMethodChange(val) {
-  const hasPreOrder = cart.some(it => it.isPreOrder);
+  const selectedItems = cart.filter(it => it.selected !== false);
+  const hasPreOrder = selectedItems.some(it => {
+    const prod = (allProducts && allProducts.length ? allProducts : FALLBACK_PRODUCTS).find(p => (p.ProductId || p.id) == it.productId);
+    return it.isPreOrder || (prod && String(prod.Status || prod.status || '').toLowerCase() === 'pre_order');
+  });
+
   if (hasPreOrder && val !== 'DEPOSIT' && val !== 'VIETQR_PAYOS') {
     showToast('Đơn hàng có mô hình Pre-Order áp dụng phương thức Đặt cọc giữ mẫu (MB Bank hoặc PayOS VietQR)!', 'warning', 'Chỉ cọc Pre-Order');
     selectedCheckoutPaymentMethod = 'VIETQR_PAYOS';
@@ -3111,10 +3223,10 @@ function handlePaymentMethodChange(val) {
     if (!isCustomerCodEligible()) {
       const deliveredSpent = getCustomerDeliveredSpent();
       const vip = getCustomerVipInfo(deliveredSpent);
-      showToast(`🔒 Phương thức Ship COD 100% đang bị khóa để chống bom đơn! Chỉ áp dụng cho tài khoản từ VIP 4 trở lên (đã mua & nhận hàng trên 1.000.000đ). Cấp hiện tại của bạn: ${vip.label} (Đã tích lũy: ${formatVND(deliveredSpent)} / 1.000.000đ). Vui lòng chọn Đặt cọc 30% hoặc Chuyển khoản VietQR MB Bank!`, 'warning', 5000);
-      const fallbackRadio = document.querySelector('input[name="checkoutPaymentMethod"][value="DEPOSIT"]') || document.querySelector('input[name="checkoutPaymentMethod"][value="BANK_TRANSFER"]');
+      showToast(`🔒 Phương thức Ship COD 100% đang bị khóa để chống bom đơn! Chỉ áp dụng cho tài khoản từ VIP 4 trở lên (đã mua & nhận hàng trên 1.000.000đ). Cấp hiện tại của bạn: ${vip.label} (Đã tích lũy: ${formatVND(deliveredSpent)} / 1.000.000đ). Vui lòng chọn Thanh toán PayOS VietQR hoặc Chuyển khoản MB Bank!`, 'warning', 5000);
+      const fallbackRadio = document.querySelector('input[name="checkoutPaymentMethod"][value="VIETQR_PAYOS"]') || document.querySelector('input[name="checkoutPaymentMethod"][value="BANK_TRANSFER"]');
       if (fallbackRadio) fallbackRadio.checked = true;
-      selectedCheckoutPaymentMethod = fallbackRadio ? fallbackRadio.value : 'DEPOSIT';
+      selectedCheckoutPaymentMethod = fallbackRadio ? fallbackRadio.value : 'VIETQR_PAYOS';
       renderCheckoutStep3();
       return;
     } else {
@@ -3122,6 +3234,8 @@ function handlePaymentMethodChange(val) {
     }
   } else if (val === 'VIETQR_PAYOS') {
     selectedCheckoutPaymentMethod = 'VIETQR_PAYOS';
+  } else if (val === 'DEPOSIT') {
+    selectedCheckoutPaymentMethod = 'DEPOSIT';
   } else {
     selectedCheckoutPaymentMethod = (val === 'FULL_TRANSFER') ? 'BANK_TRANSFER' : val;
   }
@@ -3158,7 +3272,12 @@ function renderCheckoutStep3() {
   const summaryEl = document.getElementById('checkoutStep3SummaryBox');
   if (!summaryEl) return;
 
-  const hasPreOrder = cart.some(it => it.isPreOrder);
+  const selectedItems = cart.filter(it => it.selected !== false);
+  const hasPreOrder = selectedItems.some(it => {
+    const prod = (allProducts && allProducts.length ? allProducts : FALLBACK_PRODUCTS).find(p => (p.ProductId || p.id) == it.productId);
+    return it.isPreOrder || (prod && String(prod.Status || prod.status || '').toLowerCase() === 'pre_order');
+  });
+
   const optCod = document.getElementById('payOptCod');
   const optDeposit = document.getElementById('payOptDeposit');
   const optFull = document.getElementById('payOptFull');
@@ -3198,7 +3317,7 @@ function renderCheckoutStep3() {
   } else {
     if (optPayOS) optPayOS.style.display = 'flex';
     if (optFull) optFull.style.display = 'flex';
-    if (optDeposit) optDeposit.style.display = 'flex';
+    if (optDeposit) optDeposit.style.display = 'none';
     if (preNotice) preNotice.style.display = 'none';
 
     if (optCod) {
@@ -3214,10 +3333,10 @@ function renderCheckoutStep3() {
           codRadio.disabled = true;
           if (codRadio.checked) codRadio.checked = false;
         }
-        if (selectedCheckoutPaymentMethod === 'COD') {
-          selectedCheckoutPaymentMethod = 'DEPOSIT';
-          const depRadio = document.querySelector('input[name="checkoutPaymentMethod"][value="DEPOSIT"]');
-          if (depRadio) depRadio.checked = true;
+        if (selectedCheckoutPaymentMethod === 'COD' || selectedCheckoutPaymentMethod === 'DEPOSIT') {
+          selectedCheckoutPaymentMethod = 'VIETQR_PAYOS';
+          const payosRadio = document.querySelector('input[name="checkoutPaymentMethod"][value="VIETQR_PAYOS"]');
+          if (payosRadio) payosRadio.checked = true;
         }
         if (codBadge) {
           codBadge.innerHTML = '<i class="fa-solid fa-lock" style="color:#dc2626;"></i> Khóa: Cần VIP 4 (trên 1.000.000đ)';
@@ -3234,10 +3353,10 @@ function renderCheckoutStep3() {
         optCod.onclick = (e) => {
           e.preventDefault();
           e.stopPropagation();
-          showToast(`🔒 Phương thức Ship COD 100% đang bị khóa để chống bom đơn! Chỉ mở cho thành viên từ VIP 4 trở lên (đã mua & nhận hàng trên 1.000.000đ). Hiện tại: ${vip.label} (${formatVND(deliveredSpent)} / 1.000.000đ). Vui lòng chọn Đặt cọc 30% hoặc Chuyển khoản VietQR MB Bank!`, 'warning', 5000);
-          const depRadio = document.querySelector('input[name="checkoutPaymentMethod"][value="DEPOSIT"]');
-          if (depRadio) depRadio.checked = true;
-          selectedCheckoutPaymentMethod = 'DEPOSIT';
+          showToast(`🔒 Phương thức Ship COD 100% đang bị khóa để chống bom đơn! Chỉ mở cho thành viên từ VIP 4 trở lên (đã mua & nhận hàng trên 1.000.000đ). Hiện tại: ${vip.label} (${formatVND(deliveredSpent)} / 1.000.000đ). Vui lòng chọn Thanh toán PayOS VietQR hoặc Chuyển khoản MB Bank!`, 'warning', 5000);
+          const payosRadio = document.querySelector('input[name="checkoutPaymentMethod"][value="VIETQR_PAYOS"]');
+          if (payosRadio) payosRadio.checked = true;
+          selectedCheckoutPaymentMethod = 'VIETQR_PAYOS';
           return false;
         };
       } else {
@@ -3248,16 +3367,20 @@ function renderCheckoutStep3() {
         optCod.onclick = null;
         if (codRadio) codRadio.disabled = false;
         if (codBadge) {
-          codBadge.innerHTML = '<i class="fa-solid fa-circle-check" style="color:#059669;"></i> Đã Đạt Chuẩn COD';
+          codBadge.innerHTML = '<i class="fa-solid fa-circle-check" style="color:#059669;"></i> Đã Đạt Chuẩn COD VIP 4';
           codBadge.style.background = '#ecfdf5';
           codBadge.style.color = '#059669';
           codBadge.style.borderColor = '#a7f3d0';
         }
         if (codDesc) {
-          codDesc.innerHTML = `Thanh toán toàn bộ tiền hàng cho shipper SPX Express khi nhận và đồng kiểm kiện xe nguyên seal. (Đã tích lũy: <strong style="color:#059669;">${formatVND(deliveredSpent)}</strong> - ${vip.label})`;
+          codDesc.innerHTML = `Thanh toán toàn bộ tiền hàng cho shipper SPX Express khi nhận và đồng kiểm kiện xe nguyên seal (Đặc quyền VIP 4+).`;
         }
         if (codProgressText) {
           codProgressText.innerHTML = `Tài khoản đạt chuẩn VIP 4+ (${vip.label}). Đã mở khóa quyền lợi nhận hàng COD 100%!`;
+        }
+        if (selectedCheckoutPaymentMethod === 'DEPOSIT') {
+          selectedCheckoutPaymentMethod = 'COD';
+          if (codRadio) codRadio.checked = true;
         }
       }
     }
@@ -3293,7 +3416,6 @@ function renderCheckoutStep3() {
     noteText = `<i class="fa-solid fa-money-bill-transfer" style="color:#dc2626;"></i> Quét mã cọc trước <strong>${formatVND(payNowAmount)}</strong>. Số tiền còn lại <strong>${formatVND(remainingCodAmount)}</strong> thanh toán khi nhận xe.`;
   }
 
-  const selectedItems = cart.filter(it => it.selected !== false);
   const itemsPreviewHtml = `
     <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:12px; margin-bottom:12px; text-align:left;">
       <div style="font-size:11.5px; font-weight:800; color:#475569; text-transform:uppercase; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center;">

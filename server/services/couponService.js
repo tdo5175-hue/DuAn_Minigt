@@ -355,7 +355,7 @@ async function deleteCoupon(couponId) {
  * XÁC THỰC VÀ ÁP DỤNG MÃ GIẢM GIÁ
  * Chỉ nhận mã do Admin tạo HOẶC mã đặc quyền VIP theo cấp bậc hội viên!
  */
-async function validateAndApplyCoupon(rawCode, subtotal = 0, user = null) {
+async function validateAndApplyCoupon(rawCode, subtotal = 0, user = null, customerContext = {}) {
   const code = String(rawCode || '').trim().toUpperCase();
   if (!code) {
     return { valid: false, message: 'Vui lòng nhập mã ưu đãi!' };
@@ -371,8 +371,21 @@ async function validateAndApplyCoupon(rawCode, subtotal = 0, user = null) {
       };
     }
 
-    // Tính cấp VIP hiện tại của người dùng dựa trên totalSpent / deliveredSpent
-    const spent = Math.max(0, Number(user.totalSpent || user.deliveredSpent || 0));
+    // Tính cấp VIP hiện tại của người dùng dựa trên totalSpent / deliveredSpent trong bộ nhớ và truy vấn Supabase
+    let spent = Math.max(0, Number(user.totalSpent || user.deliveredSpent || 0));
+    const uid = user.userId || user.id;
+    if (uid) {
+      try {
+        const dbSpentRes = await db.query(`
+          SELECT COALESCE(SUM(Total), 0) AS total_delivered
+          FROM Orders
+          WHERE UserId = @uid AND Status = 'DELIVERED'
+        `, { uid: parseInt(uid, 10) });
+        const dbSpent = Number(dbSpentRes.recordset[0]?.total_delivered || 0);
+        if (dbSpent > spent) spent = dbSpent;
+      } catch (_) {}
+    }
+
     let userLevel = 1;
     if (spent > 5000000) userLevel = 5;
     else if (spent > 1000000) userLevel = 4;
@@ -405,6 +418,8 @@ async function validateAndApplyCoupon(rawCode, subtotal = 0, user = null) {
       discount,
       discountType: 'percent',
       discountValue: vipCfg.discountPercent,
+      maxDiscount: vipCfg.maxDiscount,
+      minOrderAmount: 0,
       description: `${vipCfg.tierName}: Giảm ${vipCfg.discountPercent}% (-${new Intl.NumberFormat('vi-VN').format(discount)}đ)`
     };
   }
@@ -495,6 +510,8 @@ async function validateAndApplyCoupon(rawCode, subtotal = 0, user = null) {
     discount,
     discountType: coupon.discountType,
     discountValue: coupon.discountValue,
+    minOrderAmount: coupon.minOrderAmount,
+    maxDiscount: coupon.maxDiscount,
     description: coupon.description || `Giảm ngay ${new Intl.NumberFormat('vi-VN').format(discount)}đ`
   };
 }
