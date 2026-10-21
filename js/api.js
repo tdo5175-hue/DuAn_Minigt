@@ -40,10 +40,10 @@
       return '';
     }
 
-    // 2. Nếu người dùng chủ động cấu hình port 5000 qua localStorage
-    if (typeof localStorage !== 'undefined' && localStorage.getItem('minigt_connect_port_5000') === 'true') {
-      const host = (global.location && global.location.hostname) ? global.location.hostname : '127.0.0.1';
-      return `http://${host === 'localhost' ? '127.0.0.1' : host}:5000`;
+    // 2. Môi trường cục bộ (Live Server 5500, localhost, 127.0.0.1, file:):
+    // Ưu tiên kết nối trực tiếp tới Server Node.js port 5000 để gửi Gmail OTP thật & đồng bộ Supabase
+    if (isLocalEnvironment()) {
+      return 'http://127.0.0.1:5000';
     }
 
     // 3. Nếu chạy trên Vercel: sử dụng relative API /api (được proxy sang Render & Supabase qua vercel.json)
@@ -52,7 +52,6 @@
     }
 
     // 4. Mặc định kết nối tới Backend Cloud chính thức (Render + Supabase PostgreSQL)
-    // Hoạt động 100% mượt mà cho cả: Live Server (127.0.0.1:5500), file:, máy cá nhân mà KHÔNG bị lỗi ERR_CONNECTION_REFUSED
     return 'https://duan-nhom2.onrender.com';
   };
 
@@ -2910,12 +2909,16 @@
     }
 
     if (!response.ok) {
-      if (endpoint.includes('/api/auth/forgot') || endpoint.includes('/api/auth/reset-password')) {
-        const fallbackResult = handleOfflineFallback(endpoint, { method, body: rawBody });
-        if (fallbackResult) return fallbackResult;
-      }
       const errorMsg = data && (data.message || data.error) ? (data.message || data.error) : `Lỗi máy chủ (${response.status})`;
       throw new ApiError(errorMsg, response.status, data.code || 'API_ERROR', data.details || null);
+    }
+
+    if (data && typeof data === 'object' && endpoint.includes('/api/auth/forgot')) {
+      delete data.otp;
+      delete data.devOtp;
+      if (typeof data.message === 'string' && (data.message.includes('tự động điền') || data.message.includes('Mã OTP khôi phục') || data.message.includes('Mã dự phòng'))) {
+        data.message = `Mã xác thực OTP gồm 6 chữ số đã được gửi trực tiếp tới Gmail (${data.email || ''}). Vui lòng mở Gmail để lấy mã xác nhận!`;
+      }
     }
 
     // Nếu lấy danh sách sản phẩm từ backend, chuẩn hóa luôn Giá Box / Giá Card & % Giảm giá

@@ -8,7 +8,7 @@
    0. UNIVERSAL RESPONSIVE UTILITIES & HARD OVERFLOW GUARD
    --------------------------------------------------------------------- */
 html, body {
-  overflow-x: hidden !important;
+  overflow-x: clip !important;
   max-width: 100vw !important;
   width: 100% !important;
 }

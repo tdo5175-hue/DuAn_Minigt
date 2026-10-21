@@ -1569,12 +1569,22 @@ function setupFilterPills() {
 }
 
 // =====================================================================
-// HERO CAROUSEL CONTROLLER (INTERACTIVE BANNER SLIDER)
+// HERO CAROUSEL CONTROLLER (INTERACTIVE BANNER SLIDER - 10s AUTO-ROTATE)
 // =====================================================================
 let currentHeroSlideIndex = 0;
 let heroSlideTimer = null;
 
-function goToHeroSlide(index) {
+function resetHeroSlideTimer() {
+  if (heroSlideTimer) {
+    clearInterval(heroSlideTimer);
+    heroSlideTimer = null;
+  }
+  heroSlideTimer = setInterval(() => {
+    nextHeroSlide(false);
+  }, 10000); // Tự động chuyển banner sau đúng 10 giây
+}
+
+function goToHeroSlide(index, manual = false) {
   const slides = document.querySelectorAll('.hero-slide');
   const dots = document.querySelectorAll('#heroDotsWrap .hero-dot');
   if (!slides.length) return;
@@ -1591,80 +1601,61 @@ function goToHeroSlide(index) {
     const isAct = idx === currentHeroSlideIndex;
     dot.classList.remove('active');
     if (isAct) {
-      void dot.offsetWidth; // Force reflow to cleanly restart 10s progress bar
+      void dot.offsetWidth; // Force reflow để khởi động lại thanh tiến trình 10s của dot
       dot.classList.add('active');
     }
     dot.setAttribute('aria-current', isAct ? 'true' : 'false');
   });
+
+  resetHeroSlideTimer();
 }
 
-function nextHeroSlide() {
-  goToHeroSlide(currentHeroSlideIndex + 1);
-  if (typeof playHoverBeep === 'function') playHoverBeep(560, 0.03);
+function nextHeroSlide(manual = true) {
+  goToHeroSlide(currentHeroSlideIndex + 1, manual);
+  if (manual && typeof playHoverBeep === 'function') playHoverBeep(560, 0.03);
 }
 
-function prevHeroSlide() {
-  goToHeroSlide(currentHeroSlideIndex - 1);
-  if (typeof playHoverBeep === 'function') playHoverBeep(500, 0.03);
+function prevHeroSlide(manual = true) {
+  goToHeroSlide(currentHeroSlideIndex - 1, manual);
+  if (manual && typeof playHoverBeep === 'function') playHoverBeep(500, 0.03);
 }
 
 function initHeroSlider() {
   const wrap = document.getElementById('heroSliderWrap');
   if (!wrap) return;
 
-  goToHeroSlide(0);
-  const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+  goToHeroSlide(0, false);
+  resetHeroSlideTimer();
 
-  function startAutoplay() {
-    stopAutoplay();
-    if (prefersReducedMotion.matches || document.hidden || wrap.matches(':focus-within')) return;
-    heroSlideTimer = setInterval(() => {
-      nextHeroSlide();
-    }, 10000); // Tự động chuyển slide mượt mà cứ sau 10 giây
-  }
-
-  function stopAutoplay() {
-    if (heroSlideTimer) {
-      clearInterval(heroSlideTimer);
-      heroSlideTimer = null;
-    }
-  }
-
-  wrap.addEventListener('mouseenter', stopAutoplay);
-  wrap.addEventListener('mouseleave', startAutoplay);
-  wrap.addEventListener('focusin', stopAutoplay);
-  wrap.addEventListener('focusout', (event) => {
-    if (!wrap.contains(event.relatedTarget)) startAutoplay();
-  });
   wrap.addEventListener('keydown', (event) => {
     if (event.target.matches('.hero-hotspot') && (event.key === 'Enter' || event.key === ' ')) {
       event.preventDefault();
       event.target.click();
       return;
     }
-    if (event.key === 'ArrowRight') nextHeroSlide();
-    else if (event.key === 'ArrowLeft') prevHeroSlide();
+    if (event.key === 'ArrowRight') nextHeroSlide(true);
+    else if (event.key === 'ArrowLeft') prevHeroSlide(true);
   });
+
   wrap.addEventListener('pointerdown', (event) => {
     if (event.pointerType !== 'touch') return;
     wrap.dataset.touchStartX = String(event.clientX);
-    stopAutoplay();
   }, { passive: true });
+
   wrap.addEventListener('pointerup', (event) => {
     if (event.pointerType !== 'touch') return;
     const deltaX = event.clientX - Number(wrap.dataset.touchStartX);
-    if (Math.abs(deltaX) > 45) deltaX < 0 ? nextHeroSlide() : prevHeroSlide();
+    if (Math.abs(deltaX) > 45) deltaX < 0 ? nextHeroSlide(true) : prevHeroSlide(true);
     delete wrap.dataset.touchStartX;
-    startAutoplay();
   }, { passive: true });
+
   wrap.addEventListener('pointercancel', () => {
     delete wrap.dataset.touchStartX;
-    startAutoplay();
   }, { passive: true });
-  document.addEventListener('visibilitychange', () => document.hidden ? stopAutoplay() : startAutoplay());
-  prefersReducedMotion.addEventListener?.('change', () => prefersReducedMotion.matches ? stopAutoplay() : startAutoplay());
 
-  startAutoplay();
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) resetHeroSlideTimer();
+  });
 }
 
 // =====================================================================
@@ -4706,6 +4697,8 @@ async function handleForgotPassword(e) {
         body: JSON.stringify({ email })
       });
       if (json && json.success) {
+        delete json.otp;
+        delete json.devOtp;
         otpArea.style.display = 'block';
         if (submitText) submitText.textContent = 'XÁC NHẬN ĐẶT LẠI MẬT KHẨU';
 
@@ -4730,7 +4723,12 @@ async function handleForgotPassword(e) {
         if (newPwdInput) {
           newPwdInput.value = '';
         }
-        showToast(json.message || 'Mã xác thực OTP đã được gửi tới Gmail của bạn!', 'success');
+
+        let toastMsg = json.message || '';
+        if (!toastMsg || toastMsg.includes('tự động điền') || toastMsg.includes('Mã OTP khôi phục') || toastMsg.includes('Mã dự phòng')) {
+          toastMsg = `Mã xác thực OTP đã được gửi tới Gmail (${escapeHtml(json.email || email)}). Vui lòng mở Gmail để lấy mã!`;
+        }
+        showToast(toastMsg, 'success');
       } else {
         if (submitText) submitText.textContent = originalText;
         showToast(json?.message || 'Không thể gửi mã OTP, vui lòng kiểm tra lại địa chỉ email!', 'error');
@@ -4822,8 +4820,11 @@ async function resendForgotOtp() {
       body: JSON.stringify({ email })
     });
     if (json && json.success) {
+      delete json.otp;
+      delete json.devOtp;
       if (otpInput) {
         otpInput.value = '';
+        otpInput.placeholder = 'Nhập mã 6 số từ Gmail...';
         otpInput.focus();
       }
       if (otpNoticeText) {
@@ -4839,7 +4840,11 @@ async function resendForgotOtp() {
           </div>
         `;
       }
-      showToast(json.message || 'Mã OTP mới đã được gửi về Gmail của bạn!', 'success');
+      let toastMsg = json.message || '';
+      if (!toastMsg || toastMsg.includes('tự động điền') || toastMsg.includes('Mã OTP khôi phục') || toastMsg.includes('Mã dự phòng')) {
+        toastMsg = `Mã OTP mới đã được gửi tới Gmail (${escapeHtml(json.email || email)}). Vui lòng mở Gmail để lấy mã!`;
+      }
+      showToast(toastMsg, 'success');
     } else {
       showToast(json?.message || 'Không thể gửi lại mã, vui lòng thử lại sau!', 'error');
     }
@@ -5530,33 +5535,89 @@ function openUserProfileModal() {
 
         <!-- Mật khẩu đăng nhập (Liên kết để gộp tài khoản) -->
         <div class="auth-input-group" style="grid-column: 1 / -1; background: #f8fafc; border: 1.5px solid #cbd5e1; border-radius: 12px; padding: 14px 16px; margin: 4px 0;">
-          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; flex-wrap: wrap; gap: 6px;">
-            <label class="auth-label" for="profilePassword" style="font-size: 13px; font-weight: 800; color: #0f172a; margin: 0; display: flex; align-items: center; gap: 6px;">
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; flex-wrap: wrap; gap: 6px;">
+            <label class="auth-label" style="font-size: 13px; font-weight: 800; color: #0f172a; margin: 0; display: flex; align-items: center; gap: 6px;">
               <i class="fa-solid fa-key" style="color: #dc2626;"></i>
-              Mật khẩu đăng nhập (Gộp tài khoản Google &amp; Mật khẩu riêng)
+              Mật khẩu đăng nhập hội viên
             </label>
             ${currentUser.hasPassword ? `
-              <span style="background: #dcfce7; color: #15803d; border: 1px solid #86efac; padding: 2px 10px; border-radius: 12px; font-size: 11.5px; font-weight: 700; display: inline-flex; align-items: center; gap: 4px;">
+              <span style="background: #dcfce7; color: #15803d; border: 1px solid #86efac; padding: 3px 10px; border-radius: 12px; font-size: 11.5px; font-weight: 700; display: inline-flex; align-items: center; gap: 5px;">
                 <i class="fa-solid fa-circle-check"></i> Đã có mật khẩu riêng
               </span>
             ` : `
-              <span style="background: #fef3c7; color: #b45309; border: 1px solid #fde68a; padding: 2px 10px; border-radius: 12px; font-size: 11.5px; font-weight: 800; display: inline-flex; align-items: center; gap: 4px;">
-                <i class="fa-solid fa-shield-halved"></i> Chưa cài mật khẩu riêng (Chỉ đăng nhập bằng Google)
+              <span style="background: #fef3c7; color: #b45309; border: 1px solid #fde68a; padding: 3px 10px; border-radius: 12px; font-size: 11.5px; font-weight: 800; display: inline-flex; align-items: center; gap: 5px;">
+                <i class="fa-solid fa-shield-halved"></i> Chưa cài mật khẩu riêng (Chỉ dùng Google)
               </span>
             `}
           </div>
-          <div style="font-size: 12px; color: #475569; line-height: 1.45; margin-bottom: 10px;">
-            ${currentUser.hasPassword
-              ? 'Tài khoản của bạn có thể đăng nhập bằng cả <strong>Google</strong> lẫn <strong>Email + Mật khẩu</strong>. Nếu muốn đổi mật khẩu, vui lòng nhập mật khẩu mới dưới đây (để trống nếu giữ nguyên):'
-              : '⭐ <strong>Thiết lập mật khẩu tại đây:</strong> Sau khi tạo, bạn có thể vừa đăng nhập nhanh bằng Google, vừa có thể gõ Email và Mật khẩu này để đăng nhập trực tiếp trên mọi thiết bị!'}
-          </div>
-          <div class="auth-input-box" style="border: 1.5px solid #cbd5e1; border-radius: 10px; height: 46px; display: flex; align-items: center; padding: 0 12px; background: #ffffff;">
-            <i class="fa-solid fa-lock" style="color: #94a3b8; font-size: 14px; margin-right: 8px;"></i>
-            <input type="password" id="profilePassword" style="border: none; outline: none; width: 100%; font-size: 13.5px; font-weight: 600; color: #0f172a;" placeholder="${currentUser.hasPassword ? 'Nhập mật khẩu mới nếu muốn đổi (tối thiểu 6 ký tự)...' : 'Tạo mật khẩu hội viên để gộp tài khoản (tối thiểu 6 ký tự)...'}" autocomplete="new-password">
-            <button type="button" onclick="toggleProfilePasswordVisibility()" style="background: transparent; border: none; cursor: pointer; color: #64748b; padding: 4px 6px; font-size: 14px;" title="Hiện/Ẩn mật khẩu">
-              <i class="fa-regular fa-eye" id="toggleProfilePasswordIcon"></i>
-            </button>
-          </div>
+
+          ${currentUser.hasPassword ? `
+            <!-- Thanh hiển thị mật khẩu đã lưu & Nút Đổi mật khẩu -->
+            <div style="display: flex; align-items: center; justify-content: space-between; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 14px; margin-bottom: 8px;">
+              <div style="display: flex; align-items: center; gap: 10px;">
+                <i class="fa-solid fa-lock" style="color: #16a34a; font-size: 16px;"></i>
+                <div>
+                  <div style="font-size: 14px; font-weight: 800; color: #0f172a; letter-spacing: 3px;">••••••••••••</div>
+                  <div style="font-size: 11px; color: #64748b;">Mật khẩu đã được mã hóa an toàn (Dùng để đăng nhập bằng Email / SĐT)</div>
+                </div>
+              </div>
+              <button type="button" id="btnToggleChangePwd" onclick="toggleProfilePasswordEdit()" style="background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 6px; padding: 6px 12px; font-size: 12px; font-weight: 700; color: #1e293b; cursor: pointer; display: flex; align-items: center; gap: 5px; transition: all 0.2s ease;">
+                <i class="fa-solid fa-pen-to-square"></i> Đổi mật khẩu
+              </button>
+            </div>
+
+            <!-- Khung nhập đổi mật khẩu mới (Ẩn mặc định, hiện khi bấm Đổi mật khẩu) -->
+            <div id="profilePasswordChangeArea" style="display: none; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; margin-top: 8px;">
+              <div style="font-size: 12px; font-weight: 700; color: #dc2626; margin-bottom: 8px;">
+                <i class="fa-solid fa-shield-halved"></i> Nhập mật khẩu mới để thay đổi (để trống nếu giữ nguyên):
+              </div>
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                <div>
+                  <label style="font-size: 11.5px; font-weight: 700; color: #475569; display: block; margin-bottom: 4px;">Mật khẩu mới (Tối thiểu 6 ký tự)</label>
+                  <div class="auth-input-box" style="border: 1.5px solid #cbd5e1; border-radius: 8px; height: 42px; display: flex; align-items: center; padding: 0 10px; background: #ffffff;">
+                    <input type="password" id="profileNewPassword" style="border: none; outline: none; width: 100%; font-size: 13px; font-weight: 600; color: #0f172a;" placeholder="Nhập mật khẩu mới..." autocomplete="new-password">
+                    <button type="button" onclick="togglePasswordInput('profileNewPassword', this)" style="background: transparent; border: none; cursor: pointer; color: #64748b; padding: 2px;" title="Xem/Ẩn">
+                      <i class="fa-regular fa-eye"></i>
+                    </button>
+                  </div>
+                </div>
+                <div>
+                  <label style="font-size: 11.5px; font-weight: 700; color: #475569; display: block; margin-bottom: 4px;">Xác nhận mật khẩu mới</label>
+                  <div class="auth-input-box" style="border: 1.5px solid #cbd5e1; border-radius: 8px; height: 42px; display: flex; align-items: center; padding: 0 10px; background: #ffffff;">
+                    <input type="password" id="profileConfirmPassword" style="border: none; outline: none; width: 100%; font-size: 13px; font-weight: 600; color: #0f172a;" placeholder="Gõ lại mật khẩu mới..." autocomplete="new-password">
+                    <button type="button" onclick="togglePasswordInput('profileConfirmPassword', this)" style="background: transparent; border: none; cursor: pointer; color: #64748b; padding: 2px;" title="Xem/Ẩn">
+                      <i class="fa-regular fa-eye"></i>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ` : `
+            <!-- Tài khoản Google chưa cài mật khẩu riêng -->
+            <div style="font-size: 12px; color: #475569; line-height: 1.45; margin-bottom: 10px;">
+              Tài khoản của bạn hiện đang đăng nhập thông qua Google. Hãy tạo mật khẩu riêng bên dưới để có thể đăng nhập trực tiếp bằng <strong>Email/SĐT + Mật khẩu</strong> trên mọi thiết bị:
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+              <div>
+                <label style="font-size: 11.5px; font-weight: 700; color: #475569; display: block; margin-bottom: 4px;">Tạo mật khẩu riêng (Tối thiểu 6 ký tự)</label>
+                <div class="auth-input-box" style="border: 1.5px solid #cbd5e1; border-radius: 8px; height: 42px; display: flex; align-items: center; padding: 0 10px; background: #ffffff;">
+                  <input type="password" id="profileNewPassword" style="border: none; outline: none; width: 100%; font-size: 13px; font-weight: 600; color: #0f172a;" placeholder="Mật khẩu hội viên..." autocomplete="new-password">
+                  <button type="button" onclick="togglePasswordInput('profileNewPassword', this)" style="background: transparent; border: none; cursor: pointer; color: #64748b; padding: 2px;" title="Xem/Ẩn">
+                    <i class="fa-regular fa-eye"></i>
+                  </button>
+                </div>
+              </div>
+              <div>
+                <label style="font-size: 11.5px; font-weight: 700; color: #475569; display: block; margin-bottom: 4px;">Xác nhận lại mật khẩu</label>
+                <div class="auth-input-box" style="border: 1.5px solid #cbd5e1; border-radius: 8px; height: 42px; display: flex; align-items: center; padding: 0 10px; background: #ffffff;">
+                  <input type="password" id="profileConfirmPassword" style="border: none; outline: none; width: 100%; font-size: 13px; font-weight: 600; color: #0f172a;" placeholder="Gõ lại mật khẩu..." autocomplete="new-password">
+                  <button type="button" onclick="togglePasswordInput('profileConfirmPassword', this)" style="background: transparent; border: none; cursor: pointer; color: #64748b; padding: 2px;" title="Xem/Ẩn">
+                    <i class="fa-regular fa-eye"></i>
+                  </button>
+                </div>
+              </div>
+            </div>
+          `}
         </div>
 
         <!-- Chọn loại địa chỉ Mới hoặc Cũ -->
@@ -5660,16 +5721,36 @@ function openUserProfileModal() {
   modal.classList.add('active');
 }
 
-function toggleProfilePasswordVisibility() {
-  const pwd = document.getElementById('profilePassword');
-  const icon = document.getElementById('toggleProfilePasswordIcon');
-  if (!pwd) return;
-  if (pwd.type === 'password') {
-    pwd.type = 'text';
-    if (icon) icon.className = 'fa-regular fa-eye-slash';
+function toggleProfilePasswordEdit() {
+  const area = document.getElementById('profilePasswordChangeArea');
+  const btn = document.getElementById('btnToggleChangePwd');
+  if (!area) return;
+  const isHidden = area.style.display === 'none';
+  area.style.display = isHidden ? 'block' : 'none';
+  if (btn) {
+    btn.innerHTML = isHidden
+      ? '<i class="fa-solid fa-xmark"></i> Hủy đổi mật khẩu'
+      : '<i class="fa-solid fa-pen-to-square"></i> Đổi mật khẩu';
+    btn.style.color = isHidden ? '#dc2626' : '#1e293b';
+  }
+  if (isHidden) {
+    document.getElementById('profileNewPassword')?.focus();
   } else {
-    pwd.type = 'password';
-    if (icon) icon.className = 'fa-regular fa-eye';
+    const p1 = document.getElementById('profileNewPassword');
+    const p2 = document.getElementById('profileConfirmPassword');
+    if (p1) p1.value = '';
+    if (p2) p2.value = '';
+  }
+}
+
+function togglePasswordInput(inputId, btn) {
+  const input = document.getElementById(inputId);
+  if (!input) return;
+  const isPwd = input.type === 'password';
+  input.type = isPwd ? 'text' : 'password';
+  const icon = btn?.querySelector('i');
+  if (icon) {
+    icon.className = isPwd ? 'fa-regular fa-eye-slash' : 'fa-regular fa-eye';
   }
 }
 
@@ -5682,17 +5763,25 @@ async function handleUpdateUserProfile(e) {
   const address = document.getElementById('profileAddress')?.value.trim();
   const city = document.getElementById('profileCity')?.value.trim();
   const deliveryNote = document.getElementById('profileDeliveryNote')?.value.trim();
-  const password = document.getElementById('profilePassword')?.value.trim();
+  const newPassword = document.getElementById('profileNewPassword')?.value.trim();
+  const confirmPassword = document.getElementById('profileConfirmPassword')?.value.trim();
 
   if (!fullName || !phone || !address) {
     showToast('Vui lòng điền đầy đủ Họ tên, Số điện thoại và Địa chỉ nhận hàng!', 'error');
     return;
   }
 
-  if (password && password.length < 6) {
-    showToast('Mật khẩu thiết lập phải có tối thiểu 6 ký tự!', 'error');
-    document.getElementById('profilePassword')?.focus();
-    return;
+  if (newPassword) {
+    if (newPassword.length < 6) {
+      showToast('Mật khẩu mới phải có tối thiểu 6 ký tự!', 'error');
+      document.getElementById('profileNewPassword')?.focus();
+      return;
+    }
+    if (confirmPassword && newPassword !== confirmPassword) {
+      showToast('Mật khẩu xác nhận không khớp! Vui lòng kiểm tra lại.', 'error');
+      document.getElementById('profileConfirmPassword')?.focus();
+      return;
+    }
   }
 
   const btnSave = document.getElementById('btnSaveProfile');
@@ -5711,7 +5800,7 @@ async function handleUpdateUserProfile(e) {
   currentUser.oldAddressNote = oldWardNote;
   if (city) currentUser.city = city;
   if (deliveryNote) currentUser.deliveryNote = deliveryNote;
-  if (password) currentUser.hasPassword = true;
+  if (newPassword) currentUser.hasPassword = true;
 
   try {
     const updateRes = await safeFetch('/api/auth/profile', {
@@ -5727,7 +5816,7 @@ async function handleUpdateUserProfile(e) {
         oldAddressNote: oldWardNote,
         city,
         deliveryNote,
-        password: password || undefined
+        password: newPassword || undefined
       })
     });
 

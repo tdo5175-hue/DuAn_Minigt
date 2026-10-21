@@ -788,6 +788,118 @@
 }
 
 /* =====================================================================
+   DARK MODE ENHANCEMENTS FOR HERO BANNER & TEXT LEGIBILITY
+   ===================================================================== */
+[data-theme="dark"] .hero-lbwk-title,
+[data-theme="dark"] .hero-f1-title,
+[data-theme="dark"] .hero-ao-title,
+body.dark-mode .hero-lbwk-title,
+body.dark-mode .hero-f1-title,
+body.dark-mode .hero-ao-title {
+  color: #ffffff !important;
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.95);
+}
+
+[data-theme="dark"] .hero-lbwk-desc,
+[data-theme="dark"] .hero-f1-desc,
+[data-theme="dark"] .hero-ao-desc,
+body.dark-mode .hero-lbwk-desc,
+body.dark-mode .hero-f1-desc,
+body.dark-mode .hero-ao-desc {
+  color: #e2e8f0 !important;
+  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.9);
+}
+
+[data-theme="dark"] .hero-lbwk-desc strong,
+[data-theme="dark"] .hero-f1-desc strong,
+[data-theme="dark"] .hero-ao-desc strong,
+body.dark-mode .hero-lbwk-desc strong,
+body.dark-mode .hero-f1-desc strong,
+body.dark-mode .hero-ao-desc strong {
+  color: #38bdf8 !important;
+}
+
+[data-theme="dark"] .hero-slide-backdrop-overlay,
+body.dark-mode .hero-slide-backdrop-overlay {
+  background: linear-gradient(90deg, rgba(7, 11, 20, 0.92) 0%, rgba(7, 11, 20, 0.75) 55%, rgba(7, 11, 20, 0.35) 100%) !important;
+}
+
+[data-theme="dark"] .hero-ao-backdrop-overlay,
+body.dark-mode .hero-ao-backdrop-overlay {
+  background: linear-gradient(90deg, rgba(7, 11, 20, 0.94) 0%, rgba(7, 11, 20, 0.78) 55%, rgba(7, 11, 20, 0.4) 100%) !important;
+}
+
+[data-theme="dark"] .hero-pack-pill,
+body.dark-mode .hero-pack-pill {
+  background: rgba(15, 23, 42, 0.88) !important;
+  border-color: #334155 !important;
+  color: #cbd5e1 !important;
+}
+
+[data-theme="dark"] .hero-pack-pill strong,
+body.dark-mode .hero-pack-pill strong {
+  color: #38bdf8 !important;
+}
+
+[data-theme="dark"] .btn-hero-white,
+body.dark-mode .btn-hero-white {
+  background: rgba(15, 23, 42, 0.85) !important;
+  border: 1.5px solid #475569 !important;
+  color: #f8fafc !important;
+  backdrop-filter: blur(8px);
+}
+
+[data-theme="dark"] .btn-hero-white:hover,
+body.dark-mode .btn-hero-white:hover {
+  background: #1e293b !important;
+  border-color: #94a3b8 !important;
+  color: #ffffff !important;
+}
+
+[data-theme="dark"] .hero-lbwk-showcase,
+body.dark-mode .hero-lbwk-showcase {
+  background: rgba(15, 23, 42, 0.82) !important;
+  border: 1px solid rgba(51, 65, 85, 0.6) !important;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.65) !important;
+}
+
+[data-theme="dark"] .hero-car-code-badge,
+body.dark-mode .hero-car-code-badge {
+  background: #0f172a !important;
+  border: 1px solid #334155 !important;
+  color: #f8fafc !important;
+}
+
+[data-theme="dark"] .hero-car-code-badge span,
+body.dark-mode .hero-car-code-badge span {
+  color: #94a3b8 !important;
+}
+
+[data-theme="dark"] .hero-control-btn,
+body.dark-mode .hero-control-btn {
+  background: rgba(15, 23, 42, 0.88) !important;
+  border-color: #334155 !important;
+  color: #f8fafc !important;
+}
+
+[data-theme="dark"] .hero-control-btn:hover,
+body.dark-mode .hero-control-btn:hover {
+  background: #dc2626 !important;
+  border-color: #dc2626 !important;
+  color: #ffffff !important;
+}
+
+[data-theme="dark"] .hero-dot,
+body.dark-mode .hero-dot {
+  background-color: #334155 !important;
+}
+
+[data-theme="dark"] .hero-dot.active,
+body.dark-mode .hero-dot.active {
+  background-color: #475569 !important;
+}
+
+/* =====================================================================
    2. PRE-ORDER LIVE COUNTDOWN STRIP
    ===================================================================== */
 .preorder-strip-container {
