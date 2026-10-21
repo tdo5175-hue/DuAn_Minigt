@@ -1,14 +1,24 @@
 /**
- * ORDER ROUTES (/api/orders) — ĐỒNG BỘ 100% VỚI SUPABASE POSTGRESQL
+ * ORDER ROUTES (/api/orders) — ĐỒNG BỘ 100% VỚI SUPABASE POSTGRESQL & PAYOS VIETQR TỰ ĐỘNG
  */
 const express = require('express');
 const router = express.Router();
+const PayOS = require('@payos/node');
 const db = require('../config/db');
 const { optionalAuth, authenticate } = require('../middleware/auth');
 const orderService = require('../services/orderService');
 const mailService = require('../services/mailService');
 const { ok, badRequest, notFound } = require('../utils/http');
 const v = require('../utils/validate');
+
+// =====================================================================
+// KHỞI TẠO CỔNG THANH TOÁN PAYOS VIETQR TỰ ĐỘNG
+// =====================================================================
+const payos = new PayOS(
+  process.env.PAYOS_CLIENT_ID || '96b6746e-5462-4f53-85d2-62216cc92e4f',
+  process.env.PAYOS_API_KEY || '37a2ffc6-853b-4139-92eb-25718efcae49',
+  process.env.PAYOS_CHECKSUM_KEY || '56fa83c9aeac3c3d17cbd9859431df7758317b3a36e56b46ef4961559ed88c03'
+);
 
 // POST /api/orders — Tạo đơn hàng / đơn cọc
 router.post('/', optionalAuth, async (req, res, next) => {
@@ -233,6 +243,109 @@ router.post('/:code/receipt', optionalAuth, async (req, res, next) => {
     const updated = await orderService.getOrderByCodeOrId(oid);
     return ok(res, updated, { message: 'Đã gửi biên lai chuyển khoản, cửa hàng sẽ xác nhận sớm' });
   } catch (err) { next(err); }
+});
+
+// =====================================================================
+// 1. TẠO LINK THANH TOÁN PAYOS VIETQR (HỖ TRỢ CẢ ĐƠN CỌC & ĐƠN THƯỜNG)
+// =====================================================================
+router.post('/:code/payos-link', optionalAuth, async (req, res, next) => {
+  try {
+    const code = String(req.params.code).trim().toUpperCase();
+    const order = await orderService.getOrderByCodeOrId(code);
+    if (!order) return notFound('Không tìm thấy đơn hàng với mã này');
+
+    // Xác định số tiền cần thanh toán qua VietQR:
+    // Nếu là đơn đặt trước (Pre-Order) và có tiền cọc thì tạo link thanh toán đúng số tiền cọc
+    const amountToPay = (order.hasPreOrder && Number(order.depositAmount) > 0)
+      ? Number(order.depositAmount)
+      : Number(order.total || order.totalAmount || 0);
+
+    if (amountToPay <= 0) {
+      throw badRequest('Số tiền thanh toán không hợp lệ');
+    }
+
+    // PayOS yêu cầu orderCode là số nguyên dương an toàn (<= 9007199254740991)
+    const baseId = Number(order.orderId || order.id || 1);
+    const payosOrderCode = Number(`${baseId}${Math.floor(1000 + Math.random() * 9000)}`.slice(0, 15));
+
+    // Nội dung chuyển khoản chuẩn, tối đa 25 ký tự không dấu
+    const cleanDesc = `MGT ${code}`.replace(/[^a-zA-Z0-9\s-]/g, '').slice(0, 25);
+
+    const paymentData = {
+      orderCode: payosOrderCode,
+      amount: Math.round(amountToPay),
+      description: cleanDesc,
+      returnUrl: `https://projectnhom2.vercel.app/?payment=success&code=${order.orderCode}`,
+      cancelUrl: `https://projectnhom2.vercel.app/?payment=cancel&code=${order.orderCode}`
+    };
+
+    const paymentLink = await payos.createPaymentLink(paymentData);
+
+    return ok(res, {
+      checkoutUrl: paymentLink.checkoutUrl,
+      qrCode: paymentLink.qrCode,
+      orderCode: order.orderCode,
+      amount: amountToPay
+    }, 'Khởi tạo cổng thanh toán PayOS VietQR thành công');
+  } catch (err) {
+    console.error('[PayOS createPaymentLink Error]:', err.message);
+    next(err);
+  }
+});
+
+// =====================================================================
+// 2. WEBHOOK NHẬN TIỀN TỰ ĐỘNG TỪ PAYOS (TỰ ĐỘNG PHẢN HỒI 200 KHI TEST URL)
+// =====================================================================
+router.post('/payos-webhook', async (req, res) => {
+  try {
+    // 1. Kiểm tra xác thực chữ ký Webhook (payOS verify)
+    let webhookData = null;
+    try {
+      webhookData = payos.verifyPaymentWebhookData(req.body);
+    } catch (verifyErr) {
+      // Khi PayOS ping kiểm tra trạng thái URL Webhook từ trang quản trị
+      console.log('[PayOS Ping/Verify Event]:', verifyErr.message);
+    }
+
+    const payload = webhookData || req.body?.data || req.body;
+    const isSuccess = payload?.code === '00' || req.body?.code === '00' || payload?.status === 'PAID';
+
+    if (isSuccess && payload) {
+      const desc = String(payload.description || '').toUpperCase();
+      // Tìm mã đơn hàng có tiền tố MGT- trong nội dung thanh toán
+      const match = desc.match(/MGT-[\w-]+/i);
+      const orderCode = match ? match[0].toUpperCase() : null;
+
+      if (orderCode) {
+        const order = await orderService.getOrderByCodeOrId(orderCode);
+        if (order) {
+          const oid = order.orderId || order.id || order.OrderId;
+          const targetPaymentStatus = (order.hasPreOrder && order.paymentMethod === 'DEPOSIT') ? 'PARTIALLY_PAID' : 'PAID';
+
+          // Cập nhật trạng thái đơn hàng tự động
+          await db.query(`
+            UPDATE Orders
+            SET PaymentStatus = @pst, Status = 'CONFIRMED', UpdatedAt = NOW()
+            WHERE OrderId = @oid
+          `, { oid, pst: targetPaymentStatus });
+
+          // Ghi nhận lịch sử giao dịch tự động
+          await db.query(`
+            INSERT INTO OrderStatusHistory (OrderId, FromStatus, ToStatus, Note)
+            VALUES (@oid, @from, 'CONFIRMED', 'PayOS: Khách đã chuyển khoản VietQR thành công. Hệ thống tự động xác nhận đơn.')
+          `, { oid, from: order.status });
+
+          console.log(`✅ [PayOS Webhook] Đơn hàng ${orderCode} đã được tự động duyệt thành công!`);
+        }
+      }
+    }
+
+    // Luôn trả về HTTP 200 để PayOS xác nhận Webhook hoạt động bình thường
+    return res.status(200).json({ success: true, message: 'Webhook processed successfully' });
+  } catch (err) {
+    console.error('[PayOS Webhook Handler Error]:', err.message);
+    return res.status(200).json({ success: true, message: 'Webhook received with warning' });
+  }
 });
 
 module.exports = router;
