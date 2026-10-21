@@ -433,6 +433,43 @@ async function validateAndApplyCoupon(rawCode, subtotal = 0, user = null) {
     return { valid: false, message: `Mã giảm giá "${code}" đã hết lượt sử dụng theo chương trình khuyến mãi.` };
   }
 
+  // Kiểm tra khách hàng đã từng dùng mã này chưa (Mỗi khách hàng / số điện thoại / tài khoản chỉ áp dụng 1 lần)
+  const uid = user ? (user.userId || user.id) : null;
+  const phone = customerContext?.phone || user?.phone || null;
+  const email = customerContext?.email || user?.email || null;
+
+  if (uid || phone || email) {
+    try {
+      const checkRes = await db.query(`
+        SELECT u.usage_id, u.order_code
+        FROM coupon_usages u
+        LEFT JOIN Orders o ON o.OrderCode = u.order_code
+        WHERE UPPER(u.code) = @code
+          AND (o.Status IS NULL OR o.Status != 'CANCELLED')
+          AND (
+            (@uid::INT IS NOT NULL AND u.user_id = @uid) OR
+            (@phone::TEXT IS NOT NULL AND u.phone = @phone) OR
+            (@email::TEXT IS NOT NULL AND u.email = @email)
+          )
+        LIMIT 1
+      `, {
+        code,
+        uid: uid ? parseInt(uid, 10) : null,
+        phone: phone ? String(phone).trim() : null,
+        email: email ? String(email).trim().toLowerCase() : null
+      });
+
+      if (checkRes.recordset && checkRes.recordset.length > 0) {
+        return {
+          valid: false,
+          message: `Bạn đã sử dụng mã "${code}" cho đơn #${checkRes.recordset[0].order_code || ''}. Mỗi khách hàng chỉ được áp dụng mã này 1 lần duy nhất!`
+        };
+      }
+    } catch (e) {
+      console.warn('[Coupon] Check user usage history warning:', e.message);
+    }
+  }
+
   if (coupon.minOrderAmount > 0 && subtotal < coupon.minOrderAmount) {
     return {
       valid: false,
@@ -462,6 +499,64 @@ async function validateAndApplyCoupon(rawCode, subtotal = 0, user = null) {
   };
 }
 
+async function recordCouponUsage(rawCode, orderId, orderCode, authUser = null, phone = null, email = null) {
+  const code = String(rawCode || '').trim().toUpperCase();
+  if (!code || VIP_TIER_COUPONS[code]) return;
+  try {
+    const coupon = await getCouponByCode(code);
+    const cid = coupon ? coupon.couponId : null;
+    const uid = authUser ? (authUser.userId || authUser.id) : null;
+
+    // 1. Tăng usedCount trong Coupons
+    await db.query(`
+      UPDATE Coupons 
+      SET UsedCount = COALESCE(UsedCount, 0) + 1 
+      WHERE UPPER(Code) = @code
+    `, { code });
+
+    // 2. Ghi nhật ký vào coupon_usages để khóa không cho cùng 1 user/phone/email dùng lại
+    await db.query(`
+      INSERT INTO coupon_usages (coupon_id, code, order_id, order_code, user_id, phone, email)
+      VALUES (@cid, @code, @oid, @ocode, @uid, @phone, @email)
+    `, {
+      cid,
+      code,
+      oid: orderId || null,
+      ocode: orderCode || null,
+      uid: uid || null,
+      phone: phone ? String(phone).trim() : null,
+      email: email ? String(email).trim().toLowerCase() : null
+    });
+
+    const mem = inMemoryCoupons.find(c => c.code.toUpperCase() === code);
+    if (mem) mem.usedCount = (mem.usedCount || 0) + 1;
+  } catch (err) {
+    console.warn('[Coupon] recordCouponUsage error:', err.message);
+  }
+}
+
+async function restoreCouponUsage(orderCode) {
+  if (!orderCode) return;
+  try {
+    const res = await db.query(`
+      SELECT code FROM coupon_usages WHERE order_code = @ocode LIMIT 1
+    `, { ocode: orderCode });
+    if (res.recordset && res.recordset.length > 0) {
+      const code = res.recordset[0].code.toUpperCase();
+      await db.query(`
+        UPDATE Coupons SET UsedCount = GREATEST(0, COALESCE(UsedCount, 0) - 1) WHERE UPPER(Code) = @code
+      `, { code });
+      await db.query(`
+        DELETE FROM coupon_usages WHERE order_code = @ocode
+      `, { ocode: orderCode });
+      const mem = inMemoryCoupons.find(c => c.code.toUpperCase() === code);
+      if (mem && mem.usedCount > 0) mem.usedCount--;
+    }
+  } catch (err) {
+    console.warn('[Coupon] restoreCouponUsage error:', err.message);
+  }
+}
+
 module.exports = {
   VIP_TIER_COUPONS,
   listAdminCoupons,
@@ -469,5 +564,7 @@ module.exports = {
   createCoupon,
   updateCoupon,
   deleteCoupon,
-  validateAndApplyCoupon
+  validateAndApplyCoupon,
+  recordCouponUsage,
+  restoreCouponUsage
 };

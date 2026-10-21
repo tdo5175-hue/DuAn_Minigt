@@ -1376,6 +1376,15 @@
     if (method === 'POST' && endpoint === '/api/orders' && d) {
       const saved = upsertSharedOrder(d);
       addMyOrderCode(saved.code);
+      if (saved.voucherCode || (d && d.voucherCode)) {
+        const vCode = String(saved.voucherCode || d.voucherCode).trim().toUpperCase();
+        const coupons = getSharedCoupons();
+        const found = coupons.find(c => c.code.toUpperCase() === vCode);
+        if (found) {
+          found.usedCount = (found.usedCount || 0) + 1;
+          saveSharedCoupons(coupons);
+        }
+      }
       emitRealtimeSync('ORDER_CREATED', saved);
       return;
     }
@@ -2466,6 +2475,19 @@
       if (c.usageLimit > 0 && c.usedCount >= c.usageLimit) {
         return { success: false, message: `Mã giảm giá "${code}" đã hết lượt sử dụng theo chương trình khuyến mãi.` };
       }
+
+      // Kiểm tra khách hàng đã dùng mã này trước đó chưa (áp dụng cho mã 1 lần hoặc theo sđt/tài khoản)
+      const myOrders = getSharedOrders();
+      const phone = body.phone || user?.phone;
+      const alreadyUsed = myOrders.some(o => 
+        (o.voucherCode === code || (o.note && o.note.includes(code))) && 
+        o.status !== 'CANCELLED' && 
+        ((user && user.id && o.userId === user.id) || (phone && o.phone === phone))
+      );
+      if (alreadyUsed) {
+        return { success: false, message: `Bạn đã sử dụng mã giảm giá "${code}" cho một đơn hàng trước đó. Mỗi khách hàng chỉ được sử dụng 1 lần!` };
+      }
+
       if (c.minOrderAmount > 0 && subtotal < c.minOrderAmount) {
         return { success: false, message: `Đơn hàng chưa đạt giá trị tối thiểu ${new Intl.NumberFormat('vi-VN').format(c.minOrderAmount)}đ để áp dụng mã "${code}".` };
       }

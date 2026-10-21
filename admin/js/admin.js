@@ -125,12 +125,27 @@
   window.getCustomerVipInfo = getCustomerVipInfo;
 
   function adminToast(message, type = 'info', title = null) {
+    if (!message) return;
     let container = document.getElementById('adminToastContainer');
     if (!container) {
       container = document.createElement('div');
       container.id = 'adminToastContainer';
       container.style.cssText = 'position:fixed; top:24px; right:24px; z-index:999999; display:flex; flex-direction:column; gap:10px; pointer-events:none; max-width:420px; width:100%;';
       document.body.appendChild(container);
+    }
+
+    const msgClean = String(message).trim();
+    // Chống lặp toast cùng nội dung đang hiển thị
+    const existing = Array.from(container.querySelectorAll('.admin-toast-text')).map(el => el.textContent.trim());
+    if (existing.includes(msgClean)) return;
+
+    // Giới hạn tối đa 3 toast xếp chồng
+    while (container.children.length >= 3) {
+      if (container.firstElementChild) {
+        container.firstElementChild.remove();
+      } else {
+        break;
+      }
     }
 
     const toast = document.createElement('div');
@@ -169,8 +184,8 @@
         <div style="font-size:11px; font-weight:800; color:${accentColor}; text-transform:uppercase; letter-spacing:0.4px; margin-bottom:2px;">
           ${escapeHtml(finalTitle)}
         </div>
-        <div style="color:#334155; font-weight:600; line-height:1.4; word-break:break-word;">
-          ${escapeHtml(message)}
+        <div class="admin-toast-text" style="color:#334155; font-weight:600; line-height:1.4; word-break:break-word;">
+          ${escapeHtml(msgClean)}
         </div>
       </div>
       <button type="button" aria-label="Đóng" onclick="this.closest('div').remove();" style="border:none; background:transparent; color:#94a3b8; font-size:14px; cursor:pointer; padding:2px; margin-top:-2px;">
@@ -188,7 +203,7 @@
       toast.style.opacity = '0';
       toast.style.transform = 'translateY(-10px) scale(0.96)';
       setTimeout(() => toast.remove(), 260);
-    }, 3500);
+    }, 3800);
   }
 
   // =====================================================================
@@ -4228,15 +4243,31 @@ Anh/chị phản hồi giúp shop để kiện xe được đóng gói gửi đi
       }
     });
 
+    // Set lưu trữ các mã đơn đã biết để chống spam thông báo lặp lại
+    const adminKnownOrderCodes = new Set();
+    if (Array.isArray(cachedOrders)) {
+      cachedOrders.forEach(o => { if (o && o.code) adminKnownOrderCodes.add(o.code); });
+    }
+
     // Lắng nghe tín hiệu Real-time ngay lập tức khi Khách hàng vừa đặt đơn hoặc cập nhật đơn
     window.addEventListener('minigt:realtime', (ev) => {
       const detail = ev && ev.detail;
       if (!detail) return;
       if (detail.type === 'ORDER_CREATED' && detail.payload) {
         const ord = detail.payload;
-        lastKnownOrderCode = ord.code;
-        adminToast(`🔔 ĐƠN HÀNG MỚI #${ord.code} từ ${ord.fullName || (ord.customer && ord.customer.fullName) || 'Khách hàng'} (${formatVND(ord.totalAmount || ord.total || 0)})!`, 'success', 'Có Đơn Hàng Mới!');
-        addAdminNotification(ord, 'ORDER_CREATED');
+        if (ord && ord.code && !adminKnownOrderCodes.has(ord.code)) {
+          adminKnownOrderCodes.add(ord.code);
+          adminToast(`🔔 ĐƠN HÀNG MỚI #${ord.code} từ ${ord.fullName || (ord.customer && ord.customer.fullName) || 'Khách hàng'} (${formatVND(ord.totalAmount || ord.total || 0)})!`, 'success', 'Có Đơn Hàng Mới!');
+          addAdminNotification(ord, 'ORDER_CREATED');
+        }
+        loadDashboard();
+        loadOrders();
+      } else if (detail.type === 'PAYOS_PAID' || detail.type === 'ORDER_PAID') {
+        const p = detail.payload;
+        if (p && p.code) {
+          adminToast(`⚡ Đơn hàng #${p.code} đã thanh toán tự động qua VietQR PayOS (${formatVND(p.amount || p.total || 0)})!`, 'success', 'PayOS Khớp Lệnh Tự Động');
+          addAdminNotification(p, 'PAYOS_PAID');
+        }
         loadDashboard();
         loadOrders();
       } else if (detail.type === 'CUSTOMER_REPORTED_TRANSFER' && detail.payload) {
@@ -4260,20 +4291,27 @@ Anh/chị phản hồi giúp shop để kiện xe được đóng gói gửi đi
       }
     });
 
-    // Tự động đồng bộ ngầm mỗi 5 giây để không bỏ sót bất kỳ đơn hàng nào
+    // Tự động đồng bộ ngầm mỗi 6 giây để không bỏ sót bất kỳ đơn hàng nào (chống lặp thông báo)
     if (adminSyncInterval) clearInterval(adminSyncInterval);
     adminSyncInterval = setInterval(async () => {
       if (!currentAdminUser) return;
       try {
         const res = await api.get('/api/admin/orders', orderFilter);
         if (res.success && Array.isArray(res.data)) {
-          const newest = res.data[0];
-          if (newest && lastKnownOrderCode && newest.code !== lastKnownOrderCode && !cachedOrders.some(o => o.code === newest.code)) {
-            adminToast(`🔔 Nhận đơn hàng mới #${newest.code} - ${newest.fullName || (newest.customer && newest.customer.fullName) || 'Khách hàng'}!`, 'success', 'Có Đơn Hàng Mới!');
-            addAdminNotification(newest, 'ORDER_CREATED');
-            loadDashboard();
+          // Chỉ thông báo cho các đơn hàng MỚI TINH chưa từng có trong tập adminKnownOrderCodes
+          if (adminKnownOrderCodes.size > 0) {
+            res.data.forEach(newest => {
+              if (newest && newest.code && !adminKnownOrderCodes.has(newest.code)) {
+                adminKnownOrderCodes.add(newest.code);
+                adminToast(`🔔 Nhận đơn hàng mới #${newest.code} - ${newest.fullName || (newest.customer && newest.customer.fullName) || 'Khách hàng'}!`, 'success', 'Có Đơn Hàng Mới!');
+                addAdminNotification(newest, 'ORDER_CREATED');
+                loadDashboard();
+              }
+            });
+          } else {
+            res.data.forEach(o => { if (o && o.code) adminKnownOrderCodes.add(o.code); });
           }
-          if (newest) lastKnownOrderCode = newest.code;
+
           cachedOrders = res.data;
           if (activeTab === 'orders') {
             renderOrdersTable(cachedOrders);

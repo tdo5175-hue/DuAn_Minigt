@@ -269,8 +269,8 @@ router.post('/:code/payos-link', optionalAuth, async (req, res, next) => {
     const baseId = Number(order.orderId || order.id || order.OrderId || 1);
     const payosOrderCode = Number(`${baseId}${Math.floor(1000 + Math.random() * 9000)}`.slice(0, 15));
 
-    // Nội dung chuyển khoản chuẩn dạng MGT [MãĐơn], tối đa 25 ký tự không dấu
-    const cleanDesc = `MGT ${code}`.replace(/[^a-zA-Z0-9\s-]/g, '').slice(0, 25);
+    // Nội dung chuyển khoản chuẩn dạng MGT [MãĐơn], tối đa 25 ký tự không dấu (tránh lặp MGT MGT)
+    const cleanDesc = (code.startsWith('MGT') ? code : `MGT ${code}`).replace(/[^a-zA-Z0-9\s-]/g, '').slice(0, 25);
 
     let clientOrigin = 'https://projectnhom2.vercel.app';
     try {

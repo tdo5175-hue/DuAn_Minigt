@@ -21,8 +21,13 @@ router.get('/', async (req, res, next) => {
 // POST /api/coupons/validate — Kiểm tra & áp dụng mã giảm giá khi thanh toán
 router.post('/validate', async (req, res, next) => {
   try {
-    const { code, subtotal, user } = req.body;
-    const result = await couponService.validateAndApplyCoupon(code, Number(subtotal || 0), user || null);
+    const { code, subtotal, user, phone, email } = req.body;
+    const result = await couponService.validateAndApplyCoupon(
+      code,
+      Number(subtotal || 0),
+      user || req.user || null,
+      { phone, email }
+    );
     if (!result.valid) {
       return res.status(400).json({
         success: false,

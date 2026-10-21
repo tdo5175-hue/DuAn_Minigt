@@ -69,16 +69,23 @@
   color: var(--color-white);
 }
 
-/* --- 2. MAIN HEADER --- */
-.main-header {
-  background-color: var(--color-white);
-  border-bottom: 1px solid var(--color-gray-200);
-  padding: 0.75rem 0;
+/* --- 2. MAIN HEADER (STICKY HEADER FOLLOWS SCROLL UP & DOWN) --- */
+.site-header {
   position: sticky;
   top: 0;
-  z-index: 100;
-  box-shadow: var(--shadow-sm);
-  transition: background-color 0.25s ease, backdrop-filter 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+  z-index: 1000;
+  width: 100%;
+}
+
+.main-header {
+  background-color: rgba(255, 255, 255, 0.96);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border-bottom: 1px solid var(--color-gray-200);
+  padding: 0.7rem 0;
+  width: 100%;
+  box-shadow: 0 2px 12px rgba(15, 23, 42, 0.05);
+  transition: all 0.25s ease;
 }
 
 .main-header.scrolled {

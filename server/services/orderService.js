@@ -155,11 +155,14 @@ async function createOrder(payload, authUser = null) {
     if (voucherCode) {
       try {
         const couponService = require('./couponService');
-        const vRes = await couponService.validateAndApplyCoupon(voucherCode, subtotal, authUser);
+        const vRes = await couponService.validateAndApplyCoupon(voucherCode, subtotal, authUser, { phone, email });
         if (vRes && vRes.valid) {
           voucherDiscount = Number(vRes.discount || 0);
+        } else if (vRes && !vRes.valid) {
+          throw badRequest(vRes.message || 'Mã giảm giá không hợp lệ hoặc đã hết lượt sử dụng!');
         }
       } catch (e) {
+        if (e.status === 400 || (e.message && e.message.includes('Mã giảm giá'))) throw e;
         console.warn('[ORDER] Lỗi kiểm tra voucher:', e.message);
       }
     }
@@ -283,6 +286,15 @@ async function createOrder(payload, authUser = null) {
       by: authUser ? authUser.userId : null
     });
 
+    if (voucherCode && voucherDiscount > 0) {
+      try {
+        const couponService = require('./couponService');
+        await couponService.recordCouponUsage(voucherCode, order.OrderId, order.OrderCode, authUser, phone, email);
+      } catch (cErr) {
+        console.warn('[ORDER] recordCouponUsage error:', cErr.message);
+      }
+    }
+
     return mapOrder(order, lineItems);
   });
 
@@ -351,8 +363,12 @@ async function transitionOrderStatus(orderIdOrCode, toStatus, { note, cancelReas
     } else if (target === 'CANCELLED' && (order.PaymentStatus === 'PAID' || order.PaymentStatus === 'PARTIALLY_PAID')) {
       newPayStatus = 'REFUND_PENDING';
     } else if (['CONFIRMED', 'PREPARING', 'SHIPPING'].includes(target) && order.PaymentStatus === 'UNPAID') {
-      if (order.PaymentMethod === 'DEPOSIT') newPayStatus = 'PARTIALLY_PAID';
-      else if (order.PaymentMethod === 'BANK_TRANSFER') newPayStatus = 'PAID';
+      const isPre = Boolean(order.HasPreOrder ?? order.hasPreOrder ?? (order.DepositAmount && Number(order.DepositAmount) > 0));
+      if (order.PaymentMethod === 'DEPOSIT' || (isPre && (order.PaymentMethod === 'VIETQR_PAYOS' || order.PaymentMethod === 'PAYOS'))) {
+        newPayStatus = 'PARTIALLY_PAID';
+      } else if (order.PaymentMethod === 'BANK_TRANSFER' || order.PaymentMethod === 'VIETQR_PAYOS' || order.PaymentMethod === 'PAYOS') {
+        newPayStatus = 'PAID';
+      }
     }
 
     const newReserved = target === 'CANCELLED' ? false : true;
@@ -386,6 +402,15 @@ async function transitionOrderStatus(orderIdOrCode, toStatus, { note, cancelReas
       note: v.cleanStr(cancelReason || note || '', 500) || null,
       by: actorId
     });
+
+    if (target === 'CANCELLED') {
+      try {
+        const couponService = require('./couponService');
+        await couponService.restoreCouponUsage(order.OrderCode);
+      } catch (cErr) {
+        console.warn('[ORDER] restoreCouponUsage error:', cErr.message);
+      }
+    }
 
     return getOrderByCodeOrId(order.OrderId);
   });

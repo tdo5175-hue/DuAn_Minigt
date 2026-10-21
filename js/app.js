@@ -639,7 +639,21 @@ window.getCustomerVipInfo = getCustomerVipInfo;
 
 function showToast(message, type = 'info', title = null) {
   const container = document.getElementById('toastContainer');
-  if (!container) return;
+  if (!container || !message) return;
+
+  const msgClean = String(message).trim();
+  // Tránh lặp lại toast cùng nội dung đang hiển thị
+  const existingMessages = Array.from(container.querySelectorAll('.toast-message')).map(el => el.textContent.trim());
+  if (existingMessages.includes(msgClean)) return;
+
+  // Giới hạn tối đa 2 toast hiển thị cùng lúc để không đè lên nhau
+  while (container.children.length >= 2) {
+    if (container.firstElementChild) {
+      container.firstElementChild.remove();
+    } else {
+      break;
+    }
+  }
 
   const validTypes = ['success', 'error', 'warning', 'info'];
   const t = validTypes.includes(type) ? type : 'info';
@@ -666,7 +680,7 @@ function showToast(message, type = 'info', title = null) {
     <div class="toast-icon-wrap">${iconHtml}</div>
     <div class="toast-body">
       <div class="toast-title">${escapeHtml(finalTitle)}</div>
-      <div class="toast-message">${escapeHtml(message)}</div>
+      <div class="toast-message">${escapeHtml(msgClean)}</div>
     </div>
     <button type="button" class="toast-close-btn" aria-label="Đóng" onclick="const p = this.closest('.toast'); if (p) { p.classList.add('toast-hiding'); setTimeout(() => p.remove(), 260); }">
       <i class="fa-solid fa-xmark"></i>
@@ -2139,7 +2153,10 @@ function renderCartDrawer() {
               ${formatVND(unitPrice)}
               ${pricing.discountPercent > 0 && origPrice > unitPrice ? `<span class="old-p">${formatVND(origPrice)}</span> <span style="font-size:10px; color:#e11d48; font-weight:800;">(-${pricing.discountPercent}%)</span>` : ''}
             </div>
-            <span class="cart-deposit-hint">${isEn ? 'Deposit 30%:' : 'Cọc 30%:'} ${formatVND(it.depositAmount * it.quantity)}</span>
+            ${isPreOrder 
+              ? `<span class="cart-deposit-hint">${isEn ? 'Deposit 30%:' : 'Cọc 30%:'} ${formatVND(it.depositAmount * it.quantity)}</span>`
+              : `<span class="cart-deposit-hint" style="color:#059669; font-weight:700;"><i class="fa-solid fa-circle-check"></i> ${isEn ? 'In Stock (100%)' : 'Sẵn kho 100%'}</span>`
+            }
           </div>
           <div class="cart-item-actions">
             <div class="cart-stepper">
@@ -2158,10 +2175,58 @@ function renderCartDrawer() {
 
   itemsContainer.innerHTML = headerHtml + itemsHtml;
 
+  const hasAnyPreOrder = selectedItems.some(it => {
+    const prod = (allProducts && allProducts.length ? allProducts : FALLBACK_PRODUCTS).find(p => (p.ProductId || p.id) == it.productId);
+    return it.isPreOrder || (prod && String(prod.Status || prod.status || '').toLowerCase() === 'pre_order');
+  });
+
+  const isCodEligible = typeof isCustomerCodEligible === 'function' ? isCustomerCodEligible() : false;
+  const deliveredSpent = typeof getCustomerDeliveredSpent === 'function' ? getCustomerDeliveredSpent() : 0;
+  const isVip4Plus = isCodEligible || deliveredSpent >= 1000000;
+
+  // Cập nhật tiêu đề drawer theo loại hàng (Pre-Order vs Sẵn kho)
+  const drawerTitleEl = document.querySelector('.cart-drawer-title-row h3');
+  if (drawerTitleEl) {
+    drawerTitleEl.textContent = hasAnyPreOrder 
+      ? (isEn ? 'Pre-Order Cart (Deposit)' : 'Giỏ Đặt Cọc Mô Hình (Pre-Order)')
+      : (isEn ? 'Shopping Cart (In Stock)' : 'Giỏ Hàng Mua Sắm (Hàng Có Sẵn)');
+  }
+
   const totalRemaining = Math.max(0, total - totalDeposit);
   if (totalAmountEl) totalAmountEl.textContent = formatVND(total);
   if (depositAmountEl) depositAmountEl.textContent = formatVND(totalDeposit);
   if (remainingAmountEl) remainingAmountEl.textContent = formatVND(totalRemaining);
+
+  const depositRow = document.querySelector('.cart-summary-row.highlight-deposit');
+  const remainingRow = document.querySelector('.cart-summary-row.remaining-row');
+  
+  if (!hasAnyPreOrder) {
+    if (depositRow) {
+      depositRow.style.display = 'flex';
+      depositRow.innerHTML = `
+        <span class="summary-label" style="color:#047857;"><i class="fa-solid fa-money-bill-wave"></i> ${isEn ? 'Payment Mode:' : 'Hình thức:'}</span>
+        <span class="summary-val deposit-val" style="color:#047857; font-size:12px; font-weight:800;">${isVip4Plus ? 'Thanh toán tiền mặt (COD 100%)' : 'Thanh toán đủ 100%'}</span>
+      `;
+    }
+    if (remainingRow) {
+      remainingRow.style.display = 'none';
+    }
+  } else {
+    if (depositRow) {
+      depositRow.style.display = 'flex';
+      depositRow.innerHTML = `
+        <span class="summary-label"><i class="fa-solid fa-shield-halved"></i> ${isEn ? 'Deposit (30%):' : 'Tiền cọc giữ mẫu (30%):'}</span>
+        <span class="summary-val deposit-val" id="cartDepositAmount">${formatVND(totalDeposit)}</span>
+      `;
+    }
+    if (remainingRow) {
+      remainingRow.style.display = 'flex';
+      remainingRow.innerHTML = `
+        <span class="summary-label"><i class="fa-solid fa-hand-holding-dollar"></i> ${isEn ? 'Remaining (70%):' : 'Còn lại khi nhận xe (70%):'}</span>
+        <span class="summary-val" id="cartRemainingAmount">${formatVND(totalRemaining)}</span>
+      `;
+    }
+  }
 
   const checkoutBtn = document.querySelector('.btn-checkout-drawer');
   if (checkoutBtn) {
@@ -2171,10 +2236,14 @@ function renderCartDrawer() {
       checkoutBtn.classList.add('disabled-empty');
       checkoutBtn.style.opacity = '0.6';
       if (span) span.textContent = isEn ? 'No models selected (0đ)' : 'Chưa chọn mẫu xe nào (0đ)';
-    } else {
+    } else if (hasAnyPreOrder) {
       checkoutBtn.classList.remove('disabled-empty');
       checkoutBtn.style.opacity = '1';
       if (span) span.textContent = isEn ? `Proceed to Pre-Order (${formatVND(totalDeposit)})` : `Tiến Hành Đặt Cọc Ngay (${formatVND(totalDeposit)})`;
+    } else {
+      checkoutBtn.classList.remove('disabled-empty');
+      checkoutBtn.style.opacity = '1';
+      if (span) span.textContent = isEn ? `Proceed to Checkout (${formatVND(total)})` : `Tiến Hành Mua Hàng (${formatVND(total)})`;
     }
   }
 }
@@ -3528,7 +3597,7 @@ function renderCheckoutStep4(rawOrder) {
   if (!container) return;
 
   const paymentMethod = (order.paymentMethod || selectedCheckoutPaymentMethod || 'DEPOSIT').toUpperCase();
-  const isPayOS = paymentMethod.includes('PAYOS') || paymentMethod.includes('VIETQR_PAYOS');
+  const isPayOS = paymentMethod.includes('PAYOS') || paymentMethod.includes('VIETQR_PAYOS') || paymentMethod === 'DEPOSIT';
   const isCOD = paymentMethod.includes('COD');
   const isFull = paymentMethod.includes('FULL') || paymentMethod.includes('BANK_TRANSFER');
 
@@ -3658,10 +3727,10 @@ function renderCheckoutStep4(rawOrder) {
             </button>
           </div>
 
-          <div style="display:grid; grid-template-columns: 140px 1fr; gap:14px; align-items:center;">
+          <div style="display:grid; grid-template-columns: minmax(180px, 210px) 1fr; gap:16px; align-items:center;">
             <div style="text-align:center;">
-              <img src="${dynamicQrUrl}" data-mode="dynamic" id="step4QrImg" alt="QR MB Bank" style="width:100%; border-radius:8px; border:1px solid #e2e8f0; box-shadow:0 2px 6px rgba(0,0,0,0.05); padding:2px; background:#fff;" onerror="this.src='${originalQrImg}'">
-              <div style="font-size:10px; color:#64748b; margin-top:4px;">Quét mã VietQR MB</div>
+              <img src="${dynamicQrUrl}" data-mode="dynamic" id="step4QrImg" alt="QR MB Bank" style="width:100%; max-width:210px; border-radius:10px; border:1.5px solid #e2e8f0; box-shadow:0 4px 12px rgba(0,0,0,0.08); padding:4px; background:#fff; margin:0 auto; display:block;" onerror="this.src='${originalQrImg}'">
+              <div style="font-size:11px; color:#64748b; margin-top:5px; font-weight:600;"><i class="fa-solid fa-qrcode"></i> Quét mã VietQR MB</div>
             </div>
 
             <div style="font-size:12px;">
@@ -3739,45 +3808,46 @@ async function initPayosStep4Checkout(orderCode, expectedAmount) {
     if (json && json.success && json.data) {
       const { checkoutUrl, qrCode, amount, accountNumber, accountName, bin } = json.data;
       const transferAmount = Number(amount || expectedAmount || 0);
+      const memoCode = String(orderCode || '').startsWith('MGT') ? String(orderCode) : `MGT ${orderCode}`;
 
       const qrImageSrc = (qrCode && (qrCode.startsWith('http') || qrCode.startsWith('data:image')))
         ? qrCode
-        : `https://img.vietqr.io/image/${bin || '970422'}-${accountNumber || '87654321082007'}-compact2.png?amount=${Math.round(transferAmount)}&addInfo=${encodeURIComponent(`MGT ${orderCode}`)}&accountName=${encodeURIComponent(accountName || 'DO QUOC THINH')}`;
+        : `https://img.vietqr.io/image/${bin || '970422'}-${accountNumber || '87654321082007'}-compact2.png?amount=${Math.round(transferAmount)}&addInfo=${encodeURIComponent(memoCode)}&accountName=${encodeURIComponent(accountName || 'DO QUOC THINH')}`;
 
       container.innerHTML = `
-        <div style="display:grid; grid-template-columns: 160px 1fr; gap:16px; align-items:center; width:100%;">
+        <div style="display:grid; grid-template-columns: minmax(210px, 240px) 1fr; gap:18px; align-items:center; width:100%;">
           <div style="text-align:center;">
-            <img src="${qrImageSrc}" alt="VietQR PayOS" style="width:100%; border-radius:10px; border:1.5px solid #0284c7; box-shadow:0 4px 12px rgba(2,132,199,0.15); padding:4px; background:#fff;">
-            <div style="font-size:11px; color:#64748b; margin-top:5px; font-weight:600;"><i class="fa-solid fa-qrcode"></i> Quét bằng app ngân hàng</div>
+            <img src="${qrImageSrc}" alt="VietQR PayOS" style="width:100%; max-width:240px; border-radius:12px; border:2px solid #0284c7; box-shadow:0 6px 18px rgba(2,132,199,0.2); padding:6px; background:#fff; margin:0 auto; display:block;">
+            <div style="font-size:11.5px; color:#475569; margin-top:6px; font-weight:700;"><i class="fa-solid fa-qrcode" style="color:#0284c7;"></i> Quét bằng app ngân hàng</div>
           </div>
 
           <div style="font-size:12.5px;">
-            <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
+            <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
               <span style="color:#64748b;">Số tiền cần thanh toán:</span>
-              <strong style="color:#dc2626; font-size:15px; font-weight:900;">${formatVND(transferAmount)}</strong>
+              <strong style="color:#dc2626; font-size:16px; font-weight:900;">${formatVND(transferAmount)}</strong>
             </div>
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
               <span style="color:#64748b;">Nội dung chuyển khoản (Memo):</span>
-              <div style="display:flex; align-items:center; gap:4px;">
-                <strong style="color:#0284c7; font-family:var(--font-mono, monospace); font-size:13.5px;">MGT ${escapeHtml(orderCode)}</strong>
-                <button type="button" class="btn-copy-mini" style="background:#0284c7; color:#fff;" onclick="copyToClipboard('MGT ${escapeHtml(orderCode)}', 'Đã copy nội dung!')"><i class="fa-regular fa-copy"></i> Copy</button>
+              <div style="display:flex; align-items:center; gap:6px;">
+                <strong style="color:#0284c7; font-family:var(--font-mono, monospace); font-size:14px; font-weight:900; background:#f0f9ff; padding:2px 8px; border-radius:6px; border:1px solid #bae6fd;">${escapeHtml(memoCode)}</strong>
+                <button type="button" class="btn-copy-mini" style="background:#0284c7; color:#fff;" onclick="copyToClipboard('${escapeHtml(memoCode)}', 'Đã copy nội dung!')"><i class="fa-regular fa-copy"></i> Copy</button>
               </div>
             </div>
-            <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
+            <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
               <span style="color:#64748b;">Chủ tài khoản:</span>
               <strong>${escapeHtml(accountName || 'DO QUOC THINH')}</strong>
             </div>
             <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
               <span style="color:#64748b;">Số tài khoản PayOS:</span>
-              <div style="display:flex; align-items:center; gap:4px;">
-                <strong style="font-family:var(--font-mono, monospace); color:#0f172a;">${escapeHtml(accountNumber || '87654321082007')}</strong>
+              <div style="display:flex; align-items:center; gap:6px;">
+                <strong style="font-family:var(--font-mono, monospace); color:#0f172a; font-size:13.5px;">${escapeHtml(accountNumber || '87654321082007')}</strong>
                 <button type="button" class="btn-copy-mini" onclick="copyToClipboard('${escapeHtml(accountNumber || '87654321082007')}', 'Đã copy STK!')"><i class="fa-regular fa-copy"></i></button>
               </div>
             </div>
 
-            <div style="margin-top:10px; display:flex; gap:8px; flex-wrap:wrap;">
-              <a href="${checkoutUrl}" target="_blank" class="btn btn-sm" style="background:#0284c7; color:#fff; border:none; padding:8px 14px; border-radius:8px; font-weight:800; font-size:12px; text-decoration:none; display:inline-flex; align-items:center; gap:6px; box-shadow:0 4px 12px rgba(2,132,199,0.3);">
-                <i class="fa-solid fa-arrow-up-right-from-square"></i> Mở Trang Thanh Toán PayOS ↗
+            <div style="margin-top:12px; display:flex; gap:8px; flex-wrap:wrap;">
+              <a href="${checkoutUrl}" target="_blank" class="btn btn-sm" style="background:#0284c7; color:#fff; border:none; padding:8px 15px; border-radius:8px; font-weight:800; font-size:12px; text-decoration:none; display:inline-flex; align-items:center; gap:6px; box-shadow:0 4px 12px rgba(2,132,199,0.3);">
+                <i class="fa-solid fa-arrow-up-right-from-square"></i> Mở Cổng Thanh Toán PayOS ↗
               </a>
               <button type="button" class="btn btn-sm btn-outline" style="border-color:#0284c7; color:#0284c7; font-weight:700; font-size:12px; padding:7px 12px;" onclick="copyToClipboard('${checkoutUrl}', 'Đã copy link thanh toán PayOS!')">
                 <i class="fa-regular fa-copy"></i> Copy Link PayOS
@@ -5901,14 +5971,24 @@ function buildUnifiedCustomerOrderCardHTML(ord) {
   const address = ord.Address || ord.customer?.address || '';
   const note = ord.Note || ord.note || '';
 
-  // Tiến trình 5 bước của đơn hàng
+  const wasPreOrder = Boolean(ord.wasPreOrder || ord.hasPreOrder || ord.HasPreOrder);
+  const isStockArrived = Boolean(ord.isStockArrived || ord.preOrderNotified || ord.PreOrderNotified) || (wasPreOrder && ['PREPARING', 'SHIPPING', 'DELIVERED'].includes(ordStatus));
+  const isWaitingPreOrder = wasPreOrder && !isStockArrived;
+
+  // Tiến trình 5 bước của đơn hàng (Tách biệt logic trực quan giữa Hàng có sẵn và Đơn Pre-Order)
   let activeStep = 1;
   if (ordStatus === 'CONFIRMED') activeStep = 2;
   else if (ordStatus === 'PREPARING') activeStep = 3;
   else if (ordStatus === 'SHIPPING' || (trackingCode && ordStatus !== 'DELIVERED')) activeStep = 4;
   else if (ordStatus === 'DELIVERED') activeStep = 5;
 
-  const progressSteps = [
+  const progressSteps = wasPreOrder ? [
+    { step: 1, label: isPartiallyPaid || isPaid ? 'Đã cọc Pre-Order' : 'Đặt cọc xe', icon: 'fa-hand-holding-dollar' },
+    { step: 2, label: isStockArrived ? 'Xe đã về kho' : 'Chờ xe về kho', icon: isStockArrived ? 'fa-warehouse' : 'fa-hourglass-half' },
+    { step: 3, label: 'Bọc xốp hộp', icon: 'fa-box-open' },
+    { step: 4, label: 'Đang giao SPX', icon: 'fa-truck-fast' },
+    { step: 5, label: 'Đã nhận xe', icon: 'fa-circle-check' }
+  ] : [
     { step: 1, label: 'Đặt đơn', icon: 'fa-file-invoice' },
     { step: 2, label: 'Admin đã duyệt', icon: 'fa-user-check' },
     { step: 3, label: 'Bọc xốp hộp', icon: 'fa-box-open' },
@@ -5926,10 +6006,6 @@ function buildUnifiedCustomerOrderCardHTML(ord) {
   } else {
     payStatusBadge = `<span style="font-size:11px; font-weight:700; padding:3px 9px; border-radius:9999px; background:#fef3c7; color:#b45309; border:1px solid #fde68a;"><i class="fa-solid fa-clock" style="margin-right:3px;"></i> ${payMethod === 'DEPOSIT' ? 'Chờ duyệt cọc' : 'Chờ duyệt chuyển khoản'}</span>`;
   }
-
-  const wasPreOrder = Boolean(ord.wasPreOrder || ord.hasPreOrder || ord.HasPreOrder);
-  const isStockArrived = Boolean(ord.isStockArrived || ord.preOrderNotified || ord.PreOrderNotified) || (wasPreOrder && ['PREPARING', 'SHIPPING', 'DELIVERED'].includes(ordStatus));
-  const isWaitingPreOrder = wasPreOrder && !isStockArrived;
 
   let statusBadgeHTML = `<span style="font-size:11px; font-weight:800; padding:3px 10px; border-radius:9999px; background:#fef3c7; color:#b45309;">⏳ Chờ Admin duyệt đơn</span>`;
   if (ordStatus === 'CONFIRMED') {
@@ -6179,14 +6255,17 @@ function buildUnifiedCustomerOrderCardHTML(ord) {
 
       <!-- Khung VietQR thu gọn (bấm để mở) nếu đơn chưa thanh toán chuyển khoản/cọc -->
       ${needsQrTransfer ? `
-        <div id="qrPanel_${escapeHtml(orderCode)}" style="display:none; background:#fffbeb; border:1.5px solid #fde68a; border-radius:10px; padding:12px; margin-bottom:12px;">
-          <div style="display:grid; grid-template-columns:110px 1fr; gap:12px; align-items:center;">
-            <img src="https://img.vietqr.io/image/MB-${encodeURIComponent(bankAcc)}-compact2.png?amount=${Math.round(payMethod === 'DEPOSIT' ? depositAmount : total)}&addInfo=${encodeURIComponent(paymentMemo)}&accountName=${encodeURIComponent(bankOwner)}" alt="VietQR" style="width:100%; border-radius:8px; border:1px solid #e2e8f0; background:#fff; padding:2px;">
-            <div style="font-size:12px; color:#451a03; line-height:1.6;">
+        <div id="qrPanel_${escapeHtml(orderCode)}" style="display:none; background:#fffbeb; border:1.5px solid #fde68a; border-radius:10px; padding:14px; margin-bottom:12px;">
+          <div style="display:grid; grid-template-columns:minmax(170px, 200px) 1fr; gap:16px; align-items:center;">
+            <div style="text-align:center;">
+              <img src="https://img.vietqr.io/image/MB-${encodeURIComponent(bankAcc)}-compact2.png?amount=${Math.round(payMethod === 'DEPOSIT' ? depositAmount : total)}&addInfo=${encodeURIComponent(paymentMemo)}&accountName=${encodeURIComponent(bankOwner)}" alt="VietQR" style="width:100%; max-width:200px; border-radius:10px; border:1.5px solid #e2e8f0; background:#fff; padding:4px; box-shadow:0 3px 10px rgba(0,0,0,0.06); display:block; margin:0 auto;">
+              <div style="font-size:11px; color:#92400e; margin-top:4px; font-weight:700;"><i class="fa-solid fa-qrcode"></i> Quét mã VietQR</div>
+            </div>
+            <div style="font-size:12.5px; color:#451a03; line-height:1.65;">
               <div>Ngân hàng: <strong>${escapeHtml(bankName)}</strong> • Chủ TK: <strong>${escapeHtml(bankOwner)}</strong></div>
-              <div>STK: <strong style="color:#dc2626; font-family:monospace;">${escapeHtml(bankAcc)}</strong> <button type="button" class="btn-copy-mini" onclick="copyToClipboard('${escapeHtml(bankAcc)}', 'Đã sao chép STK!')"><i class="fa-regular fa-copy"></i></button></div>
-              <div>Số tiền chuyển: <strong style="color:#dc2626;">${formatVND(payMethod === 'DEPOSIT' ? depositAmount : total)}</strong></div>
-              <div>Nội dung CK: <strong style="color:#1d4ed8; font-family:monospace;">${escapeHtml(paymentMemo)}</strong> <button type="button" class="btn-copy-mini" onclick="copyToClipboard('${escapeHtml(paymentMemo)}', 'Đã sao chép nội dung CK!')"><i class="fa-regular fa-copy"></i></button></div>
+              <div>STK: <strong style="color:#dc2626; font-family:monospace; font-size:13.5px;">${escapeHtml(bankAcc)}</strong> <button type="button" class="btn-copy-mini" onclick="copyToClipboard('${escapeHtml(bankAcc)}', 'Đã sao chép STK!')"><i class="fa-regular fa-copy"></i></button></div>
+              <div>Số tiền cần chuyển: <strong style="color:#dc2626; font-size:14px; font-weight:900;">${formatVND(payMethod === 'DEPOSIT' ? depositAmount : total)}</strong></div>
+              <div>Nội dung CK: <strong style="color:#1d4ed8; font-family:monospace; font-size:13.5px; background:#eff6ff; padding:2px 6px; border-radius:4px;">${escapeHtml(paymentMemo)}</strong> <button type="button" class="btn-copy-mini" style="background:#2563eb; color:#fff;" onclick="copyToClipboard('${escapeHtml(paymentMemo)}', 'Đã sao chép nội dung CK!')"><i class="fa-regular fa-copy"></i> Copy</button></div>
             </div>
           </div>
         </div>
@@ -6562,6 +6641,15 @@ function renderTrackingResults(orders) {
 // HỆ THỐNG ĐỒNG BỘ REAL-TIME CHO KHÁCH HÀNG KHI ADMIN DUYỆT ĐƠN / LƯU MÃ SPX
 // =====================================================================
 function showCustomerOrderRealtimeBanner(orderCode, status, trackingCode, cancelReason, extraInfo = {}) {
+  if (!orderCode) return;
+
+  // Chống lặp thông báo: Mỗi thay đổi trạng thái chỉ hiển thị thông báo 1 lần duy nhất
+  const alertKey = `minigt_seen_alert_${orderCode}_${status}_${trackingCode || ''}_${extraInfo.isStockArrived ? 'arrived' : ''}`;
+  try {
+    if (sessionStorage.getItem(alertKey)) return;
+    sessionStorage.setItem(alertKey, '1');
+  } catch (_) {}
+
   const existing = document.getElementById('customerRealtimeOrderAlert');
   if (existing) existing.remove();
 
@@ -6607,7 +6695,6 @@ function showCustomerOrderRealtimeBanner(orderCode, status, trackingCode, cancel
   if (isDelivered) {
     // 1. MÀN HÌNH CẢM ƠN & GIAO HÀNG THÀNH CÔNG (NỀN TRẮNG SANG TRỌNG, HIỆU ỨNG CONFETTI)
     if (typeof launchCollectorConfetti === 'function') launchCollectorConfetti();
-    showToast(`🎉 Cảm ơn quý khách! Đơn hàng #${escapeHtml(orderCode)} đã được giao thành công!`, 'success', 'Giao Hàng Thành Công');
 
     banner.style.cssText = 'position:fixed; top:82px; right:20px; z-index:999999; max-width:440px; background:#ffffff; color:#0f172a; border:2px solid #10b981; border-radius:16px; padding:16px; box-shadow:0 20px 45px -8px rgba(16,185,129,0.28), 0 4px 14px rgba(15,23,42,0.06); animation:toast-spring-in 0.4s cubic-bezier(0.16, 1.25, 0.35, 1) forwards; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;';
     banner.innerHTML = `
@@ -6834,12 +6921,14 @@ function initCustomerRealtimeOrderWatcher() {
     if (codes.length === 0 && !currentToken) return;
     try {
       const prevSnap = { ...customerOrderStateSnapshot };
+      const isFirstRun = Object.keys(prevSnap).length === 0;
       const orders = await fetchCustomerOrdersUnified();
       if (!Array.isArray(orders)) return;
       myOrdersCache = orders;
 
       orders.forEach(o => {
         const c = o.OrderCode || o.orderCode || o.code;
+        if (!c) return;
         const st = String(o.Status || o.status || 'PENDING').toUpperCase();
         const tk = String(o.TrackingCode || o.trackingCode || '').trim();
         const old = prevSnap[c];
@@ -6848,7 +6937,7 @@ function initCustomerRealtimeOrderWatcher() {
         const wasPre = Boolean(o.wasPreOrder || o.hasPreOrder);
         const newlyArrived = wasPre && isNotified && !old?.isStockArrived;
 
-        if (old) {
+        if (old && !isFirstRun) {
           const newlyDelivered = st === 'DELIVERED' && old.status !== 'DELIVERED';
           const newlyApproved = ['CONFIRMED', 'PREPARING', 'SHIPPING'].includes(st) && old.status === 'PENDING';
           const newlyTracked = Boolean(tk) && tk !== old.tracking;
