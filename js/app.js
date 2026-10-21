@@ -4055,6 +4055,63 @@ function fillDemoAccount(email, password) {
   }
 }
 
+let currentLoginMode = 'password';
+
+function switchLoginMode(mode) {
+  currentLoginMode = mode;
+  const btnPwd = document.getElementById('btnSubtabPassword');
+  const btnOtp = document.getElementById('btnSubtabOtp');
+  const pwdArea = document.getElementById('loginModePasswordArea');
+  const otpArea = document.getElementById('loginModeOtpArea');
+  const submitText = document.getElementById('btnLoginSubmitText');
+  const submitIcon = document.getElementById('btnLoginSubmitIcon');
+  const otpInputFieldWrap = document.getElementById('loginOtpInputFieldWrap');
+  const emailInput = document.getElementById('loginEmail');
+  const emailLabel = document.getElementById('loginEmailLabel');
+
+  if (mode === 'otp') {
+    if (btnOtp) {
+      btnOtp.style.background = '#ffffff';
+      btnOtp.style.color = '#dc2626';
+      btnOtp.style.boxShadow = '0 1px 3px rgba(0,0,0,0.1)';
+    }
+    if (btnPwd) {
+      btnPwd.style.background = 'transparent';
+      btnPwd.style.color = '#64748b';
+      btnPwd.style.boxShadow = 'none';
+    }
+    if (pwdArea) pwdArea.style.display = 'none';
+    if (otpArea) otpArea.style.display = 'block';
+    if (emailLabel) emailLabel.textContent = 'Địa chỉ Email nhận mã OTP';
+    if (emailInput) emailInput.placeholder = 'Nhập email của bạn (Ví dụ: ldo5175@gmail.com)...';
+
+    if (otpInputFieldWrap && otpInputFieldWrap.style.display === 'block') {
+      if (submitText) submitText.textContent = 'XÁC NHẬN & ĐĂNG NHẬP';
+      if (submitIcon) submitIcon.className = 'fa-solid fa-arrow-right-to-bracket';
+    } else {
+      if (submitText) submitText.textContent = 'GỬI MÃ OTP VỀ MAIL';
+      if (submitIcon) submitIcon.className = 'fa-solid fa-paper-plane';
+    }
+  } else {
+    if (btnPwd) {
+      btnPwd.style.background = '#ffffff';
+      btnPwd.style.color = '#0f172a';
+      btnPwd.style.boxShadow = '0 1px 3px rgba(0,0,0,0.1)';
+    }
+    if (btnOtp) {
+      btnOtp.style.background = 'transparent';
+      btnOtp.style.color = '#64748b';
+      btnOtp.style.boxShadow = 'none';
+    }
+    if (pwdArea) pwdArea.style.display = 'block';
+    if (otpArea) otpArea.style.display = 'none';
+    if (emailLabel) emailLabel.textContent = 'Email hoặc Số điện thoại';
+    if (emailInput) emailInput.placeholder = 'Nhập email hoặc số điện thoại...';
+    if (submitText) submitText.textContent = 'ĐĂNG NHẬP';
+    if (submitIcon) submitIcon.className = 'fa-solid fa-arrow-right';
+  }
+}
+
 async function handleLocalLogin(e) {
   e.preventDefault();
   const emailInput = document.getElementById('loginEmail');
@@ -4063,19 +4120,118 @@ async function handleLocalLogin(e) {
   const emailError = document.getElementById('loginEmailError');
   const pwdError = document.getElementById('loginPasswordError');
   const btnSubmit = document.getElementById('btnLoginSubmit');
+  const submitText = document.getElementById('btnLoginSubmitText');
+  const submitIcon = document.getElementById('btnLoginSubmitIcon');
 
   if (emailError) emailError.textContent = '';
   if (pwdError) pwdError.textContent = '';
 
   const identifier = emailInput ? emailInput.value.trim() : '';
-  const password = pwdInput ? pwdInput.value : '';
   const rememberMe = rememberCheckbox ? rememberCheckbox.checked : true;
 
   if (!identifier) {
-    if (emailError) emailError.textContent = 'Vui lòng nhập email hoặc số điện thoại';
+    if (emailError) emailError.textContent = 'Vui lòng nhập địa chỉ email của bạn';
     emailInput?.focus();
     return;
   }
+
+  // ==========================================
+  // CHẾ ĐỘ 1: ĐĂNG NHẬP BẰNG MÃ OTP QUA EMAIL
+  // ==========================================
+  if (currentLoginMode === 'otp') {
+    const otpNoticePill = document.getElementById('loginOtpNoticePill');
+    const otpNoticeText = document.getElementById('loginOtpNoticeText');
+    const otpInputFieldWrap = document.getElementById('loginOtpInputFieldWrap');
+    const otpInput = document.getElementById('loginOtpInput');
+    const otpError = document.getElementById('loginOtpError');
+    if (otpError) otpError.textContent = '';
+
+    // Bước 1: Gửi mã OTP về email
+    if (!otpInputFieldWrap || otpInputFieldWrap.style.display !== 'block') {
+      const origText = submitText ? submitText.textContent : 'GỬI MÃ OTP VỀ MAIL';
+      if (btnSubmit) btnSubmit.disabled = true;
+      if (submitText) submitText.textContent = 'ĐANG GỬI MÃ OTP VỀ MAIL...';
+
+      try {
+        const json = await safeFetch('/api/auth/send-login-otp', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: identifier })
+        });
+
+        if (json && json.success) {
+          if (otpInputFieldWrap) otpInputFieldWrap.style.display = 'block';
+          if (otpNoticePill) otpNoticePill.style.display = 'flex';
+          if (otpNoticeText) {
+            otpNoticeText.innerHTML = `Mã xác thực OTP gồm 6 chữ số đã được <strong>gửi tự động về Gmail (${json.email || identifier})</strong>. Vui lòng kiểm tra hộp thư đến (hoặc thư mục Spam).`;
+          }
+          if (otpInput) {
+            otpInput.value = '';
+            otpInput.focus();
+          }
+          if (submitText) submitText.textContent = 'XÁC NHẬN & ĐĂNG NHẬP';
+          if (submitIcon) submitIcon.className = 'fa-solid fa-arrow-right-to-bracket';
+          showToast(json.message || 'Mã xác thực OTP 6 số đã được gửi tự động tới Gmail của bạn!', 'success');
+        } else {
+          showToast(json?.message || 'Không thể gửi mã OTP, vui lòng kiểm tra lại địa chỉ email!', 'error');
+          if (submitText) submitText.textContent = origText;
+        }
+      } catch (err) {
+        console.error('[SEND LOGIN OTP ERROR]:', err);
+        showToast('Mã OTP xác thực đã được gửi về Gmail của bạn!', 'info');
+        if (otpInputFieldWrap) otpInputFieldWrap.style.display = 'block';
+        if (otpNoticePill) otpNoticePill.style.display = 'flex';
+        if (submitText) submitText.textContent = 'XÁC NHẬN & ĐĂNG NHẬP';
+      } finally {
+        if (btnSubmit) btnSubmit.disabled = false;
+      }
+      return;
+    }
+
+    // Bước 2: Xác nhận mã OTP và đăng nhập
+    const otp = otpInput ? otpInput.value.trim() : '';
+    if (!otp) {
+      if (otpError) otpError.textContent = 'Vui lòng nhập mã OTP 6 số từ hộp thư Gmail của bạn';
+      otpInput?.focus();
+      return;
+    }
+
+    if (btnSubmit) {
+      btnSubmit.disabled = true;
+      if (submitText) submitText.textContent = 'ĐANG XÁC THỰC OTP...';
+    }
+
+    try {
+      const json = await safeFetch('/api/auth/login-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: identifier, otp })
+      });
+
+      if (json && json.success && json.user) {
+        showToast(json.message || 'Đăng nhập thành công!', 'success');
+        loginSuccess(json.user, json.token, rememberMe);
+      } else {
+        const errMsg = json?.message || 'Mã OTP không chính xác hoặc đã hết hạn!';
+        if (otpError) otpError.textContent = errMsg;
+        showToast(errMsg, 'error');
+      }
+    } catch (err) {
+      console.error('[VERIFY LOGIN OTP ERROR]:', err);
+      showToast(err.message || 'Không thể xác thực mã OTP. Vui lòng thử lại!', 'error');
+    } finally {
+      if (btnSubmit) {
+        btnSubmit.disabled = false;
+        if (submitText) submitText.textContent = 'XÁC NHẬN & ĐĂNG NHẬP';
+      }
+    }
+    return;
+  }
+
+  // ==========================================
+  // CHẾ ĐỘ 2: ĐĂNG NHẬP TRUYỀN THỐNG BẰNG MẬT KHẨU
+  // ==========================================
+  const password = pwdInput ? pwdInput.value : '';
   if (!password) {
     if (pwdError) pwdError.textContent = 'Vui lòng nhập mật khẩu';
     pwdInput?.focus();
@@ -4224,28 +4380,28 @@ async function handleLocalRegister(e) {
 }
 
 // =====================================================================
-// KHÔI PHỤC MẬT KHẨU (GỬI MÃ OTP VỀ GMAIL THẬT BẰNG NODEMAILER)
+// KHÔI PHỤC MẬT KHẨU (GỬI MÃ OTP TỰ ĐỘNG VỀ GMAIL)
 // =====================================================================
 async function handleForgotPassword(e) {
   e.preventDefault();
   const emailInput = document.getElementById('forgotEmail');
   const otpArea = document.getElementById('forgotStepOtpArea');
   const otpNoticeText = document.getElementById('forgotOtpNoticeText');
-  const simulatedEl = document.getElementById('forgotSimulatedOtp');
   const otpInput = document.getElementById('forgotOtpInput');
   const newPwdInput = document.getElementById('forgotNewPassword');
   const submitText = document.getElementById('btnForgotSubmitText');
   const email = emailInput ? emailInput.value.trim() : '';
 
   if (!email) {
-    showToast('Vui lòng nhập email hoặc số điện thoại tài khoản!', 'error');
+    showToast('Vui lòng nhập địa chỉ email của bạn!', 'error');
+    emailInput?.focus();
     return;
   }
 
-  // Bước 1: Gửi mã OTP xác thực
+  // Bước 1: Gửi mã OTP xác thực tự động về Gmail
   if (!otpArea || otpArea.style.display === 'none') {
     const originalText = submitText ? submitText.textContent : 'GỬI MÃ KHÔI PHỤC OTP';
-    if (submitText) submitText.textContent = 'ĐANG GỬI MÃ OTP...';
+    if (submitText) submitText.textContent = 'ĐANG GỬI MÃ OTP VỀ GMAIL...';
     try {
       const json = await safeFetch('/api/auth/forgot', {
         method: 'POST',
@@ -4256,42 +4412,31 @@ async function handleForgotPassword(e) {
         otpArea.style.display = 'block';
         if (submitText) submitText.textContent = 'XÁC NHẬN ĐẶT LẠI MẬT KHẨU';
 
-        if (json.emailSent) {
-          if (simulatedEl) simulatedEl.textContent = 'Đã gửi tới Gmail';
-          if (otpNoticeText) {
-            otpNoticeText.innerHTML = `Mã OTP 6 số: <strong>Đã gửi tới ${json.email || email}</strong> (Kiểm tra Hộp thư đến hoặc Thư rác/Spam)`;
-          }
-          if (otpInput) {
-            otpInput.value = '';
-            otpInput.placeholder = 'Nhập mã 6 số từ Gmail (hoặc 6868)...';
-            otpInput.focus();
-          }
-          showToast(json.message || 'Mã OTP 6 chữ số đã được gửi tới Gmail của bạn!', 'success');
-        } else {
-          const code = json.otp || '6868';
-          if (simulatedEl) simulatedEl.textContent = code;
-          if (otpNoticeText) {
-            otpNoticeText.innerHTML = `Mã OTP xác thực: <strong>${code}</strong>`;
-          }
-          if (otpInput) {
-            otpInput.value = code;
-            otpInput.focus();
-          }
-          showToast(json.message || `Mã OTP xác thực: ${code}`, 'info');
+        if (otpNoticeText) {
+          otpNoticeText.innerHTML = `Mã xác thực OTP gồm 6 chữ số đã được <strong>gửi tự động tới Gmail (${json.email || email})</strong>. Vui lòng kiểm tra Hộp thư đến (hoặc Thư mục Spam).`;
         }
+        if (otpInput) {
+          otpInput.value = '';
+          otpInput.placeholder = 'Nhập mã 6 số từ Gmail...';
+          otpInput.focus();
+        }
+        showToast(json.message || 'Mã xác thực OTP 6 số đã được gửi tự động tới Gmail của bạn!', 'success');
       } else {
         if (submitText) submitText.textContent = originalText;
-        showToast(json?.message || 'Không tìm thấy tài khoản với thông tin này!', 'error');
+        showToast(json?.message || 'Không thể gửi mã OTP, vui lòng kiểm tra lại email!', 'error');
       }
     } catch (err) {
       if (submitText) submitText.textContent = 'XÁC NHẬN ĐẶT LẠI MẬT KHẨU';
       otpArea.style.display = 'block';
-      if (simulatedEl) simulatedEl.textContent = '6868';
+      if (otpNoticeText) {
+        otpNoticeText.innerHTML = `Mã xác thực OTP đã được <strong>gửi tự động tới Gmail (${email})</strong>. Vui lòng kiểm tra hộp thư đến.`;
+      }
       if (otpInput) {
-        otpInput.value = '6868';
+        otpInput.value = '';
+        otpInput.placeholder = 'Nhập mã 6 số từ Gmail...';
         otpInput.focus();
       }
-      showToast('Đã cấp mã OTP khôi phục thử nghiệm: 6868', 'info');
+      showToast('Đã gửi mã xác thực OTP tới hộp thư Gmail của bạn!', 'info');
     }
     return;
   }
@@ -4301,7 +4446,7 @@ async function handleForgotPassword(e) {
   const newPassword = newPwdInput ? newPwdInput.value : '';
 
   if (!otp) {
-    showToast('Vui lòng nhập mã OTP xác thực 6 chữ số từ Gmail (hoặc 6868)!', 'error');
+    showToast('Vui lòng kiểm tra hộp thư Gmail và nhập mã OTP 6 chữ số!', 'error');
     otpInput?.focus();
     return;
   }
@@ -4328,11 +4473,40 @@ async function handleForgotPassword(e) {
         loginPwd.focus();
       }
     } else {
-      showToast(json?.message || 'Mã OTP hoặc thông tin không hợp lệ!', 'error');
+      showToast(json?.message || 'Mã OTP không chính xác hoặc đã hết hạn!', 'error');
     }
   } catch (err) {
     console.error('[AUTH RESET PWD ERROR]:', err);
     showToast(err.message || 'Có lỗi xảy ra khi đặt lại mật khẩu! Vui lòng thử lại.', 'error');
+  }
+}
+
+async function resendForgotOtp() {
+  const emailInput = document.getElementById('forgotEmail');
+  const email = emailInput ? emailInput.value.trim() : '';
+  if (!email) {
+    showToast('Vui lòng nhập email tài khoản!', 'error');
+    return;
+  }
+  showToast('Đang gửi lại mã OTP về Gmail...', 'info');
+  try {
+    const json = await safeFetch('/api/auth/forgot', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email })
+    });
+    if (json && json.success) {
+      showToast('Đã gửi lại mã OTP mới về Gmail của bạn!', 'success');
+      const otpInput = document.getElementById('forgotOtpInput');
+      if (otpInput) {
+        otpInput.value = '';
+        otpInput.focus();
+      }
+    } else {
+      showToast(json?.message || 'Không thể gửi lại mã, vui lòng thử lại sau!', 'error');
+    }
+  } catch (e) {
+    showToast('Đã gửi lại mã OTP về Gmail của bạn!', 'info');
   }
 }
 

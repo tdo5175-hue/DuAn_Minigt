@@ -1358,8 +1358,19 @@
 
           <!-- 1. FORM ĐĂNG NHẬP -->
           <form id="authFormLogin" class="auth-form-clean" onsubmit="handleLocalLogin(event)">
+            <!-- Switch mode between Password and Email OTP -->
+            <div class="login-mode-tabs" style="display: flex; gap: 8px; margin-bottom: 14px; background: #f1f5f9; padding: 4px; border-radius: 8px;">
+              <button type="button" class="login-subtab-btn active" id="btnSubtabPassword" onclick="switchLoginMode('password')" style="flex: 1; padding: 7px 10px; font-size: 13px; font-weight: 700; border: none; border-radius: 6px; background: #ffffff; color: #0f172a; cursor: pointer; box-shadow: 0 1px 3px rgba(0,0,0,0.1); transition: all 0.2s;">
+                <i class="fa-solid fa-lock" style="margin-right: 5px;"></i> Mật khẩu
+              </button>
+              <button type="button" class="login-subtab-btn" id="btnSubtabOtp" onclick="switchLoginMode('otp')" style="flex: 1; padding: 7px 10px; font-size: 13px; font-weight: 700; border: none; border-radius: 6px; background: transparent; color: #64748b; cursor: pointer; transition: all 0.2s;">
+                <i class="fa-solid fa-envelope" style="margin-right: 5px;"></i> Mã OTP qua Mail
+              </button>
+            </div>
+
+            <!-- Email / Phone field (used for both modes) -->
             <div class="form-field">
-              <label class="form-field-label" for="loginEmail">Email hoặc Số điện thoại</label>
+              <label class="form-field-label" for="loginEmail" id="loginEmailLabel">Email hoặc Số điện thoại</label>
               <div class="form-input-wrap">
                 <i class="fa-regular fa-envelope field-icon"></i>
                 <input type="text" id="loginEmail" class="form-field-input" placeholder="Nhập email hoặc số điện thoại..." required autocomplete="username">
@@ -1367,31 +1378,51 @@
               <div class="field-error-text" id="loginEmailError"></div>
             </div>
 
-            <div class="form-field">
-              <div class="field-label-row">
-                <label class="form-field-label" for="loginPassword">Mật khẩu</label>
-                <a href="javascript:void(0)" class="forgot-pass-btn" onclick="switchAuthTab('forgot')">Quên mật khẩu?</a>
+            <!-- Mode 1: Password Fields -->
+            <div id="loginModePasswordArea">
+              <div class="form-field">
+                <div class="field-label-row">
+                  <label class="form-field-label" for="loginPassword">Mật khẩu</label>
+                  <a href="javascript:void(0)" class="forgot-pass-btn" onclick="switchAuthTab('forgot')">Quên mật khẩu?</a>
+                </div>
+                <div class="form-input-wrap">
+                  <i class="fa-solid fa-lock field-icon"></i>
+                  <input type="password" id="loginPassword" class="form-field-input" placeholder="Nhập mật khẩu..." autocomplete="current-password">
+                  <button type="button" class="pwd-toggle-btn" onclick="toggleAuthPasswordVisibility('loginPassword', this)" aria-label="Xem mật khẩu">
+                    <i class="fa-regular fa-eye"></i>
+                  </button>
+                </div>
+                <div class="field-error-text" id="loginPasswordError"></div>
               </div>
-              <div class="form-input-wrap">
-                <i class="fa-solid fa-lock field-icon"></i>
-                <input type="password" id="loginPassword" class="form-field-input" placeholder="Nhập mật khẩu..." required autocomplete="current-password">
-                <button type="button" class="pwd-toggle-btn" onclick="toggleAuthPasswordVisibility('loginPassword', this)" aria-label="Xem mật khẩu">
-                  <i class="fa-regular fa-eye"></i>
-                </button>
+
+              <div class="form-meta-row">
+                <label class="clean-checkbox">
+                  <input type="checkbox" id="loginRemember" checked>
+                  <span>Ghi nhớ đăng nhập</span>
+                </label>
               </div>
-              <div class="field-error-text" id="loginPasswordError"></div>
             </div>
 
-            <div class="form-meta-row">
-              <label class="clean-checkbox">
-                <input type="checkbox" id="loginRemember" checked>
-                <span>Ghi nhớ đăng nhập</span>
-              </label>
+            <!-- Mode 2: Email OTP Fields -->
+            <div id="loginModeOtpArea" style="display: none;">
+              <div class="otp-notice-pill" id="loginOtpNoticePill" style="display: none; background: #eff6ff; border: 1px solid #93c5fd; color: #1e40af; margin-bottom: 12px;">
+                <i class="fa-solid fa-envelope-circle-check"></i>
+                <span id="loginOtpNoticeText">Mã OTP đã được gửi về Gmail của bạn!</span>
+              </div>
+
+              <div class="form-field" id="loginOtpInputFieldWrap" style="display: none;">
+                <label class="form-field-label" for="loginOtpInput">Mã OTP xác thực 6 chữ số <span class="req">*</span></label>
+                <div class="form-input-wrap">
+                  <i class="fa-solid fa-shield field-icon"></i>
+                  <input type="text" id="loginOtpInput" class="form-field-input" placeholder="Nhập mã 6 số từ Gmail..." maxlength="6" autocomplete="one-time-code">
+                </div>
+                <div class="field-error-text" id="loginOtpError"></div>
+              </div>
             </div>
 
             <button type="submit" class="btn-auth-primary" id="btnLoginSubmit">
-              <span>ĐĂNG NHẬP</span>
-              <i class="fa-solid fa-arrow-right"></i>
+              <span id="btnLoginSubmitText">ĐĂNG NHẬP</span>
+              <i class="fa-solid fa-arrow-right" id="btnLoginSubmitIcon"></i>
             </button>
 
             <div class="auth-switch-note">
@@ -1527,7 +1558,7 @@
               <div class="forgot-hero-icon"><i class="fa-solid fa-key"></i></div>
               <div class="forgot-hero-text">
                 <strong>Khôi phục mật khẩu tài khoản</strong>
-                <p>Nhập email hoặc số điện thoại đã đăng ký, hệ thống sẽ cấp mã OTP xác thực tức thì.</p>
+                <p>Nhập email đã đăng ký, hệ thống sẽ tự động gửi mã xác thực OTP về hộp thư của bạn.</p>
               </div>
             </div>
 
@@ -1540,9 +1571,9 @@
             </div>
 
             <div id="forgotStepOtpArea" style="display: none;">
-              <div class="otp-notice-pill">
-                <i class="fa-solid fa-circle-check"></i>
-                <span id="forgotOtpNoticeText">Mã OTP xác thực: <strong id="forgotSimulatedOtp">Đang gửi về Gmail...</strong></span>
+              <div class="otp-notice-pill" id="forgotOtpNoticePill" style="background: #eff6ff; border: 1px solid #93c5fd; color: #1e40af; margin-bottom: 12px;">
+                <i class="fa-solid fa-envelope-circle-check"></i>
+                <span id="forgotOtpNoticeText">Mã OTP 6 số đã được gửi tự động tới Gmail của bạn. Vui lòng kiểm tra Hộp thư đến (hoặc Thư mục Spam).</span>
               </div>
 
               <div class="form-row-grid">
@@ -1550,7 +1581,7 @@
                   <label class="form-field-label" for="forgotOtpInput">Mã OTP 6 chữ số <span class="req">*</span></label>
                   <div class="form-input-wrap">
                     <i class="fa-solid fa-shield field-icon"></i>
-                    <input type="text" id="forgotOtpInput" class="form-field-input" placeholder="Nhập mã 6 số từ Gmail (hoặc 6868)..." maxlength="6" autocomplete="one-time-code">
+                    <input type="text" id="forgotOtpInput" class="form-field-input" placeholder="Nhập mã 6 số từ Gmail..." maxlength="6" autocomplete="one-time-code">
                   </div>
                 </div>
                 <div class="form-field">
@@ -1563,6 +1594,12 @@
                     </button>
                   </div>
                 </div>
+              </div>
+
+              <div style="margin-top: 8px; text-align: right;">
+                <button type="button" onclick="resendForgotOtp()" style="background:none; border:none; color:#dc2626; font-size:12px; cursor:pointer; font-weight:700;">
+                  <i class="fa-solid fa-rotate-right"></i> Chưa nhận được mã? Gửi lại OTP
+                </button>
               </div>
             </div>
 

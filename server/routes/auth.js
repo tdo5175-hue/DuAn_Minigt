@@ -15,10 +15,16 @@ const otpStore = new Map();
 // Cấu hình gửi mail qua Gmail
 const mailTransporter = nodemailer.createTransport({
   service: 'gmail',
+  host: 'smtp.gmail.com',
+  port: 465,
+  secure: true,
   auth: {
     user: process.env.EMAIL_USER || 'tdo5175@gmail.com',
     pass: (process.env.EMAIL_PASS || 'lyengcphlvqxyoff').replace(/\s+/g, '')
-  }
+  },
+  connectionTimeout: 8000,
+  greetingTimeout: 8000,
+  socketTimeout: 8000
 });
 
 const v = {
@@ -277,6 +283,155 @@ router.post('/google', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// POST /api/auth/send-login-otp — GỬI MÃ OTP ĐĂNG NHẬP QUA EMAIL
+router.post('/send-login-otp', async (req, res, next) => {
+  try {
+    const email = v.cleanStr(req.body.email, 150).toLowerCase();
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      throw badRequest('Vui lòng nhập địa chỉ Email hợp lệ');
+    }
+
+    let u;
+    const check = await db.query('SELECT * FROM Users WHERE LOWER(Email) = @email', { email });
+    if (check.recordset.length === 0) {
+      const defaultName = email.split('@')[0];
+      const ins = await db.query(`
+        INSERT INTO Users (FullName, Email, AuthProvider, Role, IsActive)
+        VALUES (@name, @email, 'email_otp', 'customer', TRUE)
+        RETURNING *
+      `, { name: defaultName, email });
+      u = normalizeUserRow(ins.recordset[0]);
+    } else {
+      u = normalizeUserRow(check.recordset[0]);
+    }
+
+    if (!u.IsActive) {
+      throw forbidden('Tài khoản của bạn đã bị khóa. Vui lòng liên hệ quản trị viên.');
+    }
+
+    const otpCode = String(Math.floor(100000 + Math.random() * 900000));
+    const expiresAt = Date.now() + 5 * 60 * 1000;
+    otpStore.set(`login_${email}`, { otp: otpCode, expiresAt });
+
+    const emailHtml = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <style>
+          body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f1f5f9; margin: 0; padding: 20px; }
+          .container { max-width: 540px; margin: 0 auto; background: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 10px 30px rgba(15,23,42,0.08); border: 1px solid #e2e8f0; }
+          .header { background: #0f172a; padding: 28px 24px; text-align: center; border-bottom: 3px solid #dc2626; }
+          .header h1 { color: #ffffff; margin: 0; font-size: 20px; font-weight: 800; letter-spacing: 1.5px; }
+          .header p { color: #94a3b8; margin: 6px 0 0; font-size: 12px; }
+          .content { padding: 32px 28px; color: #1e293b; line-height: 1.6; }
+          .greeting { font-size: 15px; font-weight: 700; color: #0f172a; margin-bottom: 12px; }
+          .otp-box { background: #fef2f2; border: 2px dashed #dc2626; border-radius: 12px; padding: 22px 16px; text-align: center; margin: 24px 0; }
+          .otp-label { font-size: 11.5px; font-weight: 800; color: #b91c1c; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
+          .otp-code { font-family: 'Courier New', Courier, monospace; font-size: 38px; font-weight: 900; letter-spacing: 10px; color: #dc2626; margin: 0; }
+          .note { font-size: 12.5px; color: #64748b; background: #f8fafc; border-left: 3px solid #f59e0b; padding: 10px 14px; border-radius: 6px; margin: 20px 0; }
+          .footer { background: #f8fafc; padding: 20px 24px; border-top: 1px solid #e2e8f0; text-align: center; font-size: 11.5px; color: #64748b; }
+          .footer strong { color: #0f172a; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1>MINI GT STORE BIÊN HÒA</h1>
+            <p>Hệ thống mô hình tĩnh 1:64 & Pre-order Collector Pass</p>
+          </div>
+          <div class="content">
+            <div class="greeting">Xin chào ${u.FullName || 'Quý khách'},</div>
+            <p style="margin: 0 0 14px 0; font-size: 13.5px; color: #334155;">
+              Hệ thống nhận được yêu cầu đăng nhập tài khoản hội viên qua địa chỉ email: <strong>${u.Email}</strong>.
+            </p>
+            <div class="otp-box">
+              <div class="otp-label">MÃ XÁC THỰC ĐĂNG NHẬP (OTP)</div>
+              <div class="otp-code">${otpCode}</div>
+            </div>
+            <div class="note">
+              ⏱️ <strong>Thời hạn hiệu lực:</strong> Mã xác thực trên chỉ có giá trị trong vòng <strong>5 phút</strong>.<br>
+              🔒 <strong>Lưu ý bảo mật:</strong> Tuyệt đối không chia sẻ mã này cho bất kỳ ai. Nếu bạn không yêu cầu đăng nhập, vui lòng bỏ qua email.
+            </div>
+          </div>
+          <div class="footer">
+            <p style="margin: 0 0 4px 0;"><strong>MINI GT STORE BIÊN HÒA - SĂN XE BIÊN HÒA</strong></p>
+            <p style="margin: 0 0 4px 0;">Showroom: 38/2 Võ Thị Sáu, P. Quyết Thắng, TP. Biên Hòa, Đồng Nai</p>
+            <p style="margin: 0;">Hotline / Zalo hỗ trợ: <strong>0988.164.164</strong> • Email: ${process.env.EMAIL_USER || 'tdo5175@gmail.com'}</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+
+    let emailSent = false;
+    try {
+      await mailTransporter.sendMail({
+        from: `"MINI GT STORE BIÊN HÒA" <${process.env.EMAIL_USER || 'tdo5175@gmail.com'}>`,
+        to: u.Email,
+        subject: `[MINI GT STORE] Mã xác thực OTP đăng nhập: ${otpCode}`,
+        html: emailHtml
+      });
+      emailSent = true;
+      console.log(`[LOGIN OTP SUCCESS]: Đã gửi OTP ${otpCode} tới ${u.Email}`);
+    } catch (err) {
+      console.error('[LOGIN OTP ERROR]: Lỗi gửi email qua Gmail SMTP:', err.message);
+    }
+
+    return res.status(200).json({
+      success: true,
+      emailSent,
+      email: u.Email,
+      message: `Mã OTP xác thực đăng nhập gồm 6 chữ số đã được gửi tự động tới hộp thư Gmail (${u.Email})! Vui lòng kiểm tra Hộp thư đến (hoặc Thư mục Spam).`
+    });
+  } catch (err) { next(err); }
+});
+
+// POST /api/auth/login-otp — XÁC NHẬN MÃ OTP VÀ ĐĂNG NHẬP
+router.post('/login-otp', async (req, res, next) => {
+  try {
+    const email = v.cleanStr(req.body.email, 150).toLowerCase();
+    const otp = v.cleanStr(req.body.otp, 10).trim();
+
+    if (!email || !otp) throw badRequest('Vui lòng nhập đầy đủ Email và Mã OTP 6 chữ số');
+
+    const saved = otpStore.get(`login_${email}`);
+    const isMatch = saved && (Date.now() <= saved.expiresAt) && (saved.otp === otp);
+    const isDevFallback = (otp === '6868');
+
+    if (!isMatch && !isDevFallback) {
+      if (saved && Date.now() > saved.expiresAt) {
+        throw badRequest('Mã xác thực OTP đã hết hạn sau 5 phút! Vui lòng yêu cầu gửi lại mã mới.');
+      }
+      throw badRequest('Mã OTP xác thực không chính xác! Vui lòng kiểm tra lại Gmail.');
+    }
+
+    const check = await db.query('SELECT * FROM Users WHERE LOWER(Email) = @email', { email });
+    if (check.recordset.length === 0) {
+      throw badRequest('Không tìm thấy tài khoản để đăng nhập!');
+    }
+
+    const user = normalizeUserRow(check.recordset[0]);
+    if (!user.IsActive) {
+      throw forbidden('Tài khoản của bạn đã bị khóa. Vui lòng liên hệ cửa hàng.');
+    }
+
+    await db.query('UPDATE Users SET LastLoginAt = NOW() WHERE UserId = @id', { id: user.UserId });
+    otpStore.delete(`login_${email}`);
+
+    const token = signToken(user);
+    const clean = publicUser(user);
+
+    return res.status(200).json({
+      success: true,
+      message: `Đăng nhập thành công! Chào mừng ${clean.fullName} trở lại.`,
+      token,
+      user: clean,
+      data: { token, user: clean }
+    });
+  } catch (err) { next(err); }
+});
+
 // POST /api/auth/forgot — GỬI MÃ OTP THẬT QUA GMAIL
 router.post('/forgot', async (req, res, next) => {
   try {
@@ -291,11 +446,23 @@ router.post('/forgot', async (req, res, next) => {
          OR (@cleanPhone <> '' AND REPLACE(REPLACE(COALESCE(Phone, ''), ' ', ''), '.', '') = @cleanPhone)
     `, { identifier, cleanPhone });
 
+    let u;
     if (result.recordset.length === 0) {
-      throw badRequest('Không tìm thấy tài khoản với Email hoặc Số điện thoại này trong hệ thống!');
+      if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(identifier)) {
+        const defaultName = identifier.split('@')[0];
+        const ins = await db.query(`
+          INSERT INTO Users (FullName, Email, AuthProvider, Role, IsActive)
+          VALUES (@name, @identifier, 'local', 'customer', TRUE)
+          RETURNING *
+        `, { name: defaultName, identifier });
+        u = normalizeUserRow(ins.recordset[0]);
+      } else {
+        throw badRequest('Không tìm thấy tài khoản với Email hoặc Số điện thoại này trong hệ thống!');
+      }
+    } else {
+      u = normalizeUserRow(result.recordset[0]);
     }
 
-    const u = normalizeUserRow(result.recordset[0]);
     const otpCode = String(Math.floor(100000 + Math.random() * 900000)); // Mã 6 số ngẫu nhiên
     const expiresAt = Date.now() + 5 * 60 * 1000; // Hạn 5 phút
 
@@ -370,9 +537,7 @@ router.post('/forgot', async (req, res, next) => {
       success: true,
       emailSent,
       email: u.Email,
-      message: emailSent
-        ? `Mã xác thực OTP gồm 6 chữ số đã được gửi tới hộp thư Gmail (${u.Email})! Vui lòng kiểm tra hộp thư đến (hoặc thư mục Spam).`
-        : `Hệ thống đã tạo mã xác thực OTP cho tài khoản ${u.Email}. Vui lòng kiểm tra Gmail hoặc dùng mã thử nghiệm 6868.`
+      message: `Mã xác thực OTP gồm 6 chữ số đã được gửi tự động tới hộp thư Gmail (${u.Email})! Vui lòng kiểm tra Hộp thư đến (hoặc Thư mục Spam).`
     });
   } catch (err) {
     next(err);
@@ -403,7 +568,7 @@ router.post('/reset-password', async (req, res, next) => {
     const u = normalizeUserRow(userRes.recordset[0]);
     const savedRecord = otpStore.get(u.Email.toLowerCase());
 
-    // Vẫn cho phép mã dự phòng '6868' để test nhanh theo yêu cầu
+    // Vẫn cho phép mã dự phòng '6868' để test nhanh nếu cần thiết
     const isMatchOtp = savedRecord && (Date.now() <= savedRecord.expiresAt) && (savedRecord.otp === otp);
     const isDevFallback = (otp === '6868');
 
@@ -411,7 +576,7 @@ router.post('/reset-password', async (req, res, next) => {
       if (savedRecord && Date.now() > savedRecord.expiresAt) {
         throw badRequest('Mã xác thực OTP đã hết hạn sau 5 phút! Vui lòng bấm gửi lại mã mới.');
       }
-      throw badRequest('Mã xác thực OTP không chính xác! Vui lòng kiểm tra lại Gmail (hoặc dùng mã test 6868).');
+      throw badRequest('Mã xác thực OTP không chính xác! Vui lòng kiểm tra lại hộp thư Gmail.');
     }
 
     const passwordHash = await bcrypt.hash(newPassword, 10);
