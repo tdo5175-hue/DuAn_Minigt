@@ -17,7 +17,7 @@ const v = require('../utils/validate');
 const payos = new PayOS(
   process.env.PAYOS_CLIENT_ID || '96b6746e-5462-4f53-85d2-62216cc92e4f',
   process.env.PAYOS_API_KEY || '37a2ffc6-853b-4139-92eb-25718efcae49',
-  process.env.PAYOS_CHECKSUM_KEY || '56fa83c9aeac3c3d17cbd9859431df7758317b3a36e56b46ef4961559ed88c03'
+  process.env.PAYOS_CHECKSUM_KEY || '56fa83c9aeac3c3d17cbd9859431df7758317b3a36e56f51ad80ec6af1e96bb0'
 );
 
 // POST /api/orders — Tạo đơn hàng / đơn cọc
@@ -256,7 +256,8 @@ router.post('/:code/payos-link', optionalAuth, async (req, res, next) => {
 
     // Xác định số tiền cần thanh toán qua VietQR:
     // Nếu là đơn đặt trước (Pre-Order) và có tiền cọc thì tạo link thanh toán đúng số tiền cọc
-    const amountToPay = (order.hasPreOrder && Number(order.depositAmount) > 0)
+    const hasPreOrder = Boolean(order.hasPreOrder || order.HasPreOrder || (order.depositAmount && Number(order.depositAmount) > 0));
+    const amountToPay = (hasPreOrder && Number(order.depositAmount) > 0)
       ? Number(order.depositAmount)
       : Number(order.total || order.totalAmount || 0);
 
@@ -265,26 +266,53 @@ router.post('/:code/payos-link', optionalAuth, async (req, res, next) => {
     }
 
     // PayOS yêu cầu orderCode là số nguyên dương an toàn (<= 9007199254740991)
-    const baseId = Number(order.orderId || order.id || 1);
+    const baseId = Number(order.orderId || order.id || order.OrderId || 1);
     const payosOrderCode = Number(`${baseId}${Math.floor(1000 + Math.random() * 9000)}`.slice(0, 15));
 
-    // Nội dung chuyển khoản chuẩn, tối đa 25 ký tự không dấu
+    // Nội dung chuyển khoản chuẩn dạng MGT [MãĐơn], tối đa 25 ký tự không dấu
     const cleanDesc = `MGT ${code}`.replace(/[^a-zA-Z0-9\s-]/g, '').slice(0, 25);
+
+    let clientOrigin = 'https://projectnhom2.vercel.app';
+    try {
+      if (req.headers.origin) {
+        clientOrigin = req.headers.origin;
+      } else if (req.headers.referer) {
+        clientOrigin = new URL(req.headers.referer).origin;
+      }
+    } catch (_) {}
 
     const paymentData = {
       orderCode: payosOrderCode,
       amount: Math.round(amountToPay),
       description: cleanDesc,
-      returnUrl: `https://projectnhom2.vercel.app/?payment=success&code=${order.orderCode}`,
-      cancelUrl: `https://projectnhom2.vercel.app/?payment=cancel&code=${order.orderCode}`
+      returnUrl: `${clientOrigin}/?payment=success&code=${order.orderCode}`,
+      cancelUrl: `${clientOrigin}/?payment=cancel&code=${order.orderCode}`
     };
 
     const paymentLink = await payos.createPaymentLink(paymentData);
 
+    // Ghi log vào OrderStatusHistory để mapping payosOrderCode với OrderId
+    const oid = order.orderId || order.id || order.OrderId;
+    await db.query(`
+      UPDATE Orders
+      SET PaymentMethod = 'VIETQR_PAYOS'
+      WHERE OrderId = @oid AND (PaymentMethod IS NULL OR PaymentMethod = 'BANK_TRANSFER' OR PaymentMethod = 'DEPOSIT')
+    `, { oid }).catch(() => {});
+
+    await db.query(`
+      INSERT INTO OrderStatusHistory (OrderId, FromStatus, ToStatus, Note)
+      VALUES (@oid, @st, @st, 'Khởi tạo link thanh toán VietQR PayOS #' || @pCode)
+    `, { oid, st: order.status || 'PENDING', pCode: payosOrderCode }).catch(() => {});
+
     return ok(res, {
       checkoutUrl: paymentLink.checkoutUrl,
       qrCode: paymentLink.qrCode,
+      accountNumber: paymentLink.accountNumber,
+      accountName: paymentLink.accountName,
+      bin: paymentLink.bin,
+      paymentLinkId: paymentLink.paymentLinkId,
       orderCode: order.orderCode,
+      payosOrderCode,
       amount: amountToPay
     }, 'Khởi tạo cổng thanh toán PayOS VietQR thành công');
   } catch (err) {
@@ -303,7 +331,7 @@ router.post('/payos-webhook', async (req, res) => {
     try {
       webhookData = payos.verifyPaymentWebhookData(req.body);
     } catch (verifyErr) {
-      // Khi PayOS ping kiểm tra trạng thái URL Webhook từ trang quản trị
+      // Khi PayOS ping kiểm tra trạng thái URL Webhook từ trang quản trị PayOS
       console.log('[PayOS Ping/Verify Event]:', verifyErr.message);
     }
 
@@ -312,30 +340,68 @@ router.post('/payos-webhook', async (req, res) => {
 
     if (isSuccess && payload) {
       const desc = String(payload.description || '').toUpperCase();
-      // Tìm mã đơn hàng có tiền tố MGT- trong nội dung thanh toán
-      const match = desc.match(/MGT-[\w-]+/i);
-      const orderCode = match ? match[0].toUpperCase() : null;
+      // Tìm mã đơn hàng từ nội dung thanh toán (ví dụ: MGT-20261021-1234)
+      let orderCode = null;
+      const m1 = desc.match(/MGT-[\w-]+/i);
+      if (m1) {
+        orderCode = m1[0].toUpperCase();
+      } else {
+        const m2 = desc.match(/MGT\s*([0-9A-Z-]+)/i);
+        if (m2) {
+          orderCode = m2[1].startsWith('MGT-') ? m2[1].toUpperCase() : `MGT-${m2[1].toUpperCase()}`;
+        }
+      }
 
-      if (orderCode) {
-        const order = await orderService.getOrderByCodeOrId(orderCode);
-        if (order) {
-          const oid = order.orderId || order.id || order.OrderId;
-          const targetPaymentStatus = (order.hasPreOrder && order.paymentMethod === 'DEPOSIT') ? 'PARTIALLY_PAID' : 'PAID';
+      let order = orderCode ? await orderService.getOrderByCodeOrId(orderCode) : null;
 
-          // Cập nhật trạng thái đơn hàng tự động
-          await db.query(`
-            UPDATE Orders
-            SET PaymentStatus = @pst, Status = 'CONFIRMED', UpdatedAt = NOW()
-            WHERE OrderId = @oid
-          `, { oid, pst: targetPaymentStatus });
+      // Double-check: Tìm theo payosOrderCode được lưu trong OrderStatusHistory nếu mô tả bị cắt
+      if (!order && payload.orderCode) {
+        try {
+          const findByPayos = await db.query(`
+            SELECT OrderId FROM OrderStatusHistory
+            WHERE Note LIKE '%' || @pCode || '%'
+            ORDER BY HistoryId DESC LIMIT 1
+          `, { pCode: String(payload.orderCode) });
+          if (findByPayos.recordset.length > 0) {
+            order = await orderService.getOrderByCodeOrId(findByPayos.recordset[0].OrderId || findByPayos.recordset[0].orderid);
+          }
+        } catch (_) {}
+      }
 
-          // Ghi nhận lịch sử giao dịch tự động
-          await db.query(`
-            INSERT INTO OrderStatusHistory (OrderId, FromStatus, ToStatus, Note)
-            VALUES (@oid, @from, 'CONFIRMED', 'PayOS: Khách đã chuyển khoản VietQR thành công. Hệ thống tự động xác nhận đơn.')
-          `, { oid, from: order.status });
+      if (order) {
+        const oid = order.orderId || order.id || order.OrderId;
+        const isPreOrder = Boolean(order.hasPreOrder || order.HasPreOrder || (order.depositAmount && Number(order.depositAmount) > 0));
+        const targetPaymentStatus = isPreOrder ? 'PARTIALLY_PAID' : 'PAID';
+        const formattedAmount = new Intl.NumberFormat('vi-VN').format(payload.amount || (isPreOrder ? order.depositAmount : order.total));
 
-          console.log(`✅ [PayOS Webhook] Đơn hàng ${orderCode} đã được tự động duyệt thành công!`);
+        // Cập nhật trạng thái đơn hàng tự động trong database
+        await db.query(`
+          UPDATE Orders
+          SET PaymentStatus = @pst,
+              PaymentMethod = 'VIETQR_PAYOS',
+              Status = 'CONFIRMED',
+              UpdatedAt = NOW()
+          WHERE OrderId = @oid
+        `, { oid, pst: targetPaymentStatus });
+
+        // Ghi log vào bảng OrderStatusHistory
+        await db.query(`
+          INSERT INTO OrderStatusHistory (OrderId, FromStatus, ToStatus, Note)
+          VALUES (@oid, @from, 'CONFIRMED', 'PayOS: Khách đã thanh toán tự động qua VietQR thành công. Số tiền: ' || @amount || 'đ')
+        `, {
+          oid,
+          from: order.status || 'PENDING',
+          amount: formattedAmount
+        });
+
+        console.log(`✅ [PayOS Webhook] Đơn hàng ${order.orderCode} đã được tự động duyệt thành công!`);
+
+        // Gửi email thông báo xác nhận đơn hàng tự động cho khách hàng qua mailService
+        const updatedOrder = await orderService.getOrderByCodeOrId(oid);
+        if (updatedOrder && (updatedOrder.email || updatedOrder.customer?.email)) {
+          mailService.sendOrderConfirmationEmail(updatedOrder).catch(err => {
+            console.warn('[MailService] Lỗi gửi email xác nhận PayOS:', err.message);
+          });
         }
       }
     }

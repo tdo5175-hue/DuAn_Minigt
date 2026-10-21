@@ -2712,6 +2712,29 @@
       }
     }
 
+    // 8.5 Tạo link thanh toán tự động VietQR PayOS
+    const payosLinkMatch = path.match(/^\/api\/orders\/([^/]+)\/payos-link/);
+    if (method === 'POST' && payosLinkMatch) {
+      const code = decodeURIComponent(payosLinkMatch[1]).trim().toUpperCase();
+      const allOrders = getSharedOrders();
+      const target = allOrders.find(o => (o.code && o.code.toUpperCase() === code) || (o.orderCode && o.orderCode.toUpperCase() === code));
+      const payAmount = (target && (target.hasPreOrder || target.HasPreOrder) && target.depositAmount) ? target.depositAmount : (target ? (target.total || target.totalAmount) : 100000);
+      const safeOrderCode = Number(String(Date.now()).slice(-8));
+      const qrData = `https://img.vietqr.io/image/970422-0922888999-compact2.png?amount=${payAmount}&addInfo=MGT%20${code}&accountName=SAN%20XE%20BIEN%20HOA`;
+      return {
+        success: true,
+        data: {
+          checkoutUrl: `https://pay.payos.vn/web/${safeOrderCode}`,
+          qrCode: qrData,
+          accountNumber: '0922888999',
+          accountName: 'SÂN XE BIÊN HÒA',
+          amount: payAmount,
+          description: `MGT ${code}`,
+          orderCode: safeOrderCode
+        }
+      };
+    }
+
     // 9. Khách hàng cập nhật địa chỉ / xác nhận đã nhận hàng / hủy đơn
     const custActionMatch = path.match(/^\/api\/orders\/([^/]+)\/(cancel|confirm-received|shipping-info)/);
     if (method === 'PUT' && custActionMatch) {

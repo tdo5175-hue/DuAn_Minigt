@@ -2133,6 +2133,22 @@
     loadOrders();
   }
 
+  function filterPayosOrders() {
+    const select = document.getElementById('orderPayMethodFilter');
+    if (!select) return;
+    if (orderFilter.paymentMethod === 'VIETQR_PAYOS') {
+      select.value = 'ALL';
+      orderFilter.paymentMethod = 'ALL';
+      adminToast('Đã bỏ lọc PayOS', 'info');
+    } else {
+      select.value = 'VIETQR_PAYOS';
+      orderFilter.paymentMethod = 'VIETQR_PAYOS';
+      adminToast('⚡ Đang lọc danh sách đơn thanh toán tự động qua PayOS', 'success');
+    }
+    orderFilter.page = 1;
+    loadOrders();
+  }
+
   function updateOrderTabBadges(counts) {
     if (!counts) return;
     const map = {
@@ -2166,7 +2182,31 @@
   }
 
   function renderPaymentBadge(paymentStatus, paymentMethod) {
+    const isPayOS = paymentMethod === 'VIETQR_PAYOS' || paymentMethod === 'PAYOS';
     const isBankOrDeposit = paymentMethod === 'BANK_TRANSFER' || paymentMethod === 'DEPOSIT';
+
+    if (isPayOS) {
+      if (paymentStatus === 'PAID') {
+        return `<span class="status-badge" style="background:#ecfdf5; color:#047857; border:1px solid #10b981; font-weight:800; display:inline-flex; align-items:center; gap:4px; box-shadow:0 1px 2px rgba(16,185,129,0.15);"><i class="fa-solid fa-bolt" style="color:#059669;"></i> VietQR Tự động • Đã thanh toán</span>`;
+      }
+      if (paymentStatus === 'PARTIALLY_PAID') {
+        return `<span class="status-badge" style="background:#eff6ff; color:#1d4ed8; border:1px solid #3b82f6; font-weight:800; display:inline-flex; align-items:center; gap:4px; box-shadow:0 1px 2px rgba(59,130,246,0.15);"><i class="fa-solid fa-bolt" style="color:#2563eb;"></i> VietQR Tự động • Đã cọc</span>`;
+      }
+      if (paymentStatus === 'REFUND_PENDING') {
+        return `<span class="status-badge" style="background:#fef3c7; color:#b45309; border:1px solid #fde68a; font-weight:700;"><i class="fa-solid fa-rotate-left"></i> PayOS: Chờ hoàn tiền</span>`;
+      }
+      if (paymentStatus === 'REFUNDED') {
+        return `<span class="status-badge" style="background:#f1f5f9; color:#475569; border:1px solid #cbd5e1; font-weight:700;"><i class="fa-solid fa-clock-rotate-left"></i> PayOS: Đã hoàn tiền</span>`;
+      }
+      return `
+        <span class="status-badge" style="background:#f0fdf4; color:#15803d; border:1px solid #86efac; font-weight:700; font-size:11px; padding:3px 7px; display:inline-flex; align-items:center; gap:4px;">
+          <i class="fa-solid fa-qrcode"></i> VietQR PayOS (Chờ quét)
+        </span>
+        <div style="font-size:10px; color:#16a34a; margin-top:2px; font-weight:600; line-height:1.2;">
+          <i class="fa-solid fa-bolt"></i> Hệ thống tự động đối soát
+        </div>
+      `;
+    }
 
     if (paymentStatus === 'PAID') {
       return `<span class="status-badge" style="background:#ecfdf5; color:#047857; border:1px solid #a7f3d0; font-weight:700;"><i class="fa-solid fa-circle-check"></i> Đã nhận đủ tiền</span>`;
@@ -2746,16 +2786,20 @@
         </tr>
       `).join('');
 
-      const historyHtml = (order.history || []).map(h => `
-        <div style="display:flex; gap:10px; margin-bottom:8px; font-size:12px; line-height:1.4;">
+      const historyHtml = (order.history || []).map(h => {
+        const isPayosLog = (h.by === 'SYSTEM_PAYOS' || (h.note && (h.note.includes('PayOS') || h.note.includes('VietQR'))));
+        return `
+        <div style="display:flex; gap:10px; margin-bottom:8px; font-size:12px; line-height:1.4; ${isPayosLog ? 'background:#ecfdf5; padding:6px 10px; border-radius:6px; border-left:3.5px solid #10b981;' : ''}">
           <span style="color:#64748b; font-size:11px; width:130px; flex-shrink:0;">${new Date(h.createdAt).toLocaleString('vi-VN')}</span>
           <div>
+            ${isPayosLog ? '<span style="background:#10b981; color:#fff; font-size:10px; font-weight:800; padding:1px 6px; border-radius:4px; margin-right:4px;"><i class="fa-solid fa-bolt"></i> PAYOS VIETQR</span>' : ''}
             <strong style="color:#0f172a;">${h.to}</strong>
-            ${h.note ? `<span style="color:#475569;"> — ${escapeHtml(h.note)}</span>` : ''}
+            ${h.note ? `<span style="color:${isPayosLog ? '#065f46; font-weight:600' : '#475569'};"> — ${escapeHtml(h.note)}</span>` : ''}
             ${h.by ? `<span style="color:#64748b; font-size:11px;"> (Bởi: ${escapeHtml(h.by)})</span>` : ''}
           </div>
         </div>
-      `).join('') || '<div style="font-size:12px; color:#64748b;">Chưa có lịch sử trạng thái</div>';
+      `;
+      }).join('') || '<div style="font-size:12px; color:#64748b;">Chưa có lịch sử trạng thái</div>';
 
       const isOldAddr = order.addressType === 'OLD' || order.isOldAddress;
 
@@ -2889,7 +2933,11 @@
               <div>Tiền hàng mô hình: <strong>${formatVND(order.subtotal)}</strong></div>
               <div>Phí ship tiêu chuẩn SPX: <strong>${formatVND(order.shippingFee)}</strong></div>
               ${order.depositAmount > 0 ? `<div style="color:#2563eb;">Tiền cọc đã thu trước: <strong>${formatVND(order.depositAmount)}</strong></div>` : ''}
-              <div style="font-size:11.5px; color:#64748b; margin-top:2px;">Hình thức: <strong>${order.paymentMethod === 'DEPOSIT' ? 'Đặt cọc giữ xe (100.000đ)' : (order.paymentMethod === 'BANK_TRANSFER' ? 'Chuyển khoản full 100%' : 'COD')}</strong></div>
+              <div style="font-size:11.5px; color:#64748b; margin-top:2px;">Hình thức: <strong>${
+                order.paymentMethod === 'VIETQR_PAYOS' || order.paymentMethod === 'PAYOS' 
+                  ? '⚡ VietQR PayOS (Thanh toán tự động 24/7)' 
+                  : (order.paymentMethod === 'DEPOSIT' ? 'Đặt cọc giữ xe (100.000đ)' : (order.paymentMethod === 'BANK_TRANSFER' ? 'Chuyển khoản full 100%' : 'COD'))
+              }</strong></div>
             </div>
             <div style="text-align:right;">
               <div style="font-size:11px; color:#64748b;">TỔNG CỘNG ĐƠN HÀNG</div>
@@ -2914,14 +2962,80 @@
           </div>
         </div>
 
-        <!-- Khung đối soát App MB Bank (Nếu đơn chuyển khoản hoặc cọc) -->
+        <!-- Khung đối soát VietQR PayOS Tự Động hoặc App MB Bank -->
         ${(() => {
+          const isPayOS = order.paymentMethod === 'VIETQR_PAYOS' || order.paymentMethod === 'PAYOS';
           const isDeposit = order.paymentMethod === 'DEPOSIT';
           const isTransfer = order.paymentMethod === 'BANK_TRANSFER';
           const memoText = `MINI GT #${order.code}`;
           const codVal = order.codAmount !== undefined 
             ? order.codAmount 
             : (order.paymentStatus === 'PAID' ? 0 : (order.depositAmount > 0 ? Math.max(0, order.total - order.depositAmount) : order.total));
+
+          if (isPayOS) {
+            const isPaid = order.paymentStatus === 'PAID';
+            const isPartiallyPaid = order.paymentStatus === 'PARTIALLY_PAID';
+            const payosHist = (order.history || []).find(h => h.by === 'SYSTEM_PAYOS' || (h.note && (h.note.includes('PayOS') || h.note.includes('VietQR'))));
+
+            return `
+              <div style="background:linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%); border:1.5px solid #86efac; border-radius:8px; padding:12px 14px; margin-bottom:14px; font-size:12.5px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; flex-wrap:wrap; gap:6px;">
+                  <div style="font-weight:800; color:#065f46; display:flex; align-items:center; gap:6px; font-size:13px;">
+                    <i class="fa-solid fa-bolt" style="color:#059669;"></i> Cổng Thanh Toán Tự Động VietQR PayOS
+                  </div>
+                  <span style="font-size:11px; padding:3px 10px; border-radius:999px; font-weight:800; ${isPaid ? 'background:#059669; color:#fff;' : (isPartiallyPaid ? 'background:#2563eb; color:#fff;' : 'background:#fef3c7; color:#b45309;')}">
+                    ${isPaid ? '✓ Đã nhận đủ tiền (Tự động)' : (isPartiallyPaid ? '✓ Đã nhận cọc VietQR' : '⏳ Đang chờ khách quét mã VietQR')}
+                  </span>
+                </div>
+
+                <div style="background:#ffffff; border:1px solid #bbf7d0; border-radius:6px; padding:10px 12px; margin-bottom:8px;">
+                  <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; font-size:12px;">
+                    <div>
+                      <span style="color:#64748b;">Phương thức thanh toán:</span>
+                      <div style="font-weight:700; color:#065f46;">Quét mã VietQR Ngân hàng (PayOS 24/7)</div>
+                    </div>
+                    <div>
+                      <span style="color:#64748b;">Số tiền thực nhận qua cổng:</span>
+                      <div style="font-weight:800; color:#059669; font-size:14px;">
+                        ${isPaid ? formatVND(order.total) : (isPartiallyPaid ? formatVND(order.depositAmount || 100000) : 'Chưa nhận tiền')}
+                      </div>
+                    </div>
+                  </div>
+                  ${payosHist ? `
+                    <div style="margin-top:8px; padding-top:6px; border-top:1px dashed #d1fae5; font-size:11.5px; color:#047857;">
+                      <i class="fa-solid fa-clock-rotate-left"></i> <strong>Thời gian khớp lệnh PayOS:</strong> ${new Date(payosHist.createdAt).toLocaleString('vi-VN')}
+                      <div style="color:#065f46; margin-top:2px; font-style:italic;">${escapeHtml(payosHist.note || '')}</div>
+                    </div>
+                  ` : ''}
+                </div>
+
+                <div style="font-size:12px; color:#065f46; line-height:1.5;">
+                  ${order.depositAmount > 0 && !isPaid
+                    ? `• Đơn Pre-Order đã nhận cọc qua VietQR: Khi shipper SPX giao phát hàng, tiền thu hộ COD còn lại là <strong>${formatVND(codVal)}</strong>.`
+                    : (isPaid
+                        ? `• Đơn hàng đã được thanh toán 100% tự động qua PayOS. Tiền thu COD khi giao hàng là <strong>0đ</strong>.`
+                        : `• Hệ thống tự động đối soát Webhook PayOS. Ngay khi khách quét mã VietQR thành công, đơn sẽ tự động chuyển sang ĐÃ DUYỆT (CONFIRMED) & ĐÃ THANH TOÁN mà Admin không cần thao tác bấm xác nhận thủ công.`
+                      )
+                  }
+                </div>
+
+                <!-- Admin vẫn giữ toàn quyền can thiệp nếu cần duyệt tay hoặc xác nhận -->
+                <div style="display:flex; gap:8px; margin-top:10px; padding-top:8px; border-top:1px solid #bbf7d0; flex-wrap:wrap; align-items:center;">
+                  <span style="font-size:11px; color:#64748b;">Can thiệp Admin:</span>
+                  ${order.paymentStatus !== 'PAID' ? `
+                    <button type="button" class="btn-admin btn-admin-primary" style="font-size:11.5px; padding:4px 10px; background:#059669; border-color:#059669;" onclick="confirmPaymentAction(${order.id}, 'full')">
+                      <i class="fa-solid fa-circle-check"></i> Xác nhận đã nhận đủ (${formatVND(order.total)})
+                    </button>
+                  ` : ''}
+                  ${order.status === 'PENDING' ? `
+                    <button type="button" class="btn-admin btn-admin-primary" style="font-size:11.5px; padding:4px 10px; background:#1d4ed8; border-color:#1d4ed8;" onclick="changeOrderStatus(${order.id}, 'CONFIRMED')">
+                      <i class="fa-solid fa-check-double"></i> Duyệt đơn hàng
+                    </button>
+                  ` : ''}
+                </div>
+              </div>
+            `;
+          }
 
           return `
             <div style="background:#f0f9ff; border:1px solid #bae6fd; border-radius:8px; padding:12px 14px; margin-bottom:14px; font-size:12.5px;">
@@ -4280,6 +4394,7 @@ Anh/chị phản hồi giúp shop để kiện xe được đóng gói gửi đi
   window.setPreOrderSubStage = setPreOrderSubStage;
   window.handleOrderSearchDebounced = handleOrderSearchDebounced;
   window.handleOrderFilterChange = handleOrderFilterChange;
+  window.filterPayosOrders = filterPayosOrders;
   window.goToOrderPage = goToOrderPage;
   window.viewOrderDetail = viewOrderDetail;
   window.changeOrderStatus = changeOrderStatus;

@@ -427,12 +427,16 @@
               <option value="REFUND_PENDING">Chờ hoàn tiền</option>
               <option value="REFUNDED">Đã hoàn tiền</option>
             </select>
-            <select id="orderPayMethodFilter" class="form-control" style="max-width:180px;" onchange="handleOrderFilterChange()">
+            <select id="orderPayMethodFilter" class="form-control" style="max-width:190px;" onchange="handleOrderFilterChange()">
               <option value="ALL">-- Tất cả phương thức --</option>
+              <option value="VIETQR_PAYOS">⚡ Thanh toán PayOS tự động</option>
               <option value="COD">Ship COD</option>
               <option value="DEPOSIT">Đặt cọc MB Bank</option>
               <option value="BANK_TRANSFER">Chuyển khoản Full</option>
             </select>
+            <button type="button" class="btn-admin" style="background:#eff6ff; color:#0284c7; border:1px solid #bae6fd; font-weight:700; font-size:12px; padding:6px 12px; display:inline-flex; align-items:center; gap:5px;" onclick="filterPayosOrders()" title="Lọc nhanh các đơn thanh toán PayOS tự động">
+              <i class="fa-solid fa-bolt"></i> Đơn PayOS Tự Động
+            </button>
             <select id="orderAddressTypeFilter" class="form-control" style="max-width:175px;" onchange="handleOrderFilterChange()">
               <option value="ALL">-- Tất cả loại địa chỉ --</option>
               <option value="NEW">Địa chỉ MỚI (Đã sáp nhập)</option>

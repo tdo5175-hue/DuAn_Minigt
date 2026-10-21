@@ -3032,12 +3032,12 @@ window.isCustomerCodEligible = isCustomerCodEligible;
 
 function handlePaymentMethodChange(val) {
   const hasPreOrder = cart.some(it => it.isPreOrder);
-  if (hasPreOrder && val !== 'DEPOSIT') {
-    showToast('Đơn hàng có mô hình Pre-Order chỉ áp dụng phương thức Đặt cọc giữ mẫu qua MB Bank!', 'warning', 'Chỉ cọc Pre-Order');
-    selectedCheckoutPaymentMethod = 'DEPOSIT';
-    val = 'DEPOSIT';
-    const depRadio = document.querySelector('input[name="checkoutPaymentMethod"][value="DEPOSIT"]');
-    if (depRadio) depRadio.checked = true;
+  if (hasPreOrder && val !== 'DEPOSIT' && val !== 'VIETQR_PAYOS') {
+    showToast('Đơn hàng có mô hình Pre-Order áp dụng phương thức Đặt cọc giữ mẫu (MB Bank hoặc PayOS VietQR)!', 'warning', 'Chỉ cọc Pre-Order');
+    selectedCheckoutPaymentMethod = 'VIETQR_PAYOS';
+    val = 'VIETQR_PAYOS';
+    const payosRadio = document.querySelector('input[name="checkoutPaymentMethod"][value="VIETQR_PAYOS"]');
+    if (payosRadio) payosRadio.checked = true;
   } else if (val === 'COD') {
     if (!isCustomerCodEligible()) {
       const deliveredSpent = getCustomerDeliveredSpent();
@@ -3051,6 +3051,8 @@ function handlePaymentMethodChange(val) {
     } else {
       selectedCheckoutPaymentMethod = 'COD';
     }
+  } else if (val === 'VIETQR_PAYOS') {
+    selectedCheckoutPaymentMethod = 'VIETQR_PAYOS';
   } else {
     selectedCheckoutPaymentMethod = (val === 'FULL_TRANSFER') ? 'BANK_TRANSFER' : val;
   }
@@ -3058,8 +3060,9 @@ function handlePaymentMethodChange(val) {
   const optCod = document.getElementById('payOptCod');
   const optDeposit = document.getElementById('payOptDeposit');
   const optFull = document.getElementById('payOptFull');
+  const optPayOS = document.getElementById('payOptPayOS');
 
-  [optCod, optDeposit, optFull].forEach(el => {
+  [optCod, optDeposit, optFull, optPayOS].forEach(el => {
     if (el) {
       el.classList.remove('active');
       el.style.borderColor = '#cbd5e1';
@@ -3067,14 +3070,16 @@ function handlePaymentMethodChange(val) {
     }
   });
 
-  let activeEl = optDeposit;
+  let activeEl = optPayOS;
   if (selectedCheckoutPaymentMethod === 'COD') activeEl = optCod;
+  else if (selectedCheckoutPaymentMethod === 'DEPOSIT') activeEl = optDeposit;
   else if (selectedCheckoutPaymentMethod === 'BANK_TRANSFER') activeEl = optFull;
+  else if (selectedCheckoutPaymentMethod === 'VIETQR_PAYOS') activeEl = optPayOS;
 
   if (activeEl) {
     activeEl.classList.add('active');
-    activeEl.style.borderColor = 'var(--color-primary)';
-    activeEl.style.background = '#fff7f7';
+    activeEl.style.borderColor = (selectedCheckoutPaymentMethod === 'VIETQR_PAYOS') ? '#0284c7' : 'var(--color-primary)';
+    activeEl.style.background = (selectedCheckoutPaymentMethod === 'VIETQR_PAYOS') ? '#f0f9ff' : '#fff7f7';
   }
 
   renderCheckoutStep3();
@@ -3088,6 +3093,7 @@ function renderCheckoutStep3() {
   const optCod = document.getElementById('payOptCod');
   const optDeposit = document.getElementById('payOptDeposit');
   const optFull = document.getElementById('payOptFull');
+  const optPayOS = document.getElementById('payOptPayOS');
 
   const deliveredSpent = getCustomerDeliveredSpent();
   const vip = getCustomerVipInfo(deliveredSpent);
@@ -3101,27 +3107,29 @@ function renderCheckoutStep3() {
 
   let preNotice = document.getElementById('preOrderPaymentNoticeInStep3');
   if (hasPreOrder) {
-    selectedCheckoutPaymentMethod = 'DEPOSIT';
-    const depRadio = document.querySelector('input[name="checkoutPaymentMethod"][value="DEPOSIT"]');
-    if (depRadio) depRadio.checked = true;
+    if (selectedCheckoutPaymentMethod !== 'DEPOSIT' && selectedCheckoutPaymentMethod !== 'VIETQR_PAYOS') {
+      selectedCheckoutPaymentMethod = 'VIETQR_PAYOS';
+      const payosRadio = document.querySelector('input[name="checkoutPaymentMethod"][value="VIETQR_PAYOS"]');
+      if (payosRadio) payosRadio.checked = true;
+    }
     if (optCod) optCod.style.display = 'none';
     if (optFull) optFull.style.display = 'none';
-    if (optDeposit) {
-      optDeposit.classList.add('active');
-      optDeposit.style.borderColor = 'var(--color-primary)';
-      optDeposit.style.background = '#fff7f7';
-    }
-    if (!preNotice && optDeposit && optDeposit.parentNode) {
+    if (optDeposit) optDeposit.style.display = 'flex';
+    if (optPayOS) optPayOS.style.display = 'flex';
+
+    if (!preNotice && optPayOS && optPayOS.parentNode) {
       preNotice = document.createElement('div');
       preNotice.id = 'preOrderPaymentNoticeInStep3';
       preNotice.style.cssText = 'background:#f5f3ff; border:1.5px solid #c4b5fd; border-radius:10px; padding:10px 12px; margin-bottom:10px; font-size:12px; color:#5b21b6; line-height:1.45;';
-      preNotice.innerHTML = '<i class="fa-solid fa-triangle-exclamation" style="color:#7c3aed; margin-right:4px;"></i> <strong>Đơn hàng chứa xe Pre-Order:</strong> Mẫu xe chưa có sẵn tại kho thực tế nên cửa hàng <strong>chỉ áp dụng Đặt Cọc giữ suất</strong> qua MB Bank (không thanh toán Full 100% hoặc Ship COD) để đảm bảo quyền lợi collector khi chờ đợt hàng về!';
-      optDeposit.parentNode.insertBefore(preNotice, optDeposit);
+      preNotice.innerHTML = '<i class="fa-solid fa-triangle-exclamation" style="color:#7c3aed; margin-right:4px;"></i> <strong>Đơn hàng chứa xe Pre-Order:</strong> Mẫu xe chưa có sẵn tại kho thực tế nên cửa hàng <strong>áp dụng Đặt Cọc giữ suất</strong> qua VietQR PayOS (tự động) hoặc chuyển khoản MB Bank để đảm bảo quyền lợi collector!';
+      optPayOS.parentNode.insertBefore(preNotice, optPayOS);
     } else if (preNotice) {
       preNotice.style.display = 'block';
     }
   } else {
+    if (optPayOS) optPayOS.style.display = 'flex';
     if (optFull) optFull.style.display = 'flex';
+    if (optDeposit) optDeposit.style.display = 'flex';
     if (preNotice) preNotice.style.display = 'none';
 
     if (optCod) {
@@ -3199,6 +3207,11 @@ function renderCheckoutStep3() {
     remainingCodAmount = grandTotal;
     labelPayNow = 'Thanh toán khi nhận xe (COD):';
     noteText = `<i class="fa-solid fa-hand-holding-dollar" style="color:#059669;"></i> Bạn sẽ thanh toán <strong>${formatVND(grandTotal)}</strong> khi nhận và kiểm tra mô hình xe.`;
+  } else if (selectedCheckoutPaymentMethod === 'VIETQR_PAYOS') {
+    payNowAmount = hasPreOrder ? depositAmount : grandTotal;
+    remainingCodAmount = Math.max(0, grandTotal - payNowAmount);
+    labelPayNow = hasPreOrder ? 'Tiền cọc thanh toán PayOS VietQR 24/7:' : 'Thanh toán PayOS VietQR tự động 100%:';
+    noteText = `<i class="fa-solid fa-bolt" style="color:#0284c7;"></i> Cổng PayOS tự động tạo mã VietQR có sẵn số tiền <strong>${formatVND(payNowAmount)}</strong>. ${remainingCodAmount > 0 ? `Số tiền còn lại <strong>${formatVND(remainingCodAmount)}</strong> thanh toán COD khi nhận xe.` : 'Hệ thống tự động xác nhận đơn ngay khi bạn quét mã!'}`;
   } else if (selectedCheckoutPaymentMethod === 'BANK_TRANSFER' || selectedCheckoutPaymentMethod === 'FULL_TRANSFER') {
     payNowAmount = grandTotal;
     remainingCodAmount = 0;
@@ -3515,6 +3528,7 @@ function renderCheckoutStep4(rawOrder) {
   if (!container) return;
 
   const paymentMethod = (order.paymentMethod || selectedCheckoutPaymentMethod || 'DEPOSIT').toUpperCase();
+  const isPayOS = paymentMethod.includes('PAYOS') || paymentMethod.includes('VIETQR_PAYOS');
   const isCOD = paymentMethod.includes('COD');
   const isFull = paymentMethod.includes('FULL') || paymentMethod.includes('BANK_TRANSFER');
 
@@ -3616,6 +3630,23 @@ function renderCheckoutStep4(rawOrder) {
             Tổng tiền thanh toán cho bưu tá SPX khi nhận và kiểm tra kiện xe: <strong style="color:#dc2626; font-size:14px;">${formatVND(totalAmount)}</strong>.
           </div>
         </div>
+      ` : (isPayOS ? `
+        <div class="payos-payment-card" style="background:#ffffff; border:2px solid #0284c7; border-radius:12px; padding:16px; margin-bottom:14px; text-align:left; box-shadow:0 6px 20px rgba(2,132,199,0.12);">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; border-bottom:1px solid #e0f2fe; padding-bottom:10px; flex-wrap:wrap; gap:8px;">
+            <div style="display:flex; align-items:center; gap:8px;">
+              <span style="background:#0284c7; color:#fff; font-size:11px; font-weight:900; padding:3px 8px; border-radius:6px; letter-spacing:0.5px;">⚡ PAYOS VIETQR</span>
+              <strong style="font-size:14px; color:#0f172a;">${depositAmount > 0 ? 'QUÉT MÃ THANH TOÁN TIỀN CỌC TỰ ĐỘNG' : 'QUÉT MÃ THANH TOÁN ĐƠN HÀNG TỰ ĐỘNG'}</strong>
+            </div>
+            <span style="font-size:11.5px; color:#0369a1; background:#f0f9ff; padding:3px 10px; border-radius:12px; border:1px solid #bae6fd; font-weight:700;">
+              <i class="fa-solid fa-bolt"></i> Xác nhận tức thì 24/7
+            </span>
+          </div>
+
+          <div id="payosPaymentArea_${escapeHtml(orderCode)}" style="min-height:160px; display:flex; flex-direction:column; align-items:center; justify-content:center;">
+            <div class="pulse-spinner" style="border-color:#0284c7; border-top-color:transparent; margin-bottom:10px;"></div>
+            <div style="font-size:13px; font-weight:700; color:#0369a1;">Đang khởi tạo cổng thanh toán tự động PayOS VietQR...</div>
+          </div>
+        </div>
       ` : `
         <div class="bank-payment-card" style="background:#ffffff; border:1.5px solid #fecaca; border-radius:12px; padding:14px; margin-bottom:14px; text-align:left; box-shadow:0 4px 12px rgba(220,38,38,0.06);">
           <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; border-bottom:1px solid #f1f5f9; padding-bottom:8px;">
@@ -3673,7 +3704,7 @@ function renderCheckoutStep4(rawOrder) {
             </button>
           </div>
         </div>
-      `}
+      `)}
 
       <div class="stepper-actions" style="display:flex; justify-content:center; gap:10px; flex-wrap:wrap;">
         <button type="button" class="btn btn-outline" onclick="printCustomerOrderInvoice('${escapeHtml(orderCode)}')">
@@ -3691,7 +3722,95 @@ function renderCheckoutStep4(rawOrder) {
 
   updateLiveStep4OrderStatus(order);
   startPaymentPolling(orderCode);
+  if (isPayOS) {
+    initPayosStep4Checkout(orderCode, transferAmount);
+  }
 }
+
+async function initPayosStep4Checkout(orderCode, expectedAmount) {
+  const container = document.getElementById(`payosPaymentArea_${orderCode}`);
+  if (!container) return;
+
+  try {
+    const json = await safeFetch(`/api/orders/${encodeURIComponent(orderCode)}/payos-link`, {
+      method: 'POST'
+    });
+
+    if (json && json.success && json.data) {
+      const { checkoutUrl, qrCode, amount, accountNumber, accountName, bin } = json.data;
+      const transferAmount = Number(amount || expectedAmount || 0);
+
+      const qrImageSrc = (qrCode && (qrCode.startsWith('http') || qrCode.startsWith('data:image')))
+        ? qrCode
+        : `https://img.vietqr.io/image/${bin || '970422'}-${accountNumber || '87654321082007'}-compact2.png?amount=${Math.round(transferAmount)}&addInfo=${encodeURIComponent(`MGT ${orderCode}`)}&accountName=${encodeURIComponent(accountName || 'DO QUOC THINH')}`;
+
+      container.innerHTML = `
+        <div style="display:grid; grid-template-columns: 160px 1fr; gap:16px; align-items:center; width:100%;">
+          <div style="text-align:center;">
+            <img src="${qrImageSrc}" alt="VietQR PayOS" style="width:100%; border-radius:10px; border:1.5px solid #0284c7; box-shadow:0 4px 12px rgba(2,132,199,0.15); padding:4px; background:#fff;">
+            <div style="font-size:11px; color:#64748b; margin-top:5px; font-weight:600;"><i class="fa-solid fa-qrcode"></i> Quét bằng app ngân hàng</div>
+          </div>
+
+          <div style="font-size:12.5px;">
+            <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
+              <span style="color:#64748b;">Số tiền cần thanh toán:</span>
+              <strong style="color:#dc2626; font-size:15px; font-weight:900;">${formatVND(transferAmount)}</strong>
+            </div>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px;">
+              <span style="color:#64748b;">Nội dung chuyển khoản (Memo):</span>
+              <div style="display:flex; align-items:center; gap:4px;">
+                <strong style="color:#0284c7; font-family:var(--font-mono, monospace); font-size:13.5px;">MGT ${escapeHtml(orderCode)}</strong>
+                <button type="button" class="btn-copy-mini" style="background:#0284c7; color:#fff;" onclick="copyToClipboard('MGT ${escapeHtml(orderCode)}', 'Đã copy nội dung!')"><i class="fa-regular fa-copy"></i> Copy</button>
+              </div>
+            </div>
+            <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
+              <span style="color:#64748b;">Chủ tài khoản:</span>
+              <strong>${escapeHtml(accountName || 'DO QUOC THINH')}</strong>
+            </div>
+            <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
+              <span style="color:#64748b;">Số tài khoản PayOS:</span>
+              <div style="display:flex; align-items:center; gap:4px;">
+                <strong style="font-family:var(--font-mono, monospace); color:#0f172a;">${escapeHtml(accountNumber || '87654321082007')}</strong>
+                <button type="button" class="btn-copy-mini" onclick="copyToClipboard('${escapeHtml(accountNumber || '87654321082007')}', 'Đã copy STK!')"><i class="fa-regular fa-copy"></i></button>
+              </div>
+            </div>
+
+            <div style="margin-top:10px; display:flex; gap:8px; flex-wrap:wrap;">
+              <a href="${checkoutUrl}" target="_blank" class="btn btn-sm" style="background:#0284c7; color:#fff; border:none; padding:8px 14px; border-radius:8px; font-weight:800; font-size:12px; text-decoration:none; display:inline-flex; align-items:center; gap:6px; box-shadow:0 4px 12px rgba(2,132,199,0.3);">
+                <i class="fa-solid fa-arrow-up-right-from-square"></i> Mở Trang Thanh Toán PayOS ↗
+              </a>
+              <button type="button" class="btn btn-sm btn-outline" style="border-color:#0284c7; color:#0284c7; font-weight:700; font-size:12px; padding:7px 12px;" onclick="copyToClipboard('${checkoutUrl}', 'Đã copy link thanh toán PayOS!')">
+                <i class="fa-regular fa-copy"></i> Copy Link PayOS
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div style="margin-top:14px; width:100%; background:#eff6ff; border:1px dashed #93c5fd; border-radius:8px; padding:10px 12px; display:flex; align-items:center; gap:10px;">
+          <div class="pulse-spinner" style="border-color:#2563eb; border-top-color:transparent; flex-shrink:0;"></div>
+          <div style="font-size:12px; color:#1e40af; line-height:1.4;">
+            <strong>Hệ thống đang chờ bạn chuyển khoản:</strong> Sau khi bạn thực hiện giao dịch trên App ngân hàng, PayOS Webhook sẽ tự động xác nhận đơn hàng của bạn trong <strong>1 - 3 giây</strong>!
+          </div>
+        </div>
+      `;
+    } else {
+      container.innerHTML = `
+        <div style="padding:12px; color:#b91c1c; font-size:12.5px; text-align:center;">
+          <i class="fa-solid fa-triangle-exclamation"></i> Không thể tạo mã PayOS tự động. Vui lòng liên hệ Admin hoặc quét mã chuyển khoản MB Bank!
+        </div>
+      `;
+    }
+  } catch (err) {
+    console.warn('[PayOS Init Error]:', err);
+    container.innerHTML = `
+      <div style="padding:12px; color:#b91c1c; font-size:12.5px; text-align:center;">
+        <i class="fa-solid fa-triangle-exclamation"></i> Lỗi kết nối PayOS: ${escapeHtml(err.message || 'Không thể tạo link')}.
+      </div>
+    `;
+  }
+}
+
+const notifiedOrdersInStep4 = new Set();
 
 function updateLiveStep4OrderStatus(rawOrd) {
   if (!rawOrd) return;
@@ -3706,9 +3825,32 @@ function updateLiveStep4OrderStatus(rawOrd) {
     return;
   }
 
+  // Cập nhật trạng thái box thanh toán PayOS nếu đơn đã thanh toán thành công
+  const payosArea = document.getElementById(`payosPaymentArea_${code}`);
+  if (payosArea && (ord.paymentStatus === 'PAID' || ord.paymentStatus === 'PARTIALLY_PAID' || ord.status === 'CONFIRMED')) {
+    payosArea.innerHTML = `
+      <div style="text-align:center; padding:16px; width:100%; background:#f0fdf4; border:1.5px solid #86efac; border-radius:10px;">
+        <i class="fa-solid fa-circle-check" style="color:#16a34a; font-size:36px; margin-bottom:8px;"></i>
+        <div style="font-size:15px; font-weight:900; color:#15803d; text-transform:uppercase;">
+          🎉 ĐÃ XÁC NHẬN THANH TOÁN TỰ ĐỘNG THÀNH CÔNG!
+        </div>
+        <div style="font-size:12px; color:#166534; margin-top:4px;">
+          Cổng PayOS đã khớp lệnh và tự động duyệt đơn hàng của bạn. Bạn không cần chuyển khoản thêm nữa!
+        </div>
+      </div>
+    `;
+  }
+
   const status = String(ord.status || ord.Status || 'PENDING').toUpperCase();
   const trackingCode = ord.trackingCode || ord.TrackingCode || null;
   const isApproved = ['CONFIRMED', 'PREPARING', 'SHIPPING', 'DELIVERED'].includes(status) || Boolean(trackingCode);
+
+  // Kích hoạt pháo hoa và thông báo chúc mừng khi đơn vừa được chuyển trạng thái thanh toán thành công
+  if ((ord.paymentStatus === 'PAID' || ord.paymentStatus === 'PARTIALLY_PAID' || isApproved) && status !== 'CANCELLED' && !notifiedOrdersInStep4.has(code)) {
+    notifiedOrdersInStep4.add(code);
+    if (typeof launchCollectorConfetti === 'function') launchCollectorConfetti();
+    showToast(`🎉 Đơn hàng #${code} đã được xác nhận thanh toán tự động thành công!`, 'success', 5000);
+  }
 
   if (status === 'CANCELLED') {
     const cancelReason = ord.cancelReason || ord.CancelReason || 'Admin đã xử lý hủy đơn';

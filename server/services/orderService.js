@@ -34,8 +34,8 @@ async function createOrder(payload, authUser = null) {
   const note = v.cleanStr(payload.note, 500);
 
   const rawPay = String(payload.paymentMethod || 'BANK_TRANSFER').toUpperCase();
-  const paymentMethod = ['COD', 'BANK_TRANSFER', 'DEPOSIT'].includes(rawPay)
-    ? rawPay
+  const paymentMethod = ['COD', 'BANK_TRANSFER', 'DEPOSIT', 'VIETQR_PAYOS', 'PAYOS'].includes(rawPay)
+    ? (rawPay === 'PAYOS' ? 'VIETQR_PAYOS' : rawPay)
     : (rawPay === 'VIETQR' || rawPay === 'BANK' || rawPay === 'FULL_TRANSFER' ? 'BANK_TRANSFER' : 'COD');
 
   const rawShip = String(payload.shippingMethod || 'SPX').toUpperCase();
@@ -166,7 +166,7 @@ async function createOrder(payload, authUser = null) {
 
     const total = Math.max(0, subtotal + shippingFee + protectorFee - voucherDiscount);
     let finalPaymentMethod = paymentMethod;
-    if (hasPreOrder) finalPaymentMethod = 'DEPOSIT';
+    if (hasPreOrder && finalPaymentMethod !== 'VIETQR_PAYOS') finalPaymentMethod = 'DEPOSIT';
 
     // KIỂM TRA ĐIỀU KIỆN SHIP COD 100% PHÒNG CHỐNG BOM ĐƠN
     if (finalPaymentMethod === 'COD') {
@@ -187,7 +187,7 @@ async function createOrder(payload, authUser = null) {
       }
     }
 
-    const depositAmount = finalPaymentMethod === 'DEPOSIT'
+    const depositAmount = (finalPaymentMethod === 'DEPOSIT' || (hasPreOrder && finalPaymentMethod === 'VIETQR_PAYOS'))
       ? Math.min(total, depositRequired || Math.round(total * 0.3))
       : (finalPaymentMethod === 'BANK_TRANSFER' ? total : 0);
 
@@ -517,8 +517,12 @@ async function listOrders({ status, paymentStatus, paymentMethod, q, userId, pho
     params.payStatus = String(paymentStatus).toUpperCase();
   }
   if (paymentMethod && paymentMethod !== 'all' && paymentMethod !== 'ALL') {
-    where.push('o.PaymentMethod = @payMethod');
-    params.payMethod = String(paymentMethod).toUpperCase();
+    if (paymentMethod === 'VIETQR_PAYOS' || paymentMethod === 'PAYOS') {
+      where.push("(o.PaymentMethod IN ('VIETQR_PAYOS', 'PAYOS') OR o.PaymentMethod ILIKE '%PAYOS%')");
+    } else {
+      where.push('o.PaymentMethod = @payMethod');
+      params.payMethod = String(paymentMethod).toUpperCase();
+    }
   }
   if (spxStatus && spxStatus !== 'ALL') {
     if (spxStatus === 'UNASSIGNED') {
