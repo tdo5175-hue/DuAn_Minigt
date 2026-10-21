@@ -1706,9 +1706,8 @@
       return {
         success: true,
         emailSent: true,
-        devOtp: '6868',
         email,
-        message: `Mã xác thực OTP gồm 6 chữ số đã được gửi tự động tới hộp thư Gmail (${email})! Mã dự phòng: 6868.`
+        message: `Mã xác thực OTP gồm 6 chữ số đã được gửi tự động tới hộp thư Gmail (${email})! Vui lòng mở Gmail để lấy mã.`
       };
     }
 
@@ -1753,14 +1752,16 @@
 
       const targetEmail = (user && user.email) ? user.email : (identifier.includes('@') ? identifier : 'khachhang@minigt.vn');
       const otpCode = String(Math.floor(100000 + Math.random() * 900000));
+      try {
+        sessionStorage.setItem('minigt_mock_otp_' + targetEmail.toLowerCase(), otpCode);
+        if (cleanIdent) sessionStorage.setItem('minigt_mock_otp_' + cleanIdent, otpCode);
+      } catch (_) {}
 
       return {
         success: true,
         emailSent: true,
-        otp: otpCode,
-        devOtp: '6868',
         email: targetEmail,
-        message: `Mã OTP xác thực gồm 6 chữ số đã được tạo cho tài khoản (${targetEmail})! Mã OTP: ${otpCode}.`
+        message: `Mã OTP xác thực gồm 6 chữ số đã được gửi tới hộp thư Gmail (${targetEmail}). Vui lòng kiểm tra Gmail để lấy mã xác thực!`
       };
     }
 
@@ -1769,15 +1770,21 @@
       const otp = String(body.otp || '').trim();
       const newPassword = String(body.newPassword || '').trim();
 
-      if (otp !== '6868' && otp !== '123456' && !/^\d{6}$/.test(otp)) {
-        return { success: false, message: 'Mã xác thực OTP không chính xác! Vui lòng nhập mã OTP 6 số từ Gmail (hoặc mã 6868).' };
+      const cleanIdent = identifier.replace(/\s+/g, '');
+      let storedOtp = null;
+      try {
+        storedOtp = sessionStorage.getItem('minigt_mock_otp_' + identifier) || (cleanIdent ? sessionStorage.getItem('minigt_mock_otp_' + cleanIdent) : null);
+      } catch (_) {}
+
+      const isMatch = (storedOtp && otp === storedOtp) || (!storedOtp && /^\d{6}$/.test(otp));
+      if (!isMatch) {
+        return { success: false, message: 'Mã xác thực OTP không chính xác! Vui lòng kiểm tra lại mã 6 chữ số trong hộp thư Gmail.' };
       }
       if (!newPassword || newPassword.length < 6) {
         return { success: false, message: 'Mật khẩu mới phải có tối thiểu 6 ký tự!' };
       }
 
       const users = getSharedUsers();
-      const cleanIdent = identifier.replace(/\s+/g, '');
       const user = users.find(u => {
         const emailMatch = u.email && u.email.toLowerCase() === identifier;
         const rawPhone = (u.phone || '').replace(/\D/g, '');
@@ -1793,6 +1800,11 @@
       user.hasPassword = true;
       if (user.authProvider === 'google') user.authProvider = 'google+local';
       saveSharedUsers(users);
+
+      try {
+        sessionStorage.removeItem('minigt_mock_otp_' + identifier);
+        if (cleanIdent) sessionStorage.removeItem('minigt_mock_otp_' + cleanIdent);
+      } catch (_) {}
 
       return {
         success: true,

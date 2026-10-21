@@ -556,56 +556,87 @@ router.post('/forgot', async (req, res, next) => {
 
     const emailHtml = `
       <!DOCTYPE html>
-      <html>
+      <html lang="vi">
       <head>
         <meta charset="utf-8">
-        <style>
-          body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f1f5f9; margin: 0; padding: 20px; }
-          .container { max-width: 540px; margin: 0 auto; background: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 10px 30px rgba(15,23,42,0.08); border: 1px solid #e2e8f0; }
-          .header { background: #0f172a; padding: 28px 24px; text-align: center; border-bottom: 3px solid #dc2626; }
-          .header h1 { color: #ffffff; margin: 0; font-size: 20px; font-weight: 800; letter-spacing: 1.5px; }
-          .header p { color: #94a3b8; margin: 6px 0 0; font-size: 12px; }
-          .content { padding: 32px 28px; color: #1e293b; line-height: 1.6; }
-          .greeting { font-size: 15px; font-weight: 700; color: #0f172a; margin-bottom: 12px; }
-          .otp-box { background: #fef2f2; border: 2px dashed #dc2626; border-radius: 12px; padding: 22px 16px; text-align: center; margin: 24px 0; }
-          .otp-label { font-size: 11.5px; font-weight: 800; color: #b91c1c; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
-          .otp-code { font-family: 'Courier New', Courier, monospace; font-size: 38px; font-weight: 900; letter-spacing: 10px; color: #dc2626; margin: 0; }
-          .note { font-size: 12.5px; color: #64748b; background: #f8fafc; border-left: 3px solid #f59e0b; padding: 10px 14px; border-radius: 6px; margin: 20px 0; }
-          .footer { background: #f8fafc; padding: 20px 24px; border-top: 1px solid #e2e8f0; text-align: center; font-size: 11.5px; color: #64748b; }
-          .footer strong { color: #0f172a; }
-        </style>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Mã xác thực OTP - MINI GT Store Biên Hòa</title>
       </head>
-      <body>
-        <div class="container">
-          <div class="header">
-            <h1>MINI GT STORE BIÊN HÒA</h1>
-            <p>Hệ thống mô hình tĩnh 1:64 & Pre-order Collector Pass</p>
-          </div>
-          <div class="content">
-            <div class="greeting">Xin chào ${u.FullName || 'Quý khách'},</div>
-            <p style="margin: 0 0 14px 0; font-size: 13.5px; color: #334155;">
-              Hệ thống nhận được yêu cầu đặt lại mật khẩu cho tài khoản hội viên liên kết với địa chỉ email: <strong>${u.Email}</strong>.
-            </p>
-            <div class="otp-box">
-              <div class="otp-label">MÃ XÁC THỰC ĐẶT LẠI MẬT KHẨU (OTP)</div>
-              <div class="otp-code">${otpCode}</div>
-            </div>
-            <div class="note">
-              ⏱️ <strong>Thời hạn hiệu lực:</strong> Mã xác thực trên có giá trị trong vòng <strong>15 phút</strong>.<br>
-              🔒 <strong>Lưu ý bảo mật:</strong> Tuyệt đối không chia sẻ mã này cho bất kỳ ai. Nếu bạn không yêu cầu hành động này, vui lòng bỏ qua email.
-            </div>
-          </div>
-          <div class="footer">
-            <p style="margin: 0 0 4px 0;"><strong>MINI GT STORE BIÊN HÒA - SĂN XE BIÊN HÒA</strong></p>
-            <p style="margin: 0 0 4px 0;">Showroom: 38/2 Võ Thị Sáu, P. Quyết Thắng, TP. Biên Hòa, Đồng Nai</p>
-            <p style="margin: 0;">Hotline / Zalo hỗ trợ: <strong>0988.164.164</strong> • Email: ${process.env.EMAIL_USER || 'tdo5175@gmail.com'}</p>
-          </div>
-        </div>
+      <body style="margin: 0; padding: 24px 12px; background-color: #f4f6f8; font-family: Arial, Helvetica, sans-serif; color: #1e293b; -webkit-font-smoothing: antialiased;">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: #f4f6f8; width: 100%;">
+          <tr>
+            <td align="center">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width: 520px; width: 100%; background-color: #ffffff; border-radius: 8px; border: 1px solid #e2e8f0; overflow: hidden; box-shadow: 0 2px 6px rgba(0,0,0,0.03);">
+                <!-- Header Thương Hiệu MINI GT -->
+                <tr>
+                  <td style="background-color: #0f172a; padding: 22px 24px; text-align: center; border-top: 4px solid #dc2626;">
+                    <div style="font-size: 18px; font-weight: 800; color: #ffffff; letter-spacing: 1px; text-transform: uppercase;">
+                      MINI GT STORE BIÊN HÒA
+                    </div>
+                    <div style="font-size: 12px; color: #94a3b8; margin-top: 4px; font-weight: 400;">
+                      Hệ Thống Mô Hình Tĩnh 1:64 &amp; Pre-Order Chính Hãng
+                    </div>
+                  </td>
+                </tr>
+
+                <!-- Nội Dung Chính -->
+                <tr>
+                  <td style="padding: 28px 24px; font-size: 14px; line-height: 1.6; color: #334155;">
+                    <p style="margin: 0 0 14px; font-size: 15px; font-weight: 700; color: #0f172a;">
+                      Xin chào ${u.FullName || 'Quý khách'},
+                    </p>
+                    <p style="margin: 0 0 16px; color: #475569;">
+                      Chúng tôi nhận được yêu cầu đặt lại mật khẩu cho tài khoản hội viên của bạn tại hệ thống <strong>Săn Xe Biên Hòa</strong> (liên kết với email: <strong>${u.Email}</strong>).
+                    </p>
+                    <p style="margin: 0 0 8px; color: #475569;">
+                      Dưới đây là mã xác thực OTP dùng để tạo mật khẩu mới:
+                    </p>
+
+                    <!-- Khung Mã OTP Sang Trọng, Tối Giản -->
+                    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin: 18px 0; background-color: #f8fafc; border: 1px solid #cbd5e1; border-radius: 6px;">
+                      <tr>
+                        <td style="padding: 18px 16px; text-align: center;">
+                          <div style="font-size: 11px; font-weight: 700; color: #64748b; letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 6px;">
+                            MÃ XÁC THỰC ĐẶT LẠI MẬT KHẨU (OTP)
+                          </div>
+                          <div style="font-family: Consolas, 'Courier New', monospace; font-size: 34px; font-weight: 800; letter-spacing: 8px; color: #dc2626; margin: 4px 0;">
+                            ${otpCode}
+                          </div>
+                          <div style="font-size: 12px; color: #64748b; margin-top: 4px;">
+                            Thời hạn hiệu lực: <strong>15 phút</strong>
+                          </div>
+                        </td>
+                      </tr>
+                    </table>
+
+                    <!-- Lưu Ý Bảo Mật -->
+                    <div style="background-color: #f1f5f9; border-left: 3px solid #94a3b8; padding: 10px 14px; border-radius: 4px; font-size: 12.5px; color: #475569; line-height: 1.5; margin: 20px 0 0;">
+                      🔒 <strong>Bảo mật tài khoản:</strong> Tuyệt đối không cung cấp mã này cho người khác (kể cả nhân viên cửa hàng). Nếu bạn không thực hiện yêu cầu này, vui lòng bỏ qua email và mật khẩu của bạn vẫn được giữ an toàn.
+                    </div>
+                  </td>
+                </tr>
+
+                <!-- Footer -->
+                <tr>
+                  <td style="background-color: #f8fafc; padding: 18px 24px; border-top: 1px solid #e2e8f0; text-align: center; font-size: 12px; color: #64748b; line-height: 1.5;">
+                    <div style="font-weight: 700; color: #0f172a; margin-bottom: 4px;">
+                      MINI GT STORE BIÊN HÒA — SĂN XE BIÊN HÒA
+                    </div>
+                    <div>Showroom: 38/2 Võ Thị Sáu, P. Quyết Thắng, TP. Biên Hòa, Đồng Nai</div>
+                    <div style="margin-top: 4px;">Hotline / Zalo: <strong>0988.164.164</strong> • Email: ${process.env.EMAIL_USER || 'tdo5175@gmail.com'}</div>
+                    <div style="font-size: 11px; color: #94a3b8; margin-top: 8px;">
+                      Đây là email thông báo tự động từ hệ thống, vui lòng không trả lời thư này.
+                    </div>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+        </table>
       </body>
       </html>
     `;
 
-    let emailSent = false;
     try {
       await mailTransporter.sendMail({
         from: `"MINI GT STORE BIÊN HÒA" <${process.env.EMAIL_USER || 'tdo5175@gmail.com'}>`,
@@ -619,20 +650,17 @@ router.post('/forgot', async (req, res, next) => {
           'Importance': 'High'
         }
       });
-      emailSent = true;
       console.log(`[MAIL OTP SUCCESS]: Đã gửi OTP đặt lại mật khẩu thật tới ${u.Email}`);
     } catch (err) {
-      console.warn('[MAIL OTP WARNING]: Không thể gửi mail qua SMTP server:', err.message);
+      console.error('[MAIL OTP ERROR]: Lỗi gửi email qua Gmail SMTP:', err.message);
+      throw badRequest(`Không thể gửi email OTP tới hộp thư (${u.Email}). Vui lòng kiểm tra lại địa chỉ email hoặc kết nối mạng!`);
     }
 
     return res.status(200).json({
       success: true,
-      emailSent,
-      otp: otpCode,
+      emailSent: true,
       email: u.Email,
-      message: emailSent
-        ? `Mã xác thực OTP gồm 6 chữ số đã được gửi trực tiếp tới hộp thư Gmail (${u.Email})! Vui lòng mở Gmail (kiểm tra cả Hộp thư đến và Thư mục Spam) để lấy mã.`
-        : `Mã OTP khôi phục mật khẩu của bạn là: ${otpCode}. Hệ thống đã tự động điền để bạn đặt mật khẩu mới dễ dàng!`
+      message: `Mã xác thực OTP gồm 6 chữ số đã được gửi trực tiếp tới Gmail (${u.Email}). Vui lòng mở Gmail để lấy mã xác nhận!`
     });
   } catch (err) {
     next(err);
@@ -663,14 +691,14 @@ router.post('/reset-password', async (req, res, next) => {
     const u = normalizeUserRow(userRes.recordset[0]);
     const savedRecord = otpStore.get(u.Email.toLowerCase()) || (cleanPhone ? otpStore.get(cleanPhone) : null);
 
-    const isTestOtp = (otp === '6868' || otp === '123456');
+    const isTestOtp = (process.env.NODE_ENV === 'test' && (otp === '6868' || otp === '123456'));
     const isSavedMatch = savedRecord && (Date.now() <= savedRecord.expiresAt) && (savedRecord.otp === otp);
 
     if (!isSavedMatch && !isTestOtp) {
       if (savedRecord && Date.now() > savedRecord.expiresAt) {
-        throw badRequest('Mã xác thực OTP đã hết hạn! Vui lòng bấm gửi lại mã mới.');
+        throw badRequest('Mã xác thực OTP đã hết hạn sau 15 phút! Vui lòng bấm gửi lại mã mới.');
       }
-      throw badRequest('Mã xác thực OTP không chính xác! Vui lòng kiểm tra lại.');
+      throw badRequest('Mã xác thực OTP không chính xác! Vui lòng kiểm tra lại hộp thư Gmail (kể cả mục Spam).');
     }
 
     const passwordHash = await bcrypt.hash(newPassword, 10);

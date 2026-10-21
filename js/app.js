@@ -4695,10 +4695,10 @@ async function handleForgotPassword(e) {
     return;
   }
 
-  // Bước 1: Gửi mã OTP xác thực tự động về Gmail hoặc tạo mã xác thực
+  // Bước 1: Gửi mã OTP xác thực tự động về Gmail
   if (!otpArea || otpArea.style.display === 'none') {
     const originalText = submitText ? submitText.textContent : 'GỬI MÃ KHÔI PHỤC OTP';
-    if (submitText) submitText.textContent = 'ĐANG XÁC THỰC TÀI KHOẢN...';
+    if (submitText) submitText.textContent = 'ĐANG GỬI MÃ VỀ GMAIL...';
     try {
       const json = await safeFetch('/api/auth/forgot', {
         method: 'POST',
@@ -4709,43 +4709,45 @@ async function handleForgotPassword(e) {
         otpArea.style.display = 'block';
         if (submitText) submitText.textContent = 'XÁC NHẬN ĐẶT LẠI MẬT KHẨU';
 
-        const otpReceived = json.otp || json.devOtp;
         if (otpNoticeText) {
-          if (json.emailSent) {
-            otpNoticeText.innerHTML = `<i class="fa-solid fa-envelope-circle-check" style="color:#059669; font-size:16px; margin-right:4px;"></i> Mã xác thực OTP gồm 6 chữ số đã được <strong>gửi tới Gmail (${escapeHtml(json.email || email)})</strong>.<br><span style="font-size:11.5px; color:#64748b;">Vui lòng kiểm tra Hộp thư đến (hoặc Thư mục Spam) trong Gmail của bạn.</span>`;
-          } else {
-            otpNoticeText.innerHTML = `<i class="fa-solid fa-key" style="color:#dc2626; font-size:16px; margin-right:4px;"></i> Mã xác thực đặt lại mật khẩu: <strong style="font-size:17px; color:#dc2626; letter-spacing:3px;">${otpReceived}</strong> (Hệ thống đã tự động điền mã).<br><span style="font-size:11.5px; color:#64748b;">Vui lòng nhập mật khẩu mới và bấm xác nhận để hoàn tất.</span>`;
-          }
+          otpNoticeText.innerHTML = `
+            <div style="display:flex; align-items:flex-start; gap:8px;">
+              <i class="fa-solid fa-envelope-circle-check" style="color:#059669; font-size:18px; margin-top:2px; flex-shrink:0;"></i>
+              <div>
+                <strong style="color:#0f172a; font-size:13px;">Mã xác thực OTP đã được gửi về Gmail của bạn!</strong><br>
+                <span style="font-size:12px; color:#475569; line-height:1.45;">
+                  Hệ thống đã gửi mã 6 chữ số tới hộp thư <strong>${escapeHtml(json.email || email)}</strong>. Vui lòng mở Gmail (kiểm tra cả Hộp thư đến và Thư mục Spam) để lấy mã và nhập vào ô bên dưới.
+                </span>
+              </div>
+            </div>
+          `;
         }
         if (otpInput) {
-          if (otpReceived) {
-            otpInput.value = otpReceived;
-          } else {
-            otpInput.value = '';
-          }
+          otpInput.value = '';
           otpInput.placeholder = 'Nhập mã 6 số từ Gmail...';
+          otpInput.focus();
         }
         if (newPwdInput) {
-          newPwdInput.focus();
+          newPwdInput.value = '';
         }
-        showToast(json.message || 'Mã xác thực OTP đã sẵn sàng! Vui lòng nhập mật khẩu mới.', 'success');
+        showToast(json.message || 'Mã xác thực OTP đã được gửi tới Gmail của bạn!', 'success');
       } else {
         if (submitText) submitText.textContent = originalText;
-        showToast(json?.message || 'Không thể gửi mã OTP, vui lòng kiểm tra lại thông tin!', 'error');
+        showToast(json?.message || 'Không thể gửi mã OTP, vui lòng kiểm tra lại địa chỉ email!', 'error');
       }
     } catch (err) {
       if (submitText) submitText.textContent = originalText;
-      showToast('Có lỗi kết nối khi yêu cầu khôi phục mật khẩu. Vui lòng thử lại!', 'error');
+      showToast(err.message || 'Có lỗi kết nối khi gửi mã OTP về Gmail. Vui lòng thử lại!', 'error');
     }
     return;
   }
 
-  // Bước 2: Xác nhận OTP và đặt mật khẩu mới
+  // Bước 2: Xác nhận OTP từ Gmail và đặt mật khẩu mới
   const otp = otpInput ? otpInput.value.trim() : '';
   const newPassword = newPwdInput ? newPwdInput.value : '';
 
-  if (!otp) {
-    showToast('Vui lòng nhập mã OTP xác thực 6 chữ số!', 'error');
+  if (!otp || otp.length !== 6) {
+    showToast('Vui lòng mở Gmail và nhập đúng mã xác thực OTP gồm 6 chữ số!', 'error');
     otpInput?.focus();
     return;
   }
@@ -4765,7 +4767,7 @@ async function handleForgotPassword(e) {
       body: JSON.stringify({ email, otp, newPassword })
     });
     if (json && json.success) {
-      showToast('✅ Đặt lại mật khẩu thành công! Giờ đây bạn có thể đăng nhập ngay.', 'success');
+      showToast('✅ Đặt lại mật khẩu thành công! Giờ đây bạn có thể đăng nhập bằng mật khẩu mới.', 'success');
 
       // Đồng bộ vào Shared Users & LocalStorage
       try {
@@ -4794,6 +4796,7 @@ async function handleForgotPassword(e) {
     } else {
       if (submitText) submitText.textContent = originalText;
       showToast(json?.message || 'Mã OTP không chính xác hoặc đã hết hạn!', 'error');
+      otpInput?.focus();
     }
   } catch (err) {
     if (submitText) submitText.textContent = originalText;
@@ -4808,10 +4811,10 @@ async function resendForgotOtp() {
   const otpInput = document.getElementById('forgotOtpInput');
   const email = emailInput ? emailInput.value.trim() : '';
   if (!email) {
-    showToast('Vui lòng nhập email hoặc số điện thoại tài khoản!', 'error');
+    showToast('Vui lòng nhập Email hoặc Số điện thoại tài khoản!', 'error');
     return;
   }
-  showToast('Đang gửi lại mã xác thực OTP...', 'info');
+  showToast('Đang gửi lại mã xác thực OTP về Gmail của bạn...', 'info');
   try {
     const json = await safeFetch('/api/auth/forgot', {
       method: 'POST',
@@ -4819,23 +4822,29 @@ async function resendForgotOtp() {
       body: JSON.stringify({ email })
     });
     if (json && json.success) {
-      const otpReceived = json.otp || json.devOtp;
-      if (otpInput && otpReceived) {
-        otpInput.value = otpReceived;
+      if (otpInput) {
+        otpInput.value = '';
+        otpInput.focus();
       }
-      if (otpNoticeText && otpReceived) {
-        if (json.emailSent) {
-          otpNoticeText.innerHTML = `<i class="fa-solid fa-envelope-circle-check" style="color:#059669; font-size:16px; margin-right:4px;"></i> Đã gửi lại mã OTP 6 số tới Gmail <strong>(${escapeHtml(json.email || email)})</strong>.`;
-        } else {
-          otpNoticeText.innerHTML = `<i class="fa-solid fa-key" style="color:#dc2626; font-size:16px; margin-right:4px;"></i> Mã OTP xác thực mới: <strong style="font-size:17px; color:#dc2626; letter-spacing:3px;">${otpReceived}</strong> (Hệ thống đã tự động điền mã).`;
-        }
+      if (otpNoticeText) {
+        otpNoticeText.innerHTML = `
+          <div style="display:flex; align-items:flex-start; gap:8px;">
+            <i class="fa-solid fa-envelope-circle-check" style="color:#059669; font-size:18px; margin-top:2px; flex-shrink:0;"></i>
+            <div>
+              <strong style="color:#0f172a; font-size:13px;">Mã OTP mới đã được gửi tới Gmail của bạn!</strong><br>
+              <span style="font-size:12px; color:#475569; line-height:1.45;">
+                Vui lòng kiểm tra Hộp thư đến (hoặc Thư mục Spam) của <strong>${escapeHtml(json.email || email)}</strong> để lấy mã xác thực mới.
+              </span>
+            </div>
+          </div>
+        `;
       }
-      showToast(json.message || 'Đã tạo lại mã xác thực OTP mới thành công!', 'success');
+      showToast(json.message || 'Mã OTP mới đã được gửi về Gmail của bạn!', 'success');
     } else {
       showToast(json?.message || 'Không thể gửi lại mã, vui lòng thử lại sau!', 'error');
     }
   } catch (e) {
-    showToast('Đã gửi lại mã OTP về Gmail của bạn!', 'info');
+    showToast('Lỗi gửi lại mã OTP về Gmail. Vui lòng thử lại sau!', 'error');
   }
 }
 
