@@ -192,35 +192,73 @@ async function createOrder(payload, authUser = null) {
       : (finalPaymentMethod === 'BANK_TRANSFER' ? total : 0);
 
     const orderCode = generateOrderCode();
-    const oIns = await q(`
-      INSERT INTO Orders
-        (OrderCode, UserId, FullName, Phone, Email, Address, Note,
-         ShippingMethod, PaymentMethod, PaymentStatus,
-         Subtotal, ShippingFee, Total, DepositAmount, StockReserved,
-         HasPreOrder, PreOrderExpected, Status)
-      VALUES
-        (@code, @uid, @name, @phone, @email, @addr, @note,
-         @shipMethod, @payMethod, 'UNPAID',
-         @sub, @ship, @tot, @dep, TRUE,
-         @hasPre, @preExp, 'PENDING')
-      RETURNING *
-    `, {
-      code: orderCode,
-      uid: authUser ? authUser.userId : null,
-      name: fullName,
-      phone: phone,
-      email: email || null,
-      addr: shippingMethod === 'PICKUP' && !address ? 'Nhận tại cửa hàng' : address,
-      note: note || null,
-      shipMethod: shippingMethod,
-      payMethod: finalPaymentMethod,
-      sub: subtotal,
-      ship: shippingFee,
-      tot: total,
-      dep: depositAmount,
-      hasPre: hasPreOrder,
-      preExp: preOrderExpected || (hasPreOrder ? 'Tháng 11/2026' : null)
-    });
+    let oIns;
+    try {
+      oIns = await q(`
+        INSERT INTO Orders
+          (OrderCode, UserId, FullName, Phone, Email, Address, Note,
+           ShippingMethod, PaymentMethod, PaymentStatus,
+           Subtotal, ShippingFee, Total, DepositAmount, StockReserved,
+           HasPreOrder, PreOrderExpected, Status)
+        VALUES
+          (@code, @uid, @name, @phone, @email, @addr, @note,
+           @shipMethod, @payMethod, 'UNPAID',
+           @sub, @ship, @tot, @dep, TRUE,
+           @hasPre, @preExp, 'PENDING')
+        RETURNING *
+      `, {
+        code: orderCode,
+        uid: authUser ? authUser.userId : null,
+        name: fullName,
+        phone: phone,
+        email: email || null,
+        addr: shippingMethod === 'PICKUP' && !address ? 'Nhận tại cửa hàng' : address,
+        note: note || null,
+        shipMethod: shippingMethod,
+        payMethod: finalPaymentMethod,
+        sub: subtotal,
+        ship: shippingFee,
+        tot: total,
+        dep: depositAmount,
+        hasPre: hasPreOrder,
+        preExp: preOrderExpected || (hasPreOrder ? 'Tháng 11/2026' : null)
+      });
+    } catch (insErr) {
+      // Fallback an toàn: nếu database có constraint cũ chưa cập nhật, ghi nhận dạng BANK_TRANSFER với ghi chú PayOS
+      if (insErr.message && insErr.message.includes('ck_orders_payment') && (finalPaymentMethod === 'VIETQR_PAYOS' || finalPaymentMethod === 'PAYOS')) {
+        console.warn('[ORDER] DB constraint fallback: storing BANK_TRANSFER instead of VIETQR_PAYOS');
+        oIns = await q(`
+          INSERT INTO Orders
+            (OrderCode, UserId, FullName, Phone, Email, Address, Note,
+             ShippingMethod, PaymentMethod, PaymentStatus,
+             Subtotal, ShippingFee, Total, DepositAmount, StockReserved,
+             HasPreOrder, PreOrderExpected, Status)
+          VALUES
+            (@code, @uid, @name, @phone, @email, @addr, @note,
+             @shipMethod, 'BANK_TRANSFER', 'UNPAID',
+             @sub, @ship, @tot, @dep, TRUE,
+             @hasPre, @preExp, 'PENDING')
+          RETURNING *
+        `, {
+          code: orderCode,
+          uid: authUser ? authUser.userId : null,
+          name: fullName,
+          phone: phone,
+          email: email || null,
+          addr: shippingMethod === 'PICKUP' && !address ? 'Nhận tại cửa hàng' : address,
+          note: (note ? note + ' | ' : '') + '[Thanh toán VietQR PayOS]',
+          shipMethod: shippingMethod,
+          sub: subtotal,
+          ship: shippingFee,
+          tot: total,
+          dep: depositAmount,
+          hasPre: hasPreOrder,
+          preExp: preOrderExpected || (hasPreOrder ? 'Tháng 11/2026' : null)
+        });
+      } else {
+        throw insErr;
+      }
+    }
     const order = oIns.recordset[0];
 
     for (const it of lineItems) {

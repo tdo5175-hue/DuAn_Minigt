@@ -100,8 +100,20 @@ app.use(errorHandler);
 async function startServer() {
   try {
     await db.getPool();
-    // Kích hoạt kết nối pool ngay lập tức tới Supabase
-    try { await db.query('SELECT 1'); } catch (dbErr) { console.warn('Cảnh báo DB khởi động:', dbErr.message); }
+    // Kích hoạt kết nối pool ngay lập tức tới Supabase & bảo đảm constraint ck_orders_payment
+    try { 
+      await db.query('SELECT 1'); 
+      await db.query(`
+        DO $$
+        BEGIN
+          ALTER TABLE orders DROP CONSTRAINT IF EXISTS ck_orders_payment;
+          ALTER TABLE orders ADD CONSTRAINT ck_orders_payment 
+            CHECK (paymentmethod = ANY (ARRAY['COD'::text, 'BANK_TRANSFER'::text, 'DEPOSIT'::text, 'VIETQR_PAYOS'::text, 'PAYOS'::text]));
+        EXCEPTION WHEN OTHERS THEN
+          NULL;
+        END $$;
+      `);
+    } catch (dbErr) { console.warn('Cảnh báo DB khởi động:', dbErr.message); }
     app.listen(PORT, '0.0.0.0', () => {
       console.log(`🚀 MINI GT STORE Server đang chạy tại Port: ${PORT} (0.0.0.0 & 127.0.0.1)`);
     });
