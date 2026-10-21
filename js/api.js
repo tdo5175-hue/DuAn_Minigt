@@ -1786,6 +1786,10 @@
         if (body.oldAddressNote !== undefined) user.oldAddressNote = body.oldAddressNote;
         if (body.deliveryNote !== undefined) user.deliveryNote = body.deliveryNote;
         if (body.city) user.city = body.city;
+        if (body.password) {
+          user.password = String(body.password).trim();
+          user.hasPassword = true;
+        }
         saveSharedUsers(users);
         return { success: true, user, message: 'Cập nhật thông tin tài khoản thành công!' };
       }
@@ -1802,6 +1806,8 @@
         oldAddressNote: body.oldAddressNote || '',
         deliveryNote: body.deliveryNote || '',
         city: body.city || '',
+        hasPassword: Boolean(body.password),
+        password: body.password ? String(body.password).trim() : '',
         role: 'customer',
         tier: 'Collector',
         points: 100,

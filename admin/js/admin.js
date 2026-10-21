@@ -3040,7 +3040,10 @@
   async function changeOrderStatus(orderId, nextStatus) {
     try {
       const res = await api.put(`/api/admin/orders/${orderId}/status`, { status: nextStatus });
-      adminToast(res.message || 'Đã duyệt & cập nhật trạng thái đơn hàng! Khách hàng đã nhận được thông báo.', 'success');
+      const toastMsg = nextStatus === 'DELIVERED'
+        ? '🎉 Đã xác nhận giao hàng thành công! Thư cảm ơn & cẩm nang bảo quản xe 1:64 đã được tự động gửi qua email cho khách hàng.'
+        : (res.message || 'Đã duyệt & cập nhật trạng thái đơn hàng! Khách hàng đã nhận được thông báo.');
+      adminToast(toastMsg, 'success');
       if (api && typeof api.emitRealtimeSync === 'function') {
         const orderData = (res && res.data) ? res.data : { id: orderId, status: nextStatus };
         api.emitRealtimeSync('ORDER_UPDATED', {

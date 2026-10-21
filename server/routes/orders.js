@@ -6,6 +6,7 @@ const router = express.Router();
 const db = require('../config/db');
 const { optionalAuth, authenticate } = require('../middleware/auth');
 const orderService = require('../services/orderService');
+const mailService = require('../services/mailService');
 const { ok, badRequest, notFound } = require('../utils/http');
 const v = require('../utils/validate');
 
@@ -177,6 +178,11 @@ router.put('/:code/confirm-received', optionalAuth, async (req, res, next) => {
     `, { oid, from: o.status });
 
     const updated = await orderService.getOrderByCodeOrId(oid);
+    if (updated && (updated.email || updated.customer?.email)) {
+      mailService.sendOrderDeliveredEmail(updated).catch(err => {
+        console.warn('[MailService] Failed to send order delivered email:', err.message);
+      });
+    }
     return ok(res, updated, { message: 'Cảm ơn bạn đã xác nhận nhận hàng thành công!' });
   } catch (err) { next(err); }
 });

@@ -910,6 +910,43 @@ router.put('/users/:id/status', async (req, res, next) => {
   }
 });
 
+router.delete('/users/:id', async (req, res, next) => {
+  try {
+    const userId = parseInt(req.params.id, 10);
+    if (isNaN(userId)) throw badRequest('ID tài khoản không hợp lệ');
+
+    if (userId === req.user.userId) {
+      throw badRequest('Không thể xóa tài khoản của chính mình đang đăng nhập');
+    }
+
+    const check = await db.query('SELECT UserId, FullName, Email, Role FROM Users WHERE UserId = @userId', { userId });
+    if (!check.recordset || check.recordset.length === 0) {
+      throw notFound('Không tìm thấy tài khoản người dùng');
+    }
+    const targetUser = check.recordset[0];
+    if (targetUser.Role === 'admin' || targetUser.role === 'admin') {
+      throw badRequest('Không thể xóa tài khoản Quản trị viên (Admin). Vui lòng hạ quyền về Khách hàng trước khi xóa.');
+    }
+
+    // 1. Kiểm tra đơn hàng liên quan: Unlink UserId để bảo toàn hồ sơ kế toán / lịch sử đơn
+    try {
+      await db.query('UPDATE Orders SET UserId = NULL WHERE UserId = @userId', { userId });
+    } catch (_) {}
+
+    // 2. Xóa các đánh giá hoặc dữ liệu phụ nếu có
+    try {
+      await db.query('DELETE FROM ProductReviews WHERE UserId = @userId', { userId });
+    } catch (_) {}
+
+    // 3. Xóa vĩnh viễn tài khoản khỏi bảng Users
+    await db.query('DELETE FROM Users WHERE UserId = @userId', { userId });
+
+    return ok(res, { userId }, `Đã xóa vĩnh viễn tài khoản "${targetUser.FullName || targetUser.fullname || targetUser.Email}" thành công`);
+  } catch (error) {
+    next(error);
+  }
+});
+
 // =====================================================================
 // 5. QUẢN LÝ BẢN TIN (NEWSLETTER SUBSCRIBERS)
 // =====================================================================

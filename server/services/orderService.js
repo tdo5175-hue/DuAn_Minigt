@@ -4,6 +4,7 @@
 const db = require('../config/db');
 const { getSettings } = require('./settingsService');
 const { calcDiscountedPrice } = require('./productService');
+const mailService = require('./mailService');
 const { badRequest, notFound, conflict } = require('../utils/http');
 const v = require('../utils/validate');
 
@@ -69,7 +70,7 @@ async function createOrder(payload, authUser = null) {
 
   const cfg = await getSettings();
 
-  return await db.withTransaction(async (q) => {
+  const created = await db.withTransaction(async (q) => {
     const lineItems = [];
     let subtotal = 0;
     let depositRequired = 0;
@@ -246,6 +247,14 @@ async function createOrder(payload, authUser = null) {
 
     return mapOrder(order, lineItems);
   });
+
+  if (created && (created.email || created.customer?.email)) {
+    mailService.sendOrderConfirmationEmail(created).catch(err => {
+      console.warn('[MailService] Failed to send order confirmation email:', err.message);
+    });
+  }
+
+  return created;
 }
 
 async function transitionOrderStatus(orderIdOrCode, toStatus, { note, cancelReason, actorId = null, isAdmin = false, trackingCode = null, trackingCarrier = null } = {}) {
@@ -254,7 +263,7 @@ async function transitionOrderStatus(orderIdOrCode, toStatus, { note, cancelReas
     throw badRequest(`Trạng thái "${toStatus}" không hợp lệ`);
   }
 
-  return await db.withTransaction(async (q) => {
+  const resOrder = await db.withTransaction(async (q) => {
     const isNum = /^\d+$/.test(String(orderIdOrCode));
     const oRes = await q(`
       SELECT * FROM Orders
@@ -342,6 +351,14 @@ async function transitionOrderStatus(orderIdOrCode, toStatus, { note, cancelReas
 
     return getOrderByCodeOrId(order.OrderId);
   });
+
+  if (target === 'DELIVERED' && resOrder && (resOrder.email || resOrder.customer?.email)) {
+    mailService.sendOrderDeliveredEmail(resOrder).catch(err => {
+      console.warn('[MailService] Failed to send order delivered email:', err.message);
+    });
+  }
+
+  return resOrder;
 }
 
 async function updatePaymentStatus(orderId, paymentStatus, { actorId = null, note = null } = {}) {

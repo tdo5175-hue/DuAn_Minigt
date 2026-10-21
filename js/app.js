@@ -3449,7 +3449,7 @@ async function handleCheckoutSubmit(e) {
         updateUserHeaderUI();
       }
 
-      showToast(`Đặt đơn #${code} thành công! Đơn hàng đã chuyển tới Admin.`, 'success');
+      showToast(`🎉 Đặt đơn #${code} thành công! Cảm ơn bạn đã đặt hàng, thông tin xác nhận kiện mô hình đã được gửi tự động qua email của bạn!`, 'success', 6000);
       renderCheckoutStep4(createdOrder);
     } else {
       showToast(json.message || 'Không thể khởi tạo đơn hàng, vui lòng kiểm tra lại.', 'error');
@@ -4878,16 +4878,21 @@ function loginSuccess(user, token, rememberMe = true) {
 
   // Thông báo đăng nhập thông minh & duy nhất (Tránh spam nhiều thông báo chồng chéo)
   const isEn = typeof currentSiteLang !== 'undefined' && currentSiteLang === 'en';
-  const hasFullInfo = Boolean(cleanUser.phone && cleanUser.address);
+  const hasFullInfo = Boolean(cleanUser.phone && cleanUser.address && cleanUser.hasPassword);
 
   if (!hasFullInfo) {
-    // Tài khoản mới (hoặc đăng nhập bằng Google lần đầu chưa có SĐT / Địa chỉ)
+    // Tài khoản mới (hoặc đăng nhập bằng Google lần đầu chưa có SĐT / Địa chỉ / Mật khẩu riêng)
+    const missing = [];
+    if (!cleanUser.phone) missing.push('Số điện thoại');
+    if (!cleanUser.address) missing.push('Địa chỉ nhận hàng SPX');
+    if (!cleanUser.hasPassword) missing.push('Mật khẩu liên kết');
+
     showToast(
       isEn
-        ? `🔔 Welcome, ${cleanUser.fullName || cleanUser.email}! Please complete your phone & shipping address in "Collector Pass & Address".`
-        : `🔔 Xin chào, ${cleanUser.fullName || cleanUser.email}! Vui lòng điền đầy đủ thông tin ở mục "Hồ sơ hội viên & Địa chỉ" để nhận hàng qua SPX Express.`,
+        ? `🔔 Welcome, ${cleanUser.fullName || cleanUser.email}! Please complete your ${missing.join(', ')} to finish account setup.`
+        : `🔔 Xin chào, ${cleanUser.fullName || cleanUser.email}! Vui lòng cập nhật ${missing.join(', ')} để gộp tài khoản và nhận hàng qua SPX Express.`,
       'info',
-      6000
+      6500
     );
     // Tự động mở form Hồ sơ hội viên & Địa chỉ sau 600ms để khách hàng dễ dàng cập nhật
     setTimeout(() => {
@@ -5103,19 +5108,22 @@ function openUserProfileModal() {
       </div>
     </div>
 
-    <!-- Cảnh báo nếu chưa có SĐT hoặc Địa chỉ -->
-    ${(!currentUser.phone || !currentUser.address) ? `
+    <!-- Cảnh báo nếu chưa có SĐT, Địa chỉ hoặc chưa cài Mật khẩu -->
+    ${(!currentUser.phone || !currentUser.address || !currentUser.hasPassword) ? `
       <div style="background:#fffbeb; border:1.5px solid #fde68a; color:#92400e; border-radius:12px; padding:12px 16px; margin-bottom:16px; font-size:13px; display:flex; align-items:center; gap:12px; box-shadow:0 4px 12px rgba(245,158,11,0.08);">
         <i class="fa-solid fa-triangle-exclamation" style="color:#d97706; font-size:20px; flex-shrink:0;"></i>
         <div>
-          <strong style="font-size:13.5px;">Thông tin giao nhận hàng chưa hoàn thiện!</strong><br>
-          <span style="font-size:12px; color:#b45309;">Vui lòng điền <strong>Số điện thoại</strong> và <strong>Địa chỉ nhận hàng SPX</strong> bên dưới để hệ thống tự động điền khi bạn đặt cọc xe.</span>
+          <strong style="font-size:13.5px;">Hồ sơ hội viên cần hoàn thiện &amp; liên kết mật khẩu!</strong><br>
+          <span style="font-size:12px; color:#b45309;">
+            ${(!currentUser.phone || !currentUser.address) ? 'Vui lòng điền <strong>Số điện thoại</strong> và <strong>Địa chỉ nhận hàng SPX</strong> để tự động lên đơn. ' : ''}
+            ${!currentUser.hasPassword ? 'Hãy <strong>thiết lập Mật khẩu</strong> bên dưới để gộp tài khoản: Đăng nhập được cả Google lẫn Email + Mật khẩu!' : ''}
+          </span>
         </div>
       </div>
     ` : `
       <div style="background:#f0fdf4; border:1.5px solid #bbf7d0; color:#166534; border-radius:12px; padding:10px 16px; margin-bottom:16px; font-size:12.5px; display:flex; align-items:center; gap:8px;">
         <i class="fa-solid fa-circle-check" style="color:#16a34a; font-size:16px;"></i>
-        <span>Thông tin giao hàng đã được đồng bộ với hệ thống bưu cục SPX Express. Bạn có thể cập nhật bất cứ lúc nào.</span>
+        <span>Tài khoản đã hoàn thiện đầy đủ thông tin giao hàng SPX Express và đã liên kết mật khẩu đăng nhập đa kênh!</span>
       </div>
     `}
 
@@ -5167,6 +5175,37 @@ function openUserProfileModal() {
           <div class="auth-input-box" style="border:1.5px solid #cbd5e1; border-radius:10px; height:46px; display:flex; align-items:center; padding:0 12px; background:#fff;">
             <i class="fa-solid fa-city" style="color:#6366f1; font-size:14px; margin-right:8px;"></i>
             <input type="text" id="profileCity" style="border:none; outline:none; width:100%; font-size:13.5px; font-weight:700; color:#0f172a;" value="${escapeHtml(currentUser.city || 'Đồng Nai')}" placeholder="Ví dụ: Đồng Nai, TP.HCM, Bình Dương...">
+          </div>
+        </div>
+
+        <!-- Mật khẩu đăng nhập (Liên kết để gộp tài khoản) -->
+        <div class="auth-input-group" style="grid-column: 1 / -1; background: #f8fafc; border: 1.5px solid #cbd5e1; border-radius: 12px; padding: 14px 16px; margin: 4px 0;">
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; flex-wrap: wrap; gap: 6px;">
+            <label class="auth-label" for="profilePassword" style="font-size: 13px; font-weight: 800; color: #0f172a; margin: 0; display: flex; align-items: center; gap: 6px;">
+              <i class="fa-solid fa-key" style="color: #dc2626;"></i>
+              Mật khẩu đăng nhập (Gộp tài khoản Google &amp; Mật khẩu riêng)
+            </label>
+            ${currentUser.hasPassword ? `
+              <span style="background: #dcfce7; color: #15803d; border: 1px solid #86efac; padding: 2px 10px; border-radius: 12px; font-size: 11.5px; font-weight: 700; display: inline-flex; align-items: center; gap: 4px;">
+                <i class="fa-solid fa-circle-check"></i> Đã có mật khẩu riêng
+              </span>
+            ` : `
+              <span style="background: #fef3c7; color: #b45309; border: 1px solid #fde68a; padding: 2px 10px; border-radius: 12px; font-size: 11.5px; font-weight: 800; display: inline-flex; align-items: center; gap: 4px;">
+                <i class="fa-solid fa-shield-halved"></i> Chưa cài mật khẩu riêng (Chỉ đăng nhập bằng Google)
+              </span>
+            `}
+          </div>
+          <div style="font-size: 12px; color: #475569; line-height: 1.45; margin-bottom: 10px;">
+            ${currentUser.hasPassword
+              ? 'Tài khoản của bạn có thể đăng nhập bằng cả <strong>Google</strong> lẫn <strong>Email + Mật khẩu</strong>. Nếu muốn đổi mật khẩu, vui lòng nhập mật khẩu mới dưới đây (để trống nếu giữ nguyên):'
+              : '⭐ <strong>Thiết lập mật khẩu tại đây:</strong> Sau khi tạo, bạn có thể vừa đăng nhập nhanh bằng Google, vừa có thể gõ Email và Mật khẩu này để đăng nhập trực tiếp trên mọi thiết bị!'}
+          </div>
+          <div class="auth-input-box" style="border: 1.5px solid #cbd5e1; border-radius: 10px; height: 46px; display: flex; align-items: center; padding: 0 12px; background: #ffffff;">
+            <i class="fa-solid fa-lock" style="color: #94a3b8; font-size: 14px; margin-right: 8px;"></i>
+            <input type="password" id="profilePassword" style="border: none; outline: none; width: 100%; font-size: 13.5px; font-weight: 600; color: #0f172a;" placeholder="${currentUser.hasPassword ? 'Nhập mật khẩu mới nếu muốn đổi (tối thiểu 6 ký tự)...' : 'Tạo mật khẩu hội viên để gộp tài khoản (tối thiểu 6 ký tự)...'}" autocomplete="new-password">
+            <button type="button" onclick="toggleProfilePasswordVisibility()" style="background: transparent; border: none; cursor: pointer; color: #64748b; padding: 4px 6px; font-size: 14px;" title="Hiện/Ẩn mật khẩu">
+              <i class="fa-regular fa-eye" id="toggleProfilePasswordIcon"></i>
+            </button>
           </div>
         </div>
 
@@ -5264,6 +5303,19 @@ function openUserProfileModal() {
   modal.classList.add('active');
 }
 
+function toggleProfilePasswordVisibility() {
+  const pwd = document.getElementById('profilePassword');
+  const icon = document.getElementById('toggleProfilePasswordIcon');
+  if (!pwd) return;
+  if (pwd.type === 'password') {
+    pwd.type = 'text';
+    if (icon) icon.className = 'fa-regular fa-eye-slash';
+  } else {
+    pwd.type = 'password';
+    if (icon) icon.className = 'fa-regular fa-eye';
+  }
+}
+
 async function handleUpdateUserProfile(e) {
   e.preventDefault();
   if (!currentUser) return;
@@ -5273,9 +5325,16 @@ async function handleUpdateUserProfile(e) {
   const address = document.getElementById('profileAddress')?.value.trim();
   const city = document.getElementById('profileCity')?.value.trim();
   const deliveryNote = document.getElementById('profileDeliveryNote')?.value.trim();
+  const password = document.getElementById('profilePassword')?.value.trim();
 
   if (!fullName || !phone || !address) {
     showToast('Vui lòng điền đầy đủ Họ tên, Số điện thoại và Địa chỉ nhận hàng!', 'error');
+    return;
+  }
+
+  if (password && password.length < 6) {
+    showToast('Mật khẩu thiết lập phải có tối thiểu 6 ký tự!', 'error');
+    document.getElementById('profilePassword')?.focus();
     return;
   }
 
@@ -5295,9 +5354,10 @@ async function handleUpdateUserProfile(e) {
   currentUser.oldAddressNote = oldWardNote;
   if (city) currentUser.city = city;
   if (deliveryNote) currentUser.deliveryNote = deliveryNote;
+  if (password) currentUser.hasPassword = true;
 
   try {
-    await safeFetch('/api/auth/profile', {
+    const updateRes = await safeFetch('/api/auth/profile', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -5309,9 +5369,17 @@ async function handleUpdateUserProfile(e) {
         addressType,
         oldAddressNote: oldWardNote,
         city,
-        deliveryNote
+        deliveryNote,
+        password: password || undefined
       })
     });
+    if (updateRes && updateRes.user) {
+      currentUser = Object.assign({}, currentUser, updateRes.user);
+      if (updateRes.token) {
+        currentToken = updateRes.token;
+        if (api && api.setAuthSession) api.setAuthSession(updateRes.token, currentUser);
+      }
+    }
   } catch (err) {
     console.warn('Lưu profile offline fallback:', err);
   }
@@ -5330,7 +5398,12 @@ async function handleUpdateUserProfile(e) {
 
   updateUserHeaderUI();
   closeModal('userProfileModal');
-  showToast('✅ Cập nhật hồ sơ hội viên & địa chỉ nhận hàng thành công!', 'success');
+  showToast(
+    password
+      ? '✅ Đã lưu hồ sơ hội viên và liên kết mật khẩu thành công! Giờ đây bạn có thể đăng nhập bằng Google hoặc Email + Mật khẩu.'
+      : '✅ Cập nhật hồ sơ hội viên & địa chỉ nhận hàng thành công!',
+    'success'
+  );
 }
 
 document.addEventListener('click', () => {
@@ -6117,7 +6190,7 @@ async function customerConfirmOrderReceived(orderCode) {
         emitRealtimeSync('ORDER_UPDATED', { orderCode, status: 'DELIVERED', order: json.data });
       }
       if (typeof launchCollectorConfetti === 'function') launchCollectorConfetti();
-      showToast(`🎉 Cảm ơn bạn đã xác nhận nhận hàng đơn #${orderCode}! Chúc bạn trưng bày mô hình thật đẹp!`, 'success');
+      showToast(`🎉 Cảm ơn bạn đã xác nhận nhận hàng đơn #${orderCode}! Thư cảm ơn & cẩm nang bảo quản mô hình 1:64 đã được gửi tự động qua email của bạn!`, 'success', 6000);
       loadMyOrdersList(true);
     } else {
       showToast(json.message || 'Không thể xác nhận đã nhận hàng', 'error');

@@ -54,6 +54,7 @@ function normalizeUserRow(u) {
 
 function publicUser(raw) {
   const u = normalizeUserRow(raw);
+  const hasPassword = Boolean(u.PasswordHash);
   return {
     id: u.UserId,
     userId: u.UserId,
@@ -74,6 +75,8 @@ function publicUser(raw) {
     points: 100,
     authProvider: u.AuthProvider || 'local',
     AuthProvider: u.AuthProvider || 'local',
+    hasPassword,
+    isProfileIncomplete: Boolean(!u.Phone || !u.Address || !hasPassword),
     isActive: Boolean(u.IsActive),
     createdAt: u.CreatedAt
   };
@@ -603,15 +606,25 @@ router.put('/profile', async (req, res, next) => {
     const fullName = v.cleanStr(req.body.fullName, 100);
     const phone = v.cleanStr(req.body.phone, 20);
     const address = v.cleanStr(req.body.address, 255);
+    const password = req.body.password ? String(req.body.password).trim() : '';
+
+    let passwordHash = null;
+    if (password) {
+      if (password.length < 6) {
+        throw badRequest('Mật khẩu thiết lập phải có tối thiểu 6 ký tự');
+      }
+      passwordHash = await bcrypt.hash(password, 10);
+    }
 
     const up = await db.query(`
       UPDATE Users
       SET FullName = CASE WHEN @fullName <> '' THEN @fullName ELSE FullName END,
           Phone = CASE WHEN @phone <> '' THEN @phone ELSE Phone END,
-          Address = CASE WHEN @address <> '' THEN @address ELSE Address END
+          Address = CASE WHEN @address <> '' THEN @address ELSE Address END,
+          PasswordHash = CASE WHEN @passwordHash IS NOT NULL THEN @passwordHash ELSE PasswordHash END
       WHERE (UserId = @userId AND @userId > 0) OR (LOWER(Email) = @email AND @email <> '')
       RETURNING *
-    `, { userId, email, fullName, phone, address });
+    `, { userId, email, fullName, phone, address, passwordHash });
 
     if (up.recordset.length === 0) {
       throw badRequest('Không tìm thấy tài khoản để cập nhật');
@@ -620,7 +633,9 @@ router.put('/profile', async (req, res, next) => {
     const clean = publicUser(up.recordset[0]);
     return res.status(200).json({
       success: true,
-      message: 'Cập nhật thông tin tài khoản hội viên thành công!',
+      message: password
+        ? 'Cập nhật hồ sơ và tạo mật khẩu thành công! Giờ đây bạn có thể đăng nhập bằng cả Google lẫn Email + Mật khẩu.'
+        : 'Cập nhật thông tin tài khoản hội viên thành công!',
       user: clean,
       data: clean
     });
