@@ -1158,20 +1158,25 @@
     const city = ord.city || ord.City || (ord.shipping && ord.shipping.city) || (ord.customer && ord.customer.city) || '';
     const district = ord.district || ord.District || (ord.shipping && ord.shipping.district) || (ord.customer && ord.customer.district) || '';
     const codAmount = paymentStatus === 'PAID' ? 0 : (depositAmount > 0 ? Math.max(0, totalAmount - depositAmount) : totalAmount);
-    const hasPreOrder = Boolean(
+    const preOrderNotified = Boolean(ord.preOrderNotified ?? ord.PreOrderNotified) || ['PREPARING', 'SHIPPING', 'DELIVERED'].includes(status);
+    const wasPreOrder = Boolean(
+      ord.wasPreOrder ??
       ord.hasPreOrder ??
       ord.HasPreOrder ??
       (paymentMethod === 'DEPOSIT') ??
       (depositAmount > 0) ??
       (Array.isArray(ord.items) && ord.items.some(i => i.isPreOrder || i.Status === 'pre_order' || String(i.status || '').toLowerCase() === 'pre_order'))
     );
-    const preOrderNotified = Boolean(ord.preOrderNotified ?? ord.PreOrderNotified);
-    const preOrderExpected = ord.preOrderExpected || ord.PreOrderExpected || (hasPreOrder ? 'Tháng 11/2026' : null);
+    const hasPreOrder = Boolean(wasPreOrder && !preOrderNotified);
+    const isStockArrived = Boolean(wasPreOrder && preOrderNotified);
+    const preOrderExpected = ord.preOrderExpected || ord.PreOrderExpected || (wasPreOrder ? 'Tháng 11/2026' : null);
 
     return Object.assign({}, ord, {
       id: Number(ord.id || ord.orderId || ord.OrderId || Date.now()),
       orderId: Number(ord.orderId || ord.id || ord.OrderId || Date.now()),
       OrderId: Number(ord.OrderId || ord.id || ord.orderId || Date.now()),
+      wasPreOrder,
+      isStockArrived,
       hasPreOrder,
       HasPreOrder: hasPreOrder,
       preOrderNotified,
@@ -2542,6 +2547,35 @@
       return { success: true, message: 'Local storage & Live sync engine active', status: 'OK' };
     }
 
+    const prodConvertMatch = path.match(/^\/api\/admin\/products\/(\d+)\/convert-to-instock$/);
+    if (method === 'PUT' && prodConvertMatch) {
+      const pid = Number(prodConvertMatch[1]);
+      const allProds = getSharedProducts();
+      const p = allProds.find(x => Number(x.id) === pid || Number(x.productId) === pid);
+      if (p) {
+        p.status = 'in_stock';
+        p.Status = 'in_stock';
+        saveSharedProducts(allProds);
+      }
+      const allOrders = getSharedOrders();
+      allOrders.forEach(o => {
+        if (Array.isArray(o.items) && o.items.some(it => Number(it.productId || it.ProductId || it.id) === pid)) {
+          o.preOrderNotified = true;
+          o.PreOrderNotified = true;
+          o.hasPreOrder = false;
+          o.HasPreOrder = false;
+          o.isStockArrived = true;
+          if (o.status === 'PENDING' || o.status === 'CONFIRMED') {
+            o.status = 'PREPARING';
+          }
+        }
+      });
+      saveSharedOrders(allOrders);
+      emitRealtimeSync('PRODUCTS_UPDATED', {});
+      emitRealtimeSync('ORDERS_UPDATED', {});
+      return { success: true, message: `Đã chuyển mô hình "${p ? p.name : pid}" sang hàng có sẵn tại kho!` };
+    }
+
     // 7. Admin cập nhật trạng thái / mã vận đơn SPX / thanh toán
     const adminOrderMatch = path.match(/^\/api\/admin\/orders\/(\d+)\/(status|tracking|confirm-payment|payment|preorder-arrived|cancel|address-type)/);
     if (method === 'PUT' && adminOrderMatch) {
@@ -2577,11 +2611,31 @@
         } else if (action === 'preorder-arrived') {
           target.preOrderNotified = true;
           target.PreOrderNotified = true;
-          target.hasPreOrder = true;
-          target.HasPreOrder = true;
-          if (target.status === 'CONFIRMED' || target.status === 'PENDING') {
-            target.status = 'PREPARING';
-          }
+          target.hasPreOrder = false;
+          target.HasPreOrder = false;
+          target.isStockArrived = true;
+          target.status = 'PREPARING';
+
+          // Chuyển đổi tất cả sản phẩm trong đơn từ pre_order sang in_stock
+          try {
+            const allProds = getSharedProducts();
+            if (Array.isArray(target.items)) {
+              let prodChanged = false;
+              target.items.forEach(it => {
+                const pid = it.productId || it.ProductId || it.id;
+                const prod = allProds.find(p => (p.id == pid || p.productId == pid));
+                if (prod && prod.status === 'pre_order') {
+                  prod.status = 'in_stock';
+                  prod.Status = 'in_stock';
+                  prodChanged = true;
+                }
+              });
+              if (prodChanged) {
+                saveSharedProducts(allProds);
+                emitRealtimeSync('PRODUCTS_UPDATED', {});
+              }
+            }
+          } catch (_) {}
         } else if (action === 'cancel') {
           target.status = 'CANCELLED';
           target.cancelReason = body.cancelReason || 'Admin hủy đơn';

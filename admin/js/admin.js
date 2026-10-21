@@ -1452,6 +1452,11 @@
           <td>${statusBadge}</td>
           <td><div style="display:flex; flex-wrap:wrap; gap:4px;">${tags.join(' ')}</div></td>
           <td style="text-align:right; white-space:nowrap;">
+            ${(p.status === 'pre_order' || p.Status === 'pre_order') ? `
+              <button class="btn-admin btn-admin-outline" style="padding:4px 8px; font-size:11px; color:#d97706; border-color:#f59e0b; background:#fffbeb;" onclick="convertPreOrderProductToInStock(${p.id}, '${escapeHtml(p.name)}')" title="Báo hàng về kho: Đổi sang hàng thường có sẵn">
+                <i class="fa-solid fa-boxes-packing"></i> Hàng Về
+              </button>
+            ` : ''}
             <button class="btn-admin btn-admin-outline" style="padding:4px 8px; font-size:11.5px;" onclick="openEditProductModal(${p.id})" title="Chỉnh sửa">
               <i class="fa-solid fa-pen-to-square"></i>
             </button>
@@ -3951,24 +3956,35 @@ Anh/chị phản hồi giúp shop để kiện xe được đóng gói gửi đi
     const getVal = (id) => document.getElementById(id)?.value.trim() || '';
 
     const payload = {
-      store_name: getVal('set_store_name'),
-      store_hotline: getVal('set_store_hotline'),
-      store_email: getVal('set_store_email'),
-      store_address: getVal('set_store_address'),
+      store_name: getVal('set_store_name') || 'MINI GT STORE BIÊN HÒA',
+      store_hotline: getVal('set_store_hotline') || '0988.164.164',
+      store_email: getVal('set_store_email') || 'quocthinh.admin@minigt.vn',
+      store_address: getVal('set_store_address') || '38/2 Võ Thị Sáu, P. Quyết Thắng, TP. Biên Hòa, Đồng Nai',
       shipping_fee: Number(getVal('set_shipping_fee')) || 11000,
       low_stock_threshold: Number(getVal('set_low_stock_threshold')) || 5,
       bank_id: getVal('set_bank_id') || 'MB',
-      bank_name: getVal('set_bank_name'),
-      bank_account_no: getVal('set_bank_account_no'),
-      bank_account_name: getVal('set_bank_account_name'),
-      preorder_deadline: getVal('set_preorder_deadline'),
-      announcement: getVal('set_announcement')
+      bank_name: getVal('set_bank_name') || 'Ngân hàng Quân Đội (MB Bank)',
+      bank_account_no: getVal('set_bank_account_no') || '0988164164',
+      bank_account_name: getVal('set_bank_account_name') || 'DO QUOC THINH',
+      preorder_deadline: getVal('set_preorder_deadline') || 'Tháng 11/2026',
+      announcement: getVal('set_announcement') || 'Chào mừng bạn đến với MINI GT STORE BIÊN HÒA - Hệ thống phân phối mô hình tĩnh 1:64 chính hãng!'
     };
 
     try {
       const res = await api.put('/api/admin/settings', payload);
       if (res && res.success === false) throw new Error(res.message || 'Lỗi lưu thiết lập');
-      adminToast('Đã lưu tất cả thiết lập vào hệ thống cơ sở dữ liệu thành công!', 'success');
+
+      // Đồng bộ ngay vào localStorage cache để tab khách hàng và modal nhận tức thì
+      try {
+        localStorage.setItem('minigt_store_settings_v2', JSON.stringify(payload));
+      } catch (_) {}
+
+      // Phát tín hiệu Real-time sync tới toàn bộ cửa hàng
+      if (api && typeof api.emitRealtimeSync === 'function') {
+        api.emitRealtimeSync('SETTINGS_UPDATED', payload);
+      }
+
+      adminToast('Đã lưu tất cả thiết lập vào cơ sở dữ liệu và đồng bộ tới toàn bộ cửa hàng thành công!', 'success');
       loadStoreSettings();
     } catch (err) {
       adminToast('Lỗi lưu cấu hình: ' + err.message, 'error');
@@ -4207,24 +4223,53 @@ Anh/chị phản hồi giúp shop để kiện xe được đóng gói gửi đi
   window.syncDepositAmountToPercent = syncDepositAmountToPercent;
 
   async function markPreOrderArrivedAction(orderId) {
-    if (!confirm('Xác nhận: Lô hàng Pre-Order của đơn hàng này đã về tới kho cửa hàng Biên Hòa? Trạng thái đơn sẽ được cập nhật để bạn chuẩn bị đóng gói & gán mã SPX Express giao cho khách.')) return;
+    if (!confirm('Xác nhận: Lô hàng mô hình Pre-Order của đơn hàng này đã về tới kho cửa hàng Biên Hòa?\n\n- Đơn hàng sẽ được chuyển từ "Đang chờ hàng Pre-Order" sang "Hàng đã về kho / Sẵn sàng giao".\n- Các mô hình liên quan sẽ được tự động đổi từ Pre-Order sang "Có sẵn tại kho" (hàng thường).\n- Khách hàng sẽ thấy ngay thông báo hàng đã về kho và tiến độ đóng gói vận đơn SPX Express.')) return;
     try {
       const res = await api.put(`/api/admin/orders/${orderId}/preorder-arrived`, {});
       if (res.success) {
-        adminToast(res.message || 'Đã báo hàng Pre-Order về kho thành công!', 'success');
+        adminToast(res.message || 'Đã báo hàng về kho và chuyển sản phẩm sang hàng thường thành công!', 'success');
         if (api && typeof api.emitRealtimeSync === 'function') {
-          api.emitRealtimeSync('ORDER_UPDATED', { orderId, order: res.data });
+          api.emitRealtimeSync('ORDER_UPDATED', { orderId, order: res.data?.order || res.data });
+          api.emitRealtimeSync('ORDERS_UPDATED', {});
+          api.emitRealtimeSync('PRODUCTS_UPDATED', {});
         }
         loadOrders();
+        loadProducts();
         loadDashboard();
         if (document.getElementById('orderDetailModal')?.classList.contains('active')) {
           viewOrderDetail(orderId);
         }
+      } else {
+        adminToast(res.message || 'Không thể cập nhật trạng thái đơn Pre-Order', 'error');
       }
     } catch (err) {
       adminToast('Lỗi cập nhật hàng về: ' + err.message, 'error');
     }
   }
+
+  async function convertPreOrderProductToInStock(productId, productName) {
+    if (!confirm(`Xác nhận: Lô mô hình "${productName || 'mô hình này'}" đã cập bến kho Biên Hòa?\n\n- Trạng thái sản phẩm sẽ đổi từ "Pre-Order" sang "Có sẵn tại kho" (hàng thường).\n- Khách hàng trên trang chủ có thể mua hàng ngay.\n- Tất cả đơn hàng đặt cọc trước chứa mẫu xe này sẽ được tự động cập nhật là "Hàng đã về kho" để chuẩn bị đóng gói.`)) return;
+    try {
+      const res = await api.put(`/api/admin/products/${productId}/convert-to-instock`, {});
+      if (res && res.success) {
+        adminToast(res.message || 'Đã chuyển mô hình sang trạng thái có sẵn tại kho thành công!', 'success');
+        if (api && typeof api.emitRealtimeSync === 'function') {
+          api.emitRealtimeSync('PRODUCTS_UPDATED', {});
+          api.emitRealtimeSync('ORDERS_UPDATED', {});
+        }
+        loadProducts();
+        loadOrders();
+        loadDashboard();
+      } else {
+        adminToast(res?.message || 'Không thể chuyển đổi trạng thái mô hình', 'error');
+      }
+    } catch (err) {
+      adminToast('Lỗi: ' + err.message, 'error');
+    }
+  }
+
+  window.convertPreOrderProductToInStock = convertPreOrderProductToInStock;
+  window.markPreOrderArrivedAction = markPreOrderArrivedAction;
 
   // Orders
   window.loadOrders = loadOrders;

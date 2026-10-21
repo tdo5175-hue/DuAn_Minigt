@@ -713,33 +713,79 @@ router.put('/orders/:id/preorder-arrived', async (req, res, next) => {
     if (!o) throw notFound('Không tìm thấy đơn hàng');
 
     const oid = o.orderId || o.id;
+
+    // 1. Cập nhật Order: Đánh dấu hàng đã về kho
     await db.query(`
       UPDATE Orders
       SET PreOrderNotified = TRUE, UpdatedAt = NOW()
       WHERE OrderId = @oid
     `, { oid });
 
-    if (o.status === 'CONFIRMED') {
-      await orderService.transitionOrderStatus(oid, 'PREPARING', {
-        note: 'Lô hàng Pre-Order đã cập bến kho Mini GT Biên Hòa. Đang kiểm tra & chuẩn bị bàn giao cho SPX Express.',
-        actorId: req.user ? req.user.userId : null,
-        isAdmin: true
-      });
-    } else {
+    // 2. Chuyển trạng thái đơn sang PREPARING (Hàng đã về kho, đang đóng gói giao SPX Express)
+    await orderService.transitionOrderStatus(oid, 'PREPARING', {
+      note: 'Lô hàng Pre-Order đã về tới kho Biên Hòa. Đã chuyển sản phẩm sang hàng có sẵn và đang chuẩn bị đóng gói giao cho SPX Express.',
+      actorId: req.user ? req.user.userId : null,
+      isAdmin: true
+    });
+
+    // 3. Tự động chuyển đổi các sản phẩm trong đơn từ "pre_order" sang "in_stock" (hàng thường có sẵn)
+    const itemsRes = await db.query('SELECT ProductId FROM OrderItems WHERE OrderId = @oid', { oid });
+    const productIds = (itemsRes.recordset || []).map(it => it.ProductId || it.productid).filter(Boolean);
+    for (const pid of productIds) {
       await db.query(`
-        INSERT INTO OrderStatusHistory (OrderId, FromStatus, ToStatus, Note, ChangedBy)
-        VALUES (@oid, @from, @to, @note, @by)
-      `, {
-        oid,
-        from: o.status,
-        to: o.status,
-        note: 'Thông báo: Lô hàng Pre-Order đã cập bến kho Mini GT Biên Hòa.',
-        by: req.user ? req.user.userId : null
-      });
+        UPDATE Products
+        SET Status = 'in_stock', UpdatedAt = NOW()
+        WHERE ProductId = @pid AND Status = 'pre_order'
+      `, { pid });
     }
 
     const updated = await orderService.getOrderByCodeOrId(oid);
-    return ok(res, updated, `Đã cập nhật: Hàng Pre-Order cho đơn #${updated.code} đã về kho!`);
+    return ok(res, { order: updated, updatedProductIds: productIds }, `Đã xác nhận: Lô hàng cho đơn #${updated.code} đã về kho và các sản phẩm đã được chuyển thành Hàng có sẵn!`);
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.put('/products/:id/convert-to-instock', async (req, res, next) => {
+  try {
+    const productId = req.params.id;
+    const p = await productService.getProductById(productId);
+    if (!p) throw notFound('Không tìm thấy mô hình');
+
+    // Chuyển trạng thái sản phẩm sang in_stock
+    await db.query(`
+      UPDATE Products
+      SET Status = 'in_stock', UpdatedAt = NOW()
+      WHERE ProductId = @id
+    `, { id: productId });
+
+    // Tự động thông báo tới các đơn đặt cọc xe chứa sản phẩm này
+    const affectedOrders = await db.query(`
+      SELECT DISTINCT o.OrderId, o.OrderCode
+      FROM Orders o
+      JOIN OrderItems oi ON o.OrderId = oi.OrderId
+      WHERE oi.ProductId = @id AND o.Status IN ('PENDING', 'CONFIRMED') AND (o.PreOrderNotified = FALSE OR o.PreOrderNotified IS NULL)
+    `, { id: productId });
+
+    for (const ord of (affectedOrders.recordset || [])) {
+      const oid = ord.OrderId || ord.orderid;
+      await db.query(`
+        UPDATE Orders
+        SET PreOrderNotified = TRUE, UpdatedAt = NOW()
+        WHERE OrderId = @oid
+      `, { oid });
+      await orderService.transitionOrderStatus(oid, 'PREPARING', {
+        note: `Mô hình "${p.Name || p.name}" đã cập bến kho Biên Hòa. Đơn hàng chuyển sang chuẩn bị đóng gói giao SPX.`,
+        actorId: req.user ? req.user.userId : null,
+        isAdmin: true
+      });
+    }
+
+    const updatedProd = await productService.getProductById(productId);
+    return ok(res, {
+      product: updatedProd,
+      affectedOrdersCount: affectedOrders.recordset.length
+    }, `Đã chuyển mô hình "${updatedProd.Name || updatedProd.name}" sang "Có sẵn tại kho" và cập nhật ${affectedOrders.recordset.length} đơn hàng liên quan!`);
   } catch (error) {
     next(error);
   }
