@@ -274,19 +274,20 @@ let currentBrandFilter = 'all';
 
 // Cấu hình động cửa hàng (Đồng bộ trực tiếp từ SQL Server Settings table)
 let storeSettings = {
-  store_name: "MINI GT STORE Biên Hòa",
-  store_hotline: "0988164164",
-  store_email: "contact@minigtstore.vn",
+  store_name: "MINI GT STORE BIÊN HÒA",
+  store_hotline: "0981 400 400",
+  store_email: "quocthinh.admin@minigt.vn",
   store_address: "38/2 Võ Thị Sáu, P. Quyết Thắng, TP. Biên Hòa, Đồng Nai",
   shipping_fee: 11000,
-  free_shipping_threshold: 0,
+  free_shipping_threshold: 1000000,
   deposit_rate: 0.3,
-  preorder_deadline: "2026-10-30",
+  low_stock_threshold: 5,
+  preorder_deadline: "Tháng 11/2026",
   bank_id: "MB",
-  bank_name: "MBBank (Ngân Hàng Quân Đội)",
-  bank_account_no: "87654321082007",
+  bank_name: "Ngân hàng Quân Đội (MB Bank)",
+  bank_account_no: "0988164164",
   bank_account_name: "DO QUOC THINH",
-  announcement: "Đợt mở đặt trước toàn cầu: Liberty Walk LBWK, F1 Las Vegas & Secret Chase Edition"
+  announcement: "🔥 CHÀO MỪNG ĐẾN VỚI SĂN XE BIÊN HÒA - ĐẠI LÝ CHÍNH HÃNG MINI GT VIỆT NAM!"
 };
 
 async function loadStoreSettings() {

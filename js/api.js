@@ -26,7 +26,6 @@
       if (String(global.location.port) === '5000') return true;
       if (localStorage.getItem('minigt_connect_port_5000') === 'true') return true;
       if (global.MINIGT_API_BASE) return true;
-      if (isLocalEnvironment() && localServerOffline !== true) return true;
       return false;
     } catch (e) {
       return false;
@@ -36,18 +35,24 @@
   const getApiBase = () => {
     if (global.MINIGT_API_BASE) return global.MINIGT_API_BASE.replace(/\/+$/, '');
     
-    // Nếu chạy trên Vercel: sử dụng relative API /api trực tiếp trên Vercel Serverless Function
-    if (global.location && global.location.hostname && (global.location.hostname.endsWith('vercel.app') || global.location.hostname.includes('vercel'))) {
+    // 1. Nếu mở trực tiếp trên chính cổng của server Node.js nội bộ (Port 5000)
+    if (global.location && String(global.location.port) === '5000') {
       return '';
     }
 
-    // Nếu chạy cục bộ / Live Server trên máy cá nhân
-    if (isLocalEnvironment()) {
+    // 2. Nếu người dùng chủ động cấu hình port 5000 qua localStorage
+    if (typeof localStorage !== 'undefined' && localStorage.getItem('minigt_connect_port_5000') === 'true') {
       const host = (global.location && global.location.hostname) ? global.location.hostname : '127.0.0.1';
       return `http://${host === 'localhost' ? '127.0.0.1' : host}:5000`;
     }
 
-    // Khi deploy lên cloud production (Render)
+    // 3. Nếu chạy trên Vercel: sử dụng relative API /api (được proxy sang Render & Supabase qua vercel.json)
+    if (global.location && global.location.hostname && (global.location.hostname.endsWith('vercel.app') || global.location.hostname.includes('vercel'))) {
+      return '';
+    }
+
+    // 4. Mặc định kết nối tới Backend Cloud chính thức (Render + Supabase PostgreSQL)
+    // Hoạt động 100% mượt mà cho cả: Live Server (127.0.0.1:5500), file:, máy cá nhân mà KHÔNG bị lỗi ERR_CONNECTION_REFUSED
     return 'https://duan-nhom2.onrender.com';
   };
 
@@ -2353,18 +2358,20 @@
 
     if (method === 'GET' && (path === '/api/settings' || path === '/api/admin/settings')) {
       const defaultSet = {
-        store_name: 'MINI GT STORE Biên Hòa',
-        store_hotline: '0988164164',
-        store_email: 'contact@minigtstore.vn',
+        store_name: 'MINI GT STORE BIÊN HÒA',
+        store_hotline: '0981 400 400',
+        store_email: 'quocthinh.admin@minigt.vn',
         store_address: '38/2 Võ Thị Sáu, P. Quyết Thắng, TP. Biên Hòa, Đồng Nai',
         shipping_fee: 11000,
+        free_shipping_threshold: 1000000,
+        deposit_rate: 0.3,
         low_stock_threshold: 5,
         bank_id: 'MB',
-        bank_name: 'MBBank (Ngân Hàng Quân Đội)',
-        bank_account_no: '87654321082007',
+        bank_name: 'Ngân hàng Quân Đội (MB Bank)',
+        bank_account_no: '0988164164',
         bank_account_name: 'DO QUOC THINH',
-        preorder_deadline: '2026-10-30',
-        announcement: 'Đợt mở đặt trước toàn cầu: Liberty Walk LBWK, GT3 IMSA, F1 Red Bull & Secret Chase'
+        preorder_deadline: 'Tháng 11/2026',
+        announcement: '🔥 CHÀO MỪNG ĐẾN VỚI SĂN XE BIÊN HÒA - ĐẠI LÝ CHÍNH HÃNG MINI GT VIỆT NAM!'
       };
       try {
         const raw = localStorage.getItem(SHARED_SETTINGS_KEY);
