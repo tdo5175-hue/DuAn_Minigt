@@ -40,6 +40,17 @@ app.use((req, res, next) => {
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
+// Middleware chuẩn hóa URL tương thích môi trường Vercel Serverless
+app.use((req, res, next) => {
+  const originalUrl = req.headers['x-forwarded-uri'] || req.headers['x-matched-path'];
+  if (originalUrl) {
+    if (req.url === '/api/index.js' || req.url === '/api' || req.url === '/api/index' || req.url.startsWith('/api/[...all]') || !req.url.startsWith('/api')) {
+      req.url = originalUrl.startsWith('/api') ? originalUrl : `/api${originalUrl}`;
+    }
+  }
+  next();
+});
+
 // 3. Phục vụ Static Files
 const rootDir = path.join(__dirname, '..');
 app.use(express.static(rootDir));
@@ -48,16 +59,16 @@ app.get('/admin', (req, res) => {
   res.sendFile(path.join(rootDir, 'admin', 'index.html'));
 });
 
-// 4. API Routes
-app.use('/api/auth', authRoutes);
-app.use('/api/products', productRoutes);
-app.use('/api/orders', orderRoutes);
-app.use('/api/newsletter', newsletterRoutes);
-app.use('/api/settings', settingsRoutes);
-app.use('/api/admin', adminRoutes);
-app.use('/api/coupons', couponRoutes);
+// 4. API Routes (Hỗ trợ cả tiền tố /api và không có /api để tương thích 100% với Vercel Serverless)
+app.use(['/api/auth', '/auth'], authRoutes);
+app.use(['/api/products', '/products'], productRoutes);
+app.use(['/api/orders', '/orders'], orderRoutes);
+app.use(['/api/newsletter', '/newsletter'], newsletterRoutes);
+app.use(['/api/settings', '/settings'], settingsRoutes);
+app.use(['/api/admin', '/admin'], adminRoutes);
+app.use(['/api/coupons', '/coupons'], couponRoutes);
 
-app.get('/api/categories', async (req, res, next) => {
+app.get(['/api/categories', '/categories'], async (req, res, next) => {
   try {
     const productService = require('./services/productService');
     const categories = await productService.listCategories();
@@ -65,7 +76,7 @@ app.get('/api/categories', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-app.get('/api/health', (req, res) => {
+app.get(['/api/health', '/health'], (req, res) => {
   res.json({
     success: true,
     message: 'Hệ thống máy chủ hoạt động bình thường',
