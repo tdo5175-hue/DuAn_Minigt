@@ -1826,15 +1826,35 @@ function addToCart(productId, quantity = 1, explicitPackType = null) {
     ? (pricing.priceCard || prod.PriceCard || prod.OldPrice || prod.oldPrice || unitFinalPrice)
     : (pricing.priceBox || prod.PriceBox || prod.OldPrice || prod.oldPrice || unitFinalPrice);
 
+  const isPreOrder = String(prod.Status || prod.status || '').toLowerCase() === 'pre_order';
   const existing = cart.find(it => (it.productId == productId || it.id == productId) && (it.packType || 'box') === chosenPack);
-  const totalInCartForProd = cart.filter(it => (it.productId == productId || it.id == productId)).reduce((s, i) => s + i.quantity, 0);
+  const packInCart = existing ? existing.quantity : 0;
+  const maxPackStock = chosenPack === 'card' ? (pricing.stockCard ?? 0) : (pricing.stockBox ?? 0);
+  const packLabel = chosenPack === 'card' ? 'Bản Vỉ Card' : 'Bản Hộp Box';
 
-  if (totalInCartForProd + quantity > stock) {
-    showToast(`Rất tiếc! Mẫu này chỉ còn ${stock} xe trong kho (bạn đã có ${totalInCartForProd} trong giỏ).`, 'error');
-    return;
+  // Kiểm tra tồn kho độc lập cho từng bản Hộp Box và Vỉ Card (không gộp chung)
+  if (!isPreOrder) {
+    if (packInCart + quantity > maxPackStock) {
+      if (maxPackStock <= 0) {
+        showToast(isEn ? `"${pName}" (${packLabel}) is currently sold out!` : `Mẫu xe "${pName}" (${packLabel}) hiện đã hết hàng!`, 'error');
+      } else {
+        showToast(
+          isEn 
+            ? `Only ${maxPackStock} left in stock for ${packLabel} (you already have ${packInCart} in cart).` 
+            : `Rất tiếc! Mẫu "${pName}" (${packLabel}) chỉ còn ${maxPackStock} xe trong kho (bạn đã có ${packInCart} trong giỏ).`,
+          'error'
+        );
+      }
+      return;
+    }
+
+    const totalInCartForProd = cart.filter(it => (it.productId == productId || it.id == productId)).reduce((s, i) => s + i.quantity, 0);
+    if (totalInCartForProd + quantity > stock) {
+      showToast(isEn ? `Total available stock for "${pName}" is ${stock} models.` : `Tổng số lượng tồn kho của mẫu xe "${pName}" chỉ còn ${stock} xe (cả Box & Card).`, 'error');
+      return;
+    }
   }
 
-  const isPreOrder = String(prod.Status || prod.status || '').toLowerCase() === 'pre_order';
   const depPct = isPreOrder ? Number(prod.DepositPercent || prod.depositPercent || 30) : 0;
   const pDeposit = isPreOrder ? (Math.round((unitFinalPrice * (depPct / 100)) / 1000) * 1000) : 0;
   const expDelivery = isPreOrder ? (prod.ExpectedDelivery || prod.expectedDelivery || null) : null;
@@ -1905,6 +1925,17 @@ function switchCartItemPackaging(productId, currentPack, newPack) {
 
   if (pricing.packagingType === 'box_only' && targetPack === 'card') return;
   if (pricing.packagingType === 'card_only' && targetPack === 'box') return;
+
+  const isPreOrder = prod ? String(prod.Status || prod.status || '').toLowerCase() === 'pre_order' : false;
+  const targetStock = targetPack === 'card' ? (pricing.stockCard ?? 0) : (pricing.stockBox ?? 0);
+  const targetPackLabel = targetPack === 'card' ? 'Bản Vỉ Card' : 'Bản Hộp Box';
+  const existingTarget = cart.find((i, k) => k !== idx && i.productId == productId && (i.packType || 'box') === targetPack);
+  const totalTargetQty = (existingTarget ? existingTarget.quantity : 0) + item.quantity;
+
+  if (!isPreOrder && totalTargetQty > targetStock) {
+    showToast(`Không thể chuyển! ${targetPackLabel} chỉ còn ${targetStock} xe trong kho.`, 'error');
+    return;
+  }
 
   const newUnitFinal = targetPack === 'card' ? pricing.finalPriceCard : pricing.finalPriceBox;
   const newUnitOrig = targetPack === 'card' ? pricing.priceCard : pricing.priceBox;
@@ -1986,11 +2017,26 @@ function changeCartQty(productId, delta, packType = null) {
 
   if (delta > 0) {
     const prod = (allProducts && allProducts.length ? allProducts : FALLBACK_PRODUCTS).find(p => (p.ProductId || p.id) == productId);
-    const stock = prod ? (typeof prod.Stock === 'number' ? prod.Stock : (typeof prod.stock === 'number' ? prod.stock : 999)) : 999;
-    const totalInCart = cart.filter(i => i.productId == productId).reduce((s, x) => s + x.quantity, 0);
-    if (totalInCart + delta > stock) {
-      showToast(`Số lượng tối đa có thể đặt là ${stock} sản phẩm.`, 'error');
-      return;
+    if (prod) {
+      const isPreOrder = String(prod.Status || prod.status || '').toLowerCase() === 'pre_order';
+      if (!isPreOrder) {
+        const pricing = getProductBoxCardPricing(prod);
+        const itemPack = it.packType || 'box';
+        const maxPackStock = itemPack === 'card' ? (pricing.stockCard ?? 0) : (pricing.stockBox ?? 0);
+        const packLabel = itemPack === 'card' ? 'Bản Vỉ Card' : 'Bản Hộp Box';
+
+        if (it.quantity + delta > maxPackStock) {
+          showToast(`Mẫu này chỉ còn ${maxPackStock} xe (${packLabel}) trong kho.`, 'error');
+          return;
+        }
+
+        const totalStock = typeof prod.Stock === 'number' ? prod.Stock : (typeof prod.stock === 'number' ? prod.stock : 999);
+        const totalInCart = cart.filter(i => i.productId == productId).reduce((s, x) => s + x.quantity, 0);
+        if (totalInCart + delta > totalStock) {
+          showToast(`Tổng số lượng có thể đặt tối đa cho mẫu xe này là ${totalStock} xe.`, 'error');
+          return;
+        }
+      }
     }
   }
 
@@ -3984,6 +4030,9 @@ async function initPayosStep4Checkout(orderCode, expectedAmount) {
               <a href="${checkoutUrl}" target="_blank" class="btn btn-sm" style="background:#0284c7; color:#fff; border:none; padding:8px 15px; border-radius:8px; font-weight:800; font-size:12px; text-decoration:none; display:inline-flex; align-items:center; gap:6px; box-shadow:0 4px 12px rgba(2,132,199,0.3);">
                 <i class="fa-solid fa-arrow-up-right-from-square"></i> Mở Cổng Thanh Toán PayOS ↗
               </a>
+              <button type="button" class="btn btn-sm" style="background:#16a34a; color:#fff; border:none; padding:8px 15px; border-radius:8px; font-weight:800; font-size:12px; display:inline-flex; align-items:center; gap:6px; box-shadow:0 4px 12px rgba(22,163,74,0.3); cursor:pointer;" onclick="triggerInstantPayOSCheck('${escapeHtml(orderCode)}')">
+                <i class="fa-solid fa-arrows-rotate"></i> Tôi đã chuyển tiền (Kiểm tra ngay)
+              </button>
               <button type="button" class="btn btn-sm btn-outline" style="border-color:#0284c7; color:#0284c7; font-weight:700; font-size:12px; padding:7px 12px;" onclick="copyToClipboard('${checkoutUrl}', 'Đã copy link thanh toán PayOS!')">
                 <i class="fa-regular fa-copy"></i> Copy Link PayOS
               </button>
@@ -4269,6 +4318,27 @@ function fallbackCopyText(text, successMsg) {
   }
   document.body.removeChild(ta);
 }
+
+
+async function triggerInstantPayOSCheck(orderCode) {
+  if (!orderCode) return;
+  showToast('Đang kết nối cổng PayOS để kiểm tra giao dịch tức thì...', 'info');
+  try {
+    const json = await safeFetch(`/api/orders/check-status/${encodeURIComponent(orderCode)}`);
+    if (json && json.success && json.data) {
+      const ord = api.normalizeOrderObject ? api.normalizeOrderObject(json.data) : json.data;
+      updateLiveStep4OrderStatus(ord);
+      if (ord.paymentStatus === 'PAID' || ord.paymentStatus === 'PARTIALLY_PAID' || ord.status === 'CONFIRMED') {
+        showToast('🎉 Giao dịch thành công! Đơn hàng của bạn đã được xác nhận tự động!', 'success');
+      } else {
+        showToast('Hệ thống ngân hàng đang chuyển tiền. Vui lòng đợi trong 5 - 15 giây, hệ thống sẽ tự động khớp lệnh ngay!', 'info');
+      }
+    }
+  } catch (err) {
+    showToast('Đang chờ tín hiệu xác nhận từ cổng thanh toán PayOS...', 'info');
+  }
+}
+window.triggerInstantPayOSCheck = triggerInstantPayOSCheck;
 
 function startPaymentPolling(orderCode) {
   if (!orderCode) return;
@@ -5385,9 +5455,24 @@ function openUserProfileModal() {
   const body = document.getElementById('userProfileModalBody');
   if (!modal || !body) return;
 
-  const pts = currentUser.points != null ? currentUser.points : 100;
-  const totalOrders = currentUser.totalOrders || 0;
-  const totalSpent = currentUser.totalSpent || 0;
+  let totalSpent = Number(currentUser.totalSpent || 0);
+  let totalDeposit = Number(currentUser.totalDeposit || 0);
+  let totalOrders = Number(currentUser.totalOrders || 0);
+
+  if (Array.isArray(myOrdersCache) && myOrdersCache.length > 0) {
+    const validOrders = myOrdersCache.filter(o => String(o.Status || o.status || '').toUpperCase() !== 'CANCELLED');
+    const orderSum = validOrders.reduce((sum, o) => sum + Number(o.Total || o.total || 0), 0);
+    const depositSum = validOrders.reduce((sum, o) => sum + Number(o.DepositAmount || o.depositAmount || 0), 0);
+    totalSpent = Math.max(totalSpent, orderSum);
+    totalDeposit = Math.max(totalDeposit, depositSum);
+    totalOrders = Math.max(totalOrders, validOrders.length);
+    currentUser.totalSpent = totalSpent;
+    currentUser.totalDeposit = totalDeposit;
+    currentUser.totalOrders = totalOrders;
+    try { localStorage.setItem('minigt_user', JSON.stringify(currentUser)); } catch (_) {}
+  }
+
+  const pts = currentUser.points != null ? currentUser.points : (100 + Math.floor(totalSpent / 10000));
   const vip = getCustomerVipInfo(totalSpent);
 
   body.innerHTML = `
@@ -5455,7 +5540,7 @@ function openUserProfileModal() {
         </div>
         <div class="user-pass-stat-box" style="text-align:center;">
           <div class="user-pass-stat-val" style="font-size:22px; font-weight:900; color:#4ade80;">${formatVND(totalSpent) || '0đ'}</div>
-          <div class="user-pass-stat-lbl" style="font-size:11px; color:#94a3b8; text-transform:uppercase; letter-spacing:0.5px; margin-top:2px;">Tổng giá trị cọc</div>
+          <div class="user-pass-stat-lbl" style="font-size:11px; color:#94a3b8; text-transform:uppercase; letter-spacing:0.5px; margin-top:2px;">Tổng cọc & chi tiêu</div>
         </div>
       </div>
 

@@ -6664,3 +6664,193 @@ body.dark-mode {
 
 
 
+
+
+/* =====================================================================
+   DARK THEME REFINED SYSTEM OVERRIDES ([data-theme="dark"] / body.dark-mode)
+   Tối ưu hóa độ tương phản, nền tối dịu mắt và sửa triệt để lỗi màu
+   ===================================================================== */
+[data-theme="dark"] .modal,
+[data-theme="dark"] .modal-container,
+[data-theme="dark"] .checkout-modal-container,
+[data-theme="dark"] .my-orders-modal-container,
+[data-theme="dark"] .user-profile-modal-container,
+[data-theme="dark"] .wishlist-modal-container {
+  background-color: #0c1322 !important;
+  color: #f8fafc !important;
+  border-color: #1e293b !important;
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.8) !important;
+}
+
+[data-theme="dark"] .modal-header,
+[data-theme="dark"] .modal-footer {
+  border-color: #1e293b !important;
+  background-color: #0c1322 !important;
+}
+
+/* 1. Payment Options & Cards in Checkout */
+[data-theme="dark"] .payment-option-card {
+  background-color: #111a2e !important;
+  border-color: #1e293b !important;
+  color: #f8fafc !important;
+}
+
+[data-theme="dark"] .payment-option-card:hover {
+  border-color: #3b82f6 !important;
+  background-color: #16223b !important;
+}
+
+[data-theme="dark"] .payment-option-card.active {
+  background-color: rgba(2, 132, 199, 0.16) !important;
+  border-color: #0284c7 !important;
+}
+
+[data-theme="dark"] .payment-option-card .opt-title {
+  color: #f8fafc !important;
+}
+
+[data-theme="dark"] .payment-option-card.active .opt-title {
+  color: #38bdf8 !important;
+}
+
+[data-theme="dark"] .payment-option-card .opt-desc {
+  color: #94a3b8 !important;
+}
+
+[data-theme="dark"] .checkout-review-card,
+[data-theme="dark"] .checkout-step-pane {
+  background-color: #111a2e !important;
+  border-color: #1e293b !important;
+  color: #f8fafc !important;
+}
+
+/* 2. Step 4 Payment Boxes */
+[data-theme="dark"] .payos-payment-card,
+[data-theme="dark"] .bank-payment-card {
+  background-color: #111a2e !important;
+  border-color: #1e293b !important;
+  color: #f8fafc !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4) !important;
+}
+
+[data-theme="dark"] .payos-payment-card strong,
+[data-theme="dark"] .bank-payment-card strong {
+  color: #f8fafc !important;
+}
+
+[data-theme="dark"] #paymentLiveStatusBox {
+  background-color: #0c1322 !important;
+  border-color: #059669 !important;
+  color: #6ee7b7 !important;
+}
+
+[data-theme="dark"] #paymentLiveStatusBox strong,
+[data-theme="dark"] #paymentLiveStatusBox div {
+  color: #a7f3d0 !important;
+}
+
+[data-theme="dark"] #step4RealtimeApprovalBanner {
+  background-color: #064e3b !important;
+  border-color: #059669 !important;
+}
+
+[data-theme="dark"] #step4RealtimeApprovalBanner h3 {
+  color: #34d399 !important;
+}
+
+[data-theme="dark"] #step4RealtimeApprovalBanner div {
+  color: #d1fae5 !important;
+}
+
+/* 3. Member Profile Modal Inputs & Form Elements */
+[data-theme="dark"] .auth-input-box,
+[data-theme="dark"] .profile-input-wrap,
+[data-theme="dark"] .auth-input-group div[style*="background:#fff"],
+[data-theme="dark"] .auth-input-group div[style*="background: #fff"] {
+  background-color: #111a2e !important;
+  border-color: #334155 !important;
+  color: #f8fafc !important;
+}
+
+[data-theme="dark"] .auth-input-box input,
+[data-theme="dark"] .profile-input-wrap input,
+[data-theme="dark"] .auth-input,
+[data-theme="dark"] input[type="text"],
+[data-theme="dark"] input[type="tel"],
+[data-theme="dark"] input[type="email"],
+[data-theme="dark"] input[type="password"] {
+  background-color: transparent !important;
+  color: #f8fafc !important;
+}
+
+[data-theme="dark"] .auth-label,
+[data-theme="dark"] .profile-form-label {
+  color: #cbd5e1 !important;
+}
+
+[data-theme="dark"] .auth-input-box i {
+  color: #94a3b8 !important;
+}
+
+/* 4. My Orders Modal & History Cards */
+[data-theme="dark"] .order-history-card,
+[data-theme="dark"] .customer-order-card {
+  background-color: #111a2e !important;
+  border-color: #1e293b !important;
+  color: #f8fafc !important;
+}
+
+[data-theme="dark"] .order-history-card strong,
+[data-theme="dark"] .customer-order-card strong {
+  color: #f8fafc !important;
+}
+
+[data-theme="dark"] .order-history-card div[style*="background:#f8fafc"],
+[data-theme="dark"] .order-history-card div[style*="background: #f8fafc"] {
+  background-color: #0c1322 !important;
+  border-color: #1e293b !important;
+  color: #cbd5e1 !important;
+}
+
+/* 5. Tables in Dark Mode (Compare, Cart Preview, Order Details) */
+[data-theme="dark"] table th {
+  background-color: #16223b !important;
+  color: #f8fafc !important;
+  border-color: #1e293b !important;
+}
+
+[data-theme="dark"] table td {
+  background-color: #0c1322 !important;
+  color: #cbd5e1 !important;
+  border-color: #1e293b !important;
+}
+
+[data-theme="dark"] table td strong,
+[data-theme="dark"] table td div {
+  color: #f8fafc !important;
+}
+
+/* 6. Text Contrast Fixes in Dark Mode */
+[data-theme="dark"] [style*="color:#0f172a"],
+[data-theme="dark"] [style*="color: #0f172a"],
+[data-theme="dark"] [style*="color:#1e293b"],
+[data-theme="dark"] [style*="color: #1e293b"],
+[data-theme="dark"] [style*="color:#334155"],
+[data-theme="dark"] [style*="color: #334155"] {
+  color: #f8fafc !important;
+}
+
+[data-theme="dark"] [style*="background:#f8fafc"],
+[data-theme="dark"] [style*="background: #f8fafc"] {
+  background-color: #111a2e !important;
+  border-color: #1e293b !important;
+}
+
+[data-theme="dark"] [style*="background:#ffffff"],
+[data-theme="dark"] [style*="background: #ffffff"],
+[data-theme="dark"] [style*="background:#fff"],
+[data-theme="dark"] [style*="background: #fff"] {
+  background-color: #111a2e !important;
+  border-color: #1e293b !important;
+  color: #f8fafc !important;
+}

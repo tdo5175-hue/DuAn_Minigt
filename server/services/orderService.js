@@ -82,7 +82,7 @@ async function createOrder(payload, authUser = null) {
       const pRes = await q(`
         SELECT ProductId, Sku, Name, Price, OldPrice, PriceBox, PriceCard, DiscountPercent,
                PackagingType, DepositAmount, DepositPercent, ExpectedDelivery, ReleaseDate,
-               Stock, Status, IsActive
+               Stock, StockBox, StockCard, Status, IsActive
         FROM Products
         WHERE ProductId = @pid
       `, { pid: productId });
@@ -101,21 +101,40 @@ async function createOrder(payload, authUser = null) {
         }
       }
 
-      if (p.Status === 'sold_out' || (!isPreOrder && p.Stock < quantity)) {
-        throw conflict(`"${p.Name}" chỉ còn ${p.Stock} sản phẩm trong kho (bạn chọn ${quantity})`);
+      const effectivePack = p.PackagingType === 'card_only'
+        ? 'card'
+        : (p.PackagingType === 'box_only' ? 'box' : packType);
+
+      // Phân tách tồn kho độc lập: Hộp Box vs Vỉ Card
+      const totalStock = typeof p.Stock === 'number' ? p.Stock : 0;
+      let sBox = (typeof p.StockBox === 'number') ? p.StockBox : null;
+      let sCard = (typeof p.StockCard === 'number') ? p.StockCard : null;
+      if (sBox === null) sBox = p.PackagingType === 'card_only' ? 0 : Math.ceil(totalStock * 0.6);
+      if (sCard === null) sCard = p.PackagingType === 'box_only' ? 0 : Math.floor(totalStock * 0.4);
+
+      if (p.Status === 'sold_out') {
+        throw conflict(`Mẫu xe "${p.Name}" hiện đã hết hàng trong kho!`);
+      }
+
+      if (!isPreOrder) {
+        if (effectivePack === 'box' && sBox < quantity) {
+          throw conflict(`Mẫu xe "${p.Name}" (Bản Hộp Box) chỉ còn ${sBox} xe trong kho (bạn đặt ${quantity})`);
+        } else if (effectivePack === 'card' && sCard < quantity) {
+          throw conflict(`Mẫu xe "${p.Name}" (Bản Vỉ Card) chỉ còn ${sCard} xe trong kho (bạn đặt ${quantity})`);
+        } else if (totalStock < quantity) {
+          throw conflict(`Mẫu xe "${p.Name}" chỉ còn ${totalStock} xe trong kho (bạn đặt ${quantity})`);
+        }
       }
 
       await q(`
         UPDATE Products
         SET Stock = CASE WHEN Stock >= @qty THEN Stock - @qty ELSE 0 END,
+            StockBox = CASE WHEN @pack = 'box' AND StockBox >= @qty THEN StockBox - @qty ELSE (CASE WHEN @pack = 'box' THEN 0 ELSE StockBox END) END,
+            StockCard = CASE WHEN @pack = 'card' AND StockCard >= @qty THEN StockCard - @qty ELSE (CASE WHEN @pack = 'card' THEN 0 ELSE StockCard END) END,
             Status = CASE WHEN Stock - @qty <= 0 AND Status = 'in_stock' THEN 'sold_out' ELSE Status END,
             UpdatedAt = NOW()
         WHERE ProductId = @pid
-      `, { pid: productId, qty: quantity });
-
-      const effectivePack = p.PackagingType === 'card_only'
-        ? 'card'
-        : (p.PackagingType === 'box_only' ? 'box' : packType);
+      `, { pid: productId, qty: quantity, pack: effectivePack });
 
       const disc = Math.min(80, Math.max(0, Number(p.DiscountPercent || 0)));
       const baseBox = Number(p.PriceBox || 0) > 0 ? Number(p.PriceBox) : Number(p.Price);
@@ -338,15 +357,18 @@ async function transitionOrderStatus(orderIdOrCode, toStatus, { note, cancelReas
     }
 
     if (target === 'CANCELLED' && order.StockReserved) {
-      const itemsRes = await q('SELECT ProductId, Quantity FROM OrderItems WHERE OrderId = @oid', { oid: order.OrderId });
+      const itemsRes = await q('SELECT ProductId, Quantity, PackagingOption FROM OrderItems WHERE OrderId = @oid', { oid: order.OrderId });
       for (const it of itemsRes.recordset) {
+        const itemPack = String(it.PackagingOption || 'box').toLowerCase() === 'card' ? 'card' : 'box';
         await q(`
           UPDATE Products
           SET Stock = Stock + @qty,
+              StockBox = CASE WHEN @pack = 'box' THEN StockBox + @qty ELSE StockBox END,
+              StockCard = CASE WHEN @pack = 'card' THEN StockCard + @qty ELSE StockCard END,
               Status = CASE WHEN Status = 'sold_out' AND Stock + @qty > 0 THEN 'in_stock' ELSE Status END,
               UpdatedAt = NOW()
           WHERE ProductId = @pid
-        `, { pid: it.ProductId, qty: it.Quantity });
+        `, { pid: it.ProductId, qty: it.Quantity, pack: itemPack });
       }
     }
 

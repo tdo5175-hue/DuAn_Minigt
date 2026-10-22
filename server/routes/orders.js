@@ -108,12 +108,69 @@ router.get('/my', authenticate, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-// GET /api/orders/check-status/:code — Polling kiểm tra trạng thái đơn real-time
+// GET /api/orders/check-status/:code — Polling kiểm tra trạng thái đơn real-time & tự động kiểm tra PayOS API trực tiếp
 router.get('/check-status/:code', async (req, res, next) => {
   try {
     const q = decodeURIComponent(req.params.code).trim().toUpperCase();
-    const o = await orderService.getOrderByCodeOrId(q);
+    let o = await orderService.getOrderByCodeOrId(q);
     if (!o) throw notFound('Không tìm thấy đơn hàng');
+
+    // Nếu đơn chưa thanh toán đủ, chủ động truy vấn trực tiếp PayOS API để khớp lệnh ngay lập tức
+    // (Khắc phục triệt để lỗi khách chuyển tiền rồi nhưng webhook delay 2-5 phút)
+    if (o.status !== 'CANCELLED' && o.paymentStatus !== 'PAID' && o.paymentStatus !== 'PARTIALLY_PAID') {
+      const oid = o.orderId || o.id || o.OrderId;
+      try {
+        const histRes = await db.query(`
+          SELECT Note FROM OrderStatusHistory
+          WHERE OrderId = @oid AND (Note LIKE '%PayOS #%' OR Note LIKE '%payos%')
+          ORDER BY HistoryId DESC LIMIT 1
+        `, { oid });
+
+        if (histRes.recordset && histRes.recordset.length > 0) {
+          const note = histRes.recordset[0].Note || '';
+          const match = note.match(/PayOS\s*#?(\d+)/i);
+          if (match && match[1]) {
+            const payosCode = Number(match[1]);
+            const pInfo = await payos.getPaymentLinkInformation(payosCode);
+            if (pInfo && (pInfo.status === 'PAID' || (pInfo.amountPaid && pInfo.amountPaid > 0))) {
+              const isDeposit = o.paymentMethod === 'DEPOSIT' || (Number(o.depositAmount) > 0 && Number(o.depositAmount) < Number(o.total));
+              const targetPaymentStatus = isDeposit ? 'PARTIALLY_PAID' : 'PAID';
+              const amountPaid = pInfo.amountPaid || pInfo.amount || (isDeposit ? o.depositAmount : o.total);
+              const formattedAmount = new Intl.NumberFormat('vi-VN').format(amountPaid);
+
+              await db.query(`
+                UPDATE Orders
+                SET PaymentStatus = @pst,
+                    PaymentMethod = 'VIETQR_PAYOS',
+                    Status = CASE WHEN Status = 'PENDING' THEN 'CONFIRMED' ELSE Status END,
+                    UpdatedAt = NOW()
+                WHERE OrderId = @oid
+              `, { oid, pst: targetPaymentStatus });
+
+              await db.query(`
+                INSERT INTO OrderStatusHistory (OrderId, FromStatus, ToStatus, Note)
+                VALUES (@oid, @from, 'CONFIRMED', 'PayOS API: Xác nhận thanh toán VietQR thành công tức thì. Số tiền: ' || @amount || 'đ')
+              `, {
+                oid,
+                from: o.status || 'PENDING',
+                amount: formattedAmount
+              });
+
+              const updated = await orderService.getOrderByCodeOrId(oid);
+              if (updated) {
+                o = updated;
+                if (updated.email || updated.customer?.email) {
+                  mailService.sendOrderConfirmationEmail(updated).catch(() => {});
+                }
+              }
+            }
+          }
+        }
+      } catch (payosCheckErr) {
+        // Bỏ qua lỗi nếu PayOS chưa nhận tiền hoặc link chưa sẵn sàng
+      }
+    }
+
     return ok(res, o);
   } catch (err) { next(err); }
 });
@@ -377,9 +434,9 @@ router.post('/payos-webhook', async (req, res) => {
 
       if (order) {
         const oid = order.orderId || order.id || order.OrderId;
-        const isPreOrder = Boolean(order.hasPreOrder || order.HasPreOrder || (order.depositAmount && Number(order.depositAmount) > 0));
-        const targetPaymentStatus = isPreOrder ? 'PARTIALLY_PAID' : 'PAID';
-        const formattedAmount = new Intl.NumberFormat('vi-VN').format(payload.amount || (isPreOrder ? order.depositAmount : order.total));
+        const isDeposit = Boolean(order.paymentMethod === 'DEPOSIT' || (order.depositAmount && Number(order.depositAmount) > 0 && Number(order.depositAmount) < Number(order.total)));
+        const targetPaymentStatus = isDeposit ? 'PARTIALLY_PAID' : 'PAID';
+        const formattedAmount = new Intl.NumberFormat('vi-VN').format(payload.amount || (isDeposit ? order.depositAmount : order.total));
 
         // Cập nhật trạng thái đơn hàng tự động trong database
         await db.query(`

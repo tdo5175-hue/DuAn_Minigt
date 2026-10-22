@@ -635,6 +635,11 @@ router.put('/orders/:id/status', async (req, res, next) => {
     const orderId = req.params.id;
     const { status, note, trackingCode, carrier, cancelReason } = req.body;
 
+    const existing = await orderService.getOrderByCodeOrId(orderId);
+    if (existing && (existing.status === 'DELIVERED' || existing.status === 'COMPLETED')) {
+      throw conflict('Đơn hàng đã giao thành công và hoàn tất, không thể chỉnh sửa hoặc thay đổi trạng thái!');
+    }
+
     const updated = await orderService.transitionOrderStatus(orderId, status, {
       note, trackingCode, trackingCarrier: carrier, cancelReason,
       actorId: req.user ? req.user.userId : null,
@@ -672,6 +677,10 @@ router.put('/orders/:id/tracking', async (req, res, next) => {
     const o = await orderService.getOrderByCodeOrId(orderId);
     if (!o) throw notFound('Không tìm thấy đơn hàng');
 
+    if (o.status === 'DELIVERED' || o.status === 'COMPLETED') {
+      throw conflict('Đơn hàng đã giao thành công và hoàn tất, không thể chỉnh sửa mã vận đơn!');
+    }
+
     const oid = o.orderId || o.id;
     const nextStatus = (autoShip || o.status === 'PENDING' || o.status === 'CONFIRMED' || o.status === 'PREPARING')
       ? (autoShip ? 'SHIPPING' : (o.status === 'PENDING' ? 'CONFIRMED' : o.status))
@@ -704,6 +713,25 @@ router.put('/orders/:id/tracking', async (req, res, next) => {
   } catch (error) {
     next(error);
   }
+});
+
+router.put('/orders/:id/address-type', async (req, res, next) => {
+  try {
+    const orderId = req.params.id;
+    const { addressType } = req.body;
+    const o = await orderService.getOrderByCodeOrId(orderId);
+    if (!o) throw notFound('Không tìm thấy đơn hàng');
+
+    if (o.status === 'DELIVERED' || o.status === 'COMPLETED') {
+      throw conflict('Đơn hàng đã giao thành công và hoàn tất, không thể thay đổi loại địa chỉ!');
+    }
+
+    const targetType = addressType === 'OLD' ? 'OLD' : 'NEW';
+    const oid = o.orderId || o.id;
+    await db.query(`UPDATE Orders SET AddressType = @t, UpdatedAt = NOW() WHERE OrderId = @oid`, { oid, t: targetType });
+    const updated = await orderService.getOrderByCodeOrId(oid);
+    return ok(res, updated, `Đã chuyển đổi sang ${targetType === 'OLD' ? 'Địa chỉ CŨ' : 'Địa chỉ MỚI'} thành công!`);
+  } catch (err) { next(err); }
 });
 
 router.put('/orders/:id/preorder-arrived', async (req, res, next) => {

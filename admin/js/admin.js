@@ -2817,8 +2817,53 @@
       }).join('') || '<div style="font-size:12px; color:#64748b;">Chưa có lịch sử trạng thái</div>';
 
       const isOldAddr = order.addressType === 'OLD' || order.isOldAddress;
+      const isDeliveredOrCompleted = ['DELIVERED', 'COMPLETED'].includes(String(order.status || '').toUpperCase());
+
+      // Tính toán các thông số tài chính đối soát minh bạch chuẩn SPX Express
+      const rawSubtotal = Number(order.subtotal || 0);
+      const rawDiscount = Number(order.discount || 0);
+      const netModelTotal = Math.max(0, rawSubtotal - rawDiscount);
+      const spxShipFee = Number(order.shippingFee || 11000);
+      const orderTotal = Number(order.total || (netModelTotal + spxShipFee));
+      const depositPaid = Number(order.depositAmount || 0);
+      const isPaidFull = order.paymentStatus === 'PAID';
+      const isDepositOrder = order.paymentMethod === 'DEPOSIT' || (depositPaid > 0 && depositPaid < orderTotal);
+
+      let remainingModel = 0;
+      let codToCollect = 0;
+      let spxReconcilePayout = 0;
+      let shopTotalRevenue = 0;
+
+      if (isPaidFull) {
+        remainingModel = 0;
+        codToCollect = 0;
+        spxReconcilePayout = 0;
+        shopTotalRevenue = netModelTotal;
+      } else if (isDepositOrder) {
+        remainingModel = Math.max(0, netModelTotal - depositPaid);
+        codToCollect = remainingModel + spxShipFee;
+        spxReconcilePayout = remainingModel;
+        shopTotalRevenue = depositPaid + spxReconcilePayout;
+      } else {
+        remainingModel = netModelTotal;
+        codToCollect = orderTotal;
+        spxReconcilePayout = netModelTotal;
+        shopTotalRevenue = spxReconcilePayout;
+      }
 
       body.innerHTML = `
+        ${isDeliveredOrCompleted ? `
+          <div style="background:#ecfdf5; border:1.5px solid #6ee7b7; border-radius:10px; padding:12px 14px; margin-bottom:14px; display:flex; align-items:center; gap:10px; color:#065f46; font-size:13px;">
+            <i class="fa-solid fa-lock" style="font-size:22px; color:#059669; flex-shrink:0;"></i>
+            <div>
+              <strong style="font-size:13.5px;">ĐƠN HÀNG ĐÃ GIAO THÀNH CÔNG VÀ KHÁCH ĐÃ NHẬN ĐƯỢC HÀNG</strong>
+              <div style="font-size:11.5px; color:#047857; margin-top:2px;">
+                Đơn hàng đã hoàn tất toàn bộ quy trình giao phát và đối soát. Hệ thống đã <strong>KHÓA TOÀN BỘ CHỈNH SỬA</strong> để bảo toàn dữ liệu hóa đơn và đối soát SPX.
+              </div>
+            </div>
+          </div>
+        ` : ''}
+
         <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #e2e8f0; padding-bottom:12px; margin-bottom:14px;">
           <div>
             <span style="font-size:11px; font-weight:800; background:#fef2f2; color:#dc2626; padding:2px 8px; border-radius:4px;">CHI TIẾT ĐƠN HÀNG</span>
@@ -2826,7 +2871,8 @@
               Mã đơn: <span style="color:#e10600; font-family:monospace;">#${order.code}</span>
             </h3>
           </div>
-          <div>
+          <div style="display:flex; align-items:center; gap:6px;">
+            ${isDeliveredOrCompleted ? '<span style="font-size:11px; font-weight:800; background:#ecfdf5; color:#059669; border:1px solid #a7f3d0; padding:3px 8px; border-radius:4px;"><i class="fa-solid fa-lock"></i> ĐÃ KHÓA</span>' : ''}
             ${renderOrderBadge(order.status)}
             ${renderPaymentBadge(order.paymentStatus, order.paymentMethod)}
           </div>
@@ -2890,9 +2936,11 @@
             <button type="button" class="addr-btn-copy btn-copy-msg" onclick="copyCustomerAddressConfirmMsg(${order.id})" title="Copy tin nhắn soạn sẵn gửi Zalo/SMS cho khách để xác nhận địa chỉ">
               <i class="fa-solid fa-comment-dots"></i> 💬 Copy Tin Nhắn Báo Khách (Zalo)
             </button>
-            <button type="button" class="addr-btn-copy" onclick="toggleOrderAddressType(${order.id})" title="Chuyển đổi trạng thái đơn giữa Địa chỉ Mới và Cũ">
-              <i class="fa-solid fa-arrows-rotate"></i> Đổi sang ${isOldAddr ? 'ĐC MỚI' : 'ĐC CŨ'}
-            </button>
+            ${!isDeliveredOrCompleted ? `
+              <button type="button" class="addr-btn-copy" onclick="toggleOrderAddressType(${order.id})" title="Chuyển đổi trạng thái đơn giữa Địa chỉ Mới và Cũ">
+                <i class="fa-solid fa-arrows-rotate"></i> Đổi sang ${isOldAddr ? 'ĐC MỚI' : 'ĐC CŨ'}
+              </button>
+            ` : ''}
           </div>
         </div>
 
@@ -2941,38 +2989,67 @@
           </table>
         </div>
 
-        <!-- Tóm tắt thanh toán & Tiền thu hộ COD -->
-        <div style="background:#fff7ed; border:1px solid #fed7aa; padding:12px 16px; border-radius:8px; margin-bottom:14px; font-size:13px;">
-          <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:8px;">
-            <div>
-              <div>Tiền hàng mô hình: <strong>${formatVND(order.subtotal)}</strong></div>
-              <div>Phí ship tiêu chuẩn SPX: <strong>${formatVND(order.shippingFee)}</strong></div>
-              ${order.depositAmount > 0 ? `<div style="color:#2563eb;">Tiền cọc đã thu trước: <strong>${formatVND(order.depositAmount)}</strong></div>` : ''}
-              <div style="font-size:11.5px; color:#64748b; margin-top:2px;">Hình thức: <strong>${
-                order.paymentMethod === 'VIETQR_PAYOS' || order.paymentMethod === 'PAYOS' 
-                  ? '⚡ VietQR PayOS (Thanh toán tự động 24/7)' 
-                  : (order.paymentMethod === 'DEPOSIT' ? 'Đặt cọc giữ xe (100.000đ)' : (order.paymentMethod === 'BANK_TRANSFER' ? 'Chuyển khoản full 100%' : 'COD'))
-              }</strong></div>
-            </div>
-            <div style="text-align:right;">
-              <div style="font-size:11px; color:#64748b;">TỔNG CỘNG ĐƠN HÀNG</div>
-              <div style="font-size:20px; font-weight:800; color:#dc2626;">${formatVND(order.total)}</div>
-            </div>
+        <!-- BẢNG ĐỐI SOÁT TÀI CHÍNH & COD SPX EXPRESS (CHÍNH XÁC & MINH BẠCH 100%) -->
+        <div style="background:#ffffff; border:1.5px solid #fed7aa; border-radius:10px; padding:14px 16px; margin-bottom:14px; box-shadow:0 4px 12px rgba(234,88,12,0.06);">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; border-bottom:1px solid #ffedd5; padding-bottom:8px; flex-wrap:wrap; gap:6px;">
+            <strong style="color:#c2410c; font-size:13.5px; display:flex; align-items:center; gap:6px;">
+              <i class="fa-solid fa-calculator"></i> BẢNG ĐỐI SOÁT DOANH THU &amp; THU HỘ COD (SPX EXPRESS)
+            </strong>
+            <span style="font-size:11px; padding:2px 8px; border-radius:4px; font-weight:700; background:#fff7ed; color:#ea580c; border:1px solid #fed7aa;">
+              Phí ship 11k của SPX Express
+            </span>
           </div>
-          <div style="border-top:1px dashed #fdba74; padding-top:8px; display:flex; justify-content:space-between; align-items:center;">
+
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px; font-size:12.5px; margin-bottom:12px;">
             <div>
-              <strong style="color:#c2410c;">Tiền Shipper SPX thu hộ khi giao (COD):</strong>
+              <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+                <span style="color:#64748b;">Tổng tiền mô hình xe:</span>
+                <strong>${formatVND(rawSubtotal)}</strong>
+              </div>
+              ${rawDiscount > 0 ? `
+                <div style="display:flex; justify-content:space-between; margin-bottom:4px; color:#16a34a;">
+                  <span>Giảm giá Voucher:</span>
+                  <strong>-${formatVND(rawDiscount)}</strong>
+                </div>
+              ` : ''}
+              <div style="display:flex; justify-content:space-between; margin-bottom:4px; padding-top:4px; border-top:1px dashed #e2e8f0;">
+                <span style="font-weight:700; color:#0f172a;">Tiền xe thực nhận của Shop:</span>
+                <strong style="color:#2563eb; font-size:13.5px;">${formatVND(netModelTotal)}</strong>
+              </div>
+              <div style="display:flex; justify-content:space-between; margin-bottom:4px; color:#64748b;">
+                <span>Phí ship SPX Express (11k):</span>
+                <span style="font-weight:600;">${formatVND(spxShipFee)} <em style="font-size:11px; color:#94a3b8;">(SPX nhận &amp; giữ cước)</em></span>
+              </div>
+              <div style="display:flex; justify-content:space-between; padding-top:4px; border-top:1px dashed #e2e8f0; font-weight:800;">
+                <span style="color:#0f172a;">Tổng đơn khách trả:</span>
+                <span style="color:#dc2626; font-size:14.5px;">${formatVND(orderTotal)}</span>
+              </div>
             </div>
-            <div style="text-align:right;">
-              ${(() => {
-                const codAmount = order.codAmount !== undefined 
-                  ? order.codAmount 
-                  : (order.paymentStatus === 'PAID' ? 0 : (order.depositAmount > 0 ? Math.max(0, order.total - order.depositAmount) : order.total));
-                if (codAmount === 0) {
-                  return '<span style="color:#059669; font-weight:800; font-size:15px;">0đ</span> <span style="font-size:11px; color:#059669;">(Đã thanh toán đủ - Không thu tiền)</span>';
+
+            <!-- Cột bên phải: Đối soát chuyển khoản & COD SPX -->
+            <div style="background:#f8fafc; padding:10px 12px; border-radius:8px; border:1px solid #e2e8f0; font-size:12px;">
+              <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+                <span style="color:#64748b;">Khách đã cọc trước:</span>
+                <strong style="color:#059669;">${formatVND(depositPaid)} ${depositPaid > 0 ? '(Đã vào STK Shop)' : ''}</strong>
+              </div>
+              <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+                <span style="color:#64748b;">Tiền xe còn lại chưa thu:</span>
+                <strong style="color:#d97706;">${formatVND(remainingModel)}</strong>
+              </div>
+              <div style="display:flex; justify-content:space-between; margin-bottom:6px; padding-top:4px; border-top:1px dashed #cbd5e1;">
+                <span style="font-weight:700; color:#c2410c;">Shipper SPX thu hộ khi phát hàng (COD):</span>
+                <strong style="color:#dc2626; font-size:14px;">${formatVND(codToCollect)}</strong>
+              </div>
+              <div style="font-size:11px; color:#64748b; line-height:1.4; margin-bottom:8px; background:#fff; padding:6px 8px; border-radius:6px; border:1px solid #e2e8f0;">
+                ${codToCollect === 0 
+                  ? '<i class="fa-solid fa-circle-check" style="color:#059669;"></i> Khách đã thanh toán 100%. Khi giao bưu tá SPX chỉ phát kiện, không thu tiền COD.'
+                  : `<i class="fa-solid fa-circle-info" style="color:#0284c7;"></i> Shipper SPX thu từ khách <strong>${formatVND(codToCollect)}</strong> (gồm ${formatVND(remainingModel)} tiền xe + ${formatVND(spxShipFee)} ship). SPX giữ 11k tiền ship của SPX, và <strong>SPX tự động đối soát chuyển ${formatVND(spxReconcilePayout)}</strong> về STK ngân hàng Shop!`
                 }
-                return `<span style="color:#dc2626; font-weight:800; font-size:17px;">${formatVND(codAmount)}</span> ${order.depositAmount > 0 ? '<span style="font-size:11px; color:#64748b;">(Tiền xe còn lại + ship SPX 11k)</span>' : ''}`;
-              })()}
+              </div>
+              <div style="display:flex; justify-content:space-between; align-items:center; padding-top:4px; border-top:1.5px solid #cbd5e1; font-weight:800;">
+                <span style="color:#0f172a;">Doanh thu Shop nhận trọn vẹn:</span>
+                <strong style="color:#16a34a; font-size:14.5px;">${formatVND(shopTotalRevenue)}</strong>
+              </div>
             </div>
           </div>
         </div>
@@ -3034,7 +3111,8 @@
                   }
                 </div>
 
-                <!-- Admin vẫn giữ toàn quyền can thiệp nếu cần duyệt tay hoặc xác nhận -->
+                <!-- Admin vẫn giữ toàn quyền can thiệp nếu cần duyệt tay hoặc xác nhận (Ẩn khi đơn đã hoàn tất) -->
+                ${!isDeliveredOrCompleted && (order.paymentStatus !== 'PAID' || order.status === 'PENDING') ? `
                 <div style="display:flex; gap:8px; margin-top:10px; padding-top:8px; border-top:1px solid #bbf7d0; flex-wrap:wrap; align-items:center;">
                   <span style="font-size:11px; color:#64748b;">Can thiệp Admin:</span>
                   ${order.paymentStatus !== 'PAID' ? `
@@ -3048,6 +3126,7 @@
                     </button>
                   ` : ''}
                 </div>
+                ` : ''}
               </div>
             `;
           }
@@ -3085,7 +3164,7 @@
                 }
               </div>
 
-              ${order.paymentStatus !== 'PAID' ? `
+              ${!isDeliveredOrCompleted && order.paymentStatus !== 'PAID' ? `
                 <div style="display:flex; gap:8px; margin-top:10px; padding-top:8px; border-top:1px solid #e0f2fe; flex-wrap:wrap; align-items:center;">
                   <span style="font-size:11.5px; color:#64748b;">Sau khi check App thấy số dư:</span>
                   ${isDeposit && order.paymentStatus === 'UNPAID' ? `
@@ -3118,9 +3197,7 @@
               <a href="https://spx.vn/vi" target="_blank" class="btn-admin btn-admin-outline" style="background:#fff; color:#ea580c; border-color:#fdba74; font-size:11px; padding:3px 8px; text-decoration:none;">
                 <i class="fa-solid fa-arrow-up-right-from-square"></i> Mở Web SPX (spx.vn/vi)
               </a>
-              <button type="button" class="btn-admin btn-admin-primary" style="background:#ea580c; border-color:#ea580c; font-size:11px; padding:3px 10px;" onclick="openShipSpxModal(${order.id})">
-                <i class="fa-solid fa-truck-fast"></i> ${order.trackingCode ? 'Sửa mã SPX' : 'Tạo / Dán mã SPX'}
-              </button>
+              ${!isDeliveredOrCompleted ? `<button type="button" class="btn-admin btn-admin-primary" style="background:#ea580c; border-color:#ea580c; font-size:11px; padding:3px 10px;" onclick="openShipSpxModal(${order.id})"><i class="fa-solid fa-truck-fast"></i> ${order.trackingCode ? 'Sửa mã SPX' : 'Tạo / Dán mã SPX'}</button>` : '<span style="font-size:11px; color:#059669; font-weight:700;"><i class="fa-solid fa-lock"></i> Đã giao thành công</span>'}
             </div>
           </div>
 

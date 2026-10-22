@@ -55,9 +55,31 @@ function normalizeUserRow(u) {
   };
 }
 
-function publicUser(raw) {
+async function getUserOrderStats(userId, email) {
+  try {
+    const res = await db.query(`
+      SELECT 
+        COALESCE(SUM(CASE WHEN Status <> 'CANCELLED' THEN Total ELSE 0 END), 0) AS "TotalSpent",
+        COALESCE(SUM(CASE WHEN Status <> 'CANCELLED' AND DepositAmount > 0 THEN DepositAmount ELSE 0 END), 0) AS "TotalDeposit",
+        COUNT(CASE WHEN Status <> 'CANCELLED' THEN 1 ELSE NULL END) AS "TotalOrders"
+      FROM Orders
+      WHERE (UserId = @uid AND @uid > 0) OR (LOWER(Email) = LOWER(@email) AND @email IS NOT NULL AND @email <> '')
+    `, { uid: userId || 0, email: email || '' });
+    if (res.recordset && res.recordset.length > 0) {
+      return res.recordset[0];
+    }
+  } catch (_) {}
+  return { TotalSpent: 0, TotalDeposit: 0, TotalOrders: 0 };
+}
+
+function publicUser(raw, stats = {}) {
   const u = normalizeUserRow(raw);
   const hasPassword = Boolean(u.PasswordHash);
+  const spent = Number(stats.TotalSpent ?? stats.totalSpent ?? u.TotalSpent ?? u.totalspent ?? 0);
+  const dep = Number(stats.TotalDeposit ?? stats.totalDeposit ?? u.TotalDeposit ?? u.totaldeposit ?? 0);
+  const ordCount = Number(stats.TotalOrders ?? stats.totalOrders ?? u.TotalOrders ?? u.totalorders ?? 0);
+  const pts = 100 + Math.floor(spent / 10000);
+
   return {
     id: u.UserId,
     userId: u.UserId,
@@ -75,7 +97,10 @@ function publicUser(raw) {
     role: u.Role || 'customer',
     Role: u.Role || 'customer',
     tier: u.Role === 'admin' ? 'Founder / Admin' : 'Collector VIP',
-    points: 100,
+    totalSpent: spent,
+    totalDeposit: dep,
+    totalOrders: ordCount,
+    points: pts,
     authProvider: u.AuthProvider || 'local',
     AuthProvider: u.AuthProvider || 'local',
     hasPassword,
@@ -221,7 +246,8 @@ router.post('/login', async (req, res, next) => {
 
       await db.query('UPDATE Users SET LastLoginAt = NOW() WHERE UserId = @id', { id: user.UserId });
       const token = signToken(user);
-      const clean = publicUser(user);
+      const stats = await getUserOrderStats(user.UserId, user.Email);
+      const clean = publicUser(user, stats);
 
       return res.status(200).json({
         success: true,
@@ -296,7 +322,8 @@ router.post('/login', async (req, res, next) => {
     await db.query('UPDATE Users SET LastLoginAt = NOW() WHERE UserId = @id', { id: matchedUser.UserId });
 
     const token = signToken(matchedUser);
-    const clean = publicUser(matchedUser);
+    const stats = await getUserOrderStats(matchedUser.UserId, matchedUser.Email);
+    const clean = publicUser(matchedUser, stats);
 
     return res.status(200).json({
       success: true,
@@ -369,7 +396,8 @@ router.post('/google', async (req, res, next) => {
     }
 
     const token = signToken(user);
-    const clean = publicUser(user);
+    const stats = await getUserOrderStats(user.UserId, user.Email);
+    const clean = publicUser(user, stats);
     return res.status(200).json({
       success: true,
       message: `Đăng nhập Google thành công! Chào mừng ${clean.fullName}.`,
@@ -521,7 +549,8 @@ router.post('/login-otp', async (req, res, next) => {
     otpStore.delete(`login_${email}`);
 
     const token = signToken(user);
-    const clean = publicUser(user);
+    const stats = await getUserOrderStats(user.UserId, user.Email);
+    const clean = publicUser(user, stats);
 
     return res.status(200).json({
       success: true,
@@ -732,7 +761,8 @@ router.post('/reset-password', async (req, res, next) => {
     if (cleanPhone) otpStore.delete(cleanPhone);
 
     const updatedRow = (updatedUserRes.recordset.length > 0) ? normalizeUserRow(updatedUserRes.recordset[0]) : u;
-    const clean = publicUser(updatedRow);
+    const stats = await getUserOrderStats(updatedRow.UserId, updatedRow.Email);
+    const clean = publicUser(updatedRow, stats);
     const token = signToken(updatedRow);
 
     return res.status(200).json({
@@ -833,7 +863,8 @@ router.put('/profile', async (req, res, next) => {
     }
 
     const token = signToken(updatedRow);
-    const clean = publicUser(updatedRow);
+    const stats = await getUserOrderStats(updatedRow.UserId, updatedRow.Email);
+    const clean = publicUser(updatedRow, stats);
     return res.status(200).json({
       success: true,
       message: newPassword
@@ -848,7 +879,8 @@ router.put('/profile', async (req, res, next) => {
 
 // GET /api/auth/me
 router.get('/me', authenticate, requireActiveUser, async (req, res) => {
-  const clean = publicUser(req.dbUser);
+  const stats = await getUserOrderStats(req.dbUser.UserId, req.dbUser.Email);
+  const clean = publicUser(req.dbUser, stats);
   return res.status(200).json({
     success: true,
     user: clean,
