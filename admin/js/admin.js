@@ -2291,6 +2291,10 @@
       } else {
         adminToast('Đã xóa hoàn toàn sản phẩm khỏi hệ thống!', 'success');
       }
+      if (api && typeof api.emitRealtimeSync === 'function') {
+        api.emitRealtimeSync('PRODUCTS_UPDATED', { deletedId: pid });
+      }
+      await loadProducts();
       loadDashboard();
     } catch (err) {
       adminToast('Lỗi xóa sản phẩm: ' + err.message, 'error');

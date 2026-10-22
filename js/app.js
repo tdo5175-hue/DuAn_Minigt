@@ -842,7 +842,7 @@ function getProductBoxCardPricing(p) {
   const finalPriceCard = Number(norm.finalPriceCard ?? norm.FinalPriceCard ?? calcFinal(baseCard));
 
   // Tồn kho thực tế của từng bản Box và Card
-  const totalStock = typeof norm.stock === 'number' ? norm.stock : (typeof norm.Stock === 'number' ? norm.Stock : 10);
+  const totalStock = typeof norm.stock === 'number' ? norm.stock : (typeof norm.Stock === 'number' ? norm.Stock : 0);
   const rawBox = norm.stockBox ?? norm.StockBox ?? norm.stockbox;
   const rawCard = norm.stockCard ?? norm.StockCard ?? norm.stockcard;
 
@@ -893,7 +893,7 @@ function getSelectedPackForProduct(p) {
   if (userChoice === 'box' && !pricing.isBoxAvailable && pricing.isCardAvailable) return 'card';
   if (userChoice === 'card' && !pricing.isCardAvailable && pricing.isBoxAvailable) return 'box';
 
-  return userChoice || pricing.defaultPack || 'box';
+  return userChoice || pricing.defaultPack || (pricing.isBoxAvailable ? 'box' : (pricing.isCardAvailable ? 'card' : 'box'));
 }
 
 async function loadProducts() {
@@ -923,6 +923,27 @@ async function loadProducts() {
           it.depositAmount = isPre ? Math.round((it.price || 350000) * 0.3) : 0;
           cartModified = true;
         }
+
+        // Tự động kiểm tra tính khả dụng của bản Box / Card trong giỏ
+        if (!isPre) {
+          const pricing = getProductBoxCardPricing(p);
+          const pack = it.packType || 'box';
+          const avail = pack === 'card' ? pricing.stockCard : pricing.stockBox;
+          if (avail <= 0) {
+            // Nếu bản hiện tại hết hàng nhưng bản còn lại còn hàng -> tự động chuyển sang bản còn hàng
+            if (pack === 'box' && pricing.isCardAvailable) {
+              it.packType = 'card';
+              it.price = pricing.finalPriceCard;
+              it.originalPrice = pricing.priceCard;
+              cartModified = true;
+            } else if (pack === 'card' && pricing.isBoxAvailable) {
+              it.packType = 'box';
+              it.price = pricing.finalPriceBox;
+              it.originalPrice = pricing.priceBox;
+              cartModified = true;
+            }
+          }
+        }
       }
     });
     if (cartModified) {
@@ -943,13 +964,13 @@ try {
   if (typeof BroadcastChannel !== 'undefined') {
     const prodSyncChannel = new BroadcastChannel('minigt_realtime_sync');
     prodSyncChannel.addEventListener('message', (ev) => {
-      if (ev.data && ev.data.type === 'PRODUCTS_UPDATED') {
+      if (ev.data && (ev.data.type === 'PRODUCTS_UPDATED' || ev.data === 'PRODUCTS_UPDATED')) {
         loadProducts();
       }
     });
   }
   window.addEventListener('storage', (ev) => {
-    if (ev.key === 'minigt_products_catalog_v3') {
+    if (ev.key === 'minigt_products_catalog_v5_canonical' || ev.key === 'minigt_products_catalog_v4_canonical' || ev.key === 'minigt_realtime_event') {
       loadProducts();
     }
   });
@@ -1814,9 +1835,31 @@ function addToCart(productId, quantity = 1, explicitPackType = null) {
   }
 
   const pricing = getProductBoxCardPricing(prod);
+  const isPreOrder = String(prod.Status || prod.status || '').toLowerCase() === 'pre_order';
   let chosenPack = explicitPackType || getSelectedPackForProduct(prod) || 'box';
   if (pricing.packagingType === 'box_only') chosenPack = 'box';
   if (pricing.packagingType === 'card_only') chosenPack = 'card';
+
+  // Tự động chuyển đổi nếu bản người dùng chọn đã hết hàng nhưng bản còn lại còn hàng
+  if (!isPreOrder) {
+    if (chosenPack === 'box' && !pricing.isBoxAvailable) {
+      if (pricing.isCardAvailable) {
+        chosenPack = 'card';
+        showToast(isEn ? `"${pName}" (Paper Box) is sold out, automatically switched to Blister Card!` : `Mẫu xe "${pName}" (Bản Box) đã hết hàng, hệ thống tự động chọn Bản Vỉ Card cho bạn!`, 'info');
+      } else {
+        showToast(isEn ? `"${pName}" is completely sold out!` : `Mẫu xe "${pName}" hiện đã hết hàng cả bản Box và Card!`, 'error');
+        return;
+      }
+    } else if (chosenPack === 'card' && !pricing.isCardAvailable) {
+      if (pricing.isBoxAvailable) {
+        chosenPack = 'box';
+        showToast(isEn ? `"${pName}" (Blister Card) is sold out, automatically switched to Paper Box!` : `Mẫu xe "${pName}" (Bản Card) đã hết hàng, hệ thống tự động chọn Bản Hộp Box cho bạn!`, 'info');
+      } else {
+        showToast(isEn ? `"${pName}" is completely sold out!` : `Mẫu xe "${pName}" hiện đã hết hàng cả bản Box và Card!`, 'error');
+        return;
+      }
+    }
+  }
 
   // ========================================================
   // KHAI BÁO & TÍNH TOÁN GIÁ (KHẮC PHỤC LỖI unitFinalPrice)
@@ -1829,7 +1872,6 @@ function addToCart(productId, quantity = 1, explicitPackType = null) {
     ? (pricing.priceCard || prod.PriceCard || prod.OldPrice || prod.oldPrice || unitFinalPrice)
     : (pricing.priceBox || prod.PriceBox || prod.OldPrice || prod.oldPrice || unitFinalPrice);
 
-  const isPreOrder = String(prod.Status || prod.status || '').toLowerCase() === 'pre_order';
   const existing = cart.find(it => (it.productId == productId || it.id == productId) && (it.packType || 'box') === chosenPack);
   const packInCart = existing ? existing.quantity : 0;
   const maxPackStock = chosenPack === 'card' ? (pricing.stockCard ?? 0) : (pricing.stockBox ?? 0);
@@ -2184,8 +2226,8 @@ function renderCartDrawer() {
       }
     }
 
-    const boxDisabled = pricing.packagingType === 'card_only';
-    const cardDisabled = pricing.packagingType === 'box_only';
+    const boxDisabled = pricing.packagingType === 'card_only' || (!isPreOrder && (pricing.stockBox ?? 0) <= 0);
+    const cardDisabled = pricing.packagingType === 'box_only' || (!isPreOrder && (pricing.stockCard ?? 0) <= 0);
 
     // Xác định ảnh hợp lệ có fallback onerror
     let itemImg = it.imageUrl || (prod ? (prod.ImageUrl || prod.image) : 'image/hero-banner.jpg');
@@ -2212,10 +2254,10 @@ function renderCartDrawer() {
           </div>
           <h4 class="cart-item-title" title="${escapeHtml(it.name)}">${escapeHtml(it.name)}</h4>
           <div class="cart-pack-switch" role="group" aria-label="Đổi Box / Card">
-            <button type="button" class="cart-pack-btn is-box ${pack === 'box' ? 'active' : ''}" ${boxDisabled ? 'disabled title="Chỉ có bản Card"' : ''} onclick="switchCartItemPackaging(${it.productId}, '${pack}', 'box')">
+            <button type="button" class="cart-pack-btn is-box ${pack === 'box' ? 'active' : ''}" ${boxDisabled ? `disabled title="${pricing.packagingType === 'card_only' ? 'Chỉ có bản Card' : 'Hết hàng Bản Box'}"` : ''} onclick="switchCartItemPackaging(${it.productId}, '${pack}', 'box')">
               <i class="fa-solid fa-cube"></i> Box (${formatVND(pricing.finalPriceBox)}) ${pack === 'box' ? '<i class="fa-solid fa-check" style="font-size:10px; margin-left:2px;"></i>' : ''}
             </button>
-            <button type="button" class="cart-pack-btn is-card ${pack === 'card' ? 'active' : ''}" ${cardDisabled ? 'disabled title="Chỉ có bản Box"' : ''} onclick="switchCartItemPackaging(${it.productId}, '${pack}', 'card')">
+            <button type="button" class="cart-pack-btn is-card ${pack === 'card' ? 'active' : ''}" ${cardDisabled ? `disabled title="${pricing.packagingType === 'box_only' ? 'Chỉ có bản Box' : 'Hết hàng Bản Card'}"` : ''} onclick="switchCartItemPackaging(${it.productId}, '${pack}', 'card')">
               <i class="fa-solid fa-shield-halved"></i> Card (${formatVND(pricing.finalPriceCard)}) ${pack === 'card' ? '<i class="fa-solid fa-check" style="font-size:10px; margin-left:2px;"></i>' : ''}
             </button>
           </div>
@@ -3132,8 +3174,8 @@ function renderCheckoutStep1() {
     it.depositAmount = isRealPreOrder ? Math.round(unitPrice * 0.3) : 0;
     const isPreOrder = isRealPreOrder;
 
-    const boxDisabled = pricing.packagingType === 'card_only';
-    const cardDisabled = pricing.packagingType === 'box_only';
+    const boxDisabled = pricing.packagingType === 'card_only' || (!isPreOrder && (pricing.stockBox ?? 0) <= 0);
+    const cardDisabled = pricing.packagingType === 'box_only' || (!isPreOrder && (pricing.stockCard ?? 0) <= 0);
 
     return `
       <div style="display:flex; align-items:center; gap:12px; padding:12px 0; border-bottom:1px solid #f1f5f9;">
@@ -3146,10 +3188,10 @@ function renderCheckoutStep1() {
           <div style="font-weight:700; font-size:13px; color:var(--color-navy); line-height:1.3; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtml(it.name)}</div>
           
           <div class="cart-pack-switch" style="margin:5px 0;">
-            <button type="button" class="cart-pack-btn is-box ${pack === 'box' ? 'active' : ''}" ${boxDisabled ? 'disabled title="Chỉ có bản Card"' : ''} onclick="switchCartItemPackaging(${it.productId}, '${pack}', 'box'); renderCheckoutStep1();">
+            <button type="button" class="cart-pack-btn is-box ${pack === 'box' ? 'active' : ''}" ${boxDisabled ? `disabled title="${pricing.packagingType === 'card_only' ? 'Chỉ có bản Card' : 'Hết hàng Bản Box'}"` : ''} onclick="switchCartItemPackaging(${it.productId}, '${pack}', 'box'); renderCheckoutStep1();">
               <i class="fa-solid fa-cube"></i> Box (${formatVND(pricing.finalPriceBox)}) ${pack === 'box' ? '<i class="fa-solid fa-check" style="margin-left:2px; font-size:10px;"></i>' : ''}
             </button>
-            <button type="button" class="cart-pack-btn is-card ${pack === 'card' ? 'active' : ''}" ${cardDisabled ? 'disabled title="Chỉ có bản Box"' : ''} onclick="switchCartItemPackaging(${it.productId}, '${pack}', 'card'); renderCheckoutStep1();">
+            <button type="button" class="cart-pack-btn is-card ${pack === 'card' ? 'active' : ''}" ${cardDisabled ? `disabled title="${pricing.packagingType === 'box_only' ? 'Chỉ có bản Box' : 'Hết hàng Bản Card'}"` : ''} onclick="switchCartItemPackaging(${it.productId}, '${pack}', 'card'); renderCheckoutStep1();">
               <i class="fa-solid fa-shield-halved"></i> Card (${formatVND(pricing.finalPriceCard)}) ${pack === 'card' ? '<i class="fa-solid fa-check" style="margin-left:2px; font-size:10px;"></i>' : ''}
             </button>
           </div>
@@ -3616,6 +3658,35 @@ async function handleCheckoutSubmit(e) {
     showToast('Chưa có mô hình xe nào được chọn để đặt cọc!', 'warning');
     if (btn) btn.disabled = false;
     return;
+  }
+
+  // Kiểm tra tồn kho độc lập Box / Card từng món trước khi gửi đơn hàng
+  for (const it of selectedCheckoutItems) {
+    const prod = (allProducts && allProducts.length ? allProducts : FALLBACK_PRODUCTS).find(p => (p.ProductId || p.id) == it.productId);
+    if (!prod) continue;
+    const isPre = String(prod.Status || prod.status || '').toLowerCase() === 'pre_order';
+    if (!isPre) {
+      const pricing = getProductBoxCardPricing(prod);
+      const pack = it.packType || 'box';
+      const available = pack === 'card' ? Number(pricing.stockCard ?? 0) : Number(pricing.stockBox ?? 0);
+      const packLabel = pack === 'card' ? 'Bản Vỉ Card' : 'Bản Hộp Box';
+      if (available <= 0) {
+        showToast(`Rất tiếc! Mẫu xe "${it.name}" (${packLabel}) hiện đã hết hàng trong kho! Vui lòng chọn bản còn hàng hoặc xóa khỏi giỏ để tiếp tục!`, 'error', 6000);
+        if (btn) btn.disabled = false;
+        if (btnText) btnText.innerHTML = 'Xác Nhận Đặt Cọc & Hoàn Tất Đơn Hàng <i class="fa-solid fa-arrow-right" style="margin-left:6px;"></i>';
+        goToCheckoutStep(1);
+        renderCartDrawer();
+        return;
+      }
+      if (it.quantity > available) {
+        showToast(`Rất tiếc! Mẫu xe "${it.name}" (${packLabel}) chỉ còn ${available} xe trong kho (bạn đặt ${it.quantity}). Vui lòng giảm số lượng!`, 'error', 6000);
+        if (btn) btn.disabled = false;
+        if (btnText) btnText.innerHTML = 'Xác Nhận Đặt Cọc & Hoàn Tất Đơn Hàng <i class="fa-solid fa-arrow-right" style="margin-left:6px;"></i>';
+        goToCheckoutStep(1);
+        renderCartDrawer();
+        return;
+      }
+    }
   }
 
   const payload = {

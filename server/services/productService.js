@@ -62,10 +62,12 @@ function mapProduct(row) {
   let stockCard = rawStockCard != null ? Math.max(0, Number(rawStockCard)) : (packagingType === 'box_only' ? 0 : Math.floor(rawStock / 2));
   if (packagingType === 'box_only') stockCard = 0;
   if (packagingType === 'card_only') stockBox = 0;
+  const status = row.Status ?? row.status ?? 'in_stock';
+  const isPreOrder = status === 'pre_order';
   const effectiveStock = (packagingType === 'box_only') ? stockBox : (packagingType === 'card_only' ? stockCard : (stockBox + stockCard));
 
-  const hasBox = packagingType !== 'card_only' && stockBox > 0;
-  const hasCard = packagingType !== 'box_only' && stockCard > 0;
+  const hasBox = packagingType !== 'card_only' && (isPreOrder || stockBox > 0);
+  const hasCard = packagingType !== 'box_only' && (isPreOrder || stockCard > 0);
 
   const rawDepositAmount = row.DepositAmount ?? row.depositamount;
   const depositAmount = rawDepositAmount != null ? Number(rawDepositAmount) : null;
@@ -77,7 +79,6 @@ function mapProduct(row) {
 
   const rawReleaseDate = row.ReleaseDate ?? row.releasedate;
   const releaseDate = rawReleaseDate ? String(rawReleaseDate).slice(0, 10) : null;
-  const status = row.Status ?? row.status ?? 'in_stock';
   const expectedDelivery = row.ExpectedDelivery ?? row.expecteddelivery ?? (
     rawReleaseDate
       ? `Tháng ${new Date(rawReleaseDate).getMonth() + 1}/${new Date(rawReleaseDate).getFullYear()}`

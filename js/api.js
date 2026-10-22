@@ -51,18 +51,13 @@
       return '';
     }
 
-    // 4. Mặc định kết nối tới Backend Cloud chính thức (Render + Supabase PostgreSQL)
-    return 'https://duan-nhom2.onrender.com';
+    // 4. Mặc định kết nối tới Backend Cloud chính thức (Vercel Serverless + Supabase PostgreSQL)
+    return 'https://projectnhom2.vercel.app';
   };
 
+  const CLOUD_BACKEND_URL = 'https://projectnhom2.vercel.app';
   const API_BASE = getApiBase();
-  let localServerOffline = (function() {
-    try {
-      return sessionStorage.getItem('minigt_local_offline') === 'true';
-    } catch (_) {
-      return null;
-    }
-  })();
+  let localServerOffline = false;
   const SHARED_ORDERS_KEY = 'minigt_shared_orders_v3';
   const SHARED_PRODUCTS_KEY = 'minigt_products_catalog_v5_canonical';
   const SHARED_CATEGORIES_KEY = 'minigt_shared_categories_v2';
@@ -786,24 +781,29 @@
     const effectivePrice = defaultIsCard ? finalPriceCard : finalPriceBox;
     const effectiveOldPrice = discountPercent > 0 ? (defaultIsCard ? basePriceCard : basePriceBox) : (raw.oldPrice ?? raw.OldPrice ?? null);
 
-    const rawStock = Number(raw.stock ?? raw.Stock ?? 10);
+    const rawStock = Number(raw.stock ?? raw.Stock ?? 0);
     const rawB = raw.stockBox ?? raw.StockBox ?? raw.stockbox;
     const rawC = raw.stockCard ?? raw.StockCard ?? raw.stockcard;
     let stockBox = rawB != null ? Math.max(0, Number(rawB)) : (packagingType === 'card_only' ? 0 : Math.ceil(rawStock / 2));
     let stockCard = rawC != null ? Math.max(0, Number(rawC)) : (packagingType === 'box_only' ? 0 : Math.floor(rawStock / 2));
     if (packagingType === 'box_only') stockCard = 0;
     if (packagingType === 'card_only') stockBox = 0;
-    const stock = stockBox + stockCard || rawStock;
-
-    const hasBox = packagingType !== 'card_only' && stockBox > 0;
-    const hasCard = packagingType !== 'box_only' && stockCard > 0;
+    let stock = (rawB != null || rawC != null) ? (stockBox + stockCard) : rawStock;
 
     let status = String(raw.status || raw.Status || 'in_stock').toLowerCase();
-    if (stock <= 0 && status !== 'pre_order') status = 'sold_out';
+    const isPreOrder = status === 'pre_order';
+    if (stock <= 0 && !isPreOrder) status = 'sold_out';
+
+    const hasBox = packagingType !== 'card_only' && (isPreOrder || stockBox > 0);
+    const hasCard = packagingType !== 'box_only' && (isPreOrder || stockCard > 0);
 
     let image = raw.image || raw.imageUrl || raw.ImageUrl || 'image/hero-banner.jpg';
-    if (image && (image.startsWith('/api/images/') || image.startsWith('/images/')) && API_BASE) {
-      image = `${API_BASE.replace(/\/+$/, '')}${image}`;
+    if (image && (image.startsWith('/api/images/') || image.startsWith('/images/'))) {
+      if (API_BASE && !localServerOffline) {
+        image = `${API_BASE.replace(/\/+$/, '')}${image}`;
+      } else {
+        image = `${CLOUD_BACKEND_URL}${image}`;
+      }
     }
     let depositPercent = Math.max(0, Math.min(100, Number(raw.depositPercent ?? raw.DepositPercent ?? 0)));
     let depositAmount = Number(raw.depositAmount ?? raw.DepositAmount ?? 0);
@@ -2156,16 +2156,45 @@
       const payMethod = body.paymentMethod === 'FULL_TRANSFER' ? 'BANK_TRANSFER' : (body.paymentMethod || 'COD');
       const depositAmount = payMethod === 'DEPOSIT' ? Number(body.depositAmount || Math.round(totalAmount * 0.3)) : 0;
 
-      // Trừ tồn kho sản phẩm
+      // Trừ tồn kho Box / Card sản phẩm chuẩn xác
       const catalog = getSharedProducts();
-      items.forEach(item => {
-        const prod = catalog.find(p => Number(p.id) === Number(item.productId));
-        if (prod && prod.stock > 0) {
-          prod.stock = Math.max(0, prod.stock - item.quantity);
-          if (prod.stock === 0) prod.status = 'sold_out';
+      for (const item of items) {
+        const prod = catalog.find(p => Number(p.id || p.ProductId) === Number(item.productId));
+        if (prod) {
+          const pack = String(item.packagingOption || item.packType || 'box').toLowerCase();
+          const isPre = prod.status === 'pre_order' || item.orderType === 'PRE_ORDER';
+          if (!isPre) {
+            const avail = pack === 'card' ? Number(prod.stockCard ?? prod.StockCard ?? 0) : Number(prod.stockBox ?? prod.StockBox ?? 0);
+            if (avail < item.quantity) {
+              const packLabel = pack === 'card' ? 'Bản Vỉ Card' : 'Bản Hộp Box';
+              return {
+                success: false,
+                code: 'OUT_OF_STOCK',
+                message: `Mẫu xe "${prod.name || prod.Name}" (${packLabel}) hiện chỉ còn ${avail} xe trong kho (bạn đặt ${item.quantity})!`
+              };
+            }
+            if (pack === 'card') {
+              prod.stockCard = Math.max(0, avail - item.quantity);
+              prod.StockCard = prod.stockCard;
+              prod.stockcard = prod.stockCard;
+            } else {
+              prod.stockBox = Math.max(0, avail - item.quantity);
+              prod.StockBox = prod.stockBox;
+              prod.stockbox = prod.stockBox;
+            }
+            prod.stock = Math.max(0, (prod.stockBox || 0) + (prod.stockCard || 0));
+            prod.Stock = prod.stock;
+            prod.hasBox = (prod.stockBox || 0) > 0;
+            prod.hasCard = (prod.stockCard || 0) > 0;
+            if (prod.stock === 0) {
+              prod.status = 'sold_out';
+              prod.Status = 'sold_out';
+            }
+          }
         }
-      });
+      }
       saveSharedProducts(catalog);
+      emitRealtimeSync('PRODUCTS_UPDATED', { type: 'STOCK_DEDUCTED' });
 
       const newOrder = normalizeOrderObject({
         id: Date.now(),
@@ -2875,14 +2904,17 @@
   async function request(endpoint, options = {}) {
     const method = (options.method || 'GET').toUpperCase();
     const rawBody = options.body;
+    const isAuthEndpoint = endpoint.includes('/api/auth/');
 
-    // Nếu đã xác định server offline hoặc người dùng ép offline thì chạy engine fallback ngay
-    if (localServerOffline === true || (isLocalEnvironment() && localStorage.getItem('minigt_offline_force') === 'true')) {
+    // Chỉ dùng offline fallback tức thời nếu người dùng chủ động ép offline (minigt_offline_force)
+    // Và KHÔNG áp dụng cho xác thực auth để tránh lệch mật khẩu với Supabase
+    if (!isAuthEndpoint && (isLocalEnvironment() && localStorage.getItem('minigt_offline_force') === 'true')) {
       const fallbackResult = handleOfflineFallback(endpoint, { method, body: rawBody });
       if (fallbackResult) return fallbackResult;
     }
 
-    const fullUrl = endpoint.startsWith('http') ? endpoint : (API_BASE + endpoint);
+    const isHttp = endpoint.startsWith('http');
+    let primaryUrl = isHttp ? endpoint : (API_BASE + endpoint);
     const headers = Object.assign({
       'Accept': 'application/json'
     }, options.headers || {});
@@ -2901,32 +2933,49 @@
 
     let response;
     try {
-      response = await fetch(fullUrl, config);
+      response = await fetch(primaryUrl, config);
       if (isLocalEnvironment()) {
         localServerOffline = false;
         try { sessionStorage.removeItem('minigt_local_offline'); } catch (_) {}
       }
     } catch (netErr) {
-      if (isLocalEnvironment()) {
-        localServerOffline = true;
-        try { sessionStorage.setItem('minigt_local_offline', 'true'); } catch (_) {}
-        const fallbackResult = handleOfflineFallback(endpoint, {
-          method,
-          body: rawBody
-        });
-        if (fallbackResult) {
-          return fallbackResult;
+      // Nếu gọi port 5000 thất bại (server local chưa chạy), tự động chuyển tiếp lên Cloud Backend Vercel
+      if (isLocalEnvironment() && !isHttp && API_BASE && API_BASE !== CLOUD_BACKEND_URL) {
+        try {
+          const cloudUrl = CLOUD_BACKEND_URL + endpoint;
+          response = await fetch(cloudUrl, config);
+          if (response && (response.ok || response.status < 500)) {
+            // Kết nối Cloud Backend thành công
+            localServerOffline = false;
+          }
+        } catch (cloudErr) {
+          // Cả port 5000 và Cloud Backend đều không kết nối được
+          response = null;
         }
       }
 
-      console.warn('[API ERROR]:', endpoint, netErr);
-      throw new ApiError(
-        'Không thể kết nối đến máy chủ.',
-        0,
-        'NETWORK_ERROR'
-      );
-    }
+      if (!response) {
+        if (isLocalEnvironment() && !isAuthEndpoint) {
+          localServerOffline = true;
+          try { sessionStorage.setItem('minigt_local_offline', 'true'); } catch (_) {}
+          const fallbackResult = handleOfflineFallback(endpoint, {
+            method,
+            body: rawBody
+          });
+          if (fallbackResult) {
+            return fallbackResult;
+          }
+        }
 
+        console.warn('[API ERROR]:', endpoint, netErr);
+        throw new ApiError(
+          'Không thể kết nối đến máy chủ. Vui lòng kiểm tra kết nối mạng!',
+          0,
+          'NETWORK_ERROR'
+        );
+      }
+    }
+    
     const contentType = response.headers.get('content-type') || '';
     let data = null;
 
@@ -2965,6 +3014,24 @@
       data.data = data.data.map(normalizeProductObject);
     } else if (endpoint.includes('/products/') && data && data.data && typeof data.data === 'object') {
       data.data = normalizeProductObject(data.data);
+    }
+
+    // Đồng bộ tài khoản người dùng đăng nhập thành công vào Shared Users LocalStorage
+    if (data && data.success && (endpoint.includes('/api/auth/login') || endpoint.includes('/api/auth/google') || endpoint.includes('/api/auth/profile'))) {
+      const u = data.user || data.data?.user || (data.data && (data.data.id || data.data.userId) ? data.data : null);
+      if (u && (u.email || u.Email)) {
+        try {
+          const allU = getSharedUsers();
+          const cleanEmail = (u.email || u.Email || '').trim().toLowerCase();
+          const existIdx = allU.findIndex(x => (x.email && x.email.toLowerCase() === cleanEmail) || (u.id && (x.id == u.id || x.userId == u.id)));
+          if (existIdx >= 0) {
+            allU[existIdx] = Object.assign({}, allU[existIdx], u);
+          } else {
+            allU.unshift(u);
+          }
+          saveSharedUsers(allU);
+        } catch (_) {}
+      }
     }
 
     syncOrderSideEffects(endpoint, method, data);

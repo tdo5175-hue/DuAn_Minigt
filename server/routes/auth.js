@@ -228,15 +228,7 @@ router.post('/login', async (req, res, next) => {
         password === 'Doquocthinh123'
       ));
 
-      // Tự động nhận diện tài khoản thử nghiệm của quản trị viên/khách hàng nếu đang đổi dở giữa 123456 và 12345678
-      let isSpecialMatch = false;
-      if (!match && user.Email === 'quocthinh5175@gmail.com' && (password === '123456' || password === '12345678')) {
-        isSpecialMatch = true;
-        const newHash = await bcrypt.hash(password, 10);
-        await db.query('UPDATE Users SET PasswordHash = @newHash WHERE UserId = @id', { newHash, id: user.UserId });
-      }
-
-      if (!match && !isDevAdmin && !isSpecialMatch) {
+      if (!match && !isDevAdmin) {
         throw unauthorized('Mật khẩu không chính xác! Vui lòng kiểm tra lại hoặc sử dụng "Quên mật khẩu".', 'WRONG_PASSWORD');
       }
 
@@ -292,14 +284,7 @@ router.post('/login', async (req, res, next) => {
         password === 'Doquocthinh123'
       ));
 
-      let isSpecialMatch = false;
-      if (!match && u.Email === 'quocthinh5175@gmail.com' && (password === '123456' || password === '12345678')) {
-        isSpecialMatch = true;
-        const newHash = await bcrypt.hash(password, 10);
-        await db.query('UPDATE Users SET PasswordHash = @newHash WHERE UserId = @id', { newHash, id: u.UserId });
-      }
-
-      if (match || isDevAdmin || isSpecialMatch) {
+      if (match || isDevAdmin) {
         matchedUser = u;
         break;
       }
@@ -815,8 +800,7 @@ router.put('/profile', async (req, res, next) => {
           throw badRequest('Vui lòng nhập mật khẩu cũ (hiện tại) để xác thực thay đổi');
         }
         const isOldMatch = await bcrypt.compare(oldPassword, user.PasswordHash);
-        const isSpecialBypass = (user.Email === 'quocthinh5175@gmail.com' && (oldPassword === '123456' || oldPassword === '12345678'));
-        if (!isOldMatch && !isSpecialBypass) {
+        if (!isOldMatch) {
           throw badRequest('Mật khẩu cũ (hiện tại) không chính xác! Vui lòng kiểm tra lại');
         }
       }

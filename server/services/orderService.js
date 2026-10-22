@@ -106,21 +106,31 @@ async function createOrder(payload, authUser = null) {
         : (p.PackagingType === 'box_only' ? 'box' : packType);
 
       // Phân tách tồn kho độc lập: Hộp Box vs Vỉ Card
-      const totalStock = typeof p.Stock === 'number' ? p.Stock : 0;
-      let sBox = (typeof p.StockBox === 'number') ? p.StockBox : null;
-      let sCard = (typeof p.StockCard === 'number') ? p.StockCard : null;
-      if (sBox === null) sBox = p.PackagingType === 'card_only' ? 0 : Math.ceil(totalStock * 0.6);
-      if (sCard === null) sCard = p.PackagingType === 'box_only' ? 0 : Math.floor(totalStock * 0.4);
+      const totalStock = typeof p.Stock === 'number' ? p.Stock : (typeof p.stock === 'number' ? p.stock : 0);
+      let sBox = (p.StockBox != null) ? Number(p.StockBox) : ((p.stockbox != null) ? Number(p.stockbox) : null);
+      let sCard = (p.StockCard != null) ? Number(p.StockCard) : ((p.stockcard != null) ? Number(p.stockcard) : null);
+      if (sBox === null) sBox = p.PackagingType === 'card_only' ? 0 : Math.ceil(totalStock * 0.5);
+      if (sCard === null) sCard = p.PackagingType === 'box_only' ? 0 : Math.floor(totalStock * 0.5);
+      if (p.PackagingType === 'box_only') sCard = 0;
+      if (p.PackagingType === 'card_only') sBox = 0;
 
       if (p.Status === 'sold_out') {
         throw conflict(`Mẫu xe "${p.Name}" hiện đã hết hàng trong kho!`);
       }
 
       if (!isPreOrder) {
-        if (effectivePack === 'box' && sBox < quantity) {
-          throw conflict(`Mẫu xe "${p.Name}" (Bản Hộp Box) chỉ còn ${sBox} xe trong kho (bạn đặt ${quantity})`);
-        } else if (effectivePack === 'card' && sCard < quantity) {
-          throw conflict(`Mẫu xe "${p.Name}" (Bản Vỉ Card) chỉ còn ${sCard} xe trong kho (bạn đặt ${quantity})`);
+        if (effectivePack === 'box') {
+          if (sBox <= 0) {
+            throw conflict(`Mẫu xe "${p.Name}" (Bản Hộp Box) hiện đã hết hàng trong kho! Vui lòng chọn Bản Vỉ Card.`);
+          } else if (sBox < quantity) {
+            throw conflict(`Mẫu xe "${p.Name}" (Bản Hộp Box) chỉ còn ${sBox} xe trong kho (bạn đặt ${quantity})`);
+          }
+        } else if (effectivePack === 'card') {
+          if (sCard <= 0) {
+            throw conflict(`Mẫu xe "${p.Name}" (Bản Vỉ Card) hiện đã hết hàng trong kho! Vui lòng chọn Bản Hộp Box.`);
+          } else if (sCard < quantity) {
+            throw conflict(`Mẫu xe "${p.Name}" (Bản Vỉ Card) chỉ còn ${sCard} xe trong kho (bạn đặt ${quantity})`);
+          }
         } else if (totalStock < quantity) {
           throw conflict(`Mẫu xe "${p.Name}" chỉ còn ${totalStock} xe trong kho (bạn đặt ${quantity})`);
         }
@@ -128,10 +138,10 @@ async function createOrder(payload, authUser = null) {
 
       await q(`
         UPDATE Products
-        SET Stock = CASE WHEN Stock >= @qty THEN Stock - @qty ELSE 0 END,
-            StockBox = CASE WHEN @pack = 'box' AND StockBox >= @qty THEN StockBox - @qty ELSE (CASE WHEN @pack = 'box' THEN 0 ELSE StockBox END) END,
-            StockCard = CASE WHEN @pack = 'card' AND StockCard >= @qty THEN StockCard - @qty ELSE (CASE WHEN @pack = 'card' THEN 0 ELSE StockCard END) END,
-            Status = CASE WHEN Stock - @qty <= 0 AND Status = 'in_stock' THEN 'sold_out' ELSE Status END,
+        SET Stock = GREATEST(0, COALESCE(Stock, 0) - @qty),
+            StockBox = CASE WHEN @pack = 'box' THEN GREATEST(0, COALESCE(StockBox, 0) - @qty) ELSE COALESCE(StockBox, 0) END,
+            StockCard = CASE WHEN @pack = 'card' THEN GREATEST(0, COALESCE(StockCard, 0) - @qty) ELSE COALESCE(StockCard, 0) END,
+            Status = CASE WHEN GREATEST(0, COALESCE(Stock, 0) - @qty) <= 0 AND Status = 'in_stock' THEN 'sold_out' ELSE Status END,
             UpdatedAt = NOW()
         WHERE ProductId = @pid
       `, { pid: productId, qty: quantity, pack: effectivePack });
