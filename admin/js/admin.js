@@ -1370,7 +1370,7 @@
 
     tbody.innerHTML = products.map(rawP => {
       const p = api.normalizeProductObject ? api.normalizeProductObject(rawP) : rawP;
-      const imgPath = p.image.startsWith('http') ? p.image : ('../' + p.image.replace(/^\/+/, ''));
+      const imgPath = (p.image && (p.image.startsWith('http') || p.image.startsWith('data:') || p.image.startsWith('blob:'))) ? p.image : ('../' + (p.image || 'image/hero-banner.jpg').replace(/^\/+/, ''));
       const statusBadge = p.status === 'pre_order'
         ? '<span class="status-badge" style="background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe;">Pre-Order</span>'
         : (p.status === 'sold_out' || p.stock <= 0
@@ -1770,6 +1770,8 @@
     if (dpEl) dpEl.value = '30';
     handleProductStatusChange();
 
+    const fi = document.getElementById('prodImageFileInput');
+    if (fi) fi.value = '';
     updateProductImagePreview('image/hero-banner.jpg');
     document.getElementById('productModal').classList.add('active');
   }
@@ -1894,16 +1896,76 @@
   function updateProductImagePreview(url) {
     const img = document.getElementById('prodImagePreview');
     const text = document.getElementById('prodImagePreviewText');
+    const removeBtn = document.getElementById('btnRemoveProdImage');
     if (!img) return;
     if (url) {
-      const finalUrl = url.startsWith('http') ? url : ('../' + url.replace(/^\/+/, ''));
+      const finalUrl = (url.startsWith('http') || url.startsWith('data:') || url.startsWith('blob:'))
+        ? url
+        : ('../' + url.replace(/^\/+/, ''));
       img.src = finalUrl;
       img.style.display = 'block';
-      if (text) text.textContent = url;
+      if (text) text.textContent = url.length > 60 ? url.slice(0, 57) + '...' : url;
+      if (removeBtn) removeBtn.style.display = 'inline-flex';
     } else {
       img.style.display = 'none';
-      if (text) text.textContent = 'Chưa chọn hình ảnh';
+      if (text) text.textContent = 'Chưa chọn hình ảnh mô hình xe';
+      if (removeBtn) removeBtn.style.display = 'none';
     }
+  }
+
+  async function handleProductImageFileUpload(input) {
+    if (!input || !input.files || input.files.length === 0) return;
+    const file = input.files[0];
+
+    if (!file.type.startsWith('image/')) {
+      adminToast('Vui lòng chỉ chọn tệp hình ảnh (JPG, PNG, WEBP, GIF)!', 'error');
+      input.value = '';
+      return;
+    }
+
+    if (file.size > 8 * 1024 * 1024) {
+      adminToast('Dung lượng ảnh vượt quá 8MB. Vui lòng chọn ảnh nhỏ hơn!', 'error');
+      input.value = '';
+      return;
+    }
+
+    const previewText = document.getElementById('prodImagePreviewText');
+    if (previewText) previewText.textContent = `Đang tải: ${file.name} (${Math.round(file.size / 1024)} KB)...`;
+
+    const reader = new FileReader();
+    reader.onload = async function(e) {
+      const dataUrl = e.target.result;
+      updateProductImagePreview(dataUrl);
+
+      try {
+        const res = await api.post('/api/admin/upload-product-image', {
+          filename: file.name,
+          data: dataUrl
+        });
+        if (res && res.success && res.data && res.data.url) {
+          const finalUrl = res.data.url;
+          document.getElementById('prodImage').value = finalUrl;
+          updateProductImagePreview(finalUrl);
+          adminToast(`Đã tải ảnh "${file.name}" vào thư mục hệ thống thành công!`, 'success');
+        } else {
+          document.getElementById('prodImage').value = dataUrl;
+          adminToast(`Đã nạp ảnh "${file.name}" từ máy thành công!`, 'success');
+        }
+      } catch (err) {
+        console.warn('[IMAGE UPLOAD] Server upload error, using local fallback:', err);
+        document.getElementById('prodImage').value = dataUrl;
+        adminToast(`Đã nạp ảnh "${file.name}" từ máy thành công!`, 'info');
+      }
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function clearProductImage() {
+    const input = document.getElementById('prodImage');
+    const fileInput = document.getElementById('prodImageFileInput');
+    if (input) input.value = '';
+    if (fileInput) fileInput.value = '';
+    updateProductImagePreview('');
   }
 
   async function saveProduct(e) {
@@ -4437,6 +4499,8 @@ Anh/chị phản hồi giúp shop để kiện xe được đóng gói gửi đi
   window.openAddProductModal = openAddProductModal;
   window.openEditProductModal = openEditProductModal;
   window.updateProductImagePreview = updateProductImagePreview;
+  window.handleProductImageFileUpload = handleProductImageFileUpload;
+  window.clearProductImage = clearProductImage;
   window.handleBrandChange = handleBrandChange;
   window.setProductDiscountMode = setProductDiscountMode;
   window.handleProductPriceInput = handleProductPriceInput;

@@ -363,7 +363,7 @@ async function validateAndApplyCoupon(rawCode, subtotal = 0, user = null, custom
 
   // 1. KIỂM TRA MÃ VIP ĐẶC QUYỀN
   if (VIP_TIER_COUPONS[code]) {
-    const vipCfg = VIP_TIER_COUPONS[code];
+    let vipCfg = VIP_TIER_COUPONS[code];
     if (!user) {
       return {
         valid: false,
@@ -371,7 +371,7 @@ async function validateAndApplyCoupon(rawCode, subtotal = 0, user = null, custom
       };
     }
 
-    // Tính cấp VIP hiện tại của người dùng dựa trên tổng tích lũy các đơn hàng hợp lệ (Đã thanh toán/Đã xác nhận/Giao hàng)
+    // Tính cấp VIP hiện tại của người dùng dựa trên tổng tích lũy các đơn hàng hợp lệ
     let spent = Math.max(0, Number(user.totalSpent || user.deliveredSpent || 0));
     const uid = user.userId || user.id;
     const uEmail = user.email ? String(user.email).trim().toLowerCase() : null;
@@ -382,8 +382,7 @@ async function validateAndApplyCoupon(rawCode, subtotal = 0, user = null, custom
           SELECT COALESCE(SUM(Total), 0) AS total_spent
           FROM Orders
           WHERE ((UserId = @uid AND @uid > 0) OR (Email IS NOT NULL AND LOWER(Email) = @uEmail AND @uEmail <> ''))
-            AND Status != 'CANCELLED'
-            AND (PaymentStatus IN ('PAID', 'PARTIALLY_PAID') OR Status IN ('CONFIRMED', 'PREPARING', 'SHIPPING', 'DELIVERED'))
+            AND Status <> 'CANCELLED'
         `, { uid: uid ? parseInt(uid, 10) : 0, uEmail: uEmail || '' });
         const dbSpent = Number(dbSpentRes.recordset[0]?.total_spent || 0);
         if (dbSpent > spent) spent = dbSpent;
@@ -392,21 +391,29 @@ async function validateAndApplyCoupon(rawCode, subtotal = 0, user = null, custom
 
     let userLevel = 1;
     if (spent > 5000000) userLevel = 5;
-    else if (spent > 1000000) userLevel = 4;
-    else if (spent > 500000) userLevel = 3;
-    else if (spent > 200000) userLevel = 2;
+    else if (spent >= 1000000) userLevel = 4;
+    else if (spent >= 500000) userLevel = 3;
+    else if (spent >= 200000) userLevel = 2;
 
+    let appliedCode = code;
+    let downgradeNote = '';
     if (userLevel < vipCfg.requiredLevel) {
-      return {
-        valid: false,
-        message: `🔒 Mã "${code}" chỉ dành riêng cho thành viên ${vipCfg.tierName} trở lên. Cấp hiện tại của bạn là VIP ${userLevel} (Đã tích lũy: ${new Intl.NumberFormat('vi-VN').format(spent)}đ). Hãy mua thêm để thăng hạng!`
-      };
+      if (userLevel >= 2) {
+        appliedCode = `VIP${userLevel}`;
+        downgradeNote = ` (Hệ thống đã tự động áp dụng mã ${appliedCode} phù hợp với hạng VIP ${userLevel} của bạn)`;
+        vipCfg = VIP_TIER_COUPONS[appliedCode];
+      } else {
+        return {
+          valid: false,
+          message: `🔒 Mã "${code}" chỉ dành riêng cho thành viên ${vipCfg.tierName} trở lên. Cấp hiện tại của bạn là VIP ${userLevel} (Đã tích lũy: ${new Intl.NumberFormat('vi-VN').format(spent)}đ). Hãy mua thêm để thăng hạng!`
+        };
+      }
     }
 
     if (vipCfg.discountPercent === 0) {
       return {
         valid: false,
-        message: 'Hội viên VIP 1 đang ở cấp chào mừng. Khi tích lũy trên 200.000đ bạn sẽ lên VIP 2 và nhận mã giảm 2%!'
+        message: 'Hội viên VIP 1 đang ở cấp chào mừng. Khi tích lũy từ 200.000đ bạn sẽ lên VIP 2 và nhận mã giảm 2%!'
       };
     }
 
@@ -417,14 +424,14 @@ async function validateAndApplyCoupon(rawCode, subtotal = 0, user = null, custom
 
     return {
       valid: true,
-      code,
+      code: appliedCode,
       isVip: true,
       discount,
       discountType: 'percent',
       discountValue: vipCfg.discountPercent,
       maxDiscount: vipCfg.maxDiscount,
       minOrderAmount: 0,
-      description: `${vipCfg.tierName}: Giảm ${vipCfg.discountPercent}% (-${new Intl.NumberFormat('vi-VN').format(discount)}đ)`
+      description: `${vipCfg.tierName}: Giảm ${vipCfg.discountPercent}% (-${new Intl.NumberFormat('vi-VN').format(discount)}đ)${downgradeNote}`
     };
   }
 

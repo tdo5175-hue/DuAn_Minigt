@@ -1139,11 +1139,20 @@
           </div>
 
           <div class="form-group form-full">
-            <label class="form-label">Đường dẫn hình ảnh chính (URL)</label>
-            <div style="display:flex; gap:8px;">
-              <input type="text" id="prodImage" class="form-control" placeholder="image/aston-amr24-stroll.png" oninput="updateProductImagePreview(this.value)" required>
-              <select class="form-control" style="max-width:190px;" onchange="document.getElementById('prodImage').value = this.value; updateProductImagePreview(this.value);">
-                <option value="">-- Chọn ảnh sẵn có --</option>
+            <label class="form-label" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:4px;">
+              <span><i class="fa-solid fa-image" style="color:#2563eb;"></i> Hình ảnh mô hình xe (Chọn từ máy hoặc nhập URL)</span>
+              <span style="font-size:11.5px; color:#64748b; font-weight:normal;">Hỗ trợ mở thư mục máy tính chọn ảnh trực tiếp, ảnh có sẵn hoặc dán URL</span>
+            </label>
+            <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+              <input type="text" id="prodImage" class="form-control" style="flex:1; min-width:200px;" placeholder="image/aston-amr24-stroll.png hoặc bấm Chọn ảnh từ máy" oninput="updateProductImagePreview(this.value)" required>
+              
+              <input type="file" id="prodImageFileInput" accept="image/*" style="display:none;" onchange="handleProductImageFileUpload(this)">
+              <button type="button" class="btn btn-outline" style="white-space:nowrap; padding:8px 14px; font-size:12.5px; font-weight:600; display:inline-flex; align-items:center; gap:6px; cursor:pointer;" onclick="document.getElementById('prodImageFileInput').click()" title="Mở thư mục máy tính để chọn ảnh xe bất kỳ">
+                <i class="fa-solid fa-folder-open" style="color:#d97706;"></i> Chọn ảnh từ máy...
+              </button>
+
+              <select class="form-control" style="max-width:180px; font-size:12.5px;" onchange="if(this.value){ document.getElementById('prodImage').value = this.value; updateProductImagePreview(this.value); }">
+                <option value="">-- Ảnh có sẵn --</option>
                 <option value="image/roxy_rexy_minigt.webp">Bộ 3 AO Racing (Rexy/Roxy)</option>
                 <option value="image/hero-banner.jpg">Banner chính</option>
                 <option value="image/aston-amr24-stroll.png">AMR24 Stroll</option>
@@ -1162,9 +1171,15 @@
                 <option value="image/TH_LamboUltraman.jpg">Ultraman Tiga Huracán</option>
               </select>
             </div>
-            <div id="prodImagePreviewWrap" style="margin-top:8px; display:flex; align-items:center; gap:10px; background:#f8fafc; padding:8px 12px; border-radius:8px; border:1px solid #e2e8f0;">
-              <img id="prodImagePreview" src="../image/hero-banner.jpg" alt="Preview" style="width:54px; height:54px; object-fit:contain; background:#fff; border-radius:6px; border:1px solid #cbd5e1;">
-              <span style="font-size:12px; color:#64748b;" id="prodImagePreviewText">Xem trước hình ảnh mô hình</span>
+            <div id="prodImagePreviewWrap" style="margin-top:8px; display:flex; align-items:center; gap:12px; background:#f8fafc; padding:8px 12px; border-radius:8px; border:1px solid #e2e8f0;">
+              <img id="prodImagePreview" src="../image/hero-banner.jpg" alt="Preview" style="width:56px; height:56px; object-fit:contain; background:#fff; border-radius:6px; border:1px solid #cbd5e1; flex-shrink:0;">
+              <div style="display:flex; flex-direction:column; overflow:hidden; flex:1;">
+                <span style="font-size:12.5px; font-weight:600; color:#1e293b;" id="prodImagePreviewTitle">Xem trước hình ảnh mô hình</span>
+                <span style="font-size:11.5px; color:#64748b; text-overflow:ellipsis; overflow:hidden; white-space:nowrap; max-width:450px;" id="prodImagePreviewText">image/hero-banner.jpg</span>
+              </div>
+              <button type="button" id="btnRemoveProdImage" class="btn btn-outline" style="font-size:11.5px; padding:4px 8px; color:#ef4444; border-color:#fca5a5; display:inline-flex; align-items:center; gap:4px;" onclick="clearProductImage()" title="Xóa hình ảnh này">
+                <i class="fa-solid fa-trash-can"></i> Xóa
+              </button>
             </div>
           </div>
 

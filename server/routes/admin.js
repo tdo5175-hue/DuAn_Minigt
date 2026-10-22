@@ -3,6 +3,8 @@
  */
 const express = require('express');
 const router = express.Router();
+const path = require('path');
+const fs = require('fs');
 const db = require('../config/db');
 const productService = require('../services/productService');
 const orderService = require('../services/orderService');
@@ -195,6 +197,81 @@ router.get('/products/:id', async (req, res, next) => {
     if (!product) throw notFound('Không tìm thấy sản phẩm');
 
     return ok(res, product, 'Chi tiết sản phẩm');
+  } catch (error) {
+    next(error);
+  }
+});
+
+// =====================================================================
+// UPLOAD HÌNH ẢNH MÔ HÌNH TỪ MÁY TÍNH / THƯ MỤC CỦA ADMIN
+// =====================================================================
+router.post('/upload-product-image', async (req, res, next) => {
+  try {
+    const { filename, data, base64 } = req.body || {};
+    const rawData = data || base64;
+    if (!rawData) {
+      throw badRequest('Thiếu dữ liệu hình ảnh (base64 data)!');
+    }
+
+    let fileBuffer;
+    let ext = 'jpg';
+    if (typeof rawData === 'string' && rawData.startsWith('data:')) {
+      const matches = rawData.match(/^data:image\/([a-zA-Z0-9+.-]+);base64,(.+)$/);
+      if (matches) {
+        ext = matches[1].toLowerCase() === 'jpeg' ? 'jpg' : matches[1].toLowerCase();
+        fileBuffer = Buffer.from(matches[2], 'base64');
+      } else {
+        const parts = rawData.split(',');
+        fileBuffer = Buffer.from(parts[1] || parts[0], 'base64');
+      }
+    } else if (typeof rawData === 'string') {
+      fileBuffer = Buffer.from(rawData, 'base64');
+    } else {
+      throw badRequest('Dữ liệu hình ảnh không hợp lệ!');
+    }
+
+    if (filename && filename.includes('.')) {
+      const parts = filename.split('.');
+      const candidateExt = parts[parts.length - 1].toLowerCase();
+      if (['jpg', 'jpeg', 'png', 'webp', 'gif', 'svg'].includes(candidateExt)) {
+        ext = candidateExt === 'jpeg' ? 'jpg' : candidateExt;
+      }
+    }
+
+    if (fileBuffer.length > 8 * 1024 * 1024) {
+      throw badRequest('Dung lượng tệp hình ảnh vượt quá 8MB. Vui lòng nén hoặc chọn ảnh nhỏ hơn!');
+    }
+
+    const cleanName = (filename ? filename.replace(/\.[^/.]+$/, '') : 'product')
+      .toLowerCase()
+      .replace(/[^a-z0-9_-]/g, '_')
+      .slice(0, 40);
+    const safeFilename = `${cleanName}_${Date.now()}.${ext}`;
+
+    const uploadsDir = path.join(__dirname, '..', '..', 'image', 'uploads');
+    let savedUrl = '';
+    let writeSuccess = false;
+
+    try {
+      if (!fs.existsSync(uploadsDir)) {
+        fs.mkdirSync(uploadsDir, { recursive: true });
+      }
+      const targetFilePath = path.join(uploadsDir, safeFilename);
+      fs.writeFileSync(targetFilePath, fileBuffer);
+      writeSuccess = true;
+      savedUrl = `image/uploads/${safeFilename}`;
+    } catch (fsErr) {
+      console.warn('[ADMIN UPLOAD] Ghi đĩa bị chặn (môi trường serverless):', fsErr.message);
+    }
+
+    const finalUrl = writeSuccess ? savedUrl : rawData;
+
+    return ok(res, {
+      url: finalUrl,
+      filename: safeFilename,
+      size: fileBuffer.length,
+      storage: writeSuccess ? 'disk' : 'inline_base64'
+    }, 'Tải ảnh mô hình lên thành công!');
   } catch (error) {
     next(error);
   }

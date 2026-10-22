@@ -174,7 +174,8 @@ async function createOrder(payload, authUser = null) {
     if (voucherCode) {
       try {
         const couponService = require('./couponService');
-        const vRes = await couponService.validateAndApplyCoupon(voucherCode, subtotal, authUser, { phone, email });
+        const userContext = authUser || { email, phone };
+        const vRes = await couponService.validateAndApplyCoupon(voucherCode, subtotal, userContext, { phone, email });
         if (vRes && vRes.valid) {
           voucherDiscount = Number(vRes.discount || 0);
         } else if (vRes && !vRes.valid) {
@@ -193,19 +194,41 @@ async function createOrder(payload, authUser = null) {
     // KIỂM TRA ĐIỀU KIỆN SHIP COD 100% PHÒNG CHỐNG BOM ĐƠN
     if (finalPaymentMethod === 'COD') {
       let isCodEligible = false;
-      if (authUser && authUser.userId) {
-        const userDeliveredRes = await q(`
-          SELECT COALESCE(SUM(Total), 0) AS total_delivered
+      let totalAccumulated = 0;
+      const uid = authUser ? (authUser.userId || authUser.id) : null;
+      const uEmail = (authUser && authUser.email) ? String(authUser.email).trim().toLowerCase() : (email ? String(email).trim().toLowerCase() : null);
+
+      if (uid || uEmail) {
+        const userOrdersRes = await q(`
+          SELECT COALESCE(SUM(Total), 0) AS total_accumulated
           FROM Orders
-          WHERE UserId = @uid AND Status = 'DELIVERED'
-        `, { uid: authUser.userId });
-        const deliveredSum = Number(userDeliveredRes.recordset[0]?.total_delivered || 0);
-        if (deliveredSum >= 1000001) {
+          WHERE ((UserId = @uid AND @uid > 0) OR (Email IS NOT NULL AND LOWER(Email) = @uEmail AND @uEmail <> ''))
+            AND Status <> 'CANCELLED'
+        `, { uid: uid ? parseInt(uid, 10) : 0, uEmail: uEmail || '' });
+        totalAccumulated = Number(userOrdersRes.recordset[0]?.total_accumulated || 0);
+        if (totalAccumulated >= 1000000) {
           isCodEligible = true;
         }
       }
+
+      // Kiểm tra thêm theo số điện thoại (đồng bộ cả tài khoản và số điện thoại)
+      if (!isCodEligible && phone) {
+        const cleanPhone = String(phone).replace(/[\s.\-()]/g, '');
+        const phoneOrdersRes = await q(`
+          SELECT COALESCE(SUM(Total), 0) AS total_accumulated
+          FROM Orders
+          WHERE REPLACE(REPLACE(REPLACE(Phone, ' ', ''), '-', ''), '.', '') = @cleanPhone
+            AND Status <> 'CANCELLED'
+        `, { cleanPhone });
+        const phoneAccumulated = Number(phoneOrdersRes.recordset[0]?.total_accumulated || 0);
+        if (phoneAccumulated >= 1000000) {
+          isCodEligible = true;
+          totalAccumulated = Math.max(totalAccumulated, phoneAccumulated);
+        }
+      }
+
       if (!isCodEligible) {
-        throw badRequest('Phương thức "Thanh toán khi nhận hàng (Ship COD 100%)" chỉ dành cho thành viên VIP 4 trở lên (đã từng tích lũy mua và nhận hàng thành công từ 1.000.001đ trở lên) để đảm bảo an toàn đơn hàng và chống bom đơn. Vui lòng chọn Đặt cọc 30% hoặc Chuyển khoản VietQR MB Bank!');
+        throw badRequest(`Phương thức "Thanh toán khi nhận hàng (Ship COD 100%)" chỉ dành cho thành viên VIP 4 trở lên (đã tích lũy mua sắm từ 1.000.000đ trở lên để đảm bảo an toàn đơn hàng). Tích lũy hiện tại của bạn: ${new Intl.NumberFormat('vi-VN').format(totalAccumulated)}đ. Vui lòng chọn Đặt cọc 30% hoặc Chuyển khoản VietQR MB Bank!`);
       }
     }
 

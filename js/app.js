@@ -2686,12 +2686,15 @@ async function applyCheckoutVoucher() {
 
     if (res && res.success && res.data) {
       checkoutAppliedVoucher = res.data;
+      if (res.data.code && input) {
+        input.value = res.data.code;
+      }
       const newTotals = calculateCheckoutTotals();
       if (statusEl) {
         statusEl.style.color = '#059669';
-        statusEl.innerHTML = `<i class="fa-solid fa-circle-check"></i> Đã áp dụng mã <strong>${escapeHtml(rawCode)}</strong>: Giảm ngay <strong>${formatVND(newTotals.voucherDiscount)}</strong> (${newTotals.voucherDesc})`;
+        statusEl.innerHTML = `<i class="fa-solid fa-circle-check"></i> Đã áp dụng mã <strong>${escapeHtml(res.data.code || rawCode)}</strong>: Giảm ngay <strong>${formatVND(newTotals.voucherDiscount)}</strong> (${escapeHtml(res.data.description || newTotals.voucherDesc)})`;
       }
-      showToast(`Áp dụng mã ${rawCode} thành công! Giảm ${formatVND(newTotals.voucherDiscount)}`, 'success');
+      showToast(`Áp dụng mã ${res.data.code || rawCode} thành công! Giảm ${formatVND(newTotals.voucherDiscount)}`, 'success');
     } else {
       checkoutAppliedVoucher = null;
       const errMsg = res?.message || `Mã giảm giá "${rawCode}" không hợp lệ hoặc đã hết hạn!`;
@@ -3242,9 +3245,9 @@ function isCustomerCodEligible() {
   if (!user) return false;
   const spent = getCustomerDeliveredSpent();
   const vip = getCustomerVipInfo(spent);
-  // BẮT BUỘC: Chỉ mở cho thành viên từ VIP 4 trở lên (tích lũy đơn nhận hàng trên 1.000.000đ)
+  // BẮT BUỘC: Chỉ mở cho thành viên từ VIP 4 trở lên (tích lũy đơn trên 1.000.000đ)
   // VIP 1 (0 - 200K), VIP 2 (201K - 500K), VIP 3 (501K - 1TR) -> KHÓA HOÀN TOÀN
-  return vip.level >= 4 && spent >= 1000001;
+  return vip.level >= 4 && spent >= 1000000;
 }
 window.isCustomerCodEligible = isCustomerCodEligible;
 

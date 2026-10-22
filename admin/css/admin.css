@@ -3303,6 +3303,24 @@ body {
   background: #1e293b;
 }
 
+/* =====================================================================
+   ADMIN PRODUCT IMAGE PREVIEW DARK THEME
+   ===================================================================== */
+[data-theme="dark"] #prodImagePreviewWrap {
+  background: #1e293b !important;
+  border-color: #334155 !important;
+}
+[data-theme="dark"] #prodImagePreviewTitle {
+  color: #f1f5f9 !important;
+}
+[data-theme="dark"] #prodImagePreviewText {
+  color: #94a3b8 !important;
+}
+[data-theme="dark"] #prodImagePreview {
+  background: #0f172a !important;
+  border-color: #334155 !important;
+}
+
 
 
 
