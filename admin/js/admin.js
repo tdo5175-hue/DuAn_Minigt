@@ -4096,7 +4096,7 @@ Anh/chị phản hồi giúp shop để kiện xe được đóng gói gửi đi
       low_stock_threshold: Number(getVal('set_low_stock_threshold')) || 5,
       bank_id: getVal('set_bank_id') || 'MB',
       bank_name: getVal('set_bank_name') || 'Ngân hàng Quân Đội (MB Bank)',
-      bank_account_no: getVal('set_bank_account_no') || '0988164164',
+      bank_account_no: getVal('set_bank_account_no') || '87654321082007',
       bank_account_name: getVal('set_bank_account_name') || 'DO QUOC THINH',
       preorder_deadline: getVal('set_preorder_deadline') || 'Tháng 11/2026',
       announcement: getVal('set_announcement') || 'Chào mừng bạn đến với MINI GT STORE BIÊN HÒA - Hệ thống phân phối mô hình tĩnh 1:64 chính hãng!'

@@ -285,7 +285,7 @@ let storeSettings = {
   preorder_deadline: "Tháng 11/2026",
   bank_id: "MB",
   bank_name: "Ngân hàng Quân Đội (MB Bank)",
-  bank_account_no: "0988164164",
+  bank_account_no: "87654321082007",
   bank_account_name: "DO QUOC THINH",
   announcement: "🔥 CHÀO MỪNG ĐẾN VỚI SĂN XE BIÊN HÒA - ĐẠI LÝ CHÍNH HÃNG MINI GT VIỆT NAM!"
 };
@@ -6321,7 +6321,7 @@ function buildUnifiedCustomerOrderCardHTML(ord) {
     : (isPaid ? 0 : (payMethod === 'DEPOSIT' ? Math.max(0, total - depositAmount) : (payMethod === 'BANK_TRANSFER' ? 0 : total)));
 
   const paymentMemo = ord.paymentMemo || ord.PaymentMemo || `MINI GT ${orderCode}`;
-  const bankAcc = storeSettings?.bank_account_no || '0988164164';
+  const bankAcc = storeSettings?.bank_account_no || '87654321082007';
   const bankName = storeSettings?.bank_name || 'MBBank (Ngân Hàng Quân Đội)';
   const bankOwner = storeSettings?.bank_account_name || 'DO QUOC THINH';
 

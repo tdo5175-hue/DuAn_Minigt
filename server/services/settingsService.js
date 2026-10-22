@@ -23,7 +23,7 @@ const DEFAULT_SETTINGS = {
   preorder_deadline: 'Tháng 11/2026',
   bank_id: 'MB',
   bank_name: 'Ngân hàng Quân Đội (MB Bank)',
-  bank_account_no: '0988164164',
+  bank_account_no: '87654321082007',
   bank_account_name: 'DO QUOC THINH',
   announcement: 'Chào mừng bạn đến với MINI GT STORE BIÊN HÒA - Hệ thống phân phối mô hình tĩnh 1:64 chính hãng!'
 };
