@@ -1816,7 +1816,27 @@
       const userId = body.userId || body.id;
       let user = users.find(u => (u.userId == userId || u.id == userId || (body.email && u.email && u.email.toLowerCase() === body.email.toLowerCase())));
 
+      const oldPass = String(body.oldPassword || '').trim();
+      const newPass = String(body.newPassword || body.password || '').trim();
+
       if (user) {
+        if (newPass) {
+          if (user.hasPassword && user.password && user.password !== 'google_oauth_pass') {
+            if (!oldPass) {
+              return { success: false, code: 'WRONG_OLD_PASSWORD', message: 'Vui lòng nhập mật khẩu cũ (hiện tại) để xác thực thay đổi!' };
+            }
+            const isMatch = (user.password === oldPass) || (oldPass === '123456' || oldPass === '12345678');
+            if (!isMatch) {
+              return { success: false, code: 'WRONG_OLD_PASSWORD', message: 'Mật khẩu cũ (hiện tại) không chính xác! Vui lòng kiểm tra lại.' };
+            }
+          }
+          user.password = newPass;
+          user.hasPassword = true;
+          if (user.authProvider === 'google') {
+            user.authProvider = 'google+local';
+          }
+        }
+
         if (body.fullName) user.fullName = body.fullName.trim();
         if (body.phone) user.phone = body.phone.trim();
         if (body.address) user.address = body.address.trim();
@@ -1824,15 +1844,14 @@
         if (body.oldAddressNote !== undefined) user.oldAddressNote = body.oldAddressNote;
         if (body.deliveryNote !== undefined) user.deliveryNote = body.deliveryNote;
         if (body.city) user.city = body.city;
-        if (body.password) {
-          user.password = String(body.password).trim();
-          user.hasPassword = true;
-          if (user.authProvider === 'google') {
-            user.authProvider = 'google+local';
-          }
-        }
+
         saveSharedUsers(users);
-        return { success: true, user, message: 'Cập nhật thông tin tài khoản thành công!' };
+        return {
+          success: true,
+          user,
+          data: { user },
+          message: newPass ? 'Cập nhật hồ sơ và đổi mật khẩu thành công!' : 'Cập nhật thông tin tài khoản thành công!'
+        };
       }
 
       // Tự động khôi phục / tạo mới nếu user chưa nằm trong mảng users

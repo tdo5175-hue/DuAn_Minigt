@@ -4540,7 +4540,7 @@ async function handleLocalLogin(e) {
     });
 
     if (json && json.success && json.user) {
-      loginSuccess(json.user, json.token, rememberMe);
+      loginSuccess(json.user, json.token, rememberMe, password);
     } else {
       const errMsg = json?.message || json?.error || 'Đăng nhập không thành công!';
       if (json?.code === 'WRONG_PASSWORD' && pwdError) {
@@ -5062,7 +5062,7 @@ async function handleGoogleLoginClick() {
   showToast('Đang tải thư viện Google Identity Services... Vui lòng thử lại sau 2 giây.', 'info');
 }
 
-function loginSuccess(user, token, rememberMe = true) {
+function loginSuccess(user, token, rememberMe = true, rawPassword = '') {
   const cleanUser = Object.assign({}, user, {
     role: user?.role || 'customer',
     tier: user?.tier || 'Collector',
@@ -5073,10 +5073,18 @@ function loginSuccess(user, token, rememberMe = true) {
   currentToken = token;
   api.setAuthSession(token, cleanUser);
 
-  // Đảm bảo thông tin người dùng được lưu chắc chắn vào danh sách khách hàng dùng chung
+  // Đảm bảo thông tin người dùng và mật khẩu đồng bộ chắc chắn vào Shared Users
   try {
-    if (api && typeof api.getSharedUsers === 'function') {
-      api.getSharedUsers(); // Tự kích hoạt self-healing và merge session
+    if (api && typeof api.getSharedUsers === 'function' && typeof api.saveSharedUsers === 'function') {
+      const uList = api.getSharedUsers();
+      const uItem = uList.find(u => (u.userId == cleanUser.userId || u.id == cleanUser.id || (cleanUser.email && u.email && u.email.toLowerCase() === cleanUser.email.toLowerCase())));
+      if (uItem) {
+        if (rawPassword) {
+          uItem.password = rawPassword;
+          uItem.hasPassword = true;
+        }
+        api.saveSharedUsers(uList);
+      }
     }
   } catch (_) {}
 
@@ -5569,11 +5577,28 @@ function openUserProfileModal() {
             <!-- Khung nhập đổi mật khẩu mới (Ẩn mặc định, hiện khi bấm Đổi mật khẩu) -->
             <div id="profilePasswordChangeArea" style="display: none; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; margin-top: 8px;">
               <div style="font-size: 12px; font-weight: 700; color: #dc2626; margin-bottom: 8px;">
-                <i class="fa-solid fa-shield-halved"></i> Nhập mật khẩu mới để thay đổi (để trống nếu giữ nguyên):
+                <i class="fa-solid fa-shield-halved"></i> Thay đổi mật khẩu đăng nhập (Yêu cầu xác thực mật khẩu cũ):
               </div>
+
+              <!-- Mật khẩu cũ (hiện tại) -->
+              <div style="margin-bottom: 10px;">
+                <label style="font-size: 11.5px; font-weight: 700; color: #475569; display: block; margin-bottom: 4px;">
+                  Mật khẩu cũ (hiện tại) <span style="color: #dc2626;">*</span>
+                </label>
+                <div class="auth-input-box" style="border: 1.5px solid #cbd5e1; border-radius: 8px; height: 42px; display: flex; align-items: center; padding: 0 10px; background: #ffffff;">
+                  <input type="password" id="profileOldPassword" style="border: none; outline: none; width: 100%; font-size: 13px; font-weight: 600; color: #0f172a;" placeholder="Nhập mật khẩu hiện tại đang dùng..." autocomplete="current-password">
+                  <button type="button" onclick="togglePasswordInput('profileOldPassword', this)" style="background: transparent; border: none; cursor: pointer; color: #64748b; padding: 2px;" title="Xem/Ẩn">
+                    <i class="fa-regular fa-eye"></i>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Mật khẩu mới & Xác nhận mật khẩu mới -->
               <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
                 <div>
-                  <label style="font-size: 11.5px; font-weight: 700; color: #475569; display: block; margin-bottom: 4px;">Mật khẩu mới (Tối thiểu 6 ký tự)</label>
+                  <label style="font-size: 11.5px; font-weight: 700; color: #475569; display: block; margin-bottom: 4px;">
+                    Mật khẩu mới (Tối thiểu 6 ký tự) <span style="color: #dc2626;">*</span>
+                  </label>
                   <div class="auth-input-box" style="border: 1.5px solid #cbd5e1; border-radius: 8px; height: 42px; display: flex; align-items: center; padding: 0 10px; background: #ffffff;">
                     <input type="password" id="profileNewPassword" style="border: none; outline: none; width: 100%; font-size: 13px; font-weight: 600; color: #0f172a;" placeholder="Nhập mật khẩu mới..." autocomplete="new-password">
                     <button type="button" onclick="togglePasswordInput('profileNewPassword', this)" style="background: transparent; border: none; cursor: pointer; color: #64748b; padding: 2px;" title="Xem/Ẩn">
@@ -5582,7 +5607,9 @@ function openUserProfileModal() {
                   </div>
                 </div>
                 <div>
-                  <label style="font-size: 11.5px; font-weight: 700; color: #475569; display: block; margin-bottom: 4px;">Xác nhận mật khẩu mới</label>
+                  <label style="font-size: 11.5px; font-weight: 700; color: #475569; display: block; margin-bottom: 4px;">
+                    Xác nhận mật khẩu mới <span style="color: #dc2626;">*</span>
+                  </label>
                   <div class="auth-input-box" style="border: 1.5px solid #cbd5e1; border-radius: 8px; height: 42px; display: flex; align-items: center; padding: 0 10px; background: #ffffff;">
                     <input type="password" id="profileConfirmPassword" style="border: none; outline: none; width: 100%; font-size: 13px; font-weight: 600; color: #0f172a;" placeholder="Gõ lại mật khẩu mới..." autocomplete="new-password">
                     <button type="button" onclick="togglePasswordInput('profileConfirmPassword', this)" style="background: transparent; border: none; cursor: pointer; color: #64748b; padding: 2px;" title="Xem/Ẩn">
@@ -5734,10 +5761,12 @@ function toggleProfilePasswordEdit() {
     btn.style.color = isHidden ? '#dc2626' : '#1e293b';
   }
   if (isHidden) {
-    document.getElementById('profileNewPassword')?.focus();
+    document.getElementById('profileOldPassword')?.focus();
   } else {
+    const pOld = document.getElementById('profileOldPassword');
     const p1 = document.getElementById('profileNewPassword');
     const p2 = document.getElementById('profileConfirmPassword');
+    if (pOld) pOld.value = '';
     if (p1) p1.value = '';
     if (p2) p2.value = '';
   }
@@ -5763,24 +5792,62 @@ async function handleUpdateUserProfile(e) {
   const address = document.getElementById('profileAddress')?.value.trim();
   const city = document.getElementById('profileCity')?.value.trim();
   const deliveryNote = document.getElementById('profileDeliveryNote')?.value.trim();
-  const newPassword = document.getElementById('profileNewPassword')?.value.trim();
-  const confirmPassword = document.getElementById('profileConfirmPassword')?.value.trim();
+  const oldPassword = document.getElementById('profileOldPassword')?.value.trim() || '';
+  const newPassword = document.getElementById('profileNewPassword')?.value.trim() || '';
+  const confirmPassword = document.getElementById('profileConfirmPassword')?.value.trim() || '';
 
   if (!fullName || !phone || !address) {
     showToast('Vui lòng điền đầy đủ Họ tên, Số điện thoại và Địa chỉ nhận hàng!', 'error');
     return;
   }
 
-  if (newPassword) {
-    if (newPassword.length < 6) {
-      showToast('Mật khẩu mới phải có tối thiểu 6 ký tự!', 'error');
-      document.getElementById('profileNewPassword')?.focus();
-      return;
+  // Xác thực khi người dùng đổi mật khẩu
+  if (currentUser.hasPassword) {
+    if (newPassword || oldPassword) {
+      if (!oldPassword) {
+        showToast('Vui lòng nhập Mật khẩu cũ (hiện tại) để xác thực thay đổi!', 'warning');
+        document.getElementById('profileOldPassword')?.focus();
+        return;
+      }
+      if (!newPassword) {
+        showToast('Vui lòng nhập Mật khẩu mới cần đổi!', 'warning');
+        document.getElementById('profileNewPassword')?.focus();
+        return;
+      }
+      if (newPassword.length < 6) {
+        showToast('Mật khẩu mới phải có tối thiểu 6 ký tự!', 'error');
+        document.getElementById('profileNewPassword')?.focus();
+        return;
+      }
+      if (newPassword === oldPassword) {
+        showToast('Mật khẩu mới không được trùng với mật khẩu cũ!', 'warning');
+        document.getElementById('profileNewPassword')?.focus();
+        return;
+      }
+      if (!confirmPassword) {
+        showToast('Vui lòng nhập xác nhận lại mật khẩu mới!', 'warning');
+        document.getElementById('profileConfirmPassword')?.focus();
+        return;
+      }
+      if (newPassword !== confirmPassword) {
+        showToast('Mật khẩu xác nhận không khớp! Vui lòng kiểm tra lại.', 'error');
+        document.getElementById('profileConfirmPassword')?.focus();
+        return;
+      }
     }
-    if (confirmPassword && newPassword !== confirmPassword) {
-      showToast('Mật khẩu xác nhận không khớp! Vui lòng kiểm tra lại.', 'error');
-      document.getElementById('profileConfirmPassword')?.focus();
-      return;
+  } else {
+    // Tài khoản OAuth tạo mật khẩu riêng lần đầu
+    if (newPassword) {
+      if (newPassword.length < 6) {
+        showToast('Mật khẩu mới phải có tối thiểu 6 ký tự!', 'error');
+        document.getElementById('profileNewPassword')?.focus();
+        return;
+      }
+      if (confirmPassword && newPassword !== confirmPassword) {
+        showToast('Mật khẩu xác nhận không khớp! Vui lòng kiểm tra lại.', 'error');
+        document.getElementById('profileConfirmPassword')?.focus();
+        return;
+      }
     }
   }
 
@@ -5816,7 +5883,9 @@ async function handleUpdateUserProfile(e) {
         oldAddressNote: oldWardNote,
         city,
         deliveryNote,
-        password: newPassword || undefined
+        oldPassword: oldPassword || undefined,
+        password: newPassword || undefined,
+        newPassword: newPassword || undefined
       })
     });
 
@@ -5826,6 +5895,9 @@ async function handleUpdateUserProfile(e) {
         btnSave.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> LƯU THAY ĐỔI HỒ SƠ';
       }
       showToast(updateRes.message || 'Không thể lưu thông tin hồ sơ. Vui lòng kiểm tra lại!', 'error');
+      if (updateRes.message && (updateRes.message.includes('Mật khẩu cũ') || updateRes.message.includes('mật khẩu cũ'))) {
+        document.getElementById('profileOldPassword')?.focus();
+      }
       return;
     }
 
@@ -5854,8 +5926,8 @@ async function handleUpdateUserProfile(e) {
         uItem.oldAddressNote = oldWardNote;
         uItem.city = city;
         uItem.deliveryNote = deliveryNote;
-        if (password) {
-          uItem.password = password;
+        if (newPassword) {
+          uItem.password = newPassword;
           uItem.hasPassword = true;
           if (uItem.authProvider === 'google') uItem.authProvider = 'google+local';
         }
@@ -5879,8 +5951,8 @@ async function handleUpdateUserProfile(e) {
   updateUserHeaderUI();
   closeModal('userProfileModal');
   showToast(
-    password
-      ? '✅ Đã lưu hồ sơ hội viên và liên kết mật khẩu thành công! Giờ đây bạn có thể đăng nhập bằng Google hoặc Email + Mật khẩu.'
+    newPassword
+      ? '✅ Đã lưu hồ sơ và đổi mật khẩu mới thành công! Giờ đây bạn có thể đăng nhập bằng mật khẩu mới.'
       : '✅ Cập nhật hồ sơ hội viên & địa chỉ nhận hàng thành công!',
     'success'
   );
