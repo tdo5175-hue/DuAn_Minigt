@@ -997,19 +997,31 @@
     const cardInput = document.getElementById('prodPriceCard');
     const packType = document.getElementById('prodPackagingType')?.value || 'both';
 
+    const prevBox = parseFloat(boxInput?.value) || 0;
+    const currentCard = parseFloat(cardInput?.value) || 0;
+
     if (boxInput) boxInput.value = String(price);
 
     if (packType === 'both') {
-      const currentBox = parseFloat(boxInput?.dataset.prevBox) || 0;
-      const currentCard = parseFloat(cardInput?.value) || 0;
-      const diff = (currentCard > currentBox && currentBox > 0) ? (currentCard - currentBox) : 60000;
-      if (cardInput) cardInput.value = String(price + diff);
+      // Nếu trước đó Card bằng giá Box hoặc Card chưa có thì giữ bằng giá Box
+      if (currentCard === prevBox || currentCard <= 0) {
+        if (cardInput) cardInput.value = String(price);
+      }
     } else if (packType === 'box_only') {
       if (cardInput) cardInput.value = String(price);
     }
 
-    if (boxInput) boxInput.dataset.prevBox = String(price);
     handleProductPriceInput();
+  }
+
+  function setCardPriceEqualBox() {
+    const boxInput = document.getElementById('prodPriceBox');
+    const cardInput = document.getElementById('prodPriceCard');
+    if (boxInput && cardInput) {
+      const val = parseFloat(boxInput.value) || 320000;
+      cardInput.value = String(val);
+      handleProductPriceInput();
+    }
   }
 
   function setCardPricePreset(price) {
@@ -1049,22 +1061,32 @@
     if (!boxInput || !cardInput) return;
 
     if (packType === 'box_only') {
+      if (cardInput.value && cardInput.value !== '0') cardInput.dataset.prevVal = cardInput.value;
       cardInput.disabled = true;
       cardInput.value = '0';
       if (cardNotice) cardNotice.style.display = 'block';
       boxInput.disabled = false;
       if (boxNotice) boxNotice.style.display = 'none';
+      if (boxInput.dataset.prevVal && (!boxInput.value || boxInput.value === '0')) boxInput.value = boxInput.dataset.prevVal;
     } else if (packType === 'card_only') {
+      if (boxInput.value && boxInput.value !== '0') boxInput.dataset.prevVal = boxInput.value;
       boxInput.disabled = true;
       boxInput.value = '0';
       if (boxNotice) boxNotice.style.display = 'block';
       cardInput.disabled = false;
       if (cardNotice) cardNotice.style.display = 'none';
+      if (cardInput.dataset.prevVal && (!cardInput.value || cardInput.value === '0')) cardInput.value = cardInput.dataset.prevVal;
     } else {
       boxInput.disabled = false;
       cardInput.disabled = false;
       if (boxNotice) boxNotice.style.display = 'none';
       if (cardNotice) cardNotice.style.display = 'none';
+      if (boxInput.dataset.prevVal && (!boxInput.value || boxInput.value === '0')) {
+        boxInput.value = boxInput.dataset.prevVal;
+      }
+      if (cardInput.dataset.prevVal && (!cardInput.value || cardInput.value === '0')) {
+        cardInput.value = cardInput.dataset.prevVal;
+      }
     }
 
     let stockBox = parseInt(boxInput.value, 10);
@@ -1205,7 +1227,7 @@
     } else {
       if (priceBox <= 0) priceBox = 320000;
       if (priceCard <= 0) {
-        priceCard = priceBox + 60000;
+        priceCard = priceBox;
         if (cardInput) cardInput.value = String(priceCard);
       }
     }
@@ -1392,8 +1414,10 @@
           ? '<span style="background:#eff6ff; color:#1d4ed8; padding:1px 6px; border-radius:4px; font-size:10px; font-weight:700;">Chỉ Card</span>'
           : '<span style="background:#f1f5f9; color:#334155; padding:1px 6px; border-radius:4px; font-size:10px; font-weight:700;">Box & Card</span>');
 
-      const stockBoxVal = (typeof p.stockBox === 'number') ? p.stockBox : (p.packagingType === 'card_only' ? 0 : Math.ceil(p.stock / 2));
-      const stockCardVal = (typeof p.stockCard === 'number') ? p.stockCard : (p.packagingType === 'box_only' ? 0 : Math.floor(p.stock / 2));
+      const rawB = p.stockBox ?? p.StockBox ?? p.stockbox;
+      const rawC = p.stockCard ?? p.StockCard ?? p.stockcard;
+      const stockBoxVal = rawB != null ? Number(rawB) : (p.packagingType === 'card_only' ? 0 : Math.ceil(p.stock / 2));
+      const stockCardVal = rawC != null ? Number(rawC) : (p.packagingType === 'box_only' ? 0 : Math.floor(p.stock / 2));
 
       // Phân định dòng giá Box
       let boxPriceRow = '';
@@ -1874,8 +1898,10 @@
       const stockBoxInput = document.getElementById('prodStockBox');
       const stockCardInput = document.getElementById('prodStockCard');
       const rawStock = Number(p.stock ?? p.Stock ?? 0);
-      const sBox = (p.stockBox != null) ? Number(p.stockBox) : ((p.StockBox != null) ? Number(p.StockBox) : (p.packagingType === 'card_only' ? 0 : Math.ceil(rawStock / 2)));
-      const sCard = (p.stockCard != null) ? Number(p.stockCard) : ((p.StockCard != null) ? Number(p.StockCard) : (p.packagingType === 'box_only' ? 0 : Math.floor(rawStock / 2)));
+      const rawB = p.stockBox ?? p.StockBox ?? p.stockbox;
+      const rawC = p.stockCard ?? p.StockCard ?? p.stockcard;
+      const sBox = rawB != null ? Number(rawB) : (p.packagingType === 'card_only' ? 0 : Math.ceil(rawStock / 2));
+      const sCard = rawC != null ? Number(rawC) : (p.packagingType === 'box_only' ? 0 : Math.floor(rawStock / 2));
       if (stockBoxInput) stockBoxInput.value = sBox;
       if (stockCardInput) stockCardInput.value = sCard;
       handleStockInputs();
@@ -2065,7 +2091,7 @@
           return;
         }
         if (priceCard <= 0) {
-          priceCard = priceBox + 60000;
+          priceCard = priceBox;
           const cEl = document.getElementById('prodPriceCard');
           if (cEl) cEl.value = String(priceCard);
         }
@@ -4569,6 +4595,7 @@ Anh/chị phản hồi giúp shop để kiện xe được đóng gói gửi đi
   window.applyQuickDiscountPercent = applyQuickDiscountPercent;
   window.setBoxPricePreset = setBoxPricePreset;
   window.setCardPricePreset = setCardPricePreset;
+  window.setCardPriceEqualBox = setCardPriceEqualBox;
   window.addCardDiffFromBox = addCardDiffFromBox;
   window.autoCalcProductDeposit = autoCalcProductDeposit;
   window.handleStockInputs = handleStockInputs;

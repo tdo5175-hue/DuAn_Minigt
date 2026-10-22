@@ -314,7 +314,7 @@ router.post('/products', async (req, res, next) => {
       : 'both';
 
     let priceBox = Number(req.body.priceBox || (packagingType === 'card_only' ? req.body.priceCard : req.body.price) || 320000);
-    let priceCard = Number(req.body.priceCard || (packagingType === 'box_only' ? priceBox : priceBox + 60000));
+    let priceCard = Number(req.body.priceCard != null && Number(req.body.priceCard) > 0 ? req.body.priceCard : priceBox);
     if (packagingType === 'card_only' && priceBox <= 0) priceBox = priceCard;
     if (packagingType === 'box_only' && priceCard <= 0) priceCard = priceBox;
     const discountPercent = Math.max(0, Math.min(80, parseInt(req.body.discountPercent, 10) || 0));
@@ -345,11 +345,11 @@ router.post('/products', async (req, res, next) => {
       stockCard = stockCard != null ? stockCard : rawStock;
     } else {
       if (stockBox == null && stockCard == null) {
-        stockBox = Math.ceil(rawStock * 0.6);
-        stockCard = Math.floor(rawStock * 0.4);
+        stockBox = Math.ceil(rawStock / 2);
+        stockCard = Math.floor(rawStock / 2);
       } else {
-        stockBox = stockBox || 0;
-        stockCard = stockCard || 0;
+        stockBox = stockBox != null ? stockBox : Math.max(0, rawStock - (stockCard || 0));
+        stockCard = stockCard != null ? stockCard : Math.max(0, rawStock - (stockBox || 0));
       }
     }
     const stock = stockBox + stockCard;
@@ -471,7 +471,7 @@ router.put('/products/:id', async (req, res, next) => {
       : Number(existing.PriceBox || existing.Price);
     let priceCard = req.body.priceCard !== undefined
       ? Number(req.body.priceCard)
-      : Number(existing.PriceCard || (packagingType === 'box_only' ? priceBox : priceBox + 60000));
+      : Number(existing.PriceCard != null ? existing.PriceCard : (existing.pricecard != null ? existing.pricecard : priceBox));
     if (packagingType === 'card_only' && (priceBox <= 0 || req.body.priceBox === undefined)) priceBox = priceCard;
     if (packagingType === 'box_only' && (priceCard <= 0 || req.body.priceCard === undefined)) priceCard = priceBox;
     const discountPercent = req.body.discountPercent !== undefined
@@ -496,10 +496,10 @@ router.put('/products/:id', async (req, res, next) => {
 
     let stockBox = req.body.stockBox !== undefined
       ? Math.max(0, parseInt(req.body.stockBox, 10) || 0)
-      : (existing.StockBox != null ? Number(existing.StockBox) : null);
+      : (existing.StockBox != null ? Number(existing.StockBox) : (existing.stockbox != null ? Number(existing.stockbox) : null));
     let stockCard = req.body.stockCard !== undefined
       ? Math.max(0, parseInt(req.body.stockCard, 10) || 0)
-      : (existing.StockCard != null ? Number(existing.StockCard) : null);
+      : (existing.StockCard != null ? Number(existing.StockCard) : (existing.stockcard != null ? Number(existing.stockcard) : null));
 
     if (packagingType === 'box_only') {
       stockCard = 0;
@@ -517,11 +517,11 @@ router.put('/products/:id', async (req, res, next) => {
         stockCard = stockCard != null ? stockCard : 0;
       } else if (req.body.stock !== undefined) {
         const raw = Math.max(0, parseInt(req.body.stock, 10) || 0);
-        stockBox = Math.ceil(raw * 0.6);
-        stockCard = Math.floor(raw * 0.4);
+        stockBox = Math.ceil(raw / 2);
+        stockCard = Math.floor(raw / 2);
       } else {
-        stockBox = stockBox != null ? stockBox : Math.ceil(Number(existing.Stock || 0) * 0.6);
-        stockCard = stockCard != null ? stockCard : Math.floor(Number(existing.Stock || 0) * 0.4);
+        stockBox = stockBox != null ? stockBox : Math.ceil(Number(existing.Stock || 0) / 2);
+        stockCard = stockCard != null ? stockCard : Math.floor(Number(existing.Stock || 0) / 2);
       }
     }
     const stock = stockBox + stockCard;

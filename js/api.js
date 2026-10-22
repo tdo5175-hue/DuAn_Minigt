@@ -768,7 +768,7 @@
       basePriceCard = rawCardVal != null ? Number(rawCardVal) : basePriceBox;
     } else {
       const rawCardVal = raw.priceCard ?? raw.PriceCard ?? raw.basePriceCard;
-      basePriceCard = rawCardVal != null ? Number(rawCardVal) : basePriceBox + 60000;
+      basePriceCard = (rawCardVal != null && Number(rawCardVal) > 0) ? Number(rawCardVal) : basePriceBox;
     }
 
     // % giảm giá trực tiếp
@@ -787,8 +787,10 @@
     const effectiveOldPrice = discountPercent > 0 ? (defaultIsCard ? basePriceCard : basePriceBox) : (raw.oldPrice ?? raw.OldPrice ?? null);
 
     const rawStock = Number(raw.stock ?? raw.Stock ?? 10);
-    let stockBox = raw.stockBox != null ? Number(raw.stockBox) : (raw.StockBox != null ? Number(raw.StockBox) : (packagingType === 'card_only' ? 0 : Math.ceil(rawStock * 0.6)));
-    let stockCard = raw.stockCard != null ? Number(raw.stockCard) : (raw.StockCard != null ? Number(raw.StockCard) : (packagingType === 'box_only' ? 0 : Math.floor(rawStock * 0.4)));
+    const rawB = raw.stockBox ?? raw.StockBox ?? raw.stockbox;
+    const rawC = raw.stockCard ?? raw.StockCard ?? raw.stockcard;
+    let stockBox = rawB != null ? Math.max(0, Number(rawB)) : (packagingType === 'card_only' ? 0 : Math.ceil(rawStock / 2));
+    let stockCard = rawC != null ? Math.max(0, Number(rawC)) : (packagingType === 'box_only' ? 0 : Math.floor(rawStock / 2));
     if (packagingType === 'box_only') stockCard = 0;
     if (packagingType === 'card_only') stockBox = 0;
     const stock = stockBox + stockCard || rawStock;
@@ -873,8 +875,10 @@
       PreOrderDeadline: preOrderDeadline,
       stockBox,
       StockBox: stockBox,
+      stockbox: stockBox,
       stockCard,
       StockCard: stockCard,
+      stockcard: stockCard,
       hasBox,
       HasBox: hasBox,
       hasCard,

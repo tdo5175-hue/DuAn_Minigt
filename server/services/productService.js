@@ -58,11 +58,11 @@ function mapProduct(row) {
   const rawStockBox = row.StockBox ?? row.stockbox;
   const rawStockCard = row.StockCard ?? row.stockcard;
 
-  let stockBox = rawStockBox != null ? Number(rawStockBox) : (packagingType === 'card_only' ? 0 : Math.ceil(rawStock * 0.6));
-  let stockCard = rawStockCard != null ? Number(rawStockCard) : (packagingType === 'box_only' ? 0 : Math.floor(rawStock * 0.4));
+  let stockBox = rawStockBox != null ? Math.max(0, Number(rawStockBox)) : (packagingType === 'card_only' ? 0 : Math.ceil(rawStock / 2));
+  let stockCard = rawStockCard != null ? Math.max(0, Number(rawStockCard)) : (packagingType === 'box_only' ? 0 : Math.floor(rawStock / 2));
   if (packagingType === 'box_only') stockCard = 0;
   if (packagingType === 'card_only') stockBox = 0;
-  const effectiveStock = (stockBox + stockCard) || rawStock;
+  const effectiveStock = (packagingType === 'box_only') ? stockBox : (packagingType === 'card_only' ? stockCard : (stockBox + stockCard));
 
   const hasBox = packagingType !== 'card_only' && stockBox > 0;
   const hasCard = packagingType !== 'box_only' && stockCard > 0;
@@ -122,7 +122,9 @@ function mapProduct(row) {
     editionNote,
     preOrderDeadline,
     stockBox,
+    stockbox: stockBox,
     stockCard,
+    stockcard: stockCard,
     hasBox,
     hasCard,
     stock: effectiveStock,

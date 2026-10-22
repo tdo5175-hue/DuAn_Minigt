@@ -929,7 +929,7 @@
                   <i class="fa-solid fa-boxes-stacked" style="color:#e10600; margin-right:5px;"></i> Cấu hình Giá Bản Box &amp; Bản Card (Blister) + Khuyến mãi %
                 </label>
                 <div style="font-size:11px; color:#64748b; margin-top:2px;">
-                  Chuẩn MINI GT: Bản <strong>Box (Hộp giấy)</strong> thường rẻ hơn bản <strong>Card (Vỉ nhựa Blister)</strong> từ 40.000đ – 100.000đ
+                  Linh hoạt: Bản <strong>Box</strong> và Bản <strong>Card</strong> có thể để giá bằng nhau hoặc Card cộng thêm chênh lệch tùy theo bạn cấu hình.
                 </div>
               </div>
               <div class="discount-mode-switch" style="display:inline-flex; gap:6px; background:#e2e8f0; padding:3px; border-radius:8px;">
@@ -988,14 +988,17 @@
               <div class="form-group" id="prodCardPriceGroup" style="margin-bottom:0;">
                 <label class="form-label" id="lblPriceCard">🛡️ Giá gốc Bản CARD - Vỉ Blister (VNĐ) *</label>
                 <input type="number" id="prodPriceCard" class="form-control" placeholder="380000" value="380000" oninput="handleProductPriceInput()" required>
-                <!-- Helper khi bán cả Box & Card: Cộng chênh lệch từ Box -->
-                <div id="cardDiffPresetsWrap" style="display:flex; gap:4px; flex-wrap:wrap; margin-top:5px;">
-                  <span style="font-size:10.5px; color:#64748b;">Cộng từ Box:</span>
+                <!-- Helper khi bán cả Box & Card: Chọn bằng giá Box hoặc cộng chênh lệch -->
+                <div id="cardDiffPresetsWrap" style="display:flex; gap:4px; flex-wrap:wrap; margin-top:5px; align-items:center;">
+                  <span style="font-size:10.5px; color:#64748b; font-weight:600;">Mẫu Card:</span>
+                  <button type="button" class="mini-preset-chip" style="background:#f1f5f9; color:#0f172a; font-weight:700; border-color:#cbd5e1;" onclick="setCardPriceEqualBox()" title="Đặt giá Bản Card bằng giá Bản Box">
+                    (=) Bằng giá Box
+                  </button>
+                  <button type="button" class="mini-preset-chip" onclick="addCardDiffFromBox(20000)">+20k</button>
+                  <button type="button" class="mini-preset-chip" onclick="addCardDiffFromBox(30000)">+30k</button>
                   <button type="button" class="mini-preset-chip" onclick="addCardDiffFromBox(40000)">+40k</button>
                   <button type="button" class="mini-preset-chip" onclick="addCardDiffFromBox(50000)">+50k</button>
                   <button type="button" class="mini-preset-chip" onclick="addCardDiffFromBox(60000)">+60k</button>
-                  <button type="button" class="mini-preset-chip" onclick="addCardDiffFromBox(80000)">+80k</button>
-                  <button type="button" class="mini-preset-chip" onclick="addCardDiffFromBox(100000)">+100k</button>
                 </div>
                 <!-- Helper khi chỉ bán bản Card: Mẫu giá Card chuẩn -->
                 <div id="cardDirectPresetsWrap" style="display:none; gap:4px; flex-wrap:wrap; margin-top:5px;">

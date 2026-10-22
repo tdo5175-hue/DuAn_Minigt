@@ -827,8 +827,8 @@ function getProductBoxCardPricing(p) {
   } else {
     // 'both'
     if (!baseBox) baseBox = (discountPercent > 0 && pOldLegacy > pPriceLegacy ? pOldLegacy : pPriceLegacy) || 320000;
-    if (!baseCard || baseCard <= baseBox) {
-      baseCard = baseBox + (baseBox >= 500000 ? 80000 : 60000);
+    if (!baseCard || baseCard <= 0) {
+      baseCard = baseBox;
     }
   }
 
@@ -843,18 +843,18 @@ function getProductBoxCardPricing(p) {
 
   // Tồn kho thực tế của từng bản Box và Card
   const totalStock = typeof norm.stock === 'number' ? norm.stock : (typeof norm.Stock === 'number' ? norm.Stock : 10);
-  let stockBox = (typeof norm.stockBox === 'number') ? norm.stockBox : (typeof norm.StockBox === 'number' ? norm.StockBox : null);
-  let stockCard = (typeof norm.stockCard === 'number') ? norm.stockCard : (typeof norm.StockCard === 'number' ? norm.StockCard : null);
+  const rawBox = norm.stockBox ?? norm.StockBox ?? norm.stockbox;
+  const rawCard = norm.stockCard ?? norm.StockCard ?? norm.stockcard;
 
-  if (stockBox === null) {
-    stockBox = packagingType === 'card_only' ? 0 : Math.ceil(totalStock / 2);
-  }
-  if (stockCard === null) {
-    stockCard = packagingType === 'box_only' ? 0 : Math.floor(totalStock / 2);
-  }
+  let stockBox = rawBox != null ? Math.max(0, Number(rawBox)) : (packagingType === 'card_only' ? 0 : Math.ceil(totalStock / 2));
+  let stockCard = rawCard != null ? Math.max(0, Number(rawCard)) : (packagingType === 'box_only' ? 0 : Math.floor(totalStock / 2));
 
-  const isBoxAvailable = packagingType !== 'card_only' && stockBox > 0;
-  const isCardAvailable = packagingType !== 'box_only' && stockCard > 0;
+  if (packagingType === 'box_only') stockCard = 0;
+  if (packagingType === 'card_only') stockBox = 0;
+
+  const isPreOrder = String(norm.status || norm.Status || '').toLowerCase() === 'pre_order';
+  const isBoxAvailable = packagingType !== 'card_only' && (isPreOrder || stockBox > 0);
+  const isCardAvailable = packagingType !== 'box_only' && (isPreOrder || stockCard > 0);
 
   let defaultPack = 'box';
   if (!isBoxAvailable && isCardAvailable) {
