@@ -502,6 +502,21 @@ async function updatePaymentStatus(orderId, paymentStatus, { actorId = null, not
   return getOrderByCodeOrId(orderId);
 }
 
+function getCustomerVipInfo(totalSpent = 0) {
+  const spent = Math.max(0, Number(totalSpent) || 0);
+  if (spent <= 200000) {
+    return { level: 1, label: 'VIP 1', tierName: '0 - 200K', color: '#475569', bg: '#f1f5f9', border: '#cbd5e1', icon: 'fa-shield' };
+  } else if (spent <= 500000) {
+    return { level: 2, label: 'VIP 2', tierName: '201K - 500K', color: '#0284c7', bg: '#e0f2fe', border: '#bae6fd', icon: 'fa-medal' };
+  } else if (spent <= 1000000) {
+    return { level: 3, label: 'VIP 3', tierName: '501K - 1TR', color: '#d97706', bg: '#fef3c7', border: '#fde68a', icon: 'fa-award' };
+  } else if (spent <= 5000000) {
+    return { level: 4, label: 'VIP 4', tierName: '1TR - 5TR', color: '#7c3aed', bg: '#f3e8ff', border: '#ddd6fe', icon: 'fa-gem' };
+  } else {
+    return { level: 5, label: 'VIP 5', tierName: 'Từ 5TR', color: '#dc2626', bg: '#fee2e2', border: '#fca5a5', icon: 'fa-crown' };
+  }
+}
+
 function mapOrder(o, items = [], history = []) {
   const mappedHistory = (history || []).map(h => ({
     historyId: h.HistoryId || h.historyid,
@@ -512,6 +527,9 @@ function mapOrder(o, items = [], history = []) {
     createdAt: h.CreatedAt || h.createdat,
     by: h.ChangedByName || h.by || null
   }));
+
+  const userTotalSpent = Number(o.UserTotalSpent ?? o.usertotalspent ?? 0);
+  const vipInfo = getCustomerVipInfo(userTotalSpent);
 
   return {
     id: o.OrderId || o.orderid,
@@ -527,6 +545,8 @@ function mapOrder(o, items = [], history = []) {
     isOldAddress: (o.AddressType || o.addresstype) === 'OLD' || Boolean(o.IsOldAddress || o.isoldaddress),
     oldAddressNote: o.OldAddressNote || o.oldaddressnote || '',
     newAddressEquivalent: o.NewAddressEquivalent || o.newaddressequivalent || '',
+    userTotalSpent,
+    vip: vipInfo,
     customer: {
       fullName: o.FullName || o.fullname,
       phone: o.Phone || o.phone,
@@ -534,7 +554,9 @@ function mapOrder(o, items = [], history = []) {
       address: o.Address || o.address,
       addressType: String(o.AddressType || o.addresstype || (o.IsOldAddress || o.isoldaddress ? 'OLD' : 'NEW')).toUpperCase(),
       oldAddressNote: o.OldAddressNote || o.oldaddressnote || '',
-      newAddressEquivalent: o.NewAddressEquivalent || o.newaddressequivalent || ''
+      newAddressEquivalent: o.NewAddressEquivalent || o.newaddressequivalent || '',
+      userTotalSpent,
+      vip: vipInfo
     },
     note: o.Note || o.note,
     shippingMethod: o.ShippingMethod || o.shippingmethod || 'SPX',
@@ -563,10 +585,24 @@ function mapOrder(o, items = [], history = []) {
 
 async function getOrderByCodeOrId(idOrCode) {
   const isNum = /^\d+$/.test(String(idOrCode));
-  const oRes = await db.query(
-    `SELECT * FROM Orders WHERE ${isNum ? 'OrderId = @v' : 'OrderCode = @v'}`,
-    { v: isNum ? parseInt(idOrCode, 10) : String(idOrCode).trim().toUpperCase() }
-  );
+  const oRes = await db.query(`
+    SELECT o.*,
+           COALESCE(u_spent.TotalSpent, phone_spent.TotalSpent, 0) AS "UserTotalSpent"
+    FROM Orders o
+    LEFT JOIN (
+      SELECT UserId, COALESCE(SUM(CASE WHEN Status <> 'CANCELLED' THEN Total ELSE 0 END), 0) AS TotalSpent
+      FROM Orders
+      WHERE UserId IS NOT NULL
+      GROUP BY UserId
+    ) u_spent ON o.UserId = u_spent.UserId
+    LEFT JOIN (
+      SELECT Phone, COALESCE(SUM(CASE WHEN Status <> 'CANCELLED' THEN Total ELSE 0 END), 0) AS TotalSpent
+      FROM Orders
+      WHERE Phone IS NOT NULL AND Phone <> ''
+      GROUP BY Phone
+    ) phone_spent ON o.Phone = phone_spent.Phone
+    WHERE ${isNum ? 'o.OrderId = @v' : 'o.OrderCode = @v'}
+  `, { v: isNum ? parseInt(idOrCode, 10) : String(idOrCode).trim().toUpperCase() });
   if (!oRes.recordset.length) return null;
   const o = oRes.recordset[0];
   const oid = o.OrderId || o.orderid;
@@ -661,8 +697,21 @@ async function listOrders({ status, paymentStatus, paymentMethod, q, userId, pho
   const [cRes, dRes] = await Promise.all([
     db.query(`SELECT COUNT(*) AS Total FROM Orders o ${whereClause}`, params),
     db.query(`
-      SELECT o.*
+      SELECT o.*,
+             COALESCE(u_spent.TotalSpent, phone_spent.TotalSpent, 0) AS "UserTotalSpent"
       FROM Orders o
+      LEFT JOIN (
+        SELECT UserId, COALESCE(SUM(CASE WHEN Status <> 'CANCELLED' THEN Total ELSE 0 END), 0) AS TotalSpent
+        FROM Orders
+        WHERE UserId IS NOT NULL
+        GROUP BY UserId
+      ) u_spent ON o.UserId = u_spent.UserId
+      LEFT JOIN (
+        SELECT Phone, COALESCE(SUM(CASE WHEN Status <> 'CANCELLED' THEN Total ELSE 0 END), 0) AS TotalSpent
+        FROM Orders
+        WHERE Phone IS NOT NULL AND Phone <> ''
+        GROUP BY Phone
+      ) phone_spent ON o.Phone = phone_spent.Phone
       ${whereClause}
       ORDER BY o.CreatedAt DESC
       LIMIT @ps OFFSET @offset

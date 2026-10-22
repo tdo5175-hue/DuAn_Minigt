@@ -1399,7 +1399,7 @@
 
     tbody.innerHTML = products.map(rawP => {
       const p = api.normalizeProductObject ? api.normalizeProductObject(rawP) : rawP;
-      const imgPath = (p.image && (p.image.startsWith('http') || p.image.startsWith('data:') || p.image.startsWith('blob:') || p.image.startsWith('/'))) ? p.image : ('../' + (p.image || 'image/hero-banner.jpg').replace(/^\/+/, ''));
+      const imgPath = resolveAdminImageUrl(p.image || p.imageUrl || p.ImageUrl);
       const statusBadge = p.status === 'pre_order'
         ? '<span class="status-badge" style="background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe;">Pre-Order</span>'
         : (p.status === 'sold_out' || p.stock <= 0
@@ -1803,6 +1803,8 @@
 
     const fi = document.getElementById('prodImageFileInput');
     if (fi) fi.value = '';
+    const imgEl = document.getElementById('prodImage');
+    if (imgEl) imgEl.value = 'image/hero-banner.jpg';
     updateProductImagePreview('image/hero-banner.jpg');
     document.getElementById('productModal').classList.add('active');
   }
@@ -1926,15 +1928,39 @@
     }
   }
 
+  function resolveAdminImageUrl(url) {
+    if (!url) return '../image/hero-banner.jpg';
+    if (url.startsWith('data:') || url.startsWith('blob:') || url.startsWith('http://') || url.startsWith('https://')) {
+      return url;
+    }
+    if (url.startsWith('/api/images/') || url.startsWith('/images/')) {
+      const base = (typeof api !== 'undefined' && api.BASE_URL) ? api.BASE_URL : '';
+      return base ? `${base.replace(/\/+$/, '')}${url}` : url;
+    }
+    return '../' + url.replace(/^\/+/, '');
+  }
+  window.resolveAdminImageUrl = resolveAdminImageUrl;
+
+  function openProductImagePicker(event) {
+    if (event) {
+      if (typeof event.stopPropagation === 'function') event.stopPropagation();
+      if (typeof event.preventDefault === 'function') event.preventDefault();
+    }
+    const fi = document.getElementById('prodImageFileInput');
+    if (fi) {
+      fi.value = ''; // Luôn xóa cache để cho phép chọn lại cùng file
+      fi.click();
+    }
+  }
+  window.openProductImagePicker = openProductImagePicker;
+
   function updateProductImagePreview(url) {
     const img = document.getElementById('prodImagePreview');
     const text = document.getElementById('prodImagePreviewText');
     const removeBtn = document.getElementById('btnRemoveProdImage');
     if (!img) return;
     if (url) {
-      const finalUrl = (url.startsWith('http') || url.startsWith('data:') || url.startsWith('blob:') || url.startsWith('/'))
-        ? url
-        : ('../' + url.replace(/^\/+/, ''));
+      const finalUrl = resolveAdminImageUrl(url);
       img.src = finalUrl;
       img.style.display = 'block';
       let displayText = url;
@@ -2016,42 +2042,48 @@
     }
 
     const previewText = document.getElementById('prodImagePreviewText');
-    // Tìm nút upload bằng title attribute (ổn định hơn querySelector bằng onclick)
-    const uploadBtn = document.querySelector('#productModal button[title*="Mở thư mục"]') ||
+    const uploadBtn = document.getElementById('btnPickProductImage') ||
+                      document.querySelector('#productModal button[title*="Mở thư mục"]') ||
                       document.querySelector('button[onclick*="prodImageFileInput"]');
     const originalBtnHtml = uploadBtn ? uploadBtn.innerHTML : '';
     if (uploadBtn) {
       uploadBtn.disabled = true;
-      uploadBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Đang tải...';
+      uploadBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Đang nén ảnh...';
     }
 
     if (previewText) previewText.textContent = `Đang xử lý & nén ảnh: ${file.name}...`;
 
     try {
+      // 1. Nén ảnh chất lượng cao trực tiếp tại trình duyệt
       const dataUrl = await compressImageClientSide(file);
+      // Hiển thị ngay ảnh preview tức thì bằng DataURI
       updateProductImagePreview(dataUrl);
 
-      if (previewText) previewText.textContent = `Đang tải ảnh lên hệ thống...`;
+      // Điền dataUrl vào input làm dự phòng tức thời
+      const imgInput = document.getElementById('prodImage');
+      if (imgInput) imgInput.value = dataUrl;
 
+      if (previewText) previewText.textContent = `Đang tải ảnh lên hệ thống...`;
+      if (uploadBtn) uploadBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Đang lưu...';
+
+      // 2. Gửi lên máy chủ để lưu vào Supabase
       const res = await api.post('/api/admin/upload-product-image', {
         filename: file.name,
         data: dataUrl
       });
 
-      // Đảm bảo modal vẫn mở sau khi upload xong
       if (productModal && !productModal.classList.contains('active')) {
         productModal.classList.add('active');
       }
 
       if (res && res.success && res.data && res.data.url) {
         const finalUrl = res.data.url;
-        const imgInput = document.getElementById('prodImage');
         if (imgInput) imgInput.value = finalUrl;
-        updateProductImagePreview(finalUrl);
+        updateProductImagePreview(dataUrl); // Giữ dataUrl trên preview để load tức thì không cần chờ mạng
         adminToast(`Đã tải ảnh "${file.name}" lên hệ thống thành công!`, 'success');
       } else {
-        const imgInput = document.getElementById('prodImage');
         if (imgInput) imgInput.value = dataUrl;
+        updateProductImagePreview(dataUrl);
         adminToast(`Đã nạp ảnh "${file.name}" từ máy thành công!`, 'success');
       }
     } catch (err) {
@@ -2063,7 +2095,6 @@
         updateProductImagePreview(fallbackUrl);
       } catch (_) {}
       adminToast(`Đã nạp ảnh "${file.name}" từ máy thành công!`, 'info');
-      // Giữ modal mở ngay cả khi có lỗi upload
       if (productModal && !productModal.classList.contains('active')) {
         productModal.classList.add('active');
       }
@@ -2072,7 +2103,6 @@
         uploadBtn.disabled = false;
         uploadBtn.innerHTML = originalBtnHtml;
       }
-      // Reset file input để cho phép chọn lại cùng file
       if (input) input.value = '';
     }
   }
@@ -2835,9 +2865,9 @@
                 const custMatch = (cachedUsers && cachedUsers.length)
                   ? cachedUsers.find(u => (o.userId && u.userId == o.userId) || (u.phone && custPhone && u.phone.replace(/\D/g, '') === custPhone.replace(/\D/g, '')))
                   : null;
-                const custTotalSpent = (custMatch ? custMatch.totalSpent : 0) || o.userTotalSpent || o.totalSpent || 0;
-                const custVip = getCustomerVipInfo(custTotalSpent);
-                return `<span class="vip-badge vip-${custVip.level}" style="background:${custVip.bg}; color:${custVip.color}; border:1px solid ${custVip.border}; padding:1px 6px; border-radius:10px; font-weight:800; font-size:10px; display:inline-flex; align-items:center; gap:3px;" title="Cấp độ ${custVip.label} (${formatVND(custTotalSpent)})"><i class="fa-solid ${custVip.icon}"></i> ${custVip.label}</span>`;
+                const custTotalSpent = Number((custMatch ? custMatch.totalSpent : 0) || o.userTotalSpent || (o.customer && o.customer.userTotalSpent) || 0);
+                const custVip = (o.vip && o.vip.level) ? o.vip : getCustomerVipInfo(custTotalSpent);
+                return `<span class="vip-badge vip-${custVip.level}" style="background:${custVip.bg}; color:${custVip.color}; border:1px solid ${custVip.border}; padding:1px 6px; border-radius:10px; font-weight:800; font-size:10px; display:inline-flex; align-items:center; gap:3px;" title="Cấp độ ${custVip.label} (${custVip.tierName}) — Tích lũy mua hàng: ${formatVND(custTotalSpent)}"><i class="fa-solid ${custVip.icon}"></i> ${custVip.label}</span>`;
               })()}
             </div>
             <div class="phone-privacy-wrapper" style="margin-top:2px;">
@@ -3071,8 +3101,25 @@
 
         <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px; background:#f8fafc; padding:12px 14px; border-radius:8px; border:1px solid #e2e8f0; margin-bottom:14px; font-size:12.5px;">
           <div>
-            <div style="color:#64748b; margin-bottom:2px;">Người nhận hàng:</div>
-            <strong style="color:#0f172a; font-size:13.5px;">${escapeHtml(order.customer.fullName)}</strong>
+            ${(() => {
+              const custMatch = (cachedUsers && cachedUsers.length)
+                ? cachedUsers.find(u => (order.userId && u.userId == order.userId) || (u.phone && order.customer?.phone && u.phone.replace(/\D/g, '') === order.customer.phone.replace(/\D/g, '')))
+                : null;
+              const custTotalSpent = Number((custMatch ? custMatch.totalSpent : 0) || order.userTotalSpent || (order.customer && order.customer.userTotalSpent) || 0);
+              const custVip = (order.vip && order.vip.level) ? order.vip : getCustomerVipInfo(custTotalSpent);
+              return `
+                <div style="color:#64748b; margin-bottom:2px;">Người nhận hàng:</div>
+                <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+                  <strong style="color:#0f172a; font-size:13.5px;">${escapeHtml(order.customer.fullName)}</strong>
+                  <span class="vip-badge vip-${custVip.level}" style="background:${custVip.bg}; color:${custVip.color}; border:1px solid ${custVip.border}; padding:2px 8px; border-radius:12px; font-weight:800; font-size:11px; display:inline-flex; align-items:center; gap:4px;" title="Cấp độ ${custVip.label} — Tích lũy mua hàng: ${formatVND(custTotalSpent)}">
+                    <i class="fa-solid ${custVip.icon}"></i> ${custVip.label} (${custVip.tierName})
+                  </span>
+                </div>
+                <div style="font-size:11px; color:#059669; font-weight:700; margin-top:3px;">
+                  <i class="fa-solid fa-chart-line"></i> Tích lũy mua hàng: <strong>${formatVND(custTotalSpent)}</strong>
+                </div>
+              `;
+            })()}
             <div style="margin-top:4px;">Điện thoại: <strong>${escapeHtml(order.customer.phone)}</strong></div>
             ${order.customer.email ? `<div>Email: <span>${escapeHtml(order.customer.email)}</span></div>` : ''}
           </div>
@@ -4487,6 +4534,16 @@ Anh/chị phản hồi giúp shop để kiện xe được đóng gói gửi đi
     loadCategories();
     loadDashboard();
     loadOrders();
+
+    // Tự động tải trước danh sách người dùng để đồng bộ xếp hạng VIP chính xác
+    api.get('/api/admin/users').then(res => {
+      if (res && res.success && Array.isArray(res.data)) {
+        cachedUsers = res.data;
+        if (cachedOrders && cachedOrders.length && activeTab === 'orders') {
+          renderOrdersTable(cachedOrders);
+        }
+      }
+    }).catch(() => {});
 
     // Kiểm tra health check backend & cập nhật trạng thái kết nối
     api.get('/api/health').then(res => {

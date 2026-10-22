@@ -801,7 +801,10 @@
     let status = String(raw.status || raw.Status || 'in_stock').toLowerCase();
     if (stock <= 0 && status !== 'pre_order') status = 'sold_out';
 
-    const image = raw.image || raw.imageUrl || raw.ImageUrl || 'image/hero-banner.jpg';
+    let image = raw.image || raw.imageUrl || raw.ImageUrl || 'image/hero-banner.jpg';
+    if (image && (image.startsWith('/api/images/') || image.startsWith('/images/')) && API_BASE) {
+      image = `${API_BASE.replace(/\/+$/, '')}${image}`;
+    }
     let depositPercent = Math.max(0, Math.min(100, Number(raw.depositPercent ?? raw.DepositPercent ?? 0)));
     let depositAmount = Number(raw.depositAmount ?? raw.DepositAmount ?? 0);
     if (status === 'pre_order') {
@@ -1950,6 +1953,19 @@
       const found = getSharedProducts().find(p => Number(p.id) === pid);
       if (found) return { success: true, data: found };
       return { success: false, message: 'Không tìm thấy sản phẩm' };
+    }
+
+    if (method === 'POST' && path === '/api/admin/upload-product-image') {
+      const dataUri = body.data || body.base64 || '';
+      return {
+        success: true,
+        data: {
+          url: dataUri,
+          filename: body.filename || 'uploaded_image.jpg',
+          storage: 'offline_local'
+        },
+        message: 'Tải ảnh lên thành công (chế độ cục bộ)'
+      };
     }
 
     if (method === 'POST' && path === '/api/admin/products') {

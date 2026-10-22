@@ -964,6 +964,9 @@ function createProductCardHTML(p, idx = 0) {
   const pName = p.Name || p.name || 'Mini GT 1:64';
   const pSku = p.Sku || p.sku || 'MGT0000';
   let pImg = p.ImageUrl || p.imageUrl || p.image || p.Image || 'image/hero-banner.jpg';
+  if ((pImg.startsWith('/api/images/') || pImg.startsWith('/images/')) && typeof api !== 'undefined' && api.BASE_URL) {
+    pImg = api.BASE_URL.replace(/\/+$/, '') + pImg;
+  }
   if (pImg.includes('amr24.webp')) pImg = 'image/aston-amr24-alonso.png';
   else if (pImg.includes('f1.webp')) pImg = 'image/aston-amr24-stroll.png';
   else if (pImg.includes('huracan.webp')) pImg = 'image/lambo-sterrato-set.png';
@@ -2342,6 +2345,9 @@ function openQuickView(productId) {
   const pId = prod.ProductId || prod.id;
   const pName = prod.Name || prod.name;
   let pImg = prod.ImageUrl || prod.image || 'image/hero-banner.jpg';
+  if ((pImg.startsWith('/api/images/') || pImg.startsWith('/images/')) && typeof api !== 'undefined' && api.BASE_URL) {
+    pImg = api.BASE_URL.replace(/\/+$/, '') + pImg;
+  }
   if (pImg.includes('amr24.webp')) pImg = 'image/aston-amr24-alonso.png';
   else if (pImg.includes('f1.webp')) pImg = 'image/aston-amr24-stroll.png';
   else if (pImg.includes('huracan.webp')) pImg = 'image/lambo-sterrato-set.png';

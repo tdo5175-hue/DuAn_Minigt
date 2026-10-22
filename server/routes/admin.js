@@ -221,11 +221,14 @@ router.post('/upload-product-image', async (req, res, next) => {
     }
 
     let fileBuffer;
-    let ext = 'jpg';
+    let ext = 'webp';
+    let mimeType = 'image/webp';
     if (typeof rawData === 'string' && rawData.startsWith('data:')) {
-      const matches = rawData.match(/^data:image\/([a-zA-Z0-9+.-]+);base64,(.+)$/);
+      const matches = rawData.match(/^data:([a-zA-Z0-9\/+.-]+);base64,(.+)$/);
       if (matches) {
-        ext = matches[1].toLowerCase() === 'jpeg' ? 'jpg' : matches[1].toLowerCase();
+        mimeType = matches[1].toLowerCase();
+        const sub = mimeType.replace('image/', '');
+        ext = sub === 'jpeg' ? 'jpg' : sub;
         fileBuffer = Buffer.from(matches[2], 'base64');
       } else {
         const parts = rawData.split(',');
@@ -242,6 +245,7 @@ router.post('/upload-product-image', async (req, res, next) => {
       const candidateExt = parts[parts.length - 1].toLowerCase();
       if (['jpg', 'jpeg', 'png', 'webp', 'gif', 'svg'].includes(candidateExt)) {
         ext = candidateExt === 'jpeg' ? 'jpg' : candidateExt;
+        mimeType = candidateExt === 'jpg' ? 'image/jpeg' : `image/${candidateExt}`;
       }
     }
 
@@ -255,7 +259,8 @@ router.post('/upload-product-image', async (req, res, next) => {
       .slice(0, 40);
     const safeFilename = `${cleanName}_${Date.now()}.${ext}`;
 
-    // 1. Luôn lưu vào bảng UploadedImages trong database Supabase (tương thích 100% Vercel Serverless & Cloud)
+    // Lưu vào bảng UploadedImages trong database Supabase
+    // TUYỆT ĐỐI KHÔNG ghi file ra đĩa workspace (image/uploads/) vì sẽ kích hoạt Live Server / nodemon auto-reload trang!
     let imageId = null;
     try {
       const dbRes = await db.query(`
@@ -275,32 +280,15 @@ router.post('/upload-product-image', async (req, res, next) => {
       console.warn('[ADMIN UPLOAD] Lưu DB UploadedImages lỗi:', dbErr.message);
     }
 
-    // 2. Thử ghi file ra đĩa (dành cho môi trường Node server local)
-    const uploadsDir = path.join(__dirname, '..', '..', 'image', 'uploads');
-    let savedUrl = '';
-    let writeSuccess = false;
-
-    try {
-      if (!fs.existsSync(uploadsDir)) {
-        fs.mkdirSync(uploadsDir, { recursive: true });
-      }
-      const targetFilePath = path.join(uploadsDir, safeFilename);
-      fs.writeFileSync(targetFilePath, fileBuffer);
-      writeSuccess = true;
-      savedUrl = `image/uploads/${safeFilename}`;
-    } catch (fsErr) {
-      console.warn('[ADMIN UPLOAD] Ghi đĩa bị chặn (môi trường serverless):', fsErr.message);
-    }
-
-    // Ưu tiên trả về /api/images/:id nếu có imageId, hoặc savedUrl nếu ghi disk thành công, hoặc fallback rawData
-    const finalUrl = imageId ? `/api/images/${imageId}` : (writeSuccess ? savedUrl : rawData);
+    // Trả về URL /api/images/:id nếu lưu database thành công, hoặc fallback rawData (base64)
+    const finalUrl = imageId ? `/api/images/${imageId}` : rawData;
 
     return ok(res, {
       url: finalUrl,
       imageId,
       filename: safeFilename,
       size: fileBuffer.length,
-      storage: imageId ? 'database' : (writeSuccess ? 'disk' : 'inline_base64')
+      storage: imageId ? 'database' : 'inline_base64'
     }, 'Tải ảnh mô hình lên thành công!');
   } catch (error) {
     next(error);

@@ -1154,7 +1154,7 @@
               <input type="text" id="prodImage" class="form-control" style="flex:1; min-width:200px;" placeholder="image/aston-amr24-stroll.png hoặc bấm Chọn ảnh từ máy" oninput="updateProductImagePreview(this.value)" required>
               
               <input type="file" id="prodImageFileInput" accept="image/*" style="display:none;" onchange="handleProductImageFileUpload(this)">
-              <button type="button" class="btn-admin btn-admin-outline" style="white-space:nowrap; padding:7px 14px; font-size:12.5px; font-weight:600; display:inline-flex; align-items:center; gap:6px; cursor:pointer; border-color:#d97706; color:#92400e;" onclick="event.stopPropagation(); event.preventDefault(); document.getElementById('prodImageFileInput').click();" title="Mở thư mục máy tính để chọn ảnh xe bất kỳ">
+              <button type="button" id="btnPickProductImage" class="btn-admin btn-admin-outline" style="white-space:nowrap; padding:7px 14px; font-size:12.5px; font-weight:600; display:inline-flex; align-items:center; gap:6px; cursor:pointer; border-color:#d97706; color:#92400e;" onclick="openProductImagePicker(event)" title="Mở thư mục máy tính để chọn ảnh xe bất kỳ">
                 <i class="fa-solid fa-folder-open" style="color:#d97706;"></i> Chọn ảnh từ máy...
               </button>
 
