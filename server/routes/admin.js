@@ -162,7 +162,7 @@ router.post('/categories', async (req, res, next) => {
 
 router.get('/products', async (req, res, next) => {
   try {
-    const { category, status, stock, search, sort, page = 1, limit = 20 } = req.query;
+    const { category, status, stock, search, sort, page = 1, limit = 20, showHidden } = req.query;
     const filter = {
       category,
       status,
@@ -173,7 +173,14 @@ router.get('/products', async (req, res, next) => {
     };
     if (stock === 'out_of_stock') filter.status = 'sold_out';
 
-    const result = await productService.listProducts(filter, { includeInactive: true });
+    // Admin mặc định chỉ lấy sản phẩm ACTIVE (IsActive=true).
+    // Chỉ khi admin chủ động bật showHidden=1 mới lấy cả sản phẩm đã ẩn.
+    const includeInactive = (showHidden === '1' || showHidden === 'true');
+    if (!includeInactive) {
+      filter.active = 'true';
+    }
+
+    const result = await productService.listProducts(filter, { includeInactive });
 
     return ok(res, result.items, 'Lấy danh sách sản phẩm thành công', {
       pagination: {

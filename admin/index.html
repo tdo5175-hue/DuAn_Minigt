@@ -303,6 +303,10 @@
               <option value="pre_order">Pre-Order</option>
               <option value="sold_out">Hết hàng</option>
             </select>
+            <label style="display:flex; align-items:center; gap:5px; font-size:12.5px; font-weight:600; color:#64748b; cursor:pointer; user-select:none; white-space:nowrap;">
+              <input type="checkbox" id="prodShowHiddenFilter" style="width:14px; height:14px; accent-color:#dc2626; cursor:pointer;" onchange="handleProductFilterChange()">
+              <span>Hiện SP đã ẩn</span>
+            </label>
             <select id="prodStockFilter" class="form-control" style="max-width:150px;" onchange="handleProductFilterChange()">
               <option value="all">-- Tồn kho --</option>
               <option value="in_stock">Còn nhiều (>5)</option>
@@ -1150,7 +1154,7 @@
               <input type="text" id="prodImage" class="form-control" style="flex:1; min-width:200px;" placeholder="image/aston-amr24-stroll.png hoặc bấm Chọn ảnh từ máy" oninput="updateProductImagePreview(this.value)" required>
               
               <input type="file" id="prodImageFileInput" accept="image/*" style="display:none;" onchange="handleProductImageFileUpload(this)">
-              <button type="button" class="btn btn-outline" style="white-space:nowrap; padding:8px 14px; font-size:12.5px; font-weight:600; display:inline-flex; align-items:center; gap:6px; cursor:pointer;" onclick="document.getElementById('prodImageFileInput').click()" title="Mở thư mục máy tính để chọn ảnh xe bất kỳ">
+              <button type="button" class="btn-admin btn-admin-outline" style="white-space:nowrap; padding:7px 14px; font-size:12.5px; font-weight:600; display:inline-flex; align-items:center; gap:6px; cursor:pointer; border-color:#d97706; color:#92400e;" onclick="event.stopPropagation(); event.preventDefault(); document.getElementById('prodImageFileInput').click();" title="Mở thư mục máy tính để chọn ảnh xe bất kỳ">
                 <i class="fa-solid fa-folder-open" style="color:#d97706;"></i> Chọn ảnh từ máy...
               </button>
 

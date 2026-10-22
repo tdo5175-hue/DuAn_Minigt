@@ -1353,7 +1353,12 @@
     startProgressBar();
     renderTableSkeletons('productsTbody', 9, 6);
     try {
-      const res = await api.get('/api/admin/products', productFilter);
+      const queryParams = { ...productFilter };
+      // Nếu admin không bật "Hiện SP đã ẩn" thì mặc định ẩn đi
+      if (!queryParams.showHidden || queryParams.showHidden === '0') {
+        delete queryParams.showHidden;
+      }
+      const res = await api.get('/api/admin/products', queryParams);
       if (res.success && res.data) {
         cachedProducts = res.data;
         renderProductsTable(cachedProducts);
@@ -1377,6 +1382,8 @@
     productFilter.status = document.getElementById('prodStatusFilter')?.value || 'all';
     productFilter.stock = document.getElementById('prodStockFilter')?.value || 'all';
     productFilter.sort = document.getElementById('prodSortFilter')?.value || 'newest';
+    const showHiddenCb = document.getElementById('prodShowHiddenFilter');
+    productFilter.showHidden = showHiddenCb?.checked ? '1' : '0';
     productFilter.page = 1;
     loadProducts();
   }
@@ -1990,6 +1997,12 @@
     if (!input || !input.files || input.files.length === 0) return;
     const file = input.files[0];
 
+    // Đảm bảo modal vẫn mở trong suốt quá trình upload
+    const productModal = document.getElementById('productModal');
+    if (productModal && !productModal.classList.contains('active')) {
+      productModal.classList.add('active');
+    }
+
     if (!file.type.startsWith('image/')) {
       adminToast('Vui lòng chỉ chọn tệp hình ảnh (JPG, PNG, WEBP, GIF)!', 'error');
       input.value = '';
@@ -2003,7 +2016,9 @@
     }
 
     const previewText = document.getElementById('prodImagePreviewText');
-    const uploadBtn = document.querySelector('button[onclick*="prodImageFileInput"]');
+    // Tìm nút upload bằng title attribute (ổn định hơn querySelector bằng onclick)
+    const uploadBtn = document.querySelector('#productModal button[title*="Mở thư mục"]') ||
+                      document.querySelector('button[onclick*="prodImageFileInput"]');
     const originalBtnHtml = uploadBtn ? uploadBtn.innerHTML : '';
     if (uploadBtn) {
       uploadBtn.disabled = true;
@@ -2023,28 +2038,42 @@
         data: dataUrl
       });
 
+      // Đảm bảo modal vẫn mở sau khi upload xong
+      if (productModal && !productModal.classList.contains('active')) {
+        productModal.classList.add('active');
+      }
+
       if (res && res.success && res.data && res.data.url) {
         const finalUrl = res.data.url;
-        document.getElementById('prodImage').value = finalUrl;
+        const imgInput = document.getElementById('prodImage');
+        if (imgInput) imgInput.value = finalUrl;
         updateProductImagePreview(finalUrl);
         adminToast(`Đã tải ảnh "${file.name}" lên hệ thống thành công!`, 'success');
       } else {
-        document.getElementById('prodImage').value = dataUrl;
+        const imgInput = document.getElementById('prodImage');
+        if (imgInput) imgInput.value = dataUrl;
         adminToast(`Đã nạp ảnh "${file.name}" từ máy thành công!`, 'success');
       }
     } catch (err) {
       console.warn('[IMAGE UPLOAD] Server upload error, using local fallback:', err);
       try {
         const fallbackUrl = await compressImageClientSide(file);
-        document.getElementById('prodImage').value = fallbackUrl;
+        const imgInput = document.getElementById('prodImage');
+        if (imgInput) imgInput.value = fallbackUrl;
         updateProductImagePreview(fallbackUrl);
       } catch (_) {}
       adminToast(`Đã nạp ảnh "${file.name}" từ máy thành công!`, 'info');
+      // Giữ modal mở ngay cả khi có lỗi upload
+      if (productModal && !productModal.classList.contains('active')) {
+        productModal.classList.add('active');
+      }
     } finally {
       if (uploadBtn) {
         uploadBtn.disabled = false;
         uploadBtn.innerHTML = originalBtnHtml;
       }
+      // Reset file input để cho phép chọn lại cùng file
+      if (input) input.value = '';
     }
   }
 
@@ -2215,11 +2244,23 @@
   }
 
   async function deleteProduct(productId) {
-    if (!confirm('Bạn có chắc chắn muốn xóa/ẩn mô hình này khỏi cửa hàng?')) return;
+    const pid = parseInt(productId, 10);
+    if (!confirm('Bạn có chắc chắn muốn xóa mô hình này khỏi cửa hàng?')) return;
     try {
-      const res = await api.delete(`/api/admin/products/${productId}`);
-      adminToast(res.message || 'Đã xử lý xóa sản phẩm', 'info');
-      loadProducts();
+      const res = await api.delete(`/api/admin/products/${pid}`);
+
+      // Xóa ngay khỏi danh sách đang hiển thị mà không cần reload toàn bộ
+      cachedProducts = (cachedProducts || []).filter(p => {
+        const id = p.id ?? p.ProductId ?? p.productid;
+        return Number(id) !== pid;
+      });
+      renderProductsTable(cachedProducts);
+
+      if (res.data && res.data.softDeleted) {
+        adminToast('Sản phẩm đã có trong đơn hàng — đã ẩn khỏi cửa hàng thành công!', 'info');
+      } else {
+        adminToast('Đã xóa hoàn toàn sản phẩm khỏi hệ thống!', 'success');
+      }
       loadDashboard();
     } catch (err) {
       adminToast('Lỗi xóa sản phẩm: ' + err.message, 'error');
@@ -4565,6 +4606,18 @@ Anh/chị phản hồi giúp shop để kiện xe được đóng gói gửi đi
     loadAdminNotifications();
     updateAdminSoundButtonState();
     checkAdminAuth();
+
+    // Đóng modal khi click vào overlay (phần nền tối) — bỏ qua nếu đang upload ảnh
+    document.querySelectorAll('.modal-overlay').forEach(overlay => {
+      overlay.addEventListener('click', function(e) {
+        // Chỉ đóng khi click đúng vào overlay, KHÔNG đóng khi click trong modal-card
+        if (e.target !== overlay) return;
+        // Không đóng productModal nếu đang có upload đang chạy (btn disabled)
+        const uploadBtn = document.querySelector('#productModal button[title*="Mở thư mục"]');
+        if (this.id === 'productModal' && uploadBtn && uploadBtn.disabled) return;
+        this.classList.remove('active');
+      });
+    });
   });
 
   // Export các hàm ra window để inline HTML event listeners gọi được
