@@ -76,6 +76,43 @@ app.get(['/api/categories', '/categories'], async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// Phục vụ hình ảnh mô hình xe tải lên từ database Supabase (tương thích 100% Vercel Serverless & Local)
+app.get(['/api/images/:id', '/images/:id'], async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    if (!id) return res.status(404).send('Not Found');
+
+    const result = await db.query('SELECT Filename, MimeType, Data FROM UploadedImages WHERE ImageId = @id', { id });
+    if (!result.recordset || result.recordset.length === 0) {
+      return res.status(404).send('Image not found');
+    }
+
+    const row = result.recordset[0];
+    let data = row.Data || row.data || '';
+    let mime = row.MimeType || row.mimetype || 'image/webp';
+
+    if (data.startsWith('data:')) {
+      const match = data.match(/^data:([a-zA-Z0-9\/+.-]+);base64,(.+)$/);
+      if (match) {
+        mime = match[1];
+        data = match[2];
+      } else {
+        const parts = data.split(',');
+        data = parts[1] || parts[0];
+      }
+    }
+
+    const buffer = Buffer.from(data, 'base64');
+    res.setHeader('Content-Type', mime);
+    res.setHeader('Content-Length', buffer.length);
+    res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+    return res.end(buffer);
+  } catch (err) {
+    console.warn('[IMAGE SERVE] Error:', err.message);
+    return res.status(500).send('Error loading image');
+  }
+});
+
 app.get(['/api/health', '/health'], (req, res) => {
   res.json({
     success: true,

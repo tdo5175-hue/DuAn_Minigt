@@ -1370,7 +1370,7 @@
 
     tbody.innerHTML = products.map(rawP => {
       const p = api.normalizeProductObject ? api.normalizeProductObject(rawP) : rawP;
-      const imgPath = (p.image && (p.image.startsWith('http') || p.image.startsWith('data:') || p.image.startsWith('blob:'))) ? p.image : ('../' + (p.image || 'image/hero-banner.jpg').replace(/^\/+/, ''));
+      const imgPath = (p.image && (p.image.startsWith('http') || p.image.startsWith('data:') || p.image.startsWith('blob:') || p.image.startsWith('/'))) ? p.image : ('../' + (p.image || 'image/hero-banner.jpg').replace(/^\/+/, ''));
       const statusBadge = p.status === 'pre_order'
         ? '<span class="status-badge" style="background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe;">Pre-Order</span>'
         : (p.status === 'sold_out' || p.stock <= 0
@@ -1899,18 +1899,65 @@
     const removeBtn = document.getElementById('btnRemoveProdImage');
     if (!img) return;
     if (url) {
-      const finalUrl = (url.startsWith('http') || url.startsWith('data:') || url.startsWith('blob:'))
+      const finalUrl = (url.startsWith('http') || url.startsWith('data:') || url.startsWith('blob:') || url.startsWith('/'))
         ? url
         : ('../' + url.replace(/^\/+/, ''));
       img.src = finalUrl;
       img.style.display = 'block';
-      if (text) text.textContent = url.length > 60 ? url.slice(0, 57) + '...' : url;
+      let displayText = url;
+      if (url.startsWith('data:')) {
+        displayText = 'Ảnh máy tính (Dữ liệu ảnh trực tiếp)';
+      } else if (url.startsWith('/api/images/')) {
+        displayText = `Ảnh hệ thống máy chủ (${url})`;
+      } else if (url.length > 60) {
+        displayText = url.slice(0, 57) + '...';
+      }
+      if (text) text.textContent = displayText;
       if (removeBtn) removeBtn.style.display = 'inline-flex';
     } else {
       img.style.display = 'none';
       if (text) text.textContent = 'Chưa chọn hình ảnh mô hình xe';
       if (removeBtn) removeBtn.style.display = 'none';
     }
+  }
+
+  function compressImageClientSide(file, maxWidth = 1200, maxHeight = 1200, quality = 0.85) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          let width = img.width;
+          let height = img.height;
+
+          if (width > maxWidth || height > maxHeight) {
+            if (width / height > maxWidth / maxHeight) {
+              height = Math.round((height * maxWidth) / width);
+              width = maxWidth;
+            } else {
+              width = Math.round((width * maxHeight) / height);
+              height = maxHeight;
+            }
+          }
+
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, width, height);
+
+          let compressed = canvas.toDataURL('image/webp', quality);
+          if (!compressed || !compressed.startsWith('data:image/webp')) {
+            compressed = canvas.toDataURL('image/jpeg', quality);
+          }
+          resolve(compressed);
+        };
+        img.onerror = () => resolve(e.target.result);
+        img.src = e.target.result;
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
   }
 
   async function handleProductImageFileUpload(input) {
@@ -1923,41 +1970,56 @@
       return;
     }
 
-    if (file.size > 8 * 1024 * 1024) {
-      adminToast('Dung lượng ảnh vượt quá 8MB. Vui lòng chọn ảnh nhỏ hơn!', 'error');
+    if (file.size > 10 * 1024 * 1024) {
+      adminToast('Dung lượng ảnh vượt quá 10MB. Vui lòng chọn ảnh nhỏ hơn!', 'error');
       input.value = '';
       return;
     }
 
     const previewText = document.getElementById('prodImagePreviewText');
-    if (previewText) previewText.textContent = `Đang tải: ${file.name} (${Math.round(file.size / 1024)} KB)...`;
+    const uploadBtn = document.querySelector('button[onclick*="prodImageFileInput"]');
+    const originalBtnHtml = uploadBtn ? uploadBtn.innerHTML : '';
+    if (uploadBtn) {
+      uploadBtn.disabled = true;
+      uploadBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Đang tải...';
+    }
 
-    const reader = new FileReader();
-    reader.onload = async function(e) {
-      const dataUrl = e.target.result;
+    if (previewText) previewText.textContent = `Đang xử lý & nén ảnh: ${file.name}...`;
+
+    try {
+      const dataUrl = await compressImageClientSide(file);
       updateProductImagePreview(dataUrl);
 
-      try {
-        const res = await api.post('/api/admin/upload-product-image', {
-          filename: file.name,
-          data: dataUrl
-        });
-        if (res && res.success && res.data && res.data.url) {
-          const finalUrl = res.data.url;
-          document.getElementById('prodImage').value = finalUrl;
-          updateProductImagePreview(finalUrl);
-          adminToast(`Đã tải ảnh "${file.name}" vào thư mục hệ thống thành công!`, 'success');
-        } else {
-          document.getElementById('prodImage').value = dataUrl;
-          adminToast(`Đã nạp ảnh "${file.name}" từ máy thành công!`, 'success');
-        }
-      } catch (err) {
-        console.warn('[IMAGE UPLOAD] Server upload error, using local fallback:', err);
+      if (previewText) previewText.textContent = `Đang tải ảnh lên hệ thống...`;
+
+      const res = await api.post('/api/admin/upload-product-image', {
+        filename: file.name,
+        data: dataUrl
+      });
+
+      if (res && res.success && res.data && res.data.url) {
+        const finalUrl = res.data.url;
+        document.getElementById('prodImage').value = finalUrl;
+        updateProductImagePreview(finalUrl);
+        adminToast(`Đã tải ảnh "${file.name}" lên hệ thống thành công!`, 'success');
+      } else {
         document.getElementById('prodImage').value = dataUrl;
-        adminToast(`Đã nạp ảnh "${file.name}" từ máy thành công!`, 'info');
+        adminToast(`Đã nạp ảnh "${file.name}" từ máy thành công!`, 'success');
       }
-    };
-    reader.readAsDataURL(file);
+    } catch (err) {
+      console.warn('[IMAGE UPLOAD] Server upload error, using local fallback:', err);
+      try {
+        const fallbackUrl = await compressImageClientSide(file);
+        document.getElementById('prodImage').value = fallbackUrl;
+        updateProductImagePreview(fallbackUrl);
+      } catch (_) {}
+      adminToast(`Đã nạp ảnh "${file.name}" từ máy thành công!`, 'info');
+    } finally {
+      if (uploadBtn) {
+        uploadBtn.disabled = false;
+        uploadBtn.innerHTML = originalBtnHtml;
+      }
+    }
   }
 
   function clearProductImage() {

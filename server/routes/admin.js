@@ -248,6 +248,27 @@ router.post('/upload-product-image', async (req, res, next) => {
       .slice(0, 40);
     const safeFilename = `${cleanName}_${Date.now()}.${ext}`;
 
+    // 1. Luôn lưu vào bảng UploadedImages trong database Supabase (tương thích 100% Vercel Serverless & Cloud)
+    let imageId = null;
+    try {
+      const dbRes = await db.query(`
+        INSERT INTO UploadedImages (Filename, MimeType, Data, FileSize, CreatedAt)
+        VALUES (@fn, @mime, @data, @sz, NOW())
+        RETURNING ImageId
+      `, {
+        fn: filename || safeFilename,
+        mime: mimeType,
+        data: rawData,
+        sz: fileBuffer.length
+      });
+      if (dbRes.recordset && dbRes.recordset.length > 0) {
+        imageId = Number(dbRes.recordset[0].ImageId ?? dbRes.recordset[0].imageid);
+      }
+    } catch (dbErr) {
+      console.warn('[ADMIN UPLOAD] Lưu DB UploadedImages lỗi:', dbErr.message);
+    }
+
+    // 2. Thử ghi file ra đĩa (dành cho môi trường Node server local)
     const uploadsDir = path.join(__dirname, '..', '..', 'image', 'uploads');
     let savedUrl = '';
     let writeSuccess = false;
@@ -264,13 +285,15 @@ router.post('/upload-product-image', async (req, res, next) => {
       console.warn('[ADMIN UPLOAD] Ghi đĩa bị chặn (môi trường serverless):', fsErr.message);
     }
 
-    const finalUrl = writeSuccess ? savedUrl : rawData;
+    // Ưu tiên trả về /api/images/:id nếu có imageId, hoặc savedUrl nếu ghi disk thành công, hoặc fallback rawData
+    const finalUrl = imageId ? `/api/images/${imageId}` : (writeSuccess ? savedUrl : rawData);
 
     return ok(res, {
       url: finalUrl,
+      imageId,
       filename: safeFilename,
       size: fileBuffer.length,
-      storage: writeSuccess ? 'disk' : 'inline_base64'
+      storage: imageId ? 'database' : (writeSuccess ? 'disk' : 'inline_base64')
     }, 'Tải ảnh mô hình lên thành công!');
   } catch (error) {
     next(error);
@@ -331,7 +354,30 @@ router.post('/products', async (req, res, next) => {
     }
     const stock = stockBox + stockCard;
 
-    const imageUrl = String(req.body.imageUrl || req.body.image || 'image/hero-banner.jpg').trim();
+    let imageUrl = String(req.body.imageUrl || req.body.image || 'image/hero-banner.jpg').trim();
+    if (imageUrl.startsWith('data:')) {
+      try {
+        let mimeType = 'image/webp';
+        const matches = imageUrl.match(/^data:([a-zA-Z0-9\/+.-]+);base64,(.+)$/);
+        if (matches) mimeType = matches[1].toLowerCase();
+        const dbRes = await db.query(`
+          INSERT INTO UploadedImages (Filename, MimeType, Data, FileSize, CreatedAt)
+          VALUES (@fn, @mime, @data, @sz, NOW())
+          RETURNING ImageId
+        `, {
+          fn: `${sku || 'car'}_${Date.now()}`,
+          mime: mimeType,
+          data: imageUrl,
+          sz: Math.round(imageUrl.length * 0.75)
+        });
+        if (dbRes.recordset && dbRes.recordset.length > 0) {
+          const imgId = Number(dbRes.recordset[0].ImageId ?? dbRes.recordset[0].imageid);
+          imageUrl = `/api/images/${imgId}`;
+        }
+      } catch (upErr) {
+        console.warn('[PRODUCT CREATE] Auto-save base64 error:', upErr.message);
+      }
+    }
     const description = String(req.body.description || '').trim() || null;
     let status = ['in_stock', 'pre_order', 'sold_out'].includes(req.body.status) ? req.body.status : 'in_stock';
     if (stock === 0 && status !== 'pre_order') status = 'sold_out';
@@ -480,9 +526,32 @@ router.put('/products/:id', async (req, res, next) => {
     }
     const stock = stockBox + stockCard;
 
-    const imageUrl = req.body.imageUrl !== undefined
+    let imageUrl = req.body.imageUrl !== undefined
       ? String(req.body.imageUrl).trim()
       : (req.body.image !== undefined ? String(req.body.image).trim() : existing.ImageUrl);
+    if (imageUrl && imageUrl.startsWith('data:')) {
+      try {
+        let mimeType = 'image/webp';
+        const matches = imageUrl.match(/^data:([a-zA-Z0-9\/+.-]+);base64,(.+)$/);
+        if (matches) mimeType = matches[1].toLowerCase();
+        const dbRes = await db.query(`
+          INSERT INTO UploadedImages (Filename, MimeType, Data, FileSize, CreatedAt)
+          VALUES (@fn, @mime, @data, @sz, NOW())
+          RETURNING ImageId
+        `, {
+          fn: `${existing.Sku || 'car'}_${Date.now()}`,
+          mime: mimeType,
+          data: imageUrl,
+          sz: Math.round(imageUrl.length * 0.75)
+        });
+        if (dbRes.recordset && dbRes.recordset.length > 0) {
+          const imgId = Number(dbRes.recordset[0].ImageId ?? dbRes.recordset[0].imageid);
+          imageUrl = `/api/images/${imgId}`;
+        }
+      } catch (upErr) {
+        console.warn('[PRODUCT UPDATE] Auto-save base64 error:', upErr.message);
+      }
+    }
     const description = req.body.description !== undefined
       ? (String(req.body.description).trim() || null)
       : existing.Description;
