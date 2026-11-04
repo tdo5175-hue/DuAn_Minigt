@@ -1528,9 +1528,7 @@
     if (topNameEl) topNameEl.textContent = displayName;
     const av = currentAdminUser.avatarUrl || currentAdminUser.AvatarUrl;
     if (avatarEl && av) {
-      avatarEl.src = av.startsWith('http')
-        ? av
-        : ('../' + av.replace(/^\/+/, ''));
+      avatarEl.src = resolveAdminImageUrl(av);
     }
   }
 
@@ -1744,7 +1742,7 @@
     container.innerHTML = items.map((it, idx) => `
       <div style="display:flex; align-items:center; gap:12px; padding:10px 0; border-bottom:1px solid #f1f5f9;">
         <span style="font-weight:800; font-size:14px; width:22px; color:${idx === 0 ? '#e10600' : '#64748b'};">#${idx + 1}</span>
-        <img src="../${it.image.replace(/^\/+/, '')}" alt="${escapeHtml(it.name)}" style="width:48px; height:48px; object-fit:contain; border-radius:6px; background:#f8fafc; border:1px solid #e2e8f0;">
+        <img src="${resolveAdminImageUrl(it.image || it.imageUrl)}" onerror="this.onerror=null; this.src='../image/hero-banner.jpg';" alt="${escapeHtml(it.name)}" style="width:48px; height:48px; object-fit:contain; border-radius:6px; background:#f8fafc; border:1px solid #e2e8f0;">
         <div style="flex:1; min-width:0;">
           <div style="font-size:12.5px; font-weight:700; color:#0f172a; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
             ${escapeHtml(it.name)}
@@ -2765,32 +2763,39 @@
 
   function resolveAdminImageUrl(url) {
     if (!url) return '../image/hero-banner.jpg';
+    let clean = String(url).trim();
+    // Loại bỏ các tiền tố ../ hoặc ./ nếu đã bị nối thừa
+    clean = clean.replace(/^(?:\.\.\/|\.\/)+/, '');
+
     const isLocal = typeof api !== 'undefined' && typeof api.isLocalEnvironment === 'function'
       ? api.isLocalEnvironment()
       : (window.location && (['localhost', '127.0.0.1', '0.0.0.0'].includes(window.location.hostname) || window.location.protocol === 'file:'));
 
-    const apiMatch = url.match(/^(?:https?:\/\/[^\/]+(?::\d+)?)?\/?(?:api\/)?images\/(\d+)(?:\?.*)?$/i);
+    // Bắt mọi biến thể đường dẫn /api/images/:id, api/images/:id, images/:id
+    const apiMatch = clean.match(/^(?:https?:\/\/[^\/]+(?::\d+)?)?\/?(?:api\/)?images\/(\d+)(?:\?.*)?$/i);
     if (apiMatch) {
       const imgId = apiMatch[1];
+      // Khi chạy trên Vercel hoặc chính cổng 5000:
       if (!isLocal || (window.location && String(window.location.port) === '5000')) {
         return `/api/images/${imgId}`;
       }
+      // Khi đang chạy Live Server (5500, 5501...), cổng backend phục vụ ảnh là 5000:
       const host = (window.location && window.location.hostname && window.location.hostname !== '0.0.0.0' && window.location.protocol !== 'file:')
         ? window.location.hostname
         : '127.0.0.1';
       return `http://${host}:5000/api/images/${imgId}`;
     }
 
-    if (url.startsWith('http://127.0.0.1:5000/') || url.startsWith('http://localhost:5000/')) {
+    if (clean.startsWith('http://127.0.0.1:5000/') || clean.startsWith('http://localhost:5000/')) {
       if (!isLocal) {
-        return url.replace(/^https?:\/\/[^\/]+/, '');
+        return clean.replace(/^https?:\/\/[^\/]+/, '');
       }
     }
 
-    if (url.startsWith('data:') || url.startsWith('blob:') || url.startsWith('http://') || url.startsWith('https://')) {
-      return url;
+    if (clean.startsWith('data:') || clean.startsWith('blob:') || clean.startsWith('http://') || clean.startsWith('https://')) {
+      return clean;
     }
-    return '../' + url.replace(/^\/+/, '');
+    return '../' + clean.replace(/^\/+/, '');
   }
   window.resolveAdminImageUrl = resolveAdminImageUrl;
 
@@ -3426,11 +3431,11 @@
       }
       if (!itName) itName = 'Mô hình Diecast 1:64';
       if (!img) img = 'image/hero-banner.jpg';
-      let finalImg = img.startsWith('http') ? img : ('../' + img.replace(/^\/+/, ''));
+      let finalImg = resolveAdminImageUrl(img);
 
       return `
         <div class="order-item-chip" title="${escapeHtml(itName)}">
-          <img src="${finalImg}" onerror="this.src='../image/hero-banner.jpg'" alt="" style="width:24px; height:24px; object-fit:contain; border-radius:4px; border:1px solid #e2e8f0; background:#fff; flex-shrink:0;">
+          <img src="${finalImg}" onerror="this.onerror=null; this.src='../image/hero-banner.jpg';" alt="" style="width:24px; height:24px; object-fit:contain; border-radius:4px; border:1px solid #e2e8f0; background:#fff; flex-shrink:0;">
           <div style="flex:1; min-width:0; overflow:hidden;">
             <div style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:160px; font-weight:700; font-size:11.5px; color:#0f172a;">
               ${escapeHtml(itName)}
@@ -6137,9 +6142,7 @@ Anh/chị phản hồi giúp shop để kiện xe được đóng gói gửi đi
       const contactLine = [c.customer_phone, c.customer_email].filter(Boolean).join(' • ') || `Phiên #${cid}`;
       const timeStr = formatAdminChatTimestamp(c.latest_pending_time || c.last_message_time || c.updated_at);
 
-      const avatarSrc = c.customer_avatar
-        ? (c.customer_avatar.startsWith('http') ? c.customer_avatar : ('../' + c.customer_avatar.replace(/^\/+/, '')))
-        : '';
+      const avatarSrc = c.customer_avatar ? resolveAdminImageUrl(c.customer_avatar) : '';
       const avatarHtml = avatarSrc
         ? `<img src="${escapeHtml(avatarSrc)}" alt="${escapeHtml(custName)}" onerror="this.parentElement.textContent='${escapeHtml(getInitials(custName))}'">`
         : escapeHtml(getInitials(custName));
@@ -6261,9 +6264,7 @@ Anh/chị phản hồi giúp shop để kiện xe được đóng gói gửi đi
     if (titleEl) titleEl.textContent = custName;
 
     if (avatarEl) {
-      const avSrc = conv.customer_avatar
-        ? (conv.customer_avatar.startsWith('http') ? conv.customer_avatar : ('../' + conv.customer_avatar.replace(/^\/+/, '')))
-        : '';
+      const avSrc = conv.customer_avatar ? resolveAdminImageUrl(conv.customer_avatar) : '';
       avatarEl.innerHTML = avSrc
         ? `<img src="${escapeHtml(avSrc)}" alt="${escapeHtml(custName)}" onerror="this.parentElement.textContent='${escapeHtml(getInitials(custName))}'">`
         : escapeHtml(getInitials(custName));
