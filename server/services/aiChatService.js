@@ -21,6 +21,9 @@ const db = require('../config/db');
 const settingsService = require('./settingsService');
 const couponService = require('./couponService');
 const { calcDiscountedPrice } = require('./productService');
+// v6: Bộ đọc hiểu tiếng Việt 0-token + Bản đồ tri thức website (chạy hoàn toàn trên RAM)
+const { normalizeVietnamese, setVocabulary } = require('./aiVietNormalizer');
+const { searchKnowledge, docPlainText, allKeyPhrases } = require('./aiSiteKnowledge');
 
 const SHOP = {
   name: 'MINI GT STORE BIÊN HÒA',
@@ -94,6 +97,7 @@ function invalidateStoreCache() {
   lastFetch = 0;
   lastCatalogFingerprint = '';
   lastFingerprintCheckAt = 0;
+  vocabInitialized = false;
 }
 
 function getCatalogSignature() {
@@ -211,14 +215,53 @@ function cleanText(str) {
   return normalize(str).replace(/[/-]/g, ' ').replace(/\s+/g, ' ').trim();
 }
 
+let vocabInitialized = false;
+
+function buildSiteVocabulary(products = []) {
+  const words = [
+    // Hãng & dòng xe diecast 1:64
+    'mini', 'gt', 'minigt', 'tsm', 'pop', 'race', 'poprace', 'kaido', 'house', 'jun', 'imai',
+    'lbwk', 'liberty', 'walk', 'widebody', 'silhouette', 'super', 'f1', 'formula', 'grand', 'prix',
+    'imsa', 'gt3', 'porsche', 'rexy', 'roxy', 'skeleton', 'ao', 'racing', 'red', 'bull', 'verstappen',
+    'alonso', 'stroll', 'aston', 'martin', 'amr24', 'rb18', 'rb19', 'supra', 'skyline', 'silvia',
+    'lamborghini', 'huracan', 'sterrato', 'sto', 'bmw', 'm4', 'diecast', 'die-cast', 'chase',
+    // Tác giả & trường
+    'thinh', 'nam', 'do', 'quoc', 'nguyen', 'dinh', 'lac', 'hong', 'lhu',
+    // Tính năng & chính sách
+    'box', 'card', 'blister', 'saver', 'protector', 'vietqr', 'payos', 'spx', 'express',
+    'cod', 'preorder', 'voucher', 'coupon', 'freeship', 'showroom', 'bien', 'hoa', 'dong', 'nai'
+  ];
+
+  if (Array.isArray(products)) {
+    for (const p of products) {
+      if (p.Sku) words.push(String(p.Sku).toLowerCase().replace(/[^a-z0-9]/g, ''));
+      if (p.Brand) words.push(...String(p.Brand).toLowerCase().split(/\s+/));
+      if (p.Name) words.push(...cleanText(p.Name).split(/\s+/));
+      if (p.CategoryName) words.push(...cleanText(p.CategoryName).split(/\s+/));
+    }
+  }
+
+  try {
+    for (const phrase of allKeyPhrases()) {
+      words.push(...phrase.split(/\s+/));
+    }
+  } catch (_) {}
+
+  setVocabulary(words);
+  vocabInitialized = true;
+}
+
+function ensureVocabulary() {
+  if (!vocabInitialized) {
+    buildSiteVocabulary(cachedProducts);
+  }
+}
+
 function expandSlang(text) {
   if (!text) return '';
-  return text
-    .split(' ')
-    .map(tok => (Object.prototype.hasOwnProperty.call(SLANG_MAP, tok) ? SLANG_MAP[tok] : tok))
-    .join(' ')
-    .replace(/\s+/g, ' ')
-    .trim();
+  // Giữ tương thích ngược: dùng bộ chuẩn hóa tiếng Việt v6 theo ngữ cảnh
+  ensureVocabulary();
+  return normalizeVietnamese(text);
 }
 
 function stripHtmlCompact(str, maxLen = 190) {
@@ -432,6 +475,7 @@ async function getStoreData(force = false) {
     lastCatalogFingerprint = (await queryLiveCatalogFingerprint()) || `${cachedProducts.length}:${now}`;
     lastFingerprintCheckAt = Date.now();
     lastFetch = lastFingerprintCheckAt;
+    buildSiteVocabulary(cachedProducts);
   } catch (err) {
     console.warn('[AI CHAT v5] Không tải được dữ liệu cửa hàng:', err.message);
   }
@@ -792,7 +836,7 @@ function detectEscalation(ctx) {
     if (ctx.intents.orderTracking && /(?:\+?84|0)(3|5|7|8|9)\d{8}\b/.test(ctx.raw.replace(/[\s.\-()]/g, ''))) return null;
     return 'order_support';
   }
-  if (hasAny(t, ESC.human)) return 'customer_request';
+  if (hasAny(t, ESC.human) || (hasAny(t, ['gap', 'lien he', 'noi chuyen']) && hasAny(t, ['admin', 'quan ly', 'chu shop', 'nguoi that', 'chu web']))) return 'customer_request';
   if (hasAny(t, ESC.customMod)) return 'not_understood';
   if (ctx.intents.creatorAsk || ctx.intents.botIdentity) return null;
   if (hasAny(t, ESC.negative)) return 'complaint_defect';
@@ -1978,6 +2022,21 @@ async function runEngine(ctx, history, opts) {
   if (I.botIdentity && !found.length) return KNOWLEDGE.botIdentity(opts);
   if (I.botCapability && !found.length) return KNOWLEDGE.botCapability();
 
+  // 3b. Tri thức tính năng website / định nghĩa chuyên sâu (chạy trên RAM, 0 token)
+  const kHit = searchKnowledge(ctx.text);
+  if (kHit && kHit.doc) {
+    const isDef = kHit.doc.definition && (kHit.isDefinitionQuestion || !found.length);
+    const isStrongSiteFeature = kHit.strong && !ctx.explicitCouponCode && !ctx.price && !ctx.qty;
+    if (isDef || isStrongSiteFeature) {
+      const kRes = kHit.doc.answer(SHOP, formatVnd, { products, coupons });
+      return reply(
+        kRes.message,
+        kRes.suggestions || ['Xe nào đang giảm giá?', 'Shop có mã giảm giá không?', 'Ai là người tạo web này?'],
+        { matchedProducts: kRes.matchedProducts || [] }
+      );
+    }
+  }
+
   // 4. Kết hợp sản phẩm tìm được & bộ nhớ ngữ cảnh hội thoại
   const memory = getContextProducts(history, products);
 
@@ -2115,7 +2174,17 @@ async function runEngine(ctx, history, opts) {
     );
   }
 
-  // 10. Câu hỏi thực sự nằm ngoài tri thức của AI -> tự động chuyển thông báo + ngữ cảnh lên Admin
+  // 10. Tra cứu lại kho tri thức website trước khi phải chuyển Admin
+  if (kHit && kHit.doc && kHit.score >= 5) {
+    const kRes = kHit.doc.answer(SHOP, formatVnd, { products, coupons });
+    return reply(
+      kRes.message,
+      kRes.suggestions || ['Xe nào đang giảm giá?', 'Shop có mã giảm giá không?', 'Ai là người tạo web này?'],
+      { matchedProducts: kRes.matchedProducts || [] }
+    );
+  }
+
+  // 11. Câu hỏi thực sự nằm ngoài tri thức của AI -> tự động chuyển thông báo + ngữ cảnh lên Admin
   return {
     message: buildEscalationMessage('not_understood', ctx.raw),
     suggestions: ['Xe nào đang giảm giá?', 'Shop có mã giảm giá không?', 'Ai là người tạo web này?'],
@@ -2146,7 +2215,17 @@ function buildMicroRagContext(ctx, history, products, coupons) {
   const coupLines = coupons.map(c =>
     `• ${c.code}: ${c.discountType === 'percent' ? `-${c.discountValue}%` : `-${formatVnd(c.discountValue)}`} (đơn từ ${formatVnd(c.minOrderAmount)})`
   ).join('\n');
-  return `Tổng kho: ${products.length} mẫu.\nMẫu liên quan nhất:\n${prodLines}${coupLines ? `\nVoucher:\n${coupLines}` : ''}`;
+
+  const kHit = searchKnowledge(ctx.text);
+  let knowledgeSnippet = '';
+  if (kHit && kHit.doc) {
+    const docText = docPlainText(kHit.doc, SHOP, formatVnd, { products, coupons });
+    if (docText) {
+      knowledgeSnippet = `\nTri thức web liên quan [${kHit.doc.title}]: ${docText}`;
+    }
+  }
+
+  return `Tổng kho: ${products.length} mẫu.\nMẫu liên quan nhất:\n${prodLines}${coupLines ? `\nVoucher:\n${coupLines}` : ''}${knowledgeSnippet}`;
 }
 
 async function callGeminiApi(ctx, userMessage, history, opts) {
