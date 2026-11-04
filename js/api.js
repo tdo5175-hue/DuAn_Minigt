@@ -16,6 +16,7 @@
            h === '0.0.0.0' ||
            h.startsWith('192.168.') ||
            h.startsWith('10.') ||
+           /^172\.(1[6-9]|2\d|3[0-1])\./.test(h) ||
            h.endsWith('.local') ||
            global.location.protocol === 'file:';
   };
@@ -40,10 +41,12 @@
       return '';
     }
 
-    // 2. Môi trường cục bộ (Live Server 5500, localhost, 127.0.0.1, file:):
-    // Ưu tiên kết nối trực tiếp tới Server Node.js port 5000 để gửi Gmail OTP thật & đồng bộ Supabase
+    // 2. Môi trường cục bộ & Điện thoại kết nối qua LAN / Wi-Fi / Hotspot (Live Server 5500, 192.168.x.x, localhost, file:):
+    // Trỏ đúng về hostname của máy chủ chạy Node.js port 5000 để điện thoại truy cập API & AI Chat mượt mà
     if (isLocalEnvironment()) {
-      return 'http://127.0.0.1:5000';
+      const host = (global.location && global.location.hostname) ? global.location.hostname : '';
+      const targetHost = (!host || host === '0.0.0.0' || global.location.protocol === 'file:') ? '127.0.0.1' : host;
+      return `http://${targetHost}:5000`;
     }
 
     // 3. Nếu chạy trên Vercel: sử dụng relative API /api (được proxy sang Render & Supabase qua vercel.json)
@@ -737,14 +740,29 @@
     const apiMatch = url.match(/^(?:https?:\/\/[^\/]+(?::\d+)?)?\/?(?:api\/)?images\/(\d+)(?:\?.*)?$/i);
     if (apiMatch) {
       const imgId = apiMatch[1];
+      // Nếu chạy trên Vercel / Production web (hoặc trên chính cổng 5000):
+      // Luôn trả về đường dẫn tương đối /api/images/:id để trình duyệt tự động dùng đúng domain và https
+      if (!isLocalEnvironment() || (global.location && String(global.location.port) === '5000')) {
+        return `/api/images/${imgId}`;
+      }
       const host = (API_BASE && !localServerOffline)
         ? API_BASE.replace(/\/+$/, '')
         : CLOUD_BACKEND_URL.replace(/\/+$/, '');
       return `${host}/api/images/${imgId}`;
     }
 
+    // Nếu ảnh là URL localhost nhưng đang chạy trên môi trường không phải local -> chuyển thành tương đối
+    if (url.startsWith('http://127.0.0.1:5000/') || url.startsWith('http://localhost:5000/')) {
+      if (!isLocalEnvironment()) {
+        return url.replace(/^https?:\/\/[^\/]+/, '');
+      }
+    }
+
     if (url.startsWith('/') && API_BASE && !localServerOffline && (url.startsWith('/api/') || url.startsWith('/images/'))) {
-      return `${API_BASE.replace(/\/+$/, '')}${url}`;
+      if (isLocalEnvironment()) {
+        return `${API_BASE.replace(/\/+$/, '')}${url}`;
+      }
+      return url;
     }
 
     return url;
@@ -1537,7 +1555,7 @@
       upsertSharedOrder(d);
     }
 
-    // Tự động đồng bộ sản phẩm vào bộ nhớ dùng chung khi admin cập nhật hoặc thêm mới
+    // Tự động đồng bộ sản phẩm vào bộ nhớ dùng chung khi admin thêm mới, sửa hoặc xóa
     if ((method === 'PUT' || method === 'POST') && endpoint.includes('/admin/products') && d) {
       const all = getSharedProducts();
       const norm = normalizeProductObject(d);
@@ -1550,6 +1568,18 @@
       }
       saveSharedProducts(all);
       emitRealtimeSync('PRODUCTS_UPDATED', norm);
+    } else if (method === 'DELETE' && endpoint.includes('/admin/products/')) {
+      const delMatch = endpoint.match(/\/admin\/products\/(\d+)/);
+      const delId = Number((d && (d.productId || d.id)) || (delMatch && delMatch[1]) || 0);
+      if (delId > 0) {
+        const nextAll = getSharedProducts().filter(p => Number(p.id || p.ProductId) !== delId);
+        saveSharedProducts(nextAll);
+      }
+      emitRealtimeSync('PRODUCTS_UPDATED', { deletedProductId: delId });
+    } else if (method !== 'GET' && endpoint.includes('/admin/coupons')) {
+      emitRealtimeSync('COUPONS_UPDATED', d || {});
+    } else if (method !== 'GET' && endpoint.includes('/admin/settings')) {
+      emitRealtimeSync('SETTINGS_UPDATED', d || {});
     }
   };
 
@@ -3106,6 +3136,9 @@
     }
 
     const config = Object.assign({}, options, { headers });
+    if (method === 'GET' && (endpoint.includes('/products') || endpoint.includes('/chat') || endpoint.includes('/settings')) && !config.cache) {
+      config.cache = 'no-store';
+    }
 
     let response;
     try {
@@ -3188,6 +3221,10 @@
     // Nếu lấy danh sách hoặc chi tiết sản phẩm từ backend, chuẩn hóa Giá Box / Giá Card, % Giảm giá, Ảnh Gallery & Đã bán thật
     if (method === 'GET' && endpoint.includes('/products') && data && Array.isArray(data.data)) {
       data.data = data.data.map(normalizeProductObject);
+      // Đồng bộ ngược danh sách sản phẩm sống từ PostgreSQL vào LocalStorage để không bao giờ bị tồn đọng xe đã xóa / giá cũ
+      if (/^\/(?:api\/)?products(?:\?(?:limit=\d+|_=\d+)(?:&(?:limit=\d+|_=\d+))*)?$/i.test(endpoint)) {
+        try { saveSharedProducts(data.data); } catch (_) {}
+      }
     } else if (
       !endpoint.includes('/reviews') &&
       (endpoint.includes('/products/') || endpoint === '/api/admin/products' || endpoint === '/admin/products') &&

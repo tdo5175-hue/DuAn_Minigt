@@ -258,6 +258,10 @@ router.post('/message', optionalAuth, async (req, res, next) => {
           ORDER BY id ASC LIMIT 1
         `, { cid: convId, uid: prevUserMsg.id });
         const existingBotMsg = followBotRes.recordset?.[0] || null;
+        await aiChatService.getStoreData();
+        const dupCards = existingBotMsg
+          ? aiChatService.resolveProductCardsBySkus(aiChatService.extractSkusFromText(existingBotMsg.message))
+          : [];
         const pendingCnt = await getPendingAdminCount(convId);
 
         const dupPayload = {
@@ -265,7 +269,9 @@ router.post('/message', optionalAuth, async (req, res, next) => {
           userMessage: prevUserMsg,
           botMessage: existingBotMsg,
           suggestions: [],
-          matchedProducts: [],
+          matchedProducts: dupCards.map(c => c.sku),
+          matchedProductCards: dupCards,
+          catalogSig: aiChatService.getCatalogSignature(),
           status: conv.status,
           isEscalated: Boolean(prevUserMsg.needs_admin_reply),
           pendingAdminCount: pendingCnt,
@@ -407,6 +413,8 @@ router.post('/message', optionalAuth, async (req, res, next) => {
       botMessage: savedBotMsg,
       suggestions: botResult.suggestions || [],
       matchedProducts: botResult.matchedProducts || [],
+      matchedProductCards: botResult.matchedProductCards || [],
+      catalogSig: botResult.catalogSig || aiChatService.getCatalogSignature(),
       status: nextStatus,
       isEscalated: Boolean(botResult.isEscalated),
       escalationReason: botResult.reason || null,
@@ -423,17 +431,37 @@ router.post('/message', optionalAuth, async (req, res, next) => {
   }
 });
 
+function enrichMessagesWithLiveCards(rows = []) {
+  if (!Array.isArray(rows) || !rows.length) return [];
+  return rows.map(m => {
+    if (m && m.sender_type === 'bot' && !m.is_escalation) {
+      const skus = aiChatService.extractSkusFromText(m.message);
+      if (skus.length > 0) {
+        const cards = aiChatService.resolveProductCardsBySkus(skus);
+        return {
+          ...m,
+          matchedProducts: cards.map(c => c.sku),
+          matchedProductCards: cards
+        };
+      }
+    }
+    return m;
+  });
+}
+
 /**
- * 2. GET /api/chat/messages — Lấy lịch sử chat khách hàng (hỗ trợ Incremental Sync `sinceId` tiết kiệm 95% băng thông)
+ * 2. GET /api/chat/messages — Lấy lịch sử chat khách hàng (hỗ trợ Incremental Sync `sinceId` + Đồng bộ thẻ sản phẩm sống)
  */
 router.get('/messages', async (req, res, next) => {
   try {
     await ensureChatSchema();
+    await aiChatService.getStoreData();
+    const catalogSig = aiChatService.getCatalogSignature();
 
     const sessionId = String(req.query.sessionId || '').trim();
     const sinceId = Math.max(0, parseInt(req.query.sinceId, 10) || 0);
     if (!sessionId) {
-      return ok(res, { conversation: null, messages: [], resolvedIds: [] });
+      return ok(res, { conversation: null, messages: [], resolvedIds: [], catalogSig });
     }
 
     const convRes = await db.query(`
@@ -444,7 +472,7 @@ router.get('/messages', async (req, res, next) => {
       LIMIT 1
     `, { sid: sessionId });
     if (convRes.recordset.length === 0) {
-      return ok(res, { conversation: null, messages: [], resolvedIds: [] });
+      return ok(res, { conversation: null, messages: [], resolvedIds: [], catalogSig });
     }
 
     const conv = convRes.recordset[0];
@@ -483,7 +511,8 @@ router.get('/messages', async (req, res, next) => {
           unchanged: true,
           status: conv.status,
           pendingAdminCount: Number(conv.pending_admin_count || 0),
-          resolvedIds
+          resolvedIds,
+          catalogSig
         });
       }
 
@@ -491,8 +520,9 @@ router.get('/messages', async (req, res, next) => {
         unchanged: false,
         incremental: true,
         conversation: conv,
-        messages: newMsgs,
-        resolvedIds
+        messages: enrichMessagesWithLiveCards(newMsgs),
+        resolvedIds,
+        catalogSig
       });
     }
 
@@ -510,8 +540,9 @@ router.get('/messages', async (req, res, next) => {
       unchanged: false,
       incremental: false,
       conversation: conv,
-      messages: msgsRes.recordset,
-      resolvedIds
+      messages: enrichMessagesWithLiveCards(msgsRes.recordset),
+      resolvedIds,
+      catalogSig
     });
   } catch (err) {
     next(err);

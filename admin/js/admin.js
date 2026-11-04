@@ -2765,12 +2765,30 @@
 
   function resolveAdminImageUrl(url) {
     if (!url) return '../image/hero-banner.jpg';
+    const isLocal = typeof api !== 'undefined' && typeof api.isLocalEnvironment === 'function'
+      ? api.isLocalEnvironment()
+      : (window.location && (['localhost', '127.0.0.1', '0.0.0.0'].includes(window.location.hostname) || window.location.protocol === 'file:'));
+
+    const apiMatch = url.match(/^(?:https?:\/\/[^\/]+(?::\d+)?)?\/?(?:api\/)?images\/(\d+)(?:\?.*)?$/i);
+    if (apiMatch) {
+      const imgId = apiMatch[1];
+      if (!isLocal || (window.location && String(window.location.port) === '5000')) {
+        return `/api/images/${imgId}`;
+      }
+      const host = (window.location && window.location.hostname && window.location.hostname !== '0.0.0.0' && window.location.protocol !== 'file:')
+        ? window.location.hostname
+        : '127.0.0.1';
+      return `http://${host}:5000/api/images/${imgId}`;
+    }
+
+    if (url.startsWith('http://127.0.0.1:5000/') || url.startsWith('http://localhost:5000/')) {
+      if (!isLocal) {
+        return url.replace(/^https?:\/\/[^\/]+/, '');
+      }
+    }
+
     if (url.startsWith('data:') || url.startsWith('blob:') || url.startsWith('http://') || url.startsWith('https://')) {
       return url;
-    }
-    if (url.startsWith('/api/images/') || url.startsWith('/images/')) {
-      const base = (typeof api !== 'undefined' && api.BASE_URL) ? api.BASE_URL : '';
-      return base ? `${base.replace(/\/+$/, '')}${url}` : url;
     }
     return '../' + url.replace(/^\/+/, '');
   }
@@ -5935,7 +5953,7 @@ Anh/chị phản hồi giúp shop để kiện xe được đóng gói gửi đi
     if (!str) return '';
     return String(str)
       .replace(/\*\*(.*?)\*\*/g, '$1')
-      .replace(/\[((?:MGT|MG|PR|KH)[A-Z0-9\-]+)\]/g, '#$1')
+      .replace(/\[([A-Z0-9][A-Z0-9\-_]{2,20})\]/g, (_, s) => (s === 'SKU' || s === 'ESCALATE' ? `[${s}]` : `#${s}`))
       .replace(/\s+/g, ' ')
       .trim();
   }
@@ -5945,8 +5963,8 @@ Anh/chị phản hồi giúp shop để kiện xe được đóng gói gửi đi
     let html = escapeHtml(str);
     html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
     if (!isAdminBubble) {
-      html = html.replace(/\[((?:MGT|MG|PR|KH)[A-Z0-9\-]+)\]/g, '<span class="admin-msg-sku-pill">#$1</span>');
-      html = html.replace(/#((?:MGT|MG|PR|KH)[A-Z0-9\-]+)/g, '<span class="admin-msg-sku-pill">#$1</span>');
+      html = html.replace(/\[([A-Z0-9][A-Z0-9\-_]{2,20})\]/g, (full, s) => (s === 'SKU' || s === 'ESCALATE' ? full : `<span class="admin-msg-sku-pill">#${s}</span>`));
+      html = html.replace(/#((?:MGT|MG|PR|KH|POP|INNO|TW)[A-Z0-9\-_]+)/g, '<span class="admin-msg-sku-pill">#$1</span>');
     }
     html = html.replace(/\n/g, '<br>');
     return html;

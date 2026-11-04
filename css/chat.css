@@ -8,7 +8,7 @@
   position: fixed;
   bottom: 26px;
   left: 24px;
-  z-index: 9998;
+  z-index: 988;
   width: 64px;
   height: 64px;
   border-radius: 50%;
@@ -222,10 +222,10 @@
   bottom: 102px;
   left: 24px;
   right: auto;
-  z-index: 9999;
+  z-index: 995;
   width: 395px;
   max-width: calc(100vw - 32px);
-  height: 545px;
+  height: 550px;
   max-height: calc(100vh - 130px);
   background: #ffffff;
   border-radius: 22px;
@@ -325,12 +325,36 @@
   gap: 8px;
 }
 
+.ai-header-zalo-mob {
+  display: none;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px 4px 5px;
+  border-radius: 999px;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  color: #0068ff;
+  font-size: 11.5px;
+  font-weight: 800;
+  text-decoration: none;
+  box-shadow: 0 2px 6px rgba(0, 104, 255, 0.12);
+  transition: all 0.2s ease;
+}
+
+.ai-header-zalo-mob img {
+  width: 20px;
+  height: 20px;
+  border-radius: 5px;
+  object-fit: contain;
+  display: block;
+}
+
 /* NÚT ZALO CHÍNH THỨC (HIỆN Ở MỤC DƯỚI KẾ BÉ BOT AI BÊN PHẢI KHI BẤM MỞ BOX CHAT) */
 .zalo-side-app-btn {
   position: fixed;
   bottom: 29px;
   left: 100px;
-  z-index: 9998;
+  z-index: 988;
   display: inline-flex;
   flex-direction: row;
   align-items: center;
@@ -619,6 +643,11 @@
   align-items: flex-start;
 }
 
+.chat-bubble-row.bot-msg.has-product-cards {
+  max-width: 96%;
+  width: 96%;
+}
+
 .chat-bubble {
   padding: 11px 15px;
   font-size: 13px;
@@ -752,6 +781,7 @@
 }
 
 .ai-mini-card-badge.in-stock { background: #dcfce7; color: #166534; }
+.ai-mini-card-badge.on-sale { background: #fee2e2; color: #dc2626; border: 1px solid #fecaca; }
 .ai-mini-card-badge.pre-order { background: #fef3c7; color: #92400e; }
 .ai-mini-card-badge.sold-out { background: #fee2e2; color: #991b1b; }
 
@@ -1043,47 +1073,191 @@
   border-color: #a7f3d0;
 }
 
-/* 8. RESPONSIVE ĐIỆN THOẠI */
-@media (max-width: 576px) {
+/* Thông báo yêu cầu đăng nhập gọn gàng trong khung chat */
+.ai-chat-auth-hint {
+  background: #fffbeb;
+  border: 1px solid #fcd34d;
+  color: #92400e;
+  font-size: 11.5px;
+  font-weight: 600;
+  padding: 7px 11px;
+  border-radius: 11px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  line-height: 1.4;
+  animation: bubbleFadeIn 0.22s ease-out;
+}
+
+.ai-chat-auth-hint .btn-chat-login-now {
+  background: #e10600;
+  color: #ffffff;
+  border: none;
+  border-radius: 7px;
+  padding: 4px 10px;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  font-family: inherit;
+}
+
+/* 8. RESPONSIVE ĐIỆN THOẠI & TABLET NHỎ (<= 768px — CHUẨN BOTTOM SHEET MƯỢT MÀ) */
+@media (max-width: 768px) {
+  body.ai-chat-mobile-open {
+    overflow: hidden !important;
+    overscroll-behavior: none;
+  }
+
   .ai-chat-launcher {
-    bottom: 74px;
-    left: 14px;
-    width: 56px;
+    bottom: calc(70px + env(safe-area-inset-bottom, 0px));
+    left: 12px;
+    width: 52px;
+    height: 52px;
+    box-shadow: 0 8px 22px rgba(225, 6, 0, 0.22), 0 3px 8px rgba(15, 23, 42, 0.12);
+  }
+
+  .ai-robot-icon-wrap {
+    width: 38px;
+    height: 38px;
+  }
+
+  .ai-launcher-greeting {
+    display: none !important;
+  }
+
+  /* Khi mở Bottom Sheet trên điện thoại: ẩn nút nổi phía dưới để không che diện tích chat */
+  body.ai-chat-mobile-open .ai-chat-launcher,
+  body.ai-chat-mobile-open .zalo-side-app-btn {
+    opacity: 0 !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+  }
+
+  .ai-header-zalo-mob {
+    display: inline-flex;
+  }
+
+  .ai-chat-window {
+    left: 0;
+    right: 0;
+    bottom: var(--ai-vv-bottom, 0px);
+    width: 100%;
+    max-width: 100%;
+    height: var(--ai-vv-height, calc(100dvh - 8px));
+    max-height: 100dvh;
+    border-radius: 20px 20px 0 0;
+    border-left: none;
+    border-right: none;
+    border-bottom: none;
+    transform: translateY(100%);
+    transform-origin: bottom center;
+    box-shadow: 0 -12px 40px rgba(15, 23, 42, 0.24);
+  }
+
+  .ai-chat-window.active {
+    transform: translateY(0);
+  }
+
+  .ai-chat-header {
+    padding: 11px 14px;
+  }
+
+  .ai-chat-avatar {
+    width: 38px;
+    height: 38px;
+  }
+
+  .ai-chat-titles h4 {
+    font-size: 14.5px;
+  }
+
+  .btn-chat-close {
+    width: 34px;
+    height: 34px;
+    font-size: 15px;
+  }
+
+  .ai-chat-quick-chips {
+    padding: 8px 12px;
+    gap: 6px;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .quick-chip-btn {
+    padding: 6px 12px;
+    font-size: 11.5px;
+  }
+
+  .ai-chat-messages {
+    padding: 12px 12px 14px;
+    gap: 12px;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+  }
+
+  .chat-bubble-row {
+    max-width: 88%;
+  }
+
+  .chat-bubble-row.bot-msg.has-product-cards {
+    max-width: 98%;
+    width: 98%;
+  }
+
+  .ai-chat-mini-card {
+    padding: 9px 10px;
+    gap: 10px;
+  }
+
+  .ai-mini-card-thumb {
+    width: 72px;
     height: 56px;
   }
-  .ai-robot-icon-wrap {
+
+  .ai-mini-card-name {
+    font-size: 12px;
+  }
+
+  .ai-mini-card-prices {
+    font-size: 11px;
+    flex-wrap: wrap;
+    row-gap: 2px;
+  }
+
+  .ai-mini-card-actions {
+    gap: 6px;
+    margin-top: 5px;
+    flex-wrap: wrap;
+  }
+
+  .btn-card-quickview,
+  .btn-card-addcart {
+    padding: 4px 9px;
+    min-height: 28px;
+    font-size: 11px;
+    border-radius: 7px;
+  }
+
+  .ai-inline-sugg-pill {
+    padding: 5px 11px;
+    font-size: 11.5px;
+  }
+
+  .ai-chat-input-bar {
+    padding: 10px 12px calc(10px + env(safe-area-inset-bottom, 0px));
+  }
+
+  /* 16px ngăn chặn triệt để lỗi tự động phóng to (auto-zoom) trên iPhone Safari */
+  .ai-chat-input {
+    font-size: 16px;
+    padding: 9px 14px;
+  }
+
+  .ai-chat-send-btn {
     width: 40px;
     height: 40px;
-  }
-  .ai-launcher-greeting {
-    display: none;
-  }
-  .ai-chat-window {
-    bottom: 138px;
-    left: 12px;
-    right: 12px;
-    width: auto;
-    max-width: none;
-    height: 490px;
-  }
-  .zalo-side-app-btn {
-    left: 80px;
-    right: auto;
-    bottom: 77px;
-    top: auto;
-    gap: 7px;
-  }
-  .zalo-side-icon-box {
-    width: 48px;
-    height: 48px;
-    border-radius: 14px;
-    padding: 4px;
-  }
-  .zalo-side-badge {
-    padding: 4px 9px;
-  }
-  .zalo-side-badge strong,
-  .zalo-side-badge small {
-    font-size: 10.5px;
   }
 }

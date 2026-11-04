@@ -526,20 +526,44 @@ function clearWishlist() {
   showToast('Đã xóa tất cả mẫu xe khỏi danh sách yêu thích', 'info');
 }
 
-// Khởi tạo giỏ hàng người dùng (mặc định rỗng, tải từ bộ nhớ phiên hiện tại)
+let currentUser = null;
+try {
+  currentUser = JSON.parse(localStorage.getItem('minigt_user')) || null;
+} catch (_) {
+  currentUser = null;
+}
+let currentToken = localStorage.getItem('minigt_token') || null;
+let pendingPostLoginCartAction = null;
+
+function isCustomerAuthenticated() {
+  const u = (typeof api !== 'undefined' && api && typeof api.getCurrentUser === 'function')
+    ? api.getCurrentUser()
+    : currentUser;
+  const tok = (typeof api !== 'undefined' && api && typeof api.getToken === 'function')
+    ? api.getToken()
+    : currentToken;
+  return Boolean(u && tok);
+}
+
+// Khởi tạo giỏ hàng người dùng (CHỈ tải giỏ hàng khi đã đăng nhập hợp lệ; khách chưa đăng nhập luôn là giỏ rỗng)
 let savedCart = localStorage.getItem('minigt_cart');
 let cart = [];
-try {
-  if (savedCart) {
-    const parsed = JSON.parse(savedCart);
-    if (Array.isArray(parsed)) cart = parsed;
+if (currentUser && currentToken) {
+  try {
+    if (savedCart) {
+      const parsed = JSON.parse(savedCart);
+      if (Array.isArray(parsed)) cart = parsed;
+    }
+  } catch (_) {
+    cart = [];
   }
-} catch (_) {
+} else {
   cart = [];
+  try { localStorage.removeItem('minigt_cart'); } catch (_) {}
 }
 
 // Tự động chuẩn hóa ảnh và làm sạch cờ Pre-Order nếu cache trình duyệt còn lưu dữ liệu cũ
-if (Array.isArray(cart)) {
+if (Array.isArray(cart) && cart.length > 0) {
   cart.forEach(item => {
     if (!item.imageUrl || item.imageUrl.includes('amr24.webp')) item.imageUrl = 'image/aston-amr24-alonso.png';
     else if (item.imageUrl.includes('f1.webp')) item.imageUrl = 'image/aston-amr24-stroll.png';
@@ -554,8 +578,6 @@ if (Array.isArray(cart)) {
     }
   });
 }
-let currentUser = JSON.parse(localStorage.getItem('minigt_user')) || null;
-let currentToken = localStorage.getItem('minigt_token') || null;
 
 // =====================================================================
 // 3. TIỆN ÍCH ĐỊNH DẠNG (FORMATTERS)
@@ -910,58 +932,112 @@ function getSelectedPackForProduct(p) {
 }
 
 async function loadProducts() {
-  renderProductSkeletons('mainProductGrid', 8);
+  if (!allProducts || allProducts.length === 0) {
+    renderProductSkeletons('mainProductGrid', 8);
+  }
 
   try {
-    const json = await safeFetch('/api/products');
-    if (json.success && json.data && json.data.length > 0) {
+    const json = await safeFetch('/api/products?limit=200');
+    if (json && json.success && Array.isArray(json.data)) {
       allProducts = json.data.map(p => (window.api && window.api.normalizeProductObject) ? window.api.normalizeProductObject(p) : p);
-    } else {
+    } else if (!allProducts || allProducts.length === 0) {
       allProducts = FALLBACK_PRODUCTS.map(p => (window.api && window.api.normalizeProductObject) ? window.api.normalizeProductObject(p) : p);
     }
   } catch (err) {
     console.warn('Sử dụng dữ liệu cục bộ:', err.message);
-    allProducts = FALLBACK_PRODUCTS.map(p => (window.api && window.api.normalizeProductObject) ? window.api.normalizeProductObject(p) : p);
+    if (!allProducts || allProducts.length === 0) {
+      allProducts = FALLBACK_PRODUCTS.map(p => (window.api && window.api.normalizeProductObject) ? window.api.normalizeProductObject(p) : p);
+    }
   }
 
-  // Tự động kiểm tra và chuẩn hóa lại giỏ hàng theo trạng thái thực tế của sản phẩm
+  // Đồng bộ giỏ hàng 100% với sản phẩm sống (tự loại bỏ xe đã bị Admin xóa, cập nhật ngay giá/giảm giá/tồn kho vừa sửa)
   if (Array.isArray(cart) && cart.length > 0) {
     let cartModified = false;
+    const nextCart = [];
     cart.forEach(it => {
-      const p = allProducts.find(prod => (prod.ProductId || prod.id) == it.productId);
-      if (p) {
-        const isPre = String(p.Status || p.status || '').toLowerCase() === 'pre_order';
-        if (it.isPreOrder !== isPre) {
-          it.isPreOrder = isPre;
-          it.depositAmount = isPre ? Math.round((it.price || 350000) * 0.3) : 0;
-          cartModified = true;
-        }
-
-        // Tự động kiểm tra tính khả dụng của bản Box / Card trong giỏ
-        if (!isPre) {
-          const pricing = getProductBoxCardPricing(p);
-          const pack = it.packType || 'box';
-          const avail = pack === 'card' ? pricing.stockCard : pricing.stockBox;
-          if (avail <= 0) {
-            // Nếu bản hiện tại hết hàng nhưng bản còn lại còn hàng -> tự động chuyển sang bản còn hàng
-            if (pack === 'box' && pricing.isCardAvailable) {
-              it.packType = 'card';
-              it.price = pricing.finalPriceCard;
-              it.originalPrice = pricing.priceCard;
-              cartModified = true;
-            } else if (pack === 'card' && pricing.isBoxAvailable) {
-              it.packType = 'box';
-              it.price = pricing.finalPriceBox;
-              it.originalPrice = pricing.priceBox;
-              cartModified = true;
-            }
-          }
-        }
+      const p = allProducts.find(prod => Number(prod.ProductId || prod.id) === Number(it.productId || it.id));
+      if (!p) {
+        cartModified = true;
+        return; // Sản phẩm đã bị Admin xóa hoặc ẩn khỏi cửa hàng
       }
+      const pricing = getProductBoxCardPricing(p);
+      const statusLower = String(p.Status || p.status || '').toLowerCase();
+      const isPre = statusLower === 'pre_order';
+      if (statusLower === 'sold_out' || (!isPre && !pricing.isBoxAvailable && !pricing.isCardAvailable)) {
+        cartModified = true;
+        return;
+      }
+
+      let pack = it.packType || 'box';
+      if (pricing.packagingType === 'box_only') pack = 'box';
+      else if (pricing.packagingType === 'card_only') pack = 'card';
+      else if (!isPre) {
+        if (pack === 'box' && !pricing.isBoxAvailable && pricing.isCardAvailable) pack = 'card';
+        else if (pack === 'card' && !pricing.isCardAvailable && pricing.isBoxAvailable) pack = 'box';
+      }
+
+      const liveUnitPrice = pack === 'card' ? pricing.finalPriceCard : pricing.finalPriceBox;
+      const liveOrigPrice = pack === 'card' ? pricing.priceCard : pricing.priceBox;
+      const depPct = isPre ? Number(p.DepositPercent || p.depositPercent || 30) : 0;
+      const liveDepAmt = isPre ? (Math.round((liveUnitPrice * (depPct / 100)) / 1000) * 1000) : 0;
+      const liveName = p.Name || p.name || it.name;
+      const liveSku = p.Sku || p.sku || it.sku;
+      const liveImg = getProductGalleryImages(p)[0] || it.imageUrl;
+      let nextQty = Math.max(1, parseInt(it.quantity, 10) || 1);
+      if (!isPre) {
+        const maxPack = pack === 'card' ? pricing.stockCard : pricing.stockBox;
+        if (maxPack > 0 && nextQty > maxPack) nextQty = maxPack;
+      }
+
+      if (
+        it.packType !== pack ||
+        it.price !== liveUnitPrice ||
+        it.originalPrice !== liveOrigPrice ||
+        it.discountPercent !== pricing.discountPercent ||
+        it.isPreOrder !== isPre ||
+        it.depositAmount !== liveDepAmt ||
+        it.name !== liveName ||
+        it.sku !== liveSku ||
+        it.quantity !== nextQty
+      ) {
+        cartModified = true;
+      }
+
+      nextCart.push(Object.assign({}, it, {
+        packType: pack,
+        packagingType: pricing.packagingType,
+        name: liveName,
+        sku: liveSku,
+        price: liveUnitPrice,
+        originalPrice: liveOrigPrice,
+        discountPercent: pricing.discountPercent,
+        priceBox: pricing.priceBox,
+        priceCard: pricing.priceCard,
+        finalPriceBox: pricing.finalPriceBox,
+        finalPriceCard: pricing.finalPriceCard,
+        isPreOrder: isPre,
+        depositPercent: depPct,
+        depositAmount: liveDepAmt,
+        imageUrl: liveImg,
+        quantity: nextQty
+      }));
     });
     if (cartModified) {
+      cart = nextCart;
       saveCart();
+      updateCartBadge();
       renderCartDrawer();
+    }
+  }
+
+  // Đồng bộ Wishlist: loại bỏ ID xe đã bị Admin xóa
+  if (Array.isArray(wishlist) && wishlist.length > 0 && allProducts.length > 0) {
+    const validIds = new Set(allProducts.map(p => Number(p.ProductId || p.id)));
+    const cleanedWishlist = wishlist.filter(id => validIds.has(Number(id)));
+    if (cleanedWishlist.length !== wishlist.length) {
+      wishlist = cleanedWishlist;
+      try { localStorage.setItem('minigt_wishlist', JSON.stringify(wishlist)); } catch (_) {}
+      updateWishlistBadge();
     }
   }
 
@@ -971,6 +1047,22 @@ async function loadProducts() {
   renderPreOrderQuickRow();
   syncStaticShowcaseProducts();
   updateFilterCounts();
+
+  // Nếu modal QuickView đang mở cho 1 sản phẩm vừa bị xóa -> đóng modal ngay
+  if (typeof activeQuickViewState !== 'undefined' && activeQuickViewState && activeQuickViewState.productId) {
+    const qvModal = document.getElementById('quickViewModal');
+    if (qvModal && qvModal.classList.contains('active')) {
+      const stillExists = allProducts.find(p => Number(p.ProductId || p.id) === Number(activeQuickViewState.productId));
+      if (!stillExists) {
+        closeModal('quickViewModal');
+      }
+    }
+  }
+
+  // Đồng bộ tức thì mọi thẻ sản phẩm Mini-Card đang hiển thị bên trong khung AI Chatbox!
+  if (typeof refreshRenderedChatProductCards === 'function') {
+    refreshRenderedChatProductCards();
+  }
 }
 
 // =====================================================================
@@ -980,26 +1072,44 @@ function resolveStorefrontImageUrl(rawUrl) {
   let u = String(rawUrl || '').trim();
   if (!u || u === 'null' || u === 'undefined') return 'image/hero-banner.jpg';
 
-  // 1. Nhận diện chuẩn xác mọi định dạng ảnh upload CSDL: api/images/3, /api/images/3, images/3, /images/3, http://...:5500/api/images/3
+  const isLocal = typeof api !== 'undefined' && typeof api.isLocalEnvironment === 'function'
+    ? api.isLocalEnvironment()
+    : (typeof window !== 'undefined' && window.location && (
+        ['localhost', '127.0.0.1', '0.0.0.0'].includes(window.location.hostname) ||
+        window.location.hostname.startsWith('192.168.') ||
+        window.location.protocol === 'file:'
+      ));
+
+  // 1. Nhận diện chuẩn xác mọi định dạng ảnh upload CSDL:
+  // /api/images/10, api/images/10, /images/10, http://127.0.0.1:5000/api/images/10, https://projectnhom2.vercel.app/api/images/10...
   const apiMatch = u.match(/^(?:https?:\/\/[^\/]+(?::\d+)?)?\/?(?:api\/)?images\/(\d+)(?:\?.*)?$/i);
   if (apiMatch) {
     const imgId = apiMatch[1];
-    let host = '';
-    if (typeof api !== 'undefined' && api.BASE_URL && (!api.isLocalServerOffline || !api.isLocalServerOffline())) {
-      host = api.BASE_URL.replace(/\/+$/, '');
-    } else if (typeof window !== 'undefined' && window.location && String(window.location.port) === '5000') {
-      host = '';
-    } else {
-      // Khi mở qua Live Server (port 5500) hoặc file://, trỏ thẳng tới server backend local hoặc Cloud backend
-      const isOffline = typeof api !== 'undefined' && typeof api.isLocalServerOffline === 'function' && api.isLocalServerOffline();
-      host = isOffline
-        ? ((typeof api !== 'undefined' && api.CLOUD_BACKEND_URL) ? api.CLOUD_BACKEND_URL : 'https://projectnhom2.vercel.app')
-        : 'http://127.0.0.1:5000';
+    // Nếu chạy trên Vercel / Production web (hoặc trên chính cổng 5000):
+    // TUYỆT ĐỐI dùng đường dẫn tương đối /api/images/:id để tránh lỗi Mixed Content (HTTP/HTTPS) & chặn CORS loopback
+    if (!isLocal || (typeof window !== 'undefined' && window.location && String(window.location.port) === '5000')) {
+      return `/api/images/${imgId}`;
     }
-    return host ? `${host}/api/images/${imgId}` : `/api/images/${imgId}`;
+
+    // Khi chạy cục bộ trên máy dev (Live Server 5500, file:// hoặc IP LAN):
+    if (typeof api !== 'undefined' && typeof api.isLocalServerOffline === 'function' && api.isLocalServerOffline()) {
+      return `https://projectnhom2.vercel.app/api/images/${imgId}`;
+    }
+
+    const host = (typeof window !== 'undefined' && window.location && window.location.hostname && window.location.hostname !== '0.0.0.0' && window.location.protocol !== 'file:')
+      ? window.location.hostname
+      : '127.0.0.1';
+    return `http://${host}:5000/api/images/${imgId}`;
   }
 
-  if (u.startsWith('/') && typeof api !== 'undefined' && api.BASE_URL && (u.startsWith('/api/') || u.startsWith('/images/'))) {
+  // Nếu là URL localhost/127.0.0.1 nhưng đang chạy trên Vercel / Production -> gỡ bỏ prefix domain local
+  if (u.startsWith('http://127.0.0.1:5000/') || u.startsWith('http://localhost:5000/')) {
+    if (!isLocal) {
+      return u.replace(/^https?:\/\/[^\/]+/, '');
+    }
+  }
+
+  if (u.startsWith('/') && isLocal && typeof api !== 'undefined' && api.BASE_URL && (u.startsWith('/api/') || u.startsWith('/images/'))) {
     return api.BASE_URL.replace(/\/+$/, '') + u;
   }
   if (u.includes('amr24.webp')) return 'image/aston-amr24-alonso.png';
@@ -2172,17 +2282,23 @@ function handleCardAction(productId, event, explicitPackType = null, quantity = 
     event.stopPropagation();
   }
 
-  // YÊU CẦU: Chỉ có đăng nhập thì mới mua ngay / đặt cọc được xe, chưa đăng nhập thì xem được chi tiết nhưng không mua được mà phải đăng nhập
-  const currentUser = (api && api.getCurrentUser) ? api.getCurrentUser() : null;
-  const token = (api && api.getToken) ? api.getToken() : null;
-  if (!currentUser && !token) {
+  const safeQty = Math.max(1, parseInt(quantity, 10) || 1);
+
+  // YÊU CẦU BẮT BUỘC: Khách hàng PHẢI đăng nhập hợp lệ (cả User & Token) mới được thêm vào giỏ hàng / mua ngay / đặt cọc
+  if (!isCustomerAuthenticated()) {
+    pendingPostLoginCartAction = {
+      productId,
+      quantity: safeQty,
+      packType: explicitPackType,
+      openDrawer,
+      fromChat: false
+    };
     const isEn = typeof currentSiteLang !== 'undefined' && currentSiteLang === 'en';
-    showToast(isEn ? 'Please sign in to buy or pre-order models!' : 'Vui lòng đăng nhập tài khoản để tiến hành đặt mua / cọc xe mô hình!', 'info');
+    showToast(isEn ? 'Please sign in to add models to cart or pre-order!' : 'Vui lòng đăng nhập tài khoản để thêm xe vào giỏ hàng / đặt mua!', 'info');
     openAuthModal('login');
     return false;
   }
 
-  const safeQty = Math.max(1, parseInt(quantity, 10) || 1);
   const added = addToCart(productId, safeQty, explicitPackType);
   if (!added) return false;
 
@@ -2251,10 +2367,31 @@ function flyToCart(productId, event) {
 }
 
 function addToCart(productId, quantity = 1, explicitPackType = null) {
-  const prod = (allProducts && allProducts.length ? allProducts : FALLBACK_PRODUCTS).find(p => (p.ProductId || p.id || p.productid) == productId);
-  if (!prod) return false;
-
   const isEn = typeof currentSiteLang !== 'undefined' && currentSiteLang === 'en';
+  if (!isCustomerAuthenticated()) {
+    if (!pendingPostLoginCartAction) {
+      pendingPostLoginCartAction = {
+        productId,
+        quantity: Math.max(1, parseInt(quantity, 10) || 1),
+        packType: explicitPackType,
+        openDrawer: false,
+        fromChat: false
+      };
+    }
+    showToast(
+      isEn ? 'Please sign in to add models to your cart!' : 'Vui lòng đăng nhập tài khoản trước khi thêm xe vào giỏ hàng!',
+      'info'
+    );
+    openAuthModal('login');
+    return false;
+  }
+
+  const prod = (allProducts && allProducts.length ? allProducts : FALLBACK_PRODUCTS).find(p => (p.ProductId || p.id || p.productid) == productId);
+  if (!prod) {
+    showToast(isEn ? 'This model is no longer available!' : 'Mẫu xe này hiện không còn tồn tại trên hệ thống!', 'error');
+    return false;
+  }
+
   const stock = typeof prod.Stock === 'number' ? prod.Stock : (typeof prod.stock === 'number' ? prod.stock : 999);
   const pName = prod.Name || prod.name;
   if (stock <= 0) {
@@ -3898,10 +4035,8 @@ function loadCheckoutFormState() {
 }
 
 function openCheckoutModal() {
-  // YÊU CẦU: Chỉ có đăng nhập thì mới thanh toán được xe, chưa đăng nhập thì xem được chi tiết nhưng không thanh toán được mà phải đăng nhập
-  const currentUser = (api && api.getCurrentUser) ? api.getCurrentUser() : null;
-  const token = (api && api.getToken) ? api.getToken() : null;
-  if (!currentUser && !token) {
+  // YÊU CẦU BẮT BUỘC: Phải đăng nhập hợp lệ (cả User & Token) mới thanh toán được đơn hàng
+  if (!isCustomerAuthenticated()) {
     showToast('Vui lòng đăng nhập tài khoản trước khi tiến hành thanh toán đơn hàng!', 'info');
     closeCartDrawer();
     openAuthModal('login');
@@ -6268,6 +6403,35 @@ function loginSuccess(user, token, rememberMe = true, rawPassword = '') {
   updateWishlistBadge();
   if (typeof renderWishlistModal === 'function') renderWishlistModal();
 
+  // Đồng bộ phiên AI Chatbox riêng biệt theo tài khoản người dùng vừa đăng nhập
+  if (typeof syncChatSessionOnAuthChange === 'function') {
+    syncChatSessionOnAuthChange();
+  }
+
+  // Nếu trước đó khách bấm "+Box / +Card" (từ Chat AI hoặc thẻ xe) khi chưa đăng nhập -> tự động thêm vào giỏ ngay sau khi đăng nhập thành công!
+  let fulfilledPendingFromChat = false;
+  if (pendingPostLoginCartAction) {
+    const pending = pendingPostLoginCartAction;
+    pendingPostLoginCartAction = null;
+    const addedAfterLogin = addToCart(pending.productId, pending.quantity || 1, pending.packType || null);
+    if (addedAfterLogin) {
+      fulfilledPendingFromChat = Boolean(pending.fromChat);
+      if (pending.fromChat) {
+        const box = document.getElementById('aiChatMessages');
+        if (box) {
+          box.querySelectorAll('.ai-chat-auth-hint').forEach(el => el.remove());
+          const notif = document.createElement('div');
+          notif.className = 'ai-chat-action-confirmed';
+          notif.innerHTML = `<i class="fa-solid fa-circle-check"></i> Đăng nhập thành công! Đã tự động thêm bản <strong>${pending.packType === 'card' ? 'Vỉ (Card)' : 'Hộp (Box)'}</strong> vào giỏ hàng cho anh/chị ạ. 💕`;
+          box.appendChild(notif);
+          if (typeof scrollChatToBottom === 'function') scrollChatToBottom();
+        }
+      } else if (pending.openDrawer) {
+        setTimeout(() => openCartDrawer(), 280);
+      }
+    }
+  }
+
   // Thông báo đăng nhập thông minh & duy nhất (Tránh spam nhiều thông báo chồng chéo)
   const isEn = typeof currentSiteLang !== 'undefined' && currentSiteLang === 'en';
   const hasFullInfo = Boolean(cleanUser.phone && cleanUser.address && cleanUser.hasPassword);
@@ -6359,8 +6523,12 @@ function logout() {
   if (checkoutPhone) checkoutPhone.value = '';
   if (checkoutAddress) checkoutAddress.value = '';
 
-  // 6. Cập nhật giao diện header
+  // 6. Cập nhật giao diện header & phân lập lại phiên AI Chatbox của khách vãng lai
+  pendingPostLoginCartAction = null;
   updateUserHeaderUI();
+  if (typeof syncChatSessionOnAuthChange === 'function') {
+    syncChatSessionOnAuthChange();
+  }
 
   const isEn = typeof currentSiteLang !== 'undefined' && currentSiteLang === 'en';
   showToast(isEn ? 'Signed out successfully!' : 'Đã đăng xuất tài khoản!', 'info');
@@ -10181,27 +10349,152 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // =====================================================================
-// 19. HYBRID AI SUPPORT CHATBOX CLIENT v5 (INCREMENTAL SYNC + LIVE DATA)
-// - Khử 100% lỗi gửi lặp / hiển thị lặp tin nhắn (renderedChatMsgIds + isSendingChatMsg mutex)
-// - Incremental Sync (sinceId) + Page Visibility Pause: tiết kiệm >95% băng thông mạng
-// - Đồng bộ 100% giá giảm trực tiếp, tồn kho Box/Card & QuickView trên thẻ xe Mini-Card
+// 19. HYBRID AI SUPPORT CHATBOX CLIENT v5.1 (ZERO-FLICKER CARDS + MOBILE SHEET + AUTH GUARD + LIVE SYNC)
+// - Không bao giờ mất thẻ xe Mini-Card (nhúng trực tiếp trong .chat-bubble-row.bot-msg + khóa chống race condition loadChatHistory)
+// - Phân lập phiên chat riêng theo từng tài khoản (không rò rỉ lịch sử khi đổi tài khoản)
+// - Bắt buộc đăng nhập mới thêm xe vào giỏ hàng (+ tự động thêm ngay sau khi đăng nhập xong)
+// - Đồng bộ 100% thời gian thực khi Admin Thêm / Sửa giá / Sửa tồn kho / Xóa sản phẩm (catalogSig + refreshRenderedChatProductCards)
+// - Trải nghiệm Mobile Bottom-Sheet mượt mà (visualViewport chống bàn phím ảo che khung nhập, 16px chống zoom iOS)
 // =====================================================================
 let chatPollTimer = null;
 let isChatOpen = false;
 let isSendingChatMsg = false;
 let lastSyncedChatMsgId = 0;
+let hasLoadedChatHistory = false;
+let chatHistoryLoadGen = 0;
+let activeRenderedSessionId = '';
+let lastKnownChatCatalogSig = '';
 const renderedChatMsgIds = new Set();
 
 function getChatSessionId() {
-  let sid = localStorage.getItem('minigt_chat_session');
-  if (!sid) {
-    sid = 'mgt_chat_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6);
-    localStorage.setItem('minigt_chat_session', sid);
+  if (isCustomerAuthenticated()) {
+    const u = (typeof api !== 'undefined' && api && typeof api.getCurrentUser === 'function')
+      ? api.getCurrentUser()
+      : currentUser;
+    const rawKey = (u && (u.userId || u.id || u.email || u.Email)) ? String(u.userId || u.id || u.email || u.Email).trim().toLowerCase().replace(/[^a-z0-9_-]/g, '_') : '';
+    if (rawKey) {
+      const storageKey = `minigt_chat_session_user_${rawKey}`;
+      let userSid = localStorage.getItem(storageKey);
+      if (!userSid) {
+        userSid = `mgt_chat_u_${rawKey}_${Date.now().toString(36)}`;
+        try { localStorage.setItem(storageKey, userSid); } catch (_) {}
+      }
+      return userSid;
+    }
   }
-  return sid;
+
+  let guestSid = null;
+  try {
+    guestSid = sessionStorage.getItem('minigt_chat_session_guest');
+    if (!guestSid) {
+      guestSid = 'mgt_chat_guest_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
+      sessionStorage.setItem('minigt_chat_session_guest', guestSid);
+    }
+  } catch (_) {
+    guestSid = 'mgt_chat_guest_fallback';
+  }
+  return guestSid;
 }
 
-// Lắng nghe tín hiệu Real-time khi Admin trả lời ở Tab Quản trị để hiển thị tức thì cho khách
+function renderDefaultChatWelcomeHTML() {
+  return `
+    <div class="chat-bubble-row bot-msg" data-welcome="1">
+      <span class="chat-sender-tag bot"><i class="fa-solid fa-wand-magic-sparkles"></i> Bé Bot AI Săn Xe</span>
+      <div class="chat-bubble">Dạ <strong>MINI GT STORE BIÊN HÒA</strong> xin chào anh/chị! ✨<br>Em là <strong>Bé Bot AI</strong> chuyên gia mô hình 1:64. Em đọc hiểu và giải đáp tức thì:<br>• Tra cứu tồn kho &amp; giá <strong>Box / Card</strong>, <strong>Mã giảm giá</strong>, <strong>Đơn hàng</strong><br>• Tư vấn xe theo tầm giá, combo quà tặng, F1, LBWK, Pop Race...<br>• Câu hỏi đặc biệt em sẽ báo ngay lên <strong>Admin Thịnh &amp; Nam</strong> (trong lúc chờ anh/chị vẫn hỏi em tiếp thoải mái ạ!). 💕</div>
+      <span class="chat-bubble-time">Vừa xong</span>
+    </div>
+  `;
+}
+
+function syncChatSessionOnAuthChange() {
+  chatHistoryLoadGen++;
+  hasLoadedChatHistory = false;
+  lastSyncedChatMsgId = 0;
+  renderedChatMsgIds.clear();
+  activeRenderedSessionId = getChatSessionId();
+
+  const box = document.getElementById('aiChatMessages');
+  if (box) {
+    box.innerHTML = renderDefaultChatWelcomeHTML();
+  }
+  updateChatStatusUI('bot_active', 0);
+
+  if (isChatOpen) {
+    loadChatHistory(true);
+  }
+}
+
+function syncMobileChatViewport() {
+  const win = document.getElementById('aiChatWindow');
+  const isMob = window.innerWidth <= 768;
+  document.body.classList.toggle('ai-chat-mobile-open', Boolean(isChatOpen && isMob));
+
+  if (!win) return;
+  if (!isChatOpen || !isMob) {
+    win.style.removeProperty('--ai-vv-height');
+    win.style.removeProperty('--ai-vv-bottom');
+    return;
+  }
+
+  if (window.visualViewport) {
+    const vv = window.visualViewport;
+    const keyboardOffset = Math.max(0, Math.round(window.innerHeight - (vv.height + vv.offsetTop)));
+    const sheetHeight = Math.max(280, Math.round(vv.height - (keyboardOffset > 40 ? 0 : 8)));
+    win.style.setProperty('--ai-vv-height', `${sheetHeight}px`);
+    win.style.setProperty('--ai-vv-bottom', `${keyboardOffset}px`);
+  }
+}
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('resize', syncMobileChatViewport, { passive: true });
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', syncMobileChatViewport, { passive: true });
+    window.visualViewport.addEventListener('scroll', syncMobileChatViewport, { passive: true });
+  }
+}
+
+function mergeServerProductCardsIntoCatalog(cards) {
+  if (!Array.isArray(cards) || cards.length === 0) return;
+  if (!Array.isArray(allProducts)) allProducts = [];
+
+  cards.forEach(c => {
+    if (!c || !c.sku) return;
+    const normCard = (window.api && typeof window.api.normalizeProductObject === 'function')
+      ? window.api.normalizeProductObject(c)
+      : c;
+    const cId = Number(normCard.ProductId || normCard.id || 0);
+    const cSku = String(normCard.Sku || normCard.sku || '').toUpperCase();
+    const existIdx = allProducts.findIndex(p =>
+      (cId > 0 && Number(p.ProductId || p.id) === cId) ||
+      (cSku && String(p.Sku || p.sku || '').toUpperCase() === cSku)
+    );
+    if (existIdx >= 0) {
+      const prevImgs = allProducts[existIdx].images || allProducts[existIdx].Images;
+      allProducts[existIdx] = Object.assign({}, allProducts[existIdx], normCard);
+      if (Array.isArray(prevImgs) && prevImgs.length > 1) {
+        allProducts[existIdx].images = prevImgs;
+        allProducts[existIdx].Images = prevImgs;
+      }
+    } else {
+      allProducts.unshift(normCard);
+    }
+  });
+}
+
+function handleChatCatalogSignature(catalogSig) {
+  if (!catalogSig) return;
+  const sig = String(catalogSig);
+  if (lastKnownChatCatalogSig && lastKnownChatCatalogSig !== sig) {
+    lastKnownChatCatalogSig = sig;
+    if (typeof loadProducts === 'function') {
+      loadProducts().catch(() => {});
+    }
+    return;
+  }
+  lastKnownChatCatalogSig = sig;
+}
+
+// Lắng nghe tín hiệu Real-time khi Admin trả lời hoặc cập nhật sản phẩm ở Tab Quản trị
 window.addEventListener('minigt:realtime', (ev) => {
   const detail = ev && ev.detail;
   if (!detail) return;
@@ -10211,6 +10504,10 @@ window.addEventListener('minigt:realtime', (ev) => {
     } else {
       const dot = document.getElementById('aiChatPulseDot');
       if (dot) dot.style.display = 'block';
+    }
+  } else if (detail.type === 'PRODUCTS_UPDATED') {
+    if (typeof refreshRenderedChatProductCards === 'function') {
+      setTimeout(refreshRenderedChatProductCards, 120);
     }
   }
 });
@@ -10246,20 +10543,26 @@ function initCuteBotGreetings() {
   }, 5500);
 }
 
-function openQuickViewBySku(skuCode) {
+async function openQuickViewBySku(skuCode) {
   if (!skuCode) return;
   const cleanSku = String(skuCode).replace(/^[#\[|\]]+/g, '').trim().toUpperCase();
-  const list = (allProducts && allProducts.length) ? allProducts : (typeof FALLBACK_PRODUCTS !== 'undefined' ? FALLBACK_PRODUCTS : []);
-  const matched = list.find(p => String(p.Sku || p.sku || '').toUpperCase() === cleanSku);
+  let matched = Array.isArray(allProducts)
+    ? allProducts.find(p => String(p.Sku || p.sku || '').toUpperCase() === cleanSku)
+    : null;
+
+  if (!matched && typeof loadProducts === 'function') {
+    try {
+      await loadProducts();
+      matched = Array.isArray(allProducts)
+        ? allProducts.find(p => String(p.Sku || p.sku || '').toUpperCase() === cleanSku)
+        : null;
+    } catch (_) {}
+  }
+
   if (matched) {
     openQuickView(matched.ProductId || matched.id);
   } else {
-    scrollToSection(null, 'catalog');
-    const searchInput = document.getElementById('searchInput');
-    if (searchInput) {
-      searchInput.value = cleanSku;
-      searchInput.dispatchEvent(new Event('input'));
-    }
+    showToast(`Mẫu xe #${cleanSku} hiện không còn trên kệ cửa hàng!`, 'info');
   }
 }
 window.openQuickViewBySku = openQuickViewBySku;
@@ -10272,19 +10575,31 @@ function toggleAiChat() {
   if (!win || !launcher) return;
 
   isChatOpen = !isChatOpen;
+  syncMobileChatViewport();
+
   if (isChatOpen) {
     win.classList.add('active');
     launcher.classList.add('active');
     if (zaloBtn) zaloBtn.classList.add('active');
     if (dot) dot.style.display = 'none';
 
-    loadChatHistory();
+    const curSid = getChatSessionId();
+    if (!hasLoadedChatHistory || activeRenderedSessionId !== curSid) {
+      loadChatHistory(false);
+    } else {
+      pollChatMessages();
+    }
+
     if (chatPollTimer) clearInterval(chatPollTimer);
-    chatPollTimer = setInterval(pollChatMessages, 3500);
-    setTimeout(() => {
-      const input = document.getElementById('aiChatInput');
-      if (input) input.focus();
-    }, 200);
+    chatPollTimer = setInterval(pollChatMessages, 4000);
+
+    // Trên PC tự focus vào ô nhập; trên Điện thoại không tự bật bàn phím ảo để khách dễ đọc lời chào & bấm Chip gợi ý
+    if (window.innerWidth > 768) {
+      setTimeout(() => {
+        const input = document.getElementById('aiChatInput');
+        if (input) input.focus();
+      }, 200);
+    }
   } else {
     win.classList.remove('active');
     launcher.classList.remove('active');
@@ -10293,18 +10608,35 @@ function toggleAiChat() {
       clearInterval(chatPollTimer);
       chatPollTimer = null;
     }
+    const input = document.getElementById('aiChatInput');
+    if (input) input.blur();
   }
 }
 window.toggleAiChat = toggleAiChat;
+
+function extractSkusFromChatText(text) {
+  if (!text) return [];
+  const matches = [...String(text).matchAll(/\[([A-Z0-9][A-Z0-9\-_]{1,22})\]/gi)].map(m => m[1].toUpperCase());
+  const out = [];
+  matches.forEach(s => {
+    if (s === 'SKU' || s === 'ESCALATE') return;
+    if (!out.includes(s)) out.push(s);
+  });
+  return out;
+}
 
 function formatChatText(str) {
   if (!str) return '';
   let escaped = escapeHtml(str);
   // Định dạng in đậm **nội dung**
   escaped = escaped.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-  // Biến mã SKU dạng [MGT00550], [MG1132], #PR640325, #KH0098 thành nút bấm mở xem nhanh xe
-  escaped = escaped.replace(/\[((?:MGT|MG|PR|KH)[A-Z0-9\-]+)\]/g, '<button type="button" class="chat-sku-link" onclick="openQuickViewBySku(\'$1\')" title="Bấm để xem chi tiết mẫu xe $1">🔍 #$1</button>');
-  escaped = escaped.replace(/#((?:MGT|MG|PR|KH)[A-Z0-9\-]+)/g, '<button type="button" class="chat-sku-link" onclick="openQuickViewBySku(\'$1\')" title="Bấm để xem chi tiết mẫu xe $1">🔍 #$1</button>');
+  // Biến mọi mã SKU dạng [MGT00550], [PR640325], [POP001]... thành nút bấm mở xem nhanh xe
+  escaped = escaped.replace(/\[([A-Z0-9][A-Z0-9\-_]{1,22})\]/g, (full, sku) => {
+    const up = String(sku).toUpperCase();
+    if (up === 'SKU' || up === 'ESCALATE') return full;
+    return `<button type="button" class="chat-sku-link" onclick="openQuickViewBySku('${up}')" title="Bấm để xem chi tiết mẫu xe ${up}">🔍 #${up}</button>`;
+  });
+  escaped = escaped.replace(/#((?:MGT|MG|PR|KH|POP|INNO|TW)[A-Z0-9\-_]+)/g, '<button type="button" class="chat-sku-link" onclick="openQuickViewBySku(\'$1\')" title="Bấm để xem chi tiết mẫu xe $1">🔍 #$1</button>');
   // Định dạng xuống dòng
   escaped = escaped.replace(/\n/g, '<br>');
   return escaped;
@@ -10313,6 +10645,7 @@ function formatChatText(str) {
 function renderChatMessageBubble(senderType, senderName, text, timeStr, msgMeta = null) {
   const isUser = senderType === 'user';
   const isAdmin = senderType === 'admin';
+  const isBot = !isUser && !isAdmin;
 
   const rowClass = isUser ? 'user-msg' : (isAdmin ? 'admin-msg' : 'bot-msg');
   const tagClass = isUser ? 'user' : (isAdmin ? 'admin' : 'bot');
@@ -10352,6 +10685,30 @@ function renderChatMessageBubble(senderType, senderName, text, timeStr, msgMeta 
     ${escBadgeHtml}
     <span class="chat-bubble-time">${escapeHtml(timeStr || 'Vừa xong')}</span>
   `;
+
+  // Nhúng trực tiếp Thẻ sản phẩm Mini-Card vào bên trong .chat-bubble-row.bot-msg để KHÔNG BAO GIỜ bị mất thẻ!
+  if (isBot && !(msgMeta && msgMeta.is_escalation)) {
+    if (msgMeta && Array.isArray(msgMeta.matchedProductCards) && msgMeta.matchedProductCards.length > 0) {
+      mergeServerProductCardsIntoCatalog(msgMeta.matchedProductCards);
+    }
+    const candidateSkus = (msgMeta && Array.isArray(msgMeta.matchedProductCards) && msgMeta.matchedProductCards.length > 0)
+      ? msgMeta.matchedProductCards.map(c => c.sku)
+      : ((msgMeta && Array.isArray(msgMeta.matchedProducts) && msgMeta.matchedProducts.length > 0)
+          ? msgMeta.matchedProducts
+          : extractSkusFromChatText(text));
+
+    if (candidateSkus.length > 0) {
+      div.dataset.cardSkus = candidateSkus.map(s => String(s).toUpperCase()).join(',');
+      const cardsEl = renderChatProductCards(candidateSkus, msgMeta && msgMeta.matchedProductCards);
+      if (cardsEl) {
+        div.classList.add('has-product-cards');
+        const timeNode = div.querySelector('.chat-bubble-time');
+        if (timeNode) div.insertBefore(cardsEl, timeNode);
+        else div.appendChild(cardsEl);
+      }
+    }
+  }
+
   return div;
 }
 
@@ -10382,6 +10739,25 @@ function scrollChatToBottom() {
   if (box) {
     box.scrollTop = box.scrollHeight;
   }
+}
+
+function scrollChatSmartForRow(rowEl) {
+  const box = document.getElementById('aiChatMessages');
+  if (!box) return;
+  if (!rowEl) {
+    box.scrollTop = box.scrollHeight;
+    return;
+  }
+  requestAnimationFrame(() => {
+    const rowHeight = rowEl.offsetHeight || 0;
+    const viewHeight = box.clientHeight || 400;
+    // Nếu phản hồi của Bé Bot kèm 2-3 thẻ xe cao gần hết khung nhìn -> cuộn tới đầu câu trả lời để khách đọc được cả lời tư vấn lẫn thẻ xe!
+    if (rowHeight > viewHeight * 0.72) {
+      box.scrollTop = Math.max(0, rowEl.offsetTop - 10);
+    } else {
+      box.scrollTop = box.scrollHeight;
+    }
+  });
 }
 
 function syncResolvedEscalationIdsInDom(resolvedIds) {
@@ -10415,24 +10791,43 @@ function insertChatBubbleOrdered(box, mid, bubbleEl) {
   box.appendChild(bubbleEl);
 }
 
-async function loadChatHistory() {
+async function loadChatHistory(forceReload = false) {
   if (isSendingChatMsg) return;
   const sessionId = getChatSessionId();
+  if (!forceReload && hasLoadedChatHistory && activeRenderedSessionId === sessionId) {
+    return;
+  }
+  const myGen = ++chatHistoryLoadGen;
+
   try {
     const res = await api.get('/api/chat/messages', { sessionId, sinceId: 0 });
-    if (res && res.data && !isSendingChatMsg) {
-      const { conversation, messages, resolvedIds } = res.data;
+    // Chốt chặn Race Condition: nếu trong lúc đang tải lịch sử mà khách vừa bấm gửi câu hỏi mới (VD: "Xe đua F1") -> hủy ghi đè ngay để bảo vệ thẻ sản phẩm vừa hiện!
+    if (myGen !== chatHistoryLoadGen || isSendingChatMsg || getChatSessionId() !== sessionId) {
+      return;
+    }
+
+    if (res && res.data) {
+      const { conversation, messages, resolvedIds, catalogSig } = res.data;
+      handleChatCatalogSignature(catalogSig);
+
       const box = document.getElementById('aiChatMessages');
       if (!box) return;
 
+      activeRenderedSessionId = sessionId;
+      hasLoadedChatHistory = true;
+
       if (conversation) {
         updateChatStatusUI(conversation.status, conversation.pending_admin_count);
+      } else {
+        updateChatStatusUI('bot_active', 0);
       }
 
       if (Array.isArray(messages) && messages.length > 0) {
+        const recentActionNotifs = Array.from(box.querySelectorAll('.ai-chat-action-confirmed'));
         box.innerHTML = '';
         renderedChatMsgIds.clear();
         lastSyncedChatMsgId = 0;
+
         messages.forEach(m => {
           const mid = Number(m.id || 0);
           if (mid && renderedChatMsgIds.has(mid)) return;
@@ -10443,6 +10838,8 @@ async function loadChatHistory() {
           const time = m.created_at ? new Date(m.created_at).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : 'Vừa xong';
           box.appendChild(renderChatMessageBubble(m.sender_type, m.sender_name, m.message, time, m));
         });
+
+        recentActionNotifs.forEach(n => box.appendChild(n));
         syncResolvedEscalationIdsInDom(resolvedIds);
         scrollChatToBottom();
       }
@@ -10460,8 +10857,9 @@ async function pollChatMessages() {
       sessionId,
       sinceId: lastSyncedChatMsgId
     });
-    if (res && res.data && !isSendingChatMsg) {
+    if (res && res.data && !isSendingChatMsg && getChatSessionId() === sessionId) {
       const d = res.data;
+      handleChatCatalogSignature(d.catalogSig);
       syncResolvedEscalationIdsInDom(d.resolvedIds);
 
       if (d.unchanged) {
@@ -10480,7 +10878,7 @@ async function pollChatMessages() {
         const box = document.getElementById('aiChatMessages');
         if (!box) return;
 
-        let appended = false;
+        let lastAppendedRow = null;
         messages.forEach(m => {
           const mid = Number(m.id || 0);
           if (!mid) return;
@@ -10494,11 +10892,11 @@ async function pollChatMessages() {
           const time = m.created_at ? new Date(m.created_at).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : 'Vừa xong';
           const bubbleEl = renderChatMessageBubble(m.sender_type, m.sender_name, m.message, time, m);
           insertChatBubbleOrdered(box, mid, bubbleEl);
-          appended = true;
+          lastAppendedRow = bubbleEl;
         });
 
-        if (appended) {
-          scrollChatToBottom();
+        if (lastAppendedRow) {
+          scrollChatSmartForRow(lastAppendedRow);
         }
       }
     }
@@ -10549,15 +10947,25 @@ async function handleSendChatMessage(e) {
   const text = input.value.trim();
   if (!text) return;
 
+  // Vô hiệu hóa mọi request loadChatHistory cũ đang bay lơ lửng trên mạng để KHÔNG BAO GIỜ xóa nhầm tin nhắn & thẻ xe mới!
+  chatHistoryLoadGen++;
+  hasLoadedChatHistory = true;
   isSendingChatMsg = true;
   input.value = '';
   if (sendBtn) sendBtn.disabled = true;
 
   const sessionId = getChatSessionId();
-  const currentUser = (api && api.getCurrentUser) ? api.getCurrentUser() : null;
-  const customerName = currentUser ? (currentUser.fullName || currentUser.FullName || 'Khách hàng') : (localStorage.getItem('minigt_customer_name') || 'Khách hàng');
-  const customerEmail = currentUser ? (currentUser.email || currentUser.Email || '') : '';
-  const customerPhone = currentUser ? (currentUser.phone || currentUser.Phone || '') : (localStorage.getItem('minigt_customer_phone') || '');
+  activeRenderedSessionId = sessionId;
+
+  const authUser = isCustomerAuthenticated()
+    ? ((api && api.getCurrentUser) ? api.getCurrentUser() : currentUser)
+    : null;
+  const customerName = authUser ? (authUser.fullName || authUser.FullName || 'Khách hàng') : 'Khách vãng lai';
+  const customerEmail = authUser ? (authUser.email || authUser.Email || '') : '';
+  const customerPhone = authUser ? (authUser.phone || authUser.Phone || '') : '';
+
+  // Dọn các hàng gợi ý câu hỏi cũ phía dưới để giao diện gọn sạch không bị chồng chéo nhiều tầng
+  box.querySelectorAll('.ai-chat-inline-suggestions').forEach(el => el.remove());
 
   // 1. Hiển thị ngay bong bóng người dùng (gắn cờ tạm để sau khi API trả về sẽ gán ID thật chống trùng lặp 100%)
   const optimisticUserRow = renderChatMessageBubble('user', customerName, text, 'Vừa xong');
@@ -10593,10 +11001,12 @@ async function handleSendChatMessage(e) {
     if (indicator) indicator.remove();
 
     if (res && res.data) {
+      handleChatCatalogSignature(res.data.catalogSig);
+
       const savedUser = res.data.userMessage;
       const savedBot = res.data.botMessage;
 
-      // Đồng bộ ID thật cho tin nhắn khách vừa gửi để pollChatMessages() không bao giờ chèn lặp lần 2!
+      // Đồng bộ ID thật cho tin nhắn khách vừa gửi (dùng Math.max chuẩn xác kể cả khi SERIAL nhảy cách giữa nhiều khách)
       if (savedUser && savedUser.id) {
         const uid = Number(savedUser.id);
         if (res.data.deduplicated && renderedChatMsgIds.has(uid)) {
@@ -10607,35 +11017,30 @@ async function handleSendChatMessage(e) {
           renderedChatMsgIds.add(uid);
           syncUserEscalationBadgeInDom(savedUser);
         }
-        if (lastSyncedChatMsgId === 0 || uid === lastSyncedChatMsgId + 1) {
+        if (uid > lastSyncedChatMsgId) {
           lastSyncedChatMsgId = uid;
         }
       }
 
+      let botRowEl = null;
       if (savedBot && savedBot.id) {
         const bid = Number(savedBot.id);
         if (!renderedChatMsgIds.has(bid) && !box.querySelector(`.chat-bubble-row[data-msg-id="${bid}"]`)) {
           renderedChatMsgIds.add(bid);
-          box.appendChild(renderChatMessageBubble('bot', 'Bé Bot AI Săn Xe', savedBot.message, 'Vừa xong', savedBot));
+          const botMeta = Object.assign({}, savedBot, {
+            matchedProducts: res.data.matchedProducts || [],
+            matchedProductCards: res.data.matchedProductCards || []
+          });
+          botRowEl = renderChatMessageBubble('bot', 'Bé Bot AI Săn Xe', savedBot.message, 'Vừa xong', botMeta);
+          box.appendChild(botRowEl);
 
-          try {
-            // Mini Card Showcase đồng bộ 100% giá giảm trực tiếp & tồn kho
-            if (Array.isArray(res.data.matchedProducts) && res.data.matchedProducts.length > 0) {
-              const cardsEl = renderChatProductCards(res.data.matchedProducts);
-              if (cardsEl) box.appendChild(cardsEl);
-            }
-
-            // Gợi ý câu hỏi động dưới tin nhắn
-            if (Array.isArray(res.data.suggestions) && res.data.suggestions.length > 0) {
-              const suggEl = renderChatSuggestions(res.data.suggestions);
-              if (suggEl) box.appendChild(suggEl);
-              updateTopQuickChips(res.data.suggestions);
-            }
-          } catch (uiRenderErr) {
-            console.warn('[CHAT UI] Render mini-card warning:', uiRenderErr);
+          // Gợi ý câu hỏi tiếp theo gọn đẹp dưới tin nhắn (thanh #aiChatQuickChips phía trên giữ cố định các chủ đề chính để không bị lặp 2 nơi)
+          if (Array.isArray(res.data.suggestions) && res.data.suggestions.length > 0) {
+            const suggEl = renderChatSuggestions(res.data.suggestions);
+            if (suggEl) box.appendChild(suggEl);
           }
         }
-        if (bid === lastSyncedChatMsgId + 1) {
+        if (bid > lastSyncedChatMsgId) {
           lastSyncedChatMsgId = bid;
         }
       }
@@ -10654,7 +11059,7 @@ async function handleSendChatMessage(e) {
         });
       }
 
-      scrollChatToBottom();
+      scrollChatSmartForRow(botRowEl);
     }
   } catch (err) {
     const indicator = document.getElementById('aiTypingIndicator');
@@ -10664,36 +11069,59 @@ async function handleSendChatMessage(e) {
   } finally {
     isSendingChatMsg = false;
     if (sendBtn) sendBtn.disabled = false;
-    input.focus();
+    if (window.innerWidth > 768) {
+      input.focus();
+    }
   }
 }
 window.handleSendChatMessage = handleSendChatMessage;
 
-function renderChatProductCards(skuList) {
+function renderChatProductCards(skuList, liveCardsOverride = null) {
   if (!Array.isArray(skuList) || skuList.length === 0) return null;
-  const list = (allProducts && allProducts.length) ? allProducts : (typeof FALLBACK_PRODUCTS !== 'undefined' ? FALLBACK_PRODUCTS : []);
-  const matchedProds = skuList.map(sku => {
-    const cleanSku = String(sku).replace(/^[#\[|\]]+/g, '').trim().toUpperCase();
-    return list.find(p => String(p.Sku || p.sku || '').toUpperCase() === cleanSku);
-  }).filter(Boolean);
+
+  if (Array.isArray(liveCardsOverride) && liveCardsOverride.length > 0) {
+    mergeServerProductCardsIntoCatalog(liveCardsOverride);
+  }
+
+  // CHỈ tra cứu trên danh sách sản phẩm ĐANG HOẠT ĐỘNG thực tế (allProducts), tuyệt đối không lấy xe đã bị Admin xóa từ FALLBACK_PRODUCTS!
+  const sourceList = (Array.isArray(allProducts) && allProducts.length > 0)
+    ? allProducts
+    : (typeof FALLBACK_PRODUCTS !== 'undefined' ? FALLBACK_PRODUCTS : []);
+
+  const matchedProds = [];
+  const seenSkus = new Set();
+  skuList.forEach(skuOrObj => {
+    const rawSku = (skuOrObj && typeof skuOrObj === 'object') ? (skuOrObj.sku || skuOrObj.Sku) : skuOrObj;
+    const cleanSku = String(rawSku || '').replace(/^[#\[|\]]+/g, '').trim().toUpperCase();
+    if (!cleanSku || seenSkus.has(cleanSku)) return;
+    const found = sourceList.find(p => String(p.Sku || p.sku || '').toUpperCase() === cleanSku);
+    if (found) {
+      seenSkus.add(cleanSku);
+      matchedProds.push(found);
+    }
+  });
 
   if (matchedProds.length === 0) return null;
 
   const wrap = document.createElement('div');
   wrap.className = 'ai-chat-product-cards-wrap';
 
-  matchedProds.slice(0, 3).forEach(p => {
+  matchedProds.slice(0, 4).forEach(p => {
     const card = document.createElement('div');
     card.className = 'ai-chat-mini-card';
     const pId = p.ProductId || p.id;
+    const pSku = p.Sku || p.sku || 'MGT';
+    card.dataset.productId = String(pId);
+    card.dataset.sku = String(pSku).toUpperCase();
+
     const pricing = (typeof getProductBoxCardPricing === 'function')
       ? getProductBoxCardPricing(p)
       : {
-          packagingType: p.PackagingType || 'both',
-          hasDiscount: Number(p.DiscountPercent || 0) > 0,
-          discountPercent: Number(p.DiscountPercent || 0),
-          finalPriceBox: Number(p.PriceBox || p.Price || 0),
-          finalPriceCard: Number(p.PriceCard || p.Price || 0),
+          packagingType: p.PackagingType || p.packagingType || 'both',
+          hasDiscount: Number(p.DiscountPercent ?? p.discountPercent ?? 0) > 0,
+          discountPercent: Number(p.DiscountPercent ?? p.discountPercent ?? 0),
+          finalPriceBox: Number(p.PriceBox ?? p.priceBox ?? p.Price ?? p.price ?? 0),
+          finalPriceCard: Number(p.PriceCard ?? p.priceCard ?? p.Price ?? p.price ?? 0),
           isBoxAvailable: true,
           isCardAvailable: true
         };
@@ -10701,11 +11129,16 @@ function renderChatProductCards(skuList) {
     const isSoldOut = String(p.Status || p.status || '').toLowerCase() === 'sold_out' || (!isPre && !pricing.isBoxAvailable && !pricing.isCardAvailable);
     const badgeText = isSoldOut
       ? 'Hết hàng'
-      : (pricing.hasDiscount ? `Sale -${pricing.discountPercent}%` : (isPre ? 'Pre-Order' : 'Có sẵn'));
-    const badgeClass = isSoldOut ? 'sold-out' : (isPre ? 'pre-order' : 'in-stock');
-    const img = p.ImageUrl || p.imageUrl || p.thumbnailimage || p.image || 'image/logo_minigt.png';
+      : (pricing.hasDiscount ? `-${pricing.discountPercent}%` : (isPre ? 'Pre-Order' : 'Có sẵn'));
+    const badgeClass = isSoldOut
+      ? 'sold-out'
+      : (pricing.hasDiscount ? 'on-sale' : (isPre ? 'pre-order' : 'in-stock'));
+
+    const rawImg = (typeof getProductGalleryImages === 'function')
+      ? getProductGalleryImages(p)[0]
+      : (p.ImageUrl || p.imageUrl || p.thumbnailimage || p.image || 'image/logo_minigt.png');
+    const img = (typeof resolveStorefrontImageUrl === 'function') ? resolveStorefrontImageUrl(rawImg) : rawImg;
     const pName = p.Name || p.name || 'MINI GT 1:64';
-    const pSku = p.Sku || p.sku || 'MGT';
     const fmt = (typeof formatVND === 'function')
       ? formatVND
       : (n => new Intl.NumberFormat('vi-VN').format(Math.round(Number(n) || 0)) + 'đ');
@@ -10754,6 +11187,39 @@ function renderChatProductCards(skuList) {
   return wrap;
 }
 
+function refreshRenderedChatProductCards() {
+  const box = document.getElementById('aiChatMessages');
+  if (!box) return;
+
+  const botRows = box.querySelectorAll('.chat-bubble-row.bot-msg[data-card-skus]');
+  botRows.forEach(row => {
+    const rawSkus = String(row.dataset.cardSkus || '').split(',').map(s => s.trim()).filter(Boolean);
+    const oldWrap = row.querySelector('.ai-chat-product-cards-wrap');
+    if (rawSkus.length === 0) {
+      if (oldWrap) oldWrap.remove();
+      row.classList.remove('has-product-cards');
+      return;
+    }
+
+    const freshWrap = renderChatProductCards(rawSkus);
+    if (freshWrap) {
+      row.classList.add('has-product-cards');
+      if (oldWrap) {
+        oldWrap.replaceWith(freshWrap);
+      } else {
+        const timeNode = row.querySelector('.chat-bubble-time');
+        if (timeNode) row.insertBefore(freshWrap, timeNode);
+        else row.appendChild(freshWrap);
+      }
+    } else {
+      // Tất cả sản phẩm trong nhóm này đã bị Admin xóa -> gỡ bỏ sạch thẻ xe khỏi khung chat
+      if (oldWrap) oldWrap.remove();
+      row.classList.remove('has-product-cards');
+    }
+  });
+}
+window.refreshRenderedChatProductCards = refreshRenderedChatProductCards;
+
 function renderChatSuggestions(suggestions) {
   if (!Array.isArray(suggestions) || suggestions.length === 0) return null;
   const container = document.createElement('div');
@@ -10769,28 +11235,48 @@ function renderChatSuggestions(suggestions) {
   return container;
 }
 
-function updateTopQuickChips(suggestions) {
-  const chipsWrap = document.getElementById('aiChatQuickChips');
-  if (!chipsWrap || !Array.isArray(suggestions) || suggestions.length === 0) return;
-  chipsWrap.innerHTML = suggestions.slice(0, 6).map(s => `
-    <button type="button" class="quick-chip-btn" onclick="sendQuickChatMessage('${escapeHtml(s)}')">
-      ${escapeHtml(s)}
-    </button>
-  `).join('');
-}
-
 function aiChatQuickAddToCart(productId, packType = 'box') {
+  const box = document.getElementById('aiChatMessages');
+
+  // CHẶN TRIỆT ĐỂ KHÁCH CHƯA ĐĂNG NHẬP THÊM VÀO GIỎ HÀNG TỪ AI CHATBOX
+  if (!isCustomerAuthenticated()) {
+    pendingPostLoginCartAction = {
+      productId,
+      quantity: 1,
+      packType,
+      openDrawer: false,
+      fromChat: true
+    };
+    showToast('Vui lòng đăng nhập tài khoản để thêm mẫu xe vào giỏ hàng!', 'info');
+
+    if (box) {
+      box.querySelectorAll('.ai-chat-auth-hint').forEach(el => el.remove());
+      const hint = document.createElement('div');
+      hint.className = 'ai-chat-auth-hint';
+      hint.innerHTML = `
+        <span><i class="fa-solid fa-lock"></i> Anh/chị vui lòng <strong>đăng nhập</strong> để thêm xe vào giỏ hàng nhé!</span>
+        <button type="button" class="btn-chat-login-now" onclick="openAuthModal('login')">Đăng nhập</button>
+      `;
+      box.appendChild(hint);
+      scrollChatToBottom();
+    }
+    openAuthModal('login');
+    return false;
+  }
+
   const success = addToCart(productId, 1, packType);
   if (success !== false) {
-    const box = document.getElementById('aiChatMessages');
     if (box) {
+      box.querySelectorAll('.ai-chat-auth-hint').forEach(el => el.remove());
       const notif = document.createElement('div');
       notif.className = 'ai-chat-action-confirmed';
       notif.innerHTML = `<i class="fa-solid fa-circle-check"></i> Đã thêm bản <strong>${packType === 'card' ? 'Vỉ (Card)' : 'Hộp (Box)'}</strong> vào giỏ hàng! Anh/chị có thể bấm <strong>Giỏ hàng</strong> trên thanh menu để thanh toán bất cứ lúc nào ạ. 💕`;
       box.appendChild(notif);
       scrollChatToBottom();
     }
+    return true;
   }
+  return false;
 }
 window.aiChatQuickAddToCart = aiChatQuickAddToCart;
 
@@ -10819,7 +11305,10 @@ async function escalateToHumanSupport() {
       if (res.data.message && box) {
         const mid = Number(res.data.message.id || 0);
         if (!mid || !renderedChatMsgIds.has(mid)) {
-          if (mid) renderedChatMsgIds.add(mid);
+          if (mid) {
+            renderedChatMsgIds.add(mid);
+            if (mid > lastSyncedChatMsgId) lastSyncedChatMsgId = mid;
+          }
           box.appendChild(renderChatMessageBubble('bot', 'Bé Bot AI Săn Xe', res.data.message.message, 'Vừa xong', res.data.message));
           scrollChatToBottom();
         }
@@ -10835,6 +11324,7 @@ async function escalateToHumanSupport() {
   }
 }
 window.escalateToHumanSupport = escalateToHumanSupport;
+
 
 
 

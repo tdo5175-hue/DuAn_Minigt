@@ -85,10 +85,46 @@ let cachedProducts = [];
 let cachedCoupons = [];
 let invertedTokenMap = new Map(); // token -> Array<productIndex>
 let lastFetch = 0;
+let lastCatalogFingerprint = '';
+let lastFingerprintCheckAt = 0;
 const CACHE_TTL_MS = 90 * 1000;
+const FINGERPRINT_CHECK_THROTTLE_MS = 600;
 
 function invalidateStoreCache() {
   lastFetch = 0;
+  lastCatalogFingerprint = '';
+  lastFingerprintCheckAt = 0;
+}
+
+function getCatalogSignature() {
+  return lastCatalogFingerprint || `${cachedProducts.length}`;
+}
+
+async function queryLiveCatalogFingerprint() {
+  try {
+    const fpRes = await db.query(`
+      SELECT
+        COUNT(*)::int AS cnt,
+        COALESCE(SUM(COALESCE(StockBox, 0) + COALESCE(StockCard, 0) + COALESCE(Stock, 0)), 0)::int AS st,
+        COALESCE(SUM(COALESCE(Price, 0) + COALESCE(PriceBox, 0) + COALESCE(PriceCard, 0)), 0)::bigint AS pr,
+        COALESCE(SUM(COALESCE(DiscountPercent, 0)), 0)::int AS dc,
+        MD5(COALESCE(STRING_AGG(
+          ProductId::text || ':' || COALESCE(Sku, '') || ':' || COALESCE(Name, '') || ':' ||
+          COALESCE(Status, '') || ':' || COALESCE(PackagingType, '') || ':' ||
+          COALESCE(PriceBox, 0)::text || ':' || COALESCE(PriceCard, 0)::text || ':' ||
+          COALESCE(DiscountPercent, 0)::text || ':' ||
+          COALESCE(StockBox, 0)::text || ':' || COALESCE(StockCard, 0)::text || ':' ||
+          COALESCE(Stock, 0)::text || ':' || COALESCE(ImageUrl, ''),
+          '|' ORDER BY ProductId ASC
+        ), '')) AS h
+      FROM Products
+      WHERE IsActive = TRUE
+    `);
+    const r = fpRes.recordset?.[0] || {};
+    return `${r.cnt || 0}:${r.st || 0}:${r.pr || 0}:${r.dc || 0}:${r.h || ''}`;
+  } catch (_) {
+    return '';
+  }
 }
 
 const TAG_RULES = [
@@ -263,14 +299,21 @@ function syncShopWithSettings(cfg) {
 async function getStoreData(force = false) {
   const now = Date.now();
   if (!force && cachedProducts.length && (now - lastFetch) < CACHE_TTL_MS) {
-    return { products: cachedProducts, coupons: cachedCoupons, shop: SHOP };
+    if ((now - lastFingerprintCheckAt) < FINGERPRINT_CHECK_THROTTLE_MS && lastCatalogFingerprint) {
+      return { products: cachedProducts, coupons: cachedCoupons, shop: SHOP };
+    }
+    lastFingerprintCheckAt = now;
+    const liveFp = await queryLiveCatalogFingerprint();
+    if (liveFp && liveFp === lastCatalogFingerprint) {
+      return { products: cachedProducts, coupons: cachedCoupons, shop: SHOP };
+    }
   }
   try {
     const [prodRes, allCoupons, liveSettings] = await Promise.all([
       db.query(`
-        SELECT p.ProductId, p.Sku, p.CarNumber, p.Name, p.Brand, p.Scale,
+        SELECT p.ProductId, p.Sku, p.CarNumber, p.Name, p.Brand, p.Scale, p.CategoryId,
                p.Price, p.OldPrice, p.PriceBox, p.PriceCard, p.DiscountPercent, p.PackagingType,
-               p.DepositAmount, p.DepositPercent,
+               p.DepositAmount, p.DepositPercent, p.ImageUrl,
                p.Status, p.Stock, p.StockBox, p.StockCard, c.Name AS CategoryName,
                p.ExpectedDelivery, p.EditionNote, p.Description, p.IsFeatured, p.IsNew,
                COALESCE((
@@ -323,6 +366,7 @@ async function getStoreData(force = false) {
 
       const p = {
         ProductId: Number(r.ProductId ?? r.productid),
+        CategoryId: Number(r.CategoryId ?? r.categoryid ?? 0),
         Sku: String(r.Sku ?? r.sku ?? '').trim(),
         CarNumber: String(r.CarNumber ?? r.carnumber ?? '').trim(),
         Name: String(r.Name ?? r.name ?? '').trim(),
@@ -339,8 +383,10 @@ async function getStoreData(force = false) {
         DepositPercent: depositPercent,
         DepositAmount: depAmtRaw > 0 ? depAmtRaw : 0,
         Status: String(r.Status ?? r.status ?? 'in_stock').toLowerCase(),
+        Stock: stockBox + stockCard,
         StockBox: stockBox,
         StockCard: stockCard,
+        ImageUrl: String(r.ImageUrl ?? r.imageurl ?? 'image/hero-banner.jpg').trim() || 'image/hero-banner.jpg',
         CategoryName: String(r.CategoryName ?? r.categoryname ?? 'Mô hình 1:64').trim(),
         ExpectedDelivery: r.ExpectedDelivery ?? r.expecteddelivery ?? SHOP.preorderDeadline,
         EditionNote: stripHtmlCompact(r.EditionNote ?? r.editionnote ?? '', 120),
@@ -383,11 +429,79 @@ async function getStoreData(force = false) {
         maxDiscount: Number(c.maxDiscount) || 0
       }));
 
-    lastFetch = now;
+    lastCatalogFingerprint = (await queryLiveCatalogFingerprint()) || `${cachedProducts.length}:${now}`;
+    lastFingerprintCheckAt = Date.now();
+    lastFetch = lastFingerprintCheckAt;
   } catch (err) {
     console.warn('[AI CHAT v5] Không tải được dữ liệu cửa hàng:', err.message);
   }
   return { products: cachedProducts, coupons: cachedCoupons, shop: SHOP };
+}
+
+function toLiveCardPayload(p) {
+  if (!p) return null;
+  return {
+    id: p.ProductId,
+    productId: p.ProductId,
+    ProductId: p.ProductId,
+    categoryId: p.CategoryId,
+    CategoryId: p.CategoryId,
+    sku: p.Sku,
+    Sku: p.Sku,
+    carNumber: p.CarNumber,
+    name: p.Name,
+    Name: p.Name,
+    brand: p.Brand,
+    scale: p.Scale,
+    packagingType: p.PackagingType,
+    price: p.PackagingType === 'card_only' ? p.PriceCard : p.PriceBox,
+    priceBox: p.BasePriceBox,
+    priceCard: p.BasePriceCard,
+    basePriceBox: p.BasePriceBox,
+    basePriceCard: p.BasePriceCard,
+    finalPriceBox: p.PriceBox,
+    finalPriceCard: p.PriceCard,
+    oldPrice: p.DiscountPercent > 0 ? (p.PackagingType === 'card_only' ? p.BasePriceCard : p.BasePriceBox) : p.OldPrice,
+    discountPercent: p.DiscountPercent,
+    hasDiscount: p.HasDiscount,
+    depositPercent: p.DepositPercent,
+    depositAmount: p.DepositAmount,
+    status: p.Status,
+    stock: p.StockBox + p.StockCard,
+    stockBox: p.StockBox,
+    stockCard: p.StockCard,
+    imageUrl: p.ImageUrl || 'image/hero-banner.jpg',
+    categoryName: p.CategoryName,
+    soldCount: p.SoldCount || 0
+  };
+}
+
+function extractSkusFromText(text) {
+  if (!text) return [];
+  const raw = [...String(text).matchAll(/\[([A-Z0-9][A-Z0-9\-_]{1,22})\]/gi)].map(m => m[1].toUpperCase());
+  const out = [];
+  for (const s of raw) {
+    if (s === 'ESCALATE' || s === 'SKU') continue;
+    if (!out.includes(s)) out.push(s);
+  }
+  return out;
+}
+
+function resolveProductCardsBySkus(skus = []) {
+  if (!Array.isArray(skus) || !skus.length || !cachedProducts.length) return [];
+  const bySku = new Map(cachedProducts.map(p => [String(p.Sku || '').toUpperCase(), p]));
+  const cards = [];
+  const seen = new Set();
+  for (const rawSku of skus) {
+    const key = String(rawSku || '').trim().toUpperCase();
+    if (!key || seen.has(key)) continue;
+    const prod = bySku.get(key);
+    if (prod) {
+      seen.add(key);
+      cards.push(toLiveCardPayload(prod));
+    }
+  }
+  return cards;
 }
 
 // Tra cứu đơn hàng thông minh theo Mã đơn (MGT-... / ORD-... / DH-...) HOẶC theo SĐT (khi khách hỏi tra đơn)
@@ -1817,19 +1931,46 @@ async function runEngine(ctx, history, opts) {
     return crReply;
   }
 
-  // 2b. Nếu khách gõ đích danh một mã SKU sản phẩm (VD: MGTS0026, MGT9999...) nhưng không tồn tại trong kho -> báo rõ ngay, tuyệt đối không lấy nhầm mẫu xe trước đó trong bộ nhớ!
-  if (!found.length) {
-    const unknownSkuMatch = String(ctx.raw || '').match(/\b((?:MGT\d|MGTS\d|MG\d|PR\d|KH\d|KHMG)[A-Z0-9-]{1,12})\b/i);
-    if (unknownSkuMatch) {
-      const askSku = unknownSkuMatch[1].toUpperCase();
-      const hotPicks = products.filter(isOrderable).slice(0, 3);
-      return reply(
-        `Dạ em vừa kiểm tra trực tiếp trên hệ thống kho hiện tại nhưng Showroom **chưa có mã [${askSku}]** ạ 🥺\n\n` +
-        `• Anh/chị kiểm tra lại mã xe giúp em, hoặc nhắn _"nhờ Admin đặt riêng mã ${askSku}"_ để Quản trị viên tìm nguồn báo giá cho mình nhé!\n` +
-        `• Trong lúc đó, anh/chị tham khảo 3 siêu phẩm đang có sẵn được săn đón nhất tại shop ạ:\n\n${hotPicks.map(listLine).join('\n\n')}`,
-        [`Nhờ Admin tìm mã ${askSku}`, 'Xe nào đang giảm giá?', 'Xe nào đang có sẵn?'],
-        { matchedProducts: hotPicks.map(x => x.Sku) }
-      );
+  // 2b. Nếu khách gõ đích danh một mã SKU sản phẩm (VD: MGTS0026, MGT9999, F1-TEST-99, [POP001]...) nhưng mã đó KHÔNG tồn tại hoặc ĐÃ BỊ ADMIN XÓA khỏi kho -> báo rõ ngay, tuyệt đối không trả nhầm xe cùng dòng (VD: chữ "F1" trong "F1-TEST-99") hay xe cũ trong bộ nhớ!
+  if (!ctx.explicitCouponCode && !I.orderTracking) {
+    const rawStr = String(ctx.raw || '');
+    const normStr = normalize(rawStr);
+    const bracketSku = rawStr.match(/\[([A-Z0-9][A-Z0-9\-_]{2,22})\]/i);
+    const hashSku = rawStr.match(/#([A-Z][A-Z0-9\-_]{3,22})\b/i);
+    const labeledSku = normStr.match(/(?:^|\s)(?:ma|mau|sku)\s+([a-z0-9]+-[a-z0-9\-]{1,18}|[a-z]{2,6}\d{3,10})\b/i);
+    const prefixSku = rawStr.match(/\b((?:MGT\d|MGTS\d|MG\d{3,}|PR\d{2,}|KH\d{2,}|KHMG|POP\d{2,}|INNO\d{2,}|TW\d{2,})[A-Z0-9\-_]{0,14})\b/i);
+    const hyphenCodeSku = rawStr.match(/\b([A-Z]{1,6}\d{0,3}-[A-Z0-9]+-[A-Z0-9\-_]+)\b/i);
+
+    const candidateSku = (
+      (bracketSku && bracketSku[1]) ||
+      (labeledSku && labeledSku[1]) ||
+      (prefixSku && prefixSku[1]) ||
+      (hyphenCodeSku && hyphenCodeSku[1]) ||
+      (hashSku && /\d/.test(hashSku[1]) ? hashSku[1] : '')
+    ).trim();
+
+    if (candidateSku && /[a-z]/i.test(candidateSku) && /\d/.test(candidateSku) && !/^(1[-/:]64|gt[-_]?r\d*|gt[-_]?3\w*|lb[-_]?w\w*|s[-_]?15|r[-_]?3[2345]|f[-_]?40)$/i.test(candidateSku)) {
+      const askSku = candidateSku.toUpperCase();
+      const askNorm = askSku.replace(/[-_]/g, '');
+      const isMgtShorthand = /^MGT0*\d{2,5}$/.test(askNorm);
+      const askDigits = isMgtShorthand ? askNorm.replace(/\D/g, '').replace(/^0+/, '') : '';
+
+      const skuExistsInCatalog = products.some(p => {
+        const ps = String(p.Sku || '').toUpperCase();
+        if (ps === askSku || ps.replace(/[-_]/g, '') === askNorm) return true;
+        if (askDigits && p._idx && p._idx.skuDigits === askDigits && ps.startsWith('MGT')) return true;
+        return false;
+      });
+
+      if (!skuExistsInCatalog) {
+        return reply(
+          `Dạ em vừa kiểm tra trực tiếp trên hệ thống kho hiện tại nhưng Showroom **chưa có (hoặc đã ngừng kinh doanh) mã #${askSku}** ạ 🥺\n\n` +
+          `• Anh/chị kiểm tra lại mã xe giúp em, hoặc bấm gợi ý bên dưới để nhờ **Admin Thịnh & Nam** tìm nguồn đặt riêng nhé!\n` +
+          `• Anh/chị cũng có thể xem ngay các siêu phẩm đang sẵn kho giao ngay tại shop ạ! ✨`,
+          [`Nhờ Admin đặt riêng mã ${askSku}`, 'Xe nào đang có sẵn?', 'Xe nào đang giảm giá?'],
+          { matchedProducts: [] }
+        );
+      }
     }
   }
 
@@ -2047,20 +2188,36 @@ QUY TẮC: Xưng "em/Bé Bot", gọi "anh/chị". Nhắc xe phải ghi [MGT...] 
 // =====================================================================
 // 9. ĐIỀU PHỐI CHÍNH
 // =====================================================================
+function finalizeBotResult(resObj) {
+  if (!resObj || typeof resObj !== 'object') return resObj;
+  const rawSkus = (Array.isArray(resObj.matchedProducts) && resObj.matchedProducts.length)
+    ? resObj.matchedProducts
+    : (!resObj.isEscalated ? extractSkusFromText(resObj.message) : []);
+  const matchedProductCards = resolveProductCardsBySkus(rawSkus);
+  return {
+    ...resObj,
+    matchedProducts: matchedProductCards.map(c => c.sku),
+    matchedProductCards,
+    catalogSig: getCatalogSignature()
+  };
+}
+
 async function generateBotReply(userMessage, conversationHistory = [], opts = {}) {
+  // Đảm bảo dữ liệu sản phẩm luôn đồng bộ 100% với PostgreSQL TRƯỚC KHI phân tích câu hỏi
+  await getStoreData();
   const ctx = analyze(userMessage);
 
   // B1. Phát hiện yêu cầu cần Admin can thiệp trực tiếp (khiếu nại, đơn cá nhân, mua sỉ, đòi gặp Admin)
   const reason = detectEscalation(ctx);
   if (reason) {
-    return {
+    return finalizeBotResult({
       message: buildEscalationMessage(reason, ctx.raw),
       isEscalated: true,
       confident: true,
       suggestions: ['Xe nào đang giảm giá?', 'Shop có mã giảm giá không?'],
       matchedProducts: [],
       reason
-    };
+    });
   }
 
   // B2. Gemini Micro-RAG (nếu có key) — câu hỏi về Thịnh & Nam hoặc tra mã đơn ưu tiên bộ máy chuẩn xác nội bộ
@@ -2068,31 +2225,33 @@ async function generateBotReply(userMessage, conversationHistory = [], opts = {}
     const gemini = await callGeminiApi(ctx, userMessage, conversationHistory, opts);
     if (gemini) {
       const isEscalated = gemini.includes('[ESCALATE]');
-      const geminiSkus = [...gemini.matchAll(/\[((?:MGT|MG|PR|KH)[A-Z0-9-]{2,})\]/gi)].map(m => m[1].toUpperCase());
-      return {
-        message: isEscalated ? buildEscalationMessage('not_understood', ctx.raw) : gemini.replace(/\[ESCALATE\]/g, '').trim(),
+      const cleanGeminiMsg = gemini.replace(/\[ESCALATE\]/g, '').trim();
+      const geminiSkus = isEscalated ? [] : extractSkusFromText(cleanGeminiMsg);
+      return finalizeBotResult({
+        message: isEscalated ? buildEscalationMessage('not_understood', ctx.raw) : cleanGeminiMsg,
         isEscalated,
         confident: !isEscalated,
         suggestions: ['Xe nào đang giảm giá?', 'Shop có mã giảm giá không?', 'Ai là người tạo web này?'],
         matchedProducts: geminiSkus,
         reason: isEscalated ? 'not_understood' : undefined
-      };
+      });
     }
   }
 
   // B3. Bộ máy suy luận ngữ nghĩa nội bộ v5
   try {
-    return await runEngine(ctx, conversationHistory, opts);
+    const engineRes = await runEngine(ctx, conversationHistory, opts);
+    return finalizeBotResult(engineRes);
   } catch (err) {
     console.warn('[AI CHAT v5] Lỗi bộ máy suy luận:', err.message);
-    return {
+    return finalizeBotResult({
       message: buildEscalationMessage('not_understood', ctx.raw),
       isEscalated: true,
       confident: false,
       suggestions: ['Xe nào đang có sẵn?'],
       matchedProducts: [],
       reason: 'not_understood'
-    };
+    });
   }
 }
 
@@ -2100,6 +2259,9 @@ module.exports = {
   generateBotReply,
   getStoreData,
   invalidateStoreCache,
+  getCatalogSignature,
+  extractSkusFromText,
+  resolveProductCardsBySkus,
   buildEscalationMessage,
   _internal: { analyze, detectEscalation, searchProducts, parsePriceRange, parseQuantity, expandSlang }
 };

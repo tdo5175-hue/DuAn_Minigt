@@ -9,10 +9,10 @@ const { authenticate } = require('../middleware/auth');
 const { ok, notFound, badRequest, created } = require('../utils/http');
 const v = require('../utils/validators');
 
-// 1. LẤY DANH SÁCH TẤT CẢ SẢN PHẨM
+// 1. LẤY DANH SÁCH TẤT CẢ SẢN PHẨM (Luôn đọc trực tiếp dữ liệu mới nhất từ PostgreSQL, không dùng HTTP cache cũ để đồng bộ 0ms khi Admin thêm/sửa/xóa)
 router.get('/', async (req, res, next) => {
   try {
-    res.setHeader('Cache-Control', 'public, max-age=30, stale-while-revalidate=60');
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
     const { category, brand, status, search, tag, sort, minPrice, maxPrice, inStockOnly } = req.query;
 
     let queryStr = productService.BASE_SELECT + ' WHERE p.IsActive = TRUE';
@@ -113,7 +113,7 @@ router.get('/', async (req, res, next) => {
 // 2. LẤY DANH MỤC SẢN PHẨM
 router.get('/categories', async (req, res, next) => {
   try {
-    res.setHeader('Cache-Control', 'public, max-age=60, stale-while-revalidate=120');
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
     const categories = await productService.listCategories();
     return ok(res, categories, 'Lấy danh mục thành công');
   } catch (error) {
@@ -124,6 +124,7 @@ router.get('/categories', async (req, res, next) => {
 // 3. CHI TIẾT SẢN PHẨM THEO ID HOẶC SLUG
 router.get('/:idOrSlug', async (req, res, next) => {
   try {
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
     const { idOrSlug } = req.params;
     const product = await productService.findPublic(idOrSlug);
 
