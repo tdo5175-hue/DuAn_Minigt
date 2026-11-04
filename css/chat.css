@@ -1,0 +1,1089 @@
+/* =====================================================================
+   MINI GT STORE BIÊN HÒA — CHIBI AI CHATBOX (CỐ ĐỊNH GÓC TRÁI + ZALO TRONG GÓC PHẢI BOX CHAT)
+   Tông nền: MÀU TRẮNG TINH KHÔI • CHIBI ROBOT SIÊU CUTE • THÔNG MINH 24/7
+   ===================================================================== */
+
+/* 1. NÚT MỞ CHAT AI CỐ ĐỊNH GÓC TRÁI (CHỈ 1 ICON DUY NHẤT + HIỆU ỨNG CUTE) */
+.ai-chat-launcher {
+  position: fixed;
+  bottom: 26px;
+  left: 24px;
+  z-index: 9998;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: linear-gradient(145deg, #ffffff 0%, #fff1f2 100%);
+  border: 2.5px solid #fecdd3;
+  box-shadow: 0 12px 30px rgba(225, 6, 0, 0.2), 0 4px 12px rgba(15, 23, 42, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+  outline: none;
+  padding: 0;
+}
+
+.ai-chat-launcher:hover {
+  transform: scale(1.12) translateY(-4px);
+  border-color: #fb7185;
+  box-shadow: 0 16px 38px rgba(225, 6, 0, 0.3), 0 0 20px rgba(251, 113, 133, 0.45);
+}
+
+.ai-chat-launcher.active {
+  background: #fff1f2;
+  border-color: #f43f5e;
+  transform: scale(0.96);
+}
+
+/* Vòng hào quang đôi lan tỏa quanh Icon AI */
+.ai-launcher-aura,
+.ai-launcher-aura-2 {
+  position: absolute;
+  inset: -6px;
+  border-radius: 50%;
+  border: 2px solid rgba(244, 63, 94, 0.45);
+  pointer-events: none;
+  animation: aiAuraWave 2.8s infinite ease-out;
+}
+
+.ai-launcher-aura-2 {
+  border-color: rgba(56, 189, 248, 0.4);
+  animation-delay: 1.4s;
+}
+
+@keyframes aiAuraWave {
+  0% { transform: scale(0.92); opacity: 0.9; }
+  100% { transform: scale(1.38); opacity: 0; }
+}
+
+/* Hiệu ứng ngôi sao lấp lánh quanh Bé Bot */
+.ai-sparkle {
+  position: absolute;
+  font-size: 11px;
+  pointer-events: none;
+  z-index: 3;
+  animation: sparkleTwinkle 2.2s infinite ease-in-out;
+}
+
+.ai-sparkle.sp-1 {
+  top: -4px;
+  left: -2px;
+  color: #f59e0b;
+  animation-delay: 0s;
+}
+
+.ai-sparkle.sp-2 {
+  bottom: 2px;
+  right: -5px;
+  color: #f43f5e;
+  font-size: 10px;
+  animation-delay: 0.7s;
+}
+
+.ai-sparkle.sp-3 {
+  top: 6px;
+  right: -6px;
+  color: #38bdf8;
+  font-size: 9px;
+  animation-delay: 1.4s;
+}
+
+@keyframes sparkleTwinkle {
+  0%, 100% { transform: scale(0.6) rotate(0deg); opacity: 0.3; }
+  50% { transform: scale(1.25) rotate(20deg); opacity: 1; }
+}
+
+/* Chuyển động nhún nhảy + vẫy tay + chớp mắt của Chibi Robot */
+.ai-robot-icon-wrap {
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: cuteRobotBounce 3.2s ease-in-out infinite;
+  position: relative;
+  z-index: 2;
+}
+
+@keyframes cuteRobotBounce {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  25% { transform: translateY(-3.5px) rotate(-4deg); }
+  50% { transform: translateY(-1px) rotate(0deg); }
+  75% { transform: translateY(-3px) rotate(4deg); }
+}
+
+.cute-ai-robot-svg .robot-eyes-group {
+  transform-origin: center 33px;
+  animation: chibiEyeBlink 4.2s infinite;
+}
+
+@keyframes chibiEyeBlink {
+  0%, 46%, 50%, 96%, 100% { transform: scaleY(1); }
+  48%, 98% { transform: scaleY(0.1); }
+}
+
+.cute-ai-robot-svg .robot-antenna-group {
+  transform-origin: 36px 14px;
+  animation: heartAntennaBeat 1.8s infinite ease-in-out;
+}
+
+@keyframes heartAntennaBeat {
+  0%, 100% { transform: scale(1) rotate(0deg); }
+  50% { transform: scale(1.16) rotate(5deg); }
+}
+
+.cute-ai-robot-svg .robot-hand-left {
+  transform-origin: 11px 43px;
+  animation: chibiWaveLeft 2s infinite ease-in-out;
+}
+
+.cute-ai-robot-svg .robot-hand-right {
+  transform-origin: 61px 43px;
+  animation: chibiWaveRight 2s infinite ease-in-out;
+}
+
+@keyframes chibiWaveLeft {
+  0%, 100% { transform: rotate(0deg); }
+  50% { transform: rotate(-18deg) translateY(-1px); }
+}
+
+@keyframes chibiWaveRight {
+  0%, 100% { transform: rotate(0deg); }
+  50% { transform: rotate(18deg) translateY(-1px); }
+}
+
+/* Bong bóng lời chào dễ thương bên cạnh nút AI */
+.ai-launcher-greeting {
+  position: absolute;
+  left: calc(100% + 12px);
+  top: 50%;
+  transform: translateY(-50%);
+  background: #ffffff;
+  color: #0f172a;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 6px 12px;
+  border-radius: 14px;
+  border: 1.5px solid #fecdd3;
+  box-shadow: 0 6px 18px rgba(225, 6, 0, 0.12);
+  white-space: nowrap;
+  pointer-events: none;
+  animation: greetingFloat 3s ease-in-out infinite;
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+
+.ai-launcher-greeting::before {
+  content: '';
+  position: absolute;
+  left: -6px;
+  top: 50%;
+  transform: translateY(-50%) rotate(45deg);
+  width: 10px;
+  height: 10px;
+  background: #ffffff;
+  border-left: 1.5px solid #fecdd3;
+  border-bottom: 1.5px solid #fecdd3;
+}
+
+.ai-chat-launcher.active .ai-launcher-greeting {
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-50%) translateX(-8px);
+}
+
+@keyframes greetingFloat {
+  0%, 100% { transform: translateY(-50%) translateX(0); }
+  50% { transform: translateY(-50%) translateX(4px); }
+}
+
+.ai-chat-badge-pulse {
+  position: absolute;
+  top: 1px;
+  right: 1px;
+  width: 14px;
+  height: 14px;
+  background: #10b981;
+  border: 2.5px solid #ffffff;
+  border-radius: 50%;
+  z-index: 4;
+  animation: aiBadgePulse 2s infinite;
+}
+
+@keyframes aiBadgePulse {
+  0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+  70% { transform: scale(1.1); box-shadow: 0 0 0 7px rgba(16, 185, 129, 0); }
+  100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+}
+
+/* 2. CỬA SỔ KHUNG CHAT (NỀN TRẮNG SỨ • CỐ ĐỊNH BÊN TRÁI PHÍA TRÊN NÚT AI) */
+.ai-chat-window {
+  position: fixed;
+  bottom: 102px;
+  left: 24px;
+  right: auto;
+  z-index: 9999;
+  width: 395px;
+  max-width: calc(100vw - 32px);
+  height: 545px;
+  max-height: calc(100vh - 130px);
+  background: #ffffff;
+  border-radius: 22px;
+  border: 1.5px solid #e2e8f0;
+  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.16), 0 4px 16px rgba(0, 0, 0, 0.04);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(20px) scale(0.95);
+  transform-origin: bottom left;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.ai-chat-window.active {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0) scale(1);
+}
+
+/* 3. HEADER KHUNG CHAT & NÚT ZALO Ở GÓC PHẢI BOX CHAT */
+.ai-chat-header {
+  background: linear-gradient(180deg, #fff5f5 0%, #ffffff 100%);
+  padding: 13px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1.5px solid #f1f5f9;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.02);
+}
+
+.ai-chat-header-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.ai-chat-avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #ffffff 0%, #ffe4e6 100%);
+  border: 1.5px solid #fda4af;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 12px rgba(244, 63, 94, 0.15);
+  flex-shrink: 0;
+}
+
+.ai-chat-titles h4 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 800;
+  color: #0f172a;
+  letter-spacing: -0.01em;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ai-badge-pro {
+  font-size: 10px;
+  background: #fee2e2;
+  color: #e10600;
+  padding: 2px 7px;
+  border-radius: 8px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+  border: 1px solid #fecaca;
+  display: inline-flex;
+  align-items: center;
+}
+
+.ai-chat-status {
+  font-size: 11.5px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: #059669;
+  font-weight: 600;
+  margin-top: 1px;
+}
+
+.ai-chat-status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #10b981;
+}
+
+.ai-chat-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* NÚT ZALO CHÍNH THỨC (HIỆN Ở MỤC DƯỚI KẾ BÉ BOT AI BÊN PHẢI KHI BẤM MỞ BOX CHAT) */
+.zalo-side-app-btn {
+  position: fixed;
+  bottom: 29px;
+  left: 100px;
+  z-index: 9998;
+  display: inline-flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 9px;
+  text-decoration: none;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform: translateX(-22px) scale(0.82);
+  transform-origin: left center;
+  transition: all 0.34s cubic-bezier(0.34, 1.56, 0.64, 1);
+  cursor: pointer;
+}
+
+.zalo-side-app-btn.active {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transform: translateX(0) scale(1);
+}
+
+.zalo-side-icon-box {
+  position: relative;
+  width: 56px;
+  height: 56px;
+  border-radius: 16px;
+  background: #ffffff;
+  border: 2px solid #bfdbfe;
+  padding: 5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 10px 26px rgba(0, 104, 255, 0.28), 0 3px 10px rgba(15, 23, 42, 0.1);
+  transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+  flex-shrink: 0;
+}
+
+.zalo-app-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+  border-radius: 10px;
+}
+
+.zalo-online-dot {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  width: 13px;
+  height: 13px;
+  background: #10b981;
+  border: 2.5px solid #ffffff;
+  border-radius: 50%;
+  z-index: 3;
+}
+
+.zalo-side-app-btn:hover .zalo-side-icon-box {
+  transform: translateY(-3px) scale(1.08);
+  border-color: #3b82f6;
+  box-shadow: 0 14px 32px rgba(0, 104, 255, 0.42), 0 0 18px rgba(59, 130, 246, 0.45);
+}
+
+.zalo-side-pulse {
+  position: absolute;
+  inset: -5px;
+  border-radius: 20px;
+  border: 2px solid rgba(0, 104, 255, 0.45);
+  pointer-events: none;
+  animation: zaloSidePulseWave 2.4s infinite ease-out;
+}
+
+@keyframes zaloSidePulseWave {
+  0% { transform: scale(0.92); opacity: 0.95; }
+  100% { transform: scale(1.32); opacity: 0; }
+}
+
+.zalo-side-badge {
+  background: #ffffff;
+  color: #0068ff;
+  padding: 5px 11px;
+  border-radius: 13px;
+  box-shadow: 0 6px 18px rgba(0, 104, 255, 0.14), 0 2px 6px rgba(15, 23, 42, 0.06);
+  border: 1.5px solid #dbeafe;
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+  transition: all 0.22s ease;
+  white-space: nowrap;
+}
+
+.zalo-side-badge strong {
+  font-size: 11px;
+  font-weight: 800;
+  color: #0068ff;
+  letter-spacing: -0.1px;
+}
+
+.zalo-side-badge small {
+  font-size: 11px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.zalo-side-app-btn:hover .zalo-side-badge {
+  background: #0068ff;
+  border-color: #0068ff;
+  transform: translateX(2px);
+}
+
+.zalo-side-app-btn:hover .zalo-side-badge strong,
+.zalo-side-app-btn:hover .zalo-side-badge small {
+  color: #ffffff;
+}
+
+.btn-chat-close {
+  background: #f1f5f9;
+  border: none;
+  color: #64748b;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-chat-close:hover {
+  background: #fee2e2;
+  color: #e10600;
+  transform: rotate(90deg);
+}
+
+/* Nút bấm mã SKU thông minh trong tin nhắn để mở xem xe ngay */
+.chat-sku-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  background: #fff1f2;
+  color: #e10600;
+  border: 1px solid #fecdd3;
+  border-radius: 6px;
+  padding: 1px 6px;
+  font-size: 11.5px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: inherit;
+}
+
+.chat-sku-link:hover {
+  background: #e10600;
+  color: #ffffff;
+  border-color: #e10600;
+  transform: translateY(-1px);
+}
+
+/* 4. BANNER THÔNG BÁO CHUYỂN GIAO ADMIN (KHI GẶP CÂU HỎI KHÓ) */
+.ai-chat-escalated-banner {
+  background: #fffbeb;
+  border-bottom: 1px solid #fde68a;
+  padding: 8px 12px;
+  font-size: 11px;
+  color: #92400e;
+  display: none;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.ai-chat-escalated-banner.show {
+  display: flex;
+}
+
+.ai-banner-content {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex: 1;
+}
+
+.ai-chat-escalated-banner i {
+  color: #d97706;
+  font-size: 13px;
+  flex-shrink: 0;
+}
+
+.btn-resume-bot-ai {
+  background: #ffffff;
+  border: 1px solid #d97706;
+  color: #b45309;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.15s ease;
+  font-family: inherit;
+  flex-shrink: 0;
+}
+
+.btn-resume-bot-ai:hover {
+  background: #d97706;
+  color: #ffffff;
+}
+
+/* 5. GỢI Ý CÂU HỎI NHANH (CHIPS NỀN TRẮNG) */
+.ai-chat-quick-chips {
+  padding: 9px 14px;
+  background: #fafafa;
+  border-bottom: 1px solid #f1f5f9;
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  white-space: nowrap;
+  scrollbar-width: none;
+}
+
+.ai-chat-quick-chips::-webkit-scrollbar {
+  display: none;
+}
+
+.quick-chip-btn {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  color: #334155;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 5px 11px;
+  border-radius: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+}
+
+.quick-chip-btn:hover {
+  background: #e10600;
+  color: #ffffff;
+  border-color: #e10600;
+  transform: translateY(-1px);
+  box-shadow: 0 3px 8px rgba(225, 6, 0, 0.22);
+}
+
+/* 6. KHU VỰC NỘI DUNG TIN NHẮN (NỀN TRẮNG SẠCH SẼ) */
+.ai-chat-messages {
+  flex: 1;
+  padding: 16px 14px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  background: #ffffff;
+  scroll-behavior: smooth;
+}
+
+.chat-bubble-row {
+  display: flex;
+  flex-direction: column;
+  max-width: 84%;
+  animation: bubbleFadeIn 0.22s ease-out;
+}
+
+@keyframes bubbleFadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.chat-bubble-row.user-msg {
+  align-self: flex-end;
+  align-items: flex-end;
+}
+
+.chat-bubble-row.bot-msg,
+.chat-bubble-row.admin-msg {
+  align-self: flex-start;
+  align-items: flex-start;
+}
+
+.chat-bubble {
+  padding: 11px 15px;
+  font-size: 13px;
+  line-height: 1.55;
+  word-break: break-word;
+  white-space: pre-wrap;
+}
+
+/* Bong bóng người dùng */
+.chat-bubble-row.user-msg .chat-bubble {
+  background: linear-gradient(135deg, #e10600 0%, #b91c1c 100%);
+  color: #ffffff;
+  border-radius: 18px 18px 4px 18px;
+  box-shadow: 0 4px 14px rgba(225, 6, 0, 0.22);
+}
+
+/* Bong bóng Bot AI */
+.chat-bubble-row.bot-msg .chat-bubble {
+  background: #f8fafc;
+  color: #0f172a;
+  border: 1px solid #e2e8f0;
+  border-radius: 18px 18px 18px 4px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.02);
+}
+
+/* Bong bóng Admin người thật */
+.chat-bubble-row.admin-msg .chat-bubble {
+  background: #fffbeb;
+  color: #78350f;
+  border: 1.5px solid #f59e0b;
+  border-radius: 18px 18px 18px 4px;
+  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.15);
+}
+
+.chat-sender-tag {
+  font-size: 10.5px;
+  font-weight: 700;
+  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.chat-sender-tag.bot { color: #4338ca; }
+.chat-sender-tag.admin { color: #d97706; }
+.chat-sender-tag.user { color: #64748b; }
+
+.chat-bubble-time {
+  font-size: 9.5px;
+  color: #94a3b8;
+  margin-top: 3px;
+}
+
+/* Thẻ xe mini đính kèm trong tin nhắn AI (Product Card Mini) */
+.chat-product-card-mini {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 8px 10px;
+  margin-top: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.03);
+}
+
+.chat-product-card-mini:hover {
+  border-color: #e10600;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 10px rgba(225, 6, 0, 0.12);
+}
+
+/* Thẻ xe Mini Card Showcase Thông Minh của Bé Bot */
+.ai-chat-product-cards-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+  width: 100%;
+}
+
+.ai-chat-mini-card {
+  display: flex;
+  gap: 10px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 8px 10px;
+  align-items: center;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.03);
+  transition: all 0.2s ease;
+}
+
+.ai-chat-mini-card:hover {
+  border-color: #cbd5e1;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+}
+
+.ai-mini-card-thumb {
+  position: relative;
+  width: 68px;
+  height: 52px;
+  flex-shrink: 0;
+  background: #f8fafc;
+  border-radius: 8px;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #f1f5f9;
+}
+
+.ai-mini-card-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.ai-mini-card-badge {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  font-size: 8px;
+  font-weight: 800;
+  padding: 1px 4px;
+  border-radius: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.2px;
+}
+
+.ai-mini-card-badge.in-stock { background: #dcfce7; color: #166534; }
+.ai-mini-card-badge.pre-order { background: #fef3c7; color: #92400e; }
+.ai-mini-card-badge.sold-out { background: #fee2e2; color: #991b1b; }
+
+.ai-mini-card-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.ai-mini-card-sku {
+  font-size: 9.5px;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+}
+
+.ai-mini-card-name {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #0f172a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.35;
+}
+
+.ai-mini-card-prices {
+  display: flex;
+  gap: 7px;
+  font-size: 10.5px;
+  color: #475569;
+  margin-top: 2px;
+}
+
+.ai-mini-card-prices strong {
+  color: #e10600;
+  font-weight: 800;
+}
+
+.ai-mini-card-actions {
+  display: flex;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.btn-card-quickview,
+.btn-card-addcart {
+  padding: 2.5px 7px;
+  border-radius: 6px;
+  font-size: 10px;
+  font-weight: 700;
+  cursor: pointer;
+  border: 1px solid;
+  transition: all 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-family: inherit;
+}
+
+.btn-card-quickview {
+  background: #f1f5f9;
+  color: #334155;
+  border-color: #cbd5e1;
+}
+
+.btn-card-quickview:hover {
+  background: #e2e8f0;
+  color: #0f172a;
+}
+
+.btn-card-addcart {
+  background: #fff1f2;
+  color: #e10600;
+  border-color: #fecdd3;
+}
+
+.btn-card-addcart:hover {
+  background: #e10600;
+  color: #ffffff;
+  border-color: #e10600;
+}
+
+.btn-card-addcart.card-style {
+  background: #f0fdf4;
+  color: #16a34a;
+  border-color: #bbf7d0;
+}
+
+.btn-card-addcart.card-style:hover {
+  background: #16a34a;
+  color: #ffffff;
+  border-color: #16a34a;
+}
+
+.ai-mini-soldout-label {
+  font-size: 10px;
+  font-weight: 700;
+  color: #ef4444;
+  padding: 2px 6px;
+  background: #fee2e2;
+  border-radius: 4px;
+}
+
+/* Gợi ý câu hỏi động dưới bong bóng chat */
+.ai-chat-inline-suggestions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 6px;
+  width: 100%;
+}
+
+.ai-inline-sugg-pill {
+  background: #f8fafc;
+  color: #334155;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 3.5px 9px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  font-family: inherit;
+}
+
+.ai-inline-sugg-pill:hover {
+  background: #fff1f2;
+  color: #e10600;
+  border-color: #fecdd3;
+  transform: translateY(-1px);
+}
+
+/* Thông báo hành động thành công trong chat */
+.ai-chat-action-confirmed {
+  background: #f0fdf4;
+  border: 1px solid #86efac;
+  color: #166534;
+  font-size: 11px;
+  padding: 6px 10px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  line-height: 1.4;
+  animation: bubbleFadeIn 0.22s ease-out;
+}
+
+.ai-chat-action-confirmed i {
+  color: #16a34a;
+  font-size: 13px;
+  flex-shrink: 0;
+}
+
+/* Trạng thái đang soạn tin (Typing Indicator) */
+.ai-typing-indicator {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 10px 14px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  width: fit-content;
+  align-self: flex-start;
+}
+
+.ai-typing-dot {
+  width: 6.5px;
+  height: 6.5px;
+  border-radius: 50%;
+  background: #e10600;
+  animation: typingBounce 1.4s infinite ease-in-out both;
+}
+
+.ai-typing-dot:nth-child(1) { animation-delay: -0.32s; }
+.ai-typing-dot:nth-child(2) { animation-delay: -0.16s; }
+
+@keyframes typingBounce {
+  0%, 80%, 100% { transform: scale(0); }
+  40% { transform: scale(1); }
+}
+
+/* 7. THANH NHẬP LIỆU FOOTER (NỀN TRẮNG SẠCH SẼ) */
+.ai-chat-input-bar {
+  padding: 12px 14px;
+  background: #ffffff;
+  border-top: 1px solid #f1f5f9;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.ai-chat-input {
+  flex: 1;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  color: #0f172a;
+  padding: 10px 14px;
+  border-radius: 22px;
+  font-size: 13px;
+  outline: none;
+  transition: all 0.2s;
+}
+
+.ai-chat-input:focus {
+  border-color: #e10600;
+  background: #ffffff;
+  box-shadow: 0 0 0 3px rgba(225, 6, 0, 0.08);
+}
+
+.ai-chat-send-btn {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: #e10600;
+  color: #ffffff;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+
+.ai-chat-send-btn:hover {
+  background: #b91c1c;
+  transform: scale(1.06);
+}
+
+.ai-chat-send-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Trích dẫn câu hỏi trước của khách trong phản hồi của Admin */
+.chat-reply-quote {
+  background: rgba(245, 158, 11, 0.14);
+  border-left: 3px solid #d97706;
+  border-radius: 6px 8px 8px 6px;
+  padding: 6px 9px;
+  margin-bottom: 7px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 11.5px;
+  line-height: 1.35;
+}
+
+.chat-reply-quote .quote-label {
+  font-size: 10px;
+  font-weight: 800;
+  color: #b45309;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.chat-reply-quote .quote-text {
+  color: #78350f;
+  font-style: italic;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Nhãn trạng thái câu hỏi đã gửi lên Admin dưới bong bóng khách */
+.chat-user-esc-tag {
+  margin-top: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: #fffbeb;
+  color: #b45309;
+  border: 1px solid #fde68a;
+}
+
+.chat-user-esc-tag.resolved {
+  background: #ecfdf5;
+  color: #047857;
+  border-color: #a7f3d0;
+}
+
+/* 8. RESPONSIVE ĐIỆN THOẠI */
+@media (max-width: 576px) {
+  .ai-chat-launcher {
+    bottom: 74px;
+    left: 14px;
+    width: 56px;
+    height: 56px;
+  }
+  .ai-robot-icon-wrap {
+    width: 40px;
+    height: 40px;
+  }
+  .ai-launcher-greeting {
+    display: none;
+  }
+  .ai-chat-window {
+    bottom: 138px;
+    left: 12px;
+    right: 12px;
+    width: auto;
+    max-width: none;
+    height: 490px;
+  }
+  .zalo-side-app-btn {
+    left: 80px;
+    right: auto;
+    bottom: 77px;
+    top: auto;
+    gap: 7px;
+  }
+  .zalo-side-icon-box {
+    width: 48px;
+    height: 48px;
+    border-radius: 14px;
+    padding: 4px;
+  }
+  .zalo-side-badge {
+    padding: 4px 9px;
+  }
+  .zalo-side-badge strong,
+  .zalo-side-badge small {
+    font-size: 10.5px;
+  }
+}

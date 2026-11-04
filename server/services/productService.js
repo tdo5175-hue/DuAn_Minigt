@@ -3,6 +3,48 @@
  */
 const db = require('../config/db');
 
+let _productImagesSchemaReady = false;
+async function ensureProductImagesSchema() {
+  if (_productImagesSchemaReady) return;
+  _productImagesSchemaReady = true;
+  try {
+    await db.query('ALTER TABLE ProductImages ALTER COLUMN ImageUrl TYPE TEXT;');
+  } catch (_) {
+    // Bỏ qua nếu đã là TEXT hoặc quyền đọc-only
+  }
+}
+
+function normalizeImagesArray(primaryImageUrl, rawImages) {
+  let parsed = [];
+  if (Array.isArray(rawImages)) {
+    parsed = rawImages;
+  } else if (typeof rawImages === 'string' && rawImages.trim()) {
+    try {
+      const candidate = JSON.parse(rawImages);
+      if (Array.isArray(candidate)) parsed = candidate;
+    } catch (_) {
+      parsed = [rawImages];
+    }
+  }
+
+  const cleaned = parsed
+    .map(u => (typeof u === 'string' ? u.trim() : ''))
+    .filter(Boolean);
+
+  const primary = typeof primaryImageUrl === 'string' ? primaryImageUrl.trim() : '';
+  if (!cleaned.length) {
+    return primary ? [primary] : [];
+  }
+  if (!primary) {
+    return cleaned;
+  }
+  if (cleaned[0] === primary) {
+    return cleaned;
+  }
+  const rest = cleaned.filter((u, idx) => !(idx === 0 && u === primary));
+  return [primary, ...rest];
+}
+
 function calcDiscountedPrice(basePrice, discountPercent) {
   const base = Math.max(0, Number(basePrice || 0));
   const disc = Math.min(80, Math.max(0, Number(discountPercent || 0)));
@@ -86,8 +128,15 @@ function mapProduct(row) {
   );
 
   const editionNote = row.EditionNote ?? row.editionnote ?? '';
-  const imageUrl = row.ImageUrl ?? row.imageurl ?? '';
+  const rawImageUrl = row.ImageUrl ?? row.imageurl ?? '';
+  const rawImagesJson = row.ImagesJson ?? row.imagesjson ?? row.images ?? row.Images ?? null;
+  const images = normalizeImagesArray(rawImageUrl, rawImagesJson);
+  const imageUrl = images[0] || rawImageUrl || '';
   const description = row.Description ?? row.description ?? '';
+
+  const soldCount = Math.max(0, parseInt(row.SoldCount ?? row.soldcount ?? row.UnitsSold ?? row.unitssold ?? 0, 10) || 0);
+  const soldBox = Math.max(0, parseInt(row.SoldBox ?? row.soldbox ?? 0, 10) || 0);
+  const soldCard = Math.max(0, parseInt(row.SoldCard ?? row.soldcard ?? 0, 10) || 0);
 
   const isFeatured = Boolean(row.IsFeatured ?? row.isfeatured ?? false);
   const isNew = Boolean(row.IsNew ?? row.isnew ?? false);
@@ -129,8 +178,12 @@ function mapProduct(row) {
     hasBox,
     hasCard,
     stock: effectiveStock,
+    soldCount,
+    soldBox,
+    soldCard,
     image: imageUrl,
     imageUrl,
+    images,
     description,
     status,
     isFeatured,
@@ -174,7 +227,11 @@ function mapProduct(row) {
     HasBox: hasBox,
     HasCard: hasCard,
     Stock: effectiveStock,
+    SoldCount: soldCount,
+    SoldBox: soldBox,
+    SoldCard: soldCard,
     ImageUrl: imageUrl,
+    Images: images,
     Description: description,
     Status: status,
     IsFeatured: isFeatured,
@@ -196,9 +253,32 @@ const SELECT_PRODUCT = `
     p.PreOrderDeadline, p.StockBox, p.StockCard, p.Stock, p.ImageUrl, p.Description, p.Status,
     p.ReleaseDate, p.ExpectedDelivery,
     p.IsFeatured, p.IsNew, p.IsActive, p.CreatedAt, p.UpdatedAt,
-    c.CategoryId, c.Name AS CategoryName, c.Slug AS CategorySlug
+    c.CategoryId, c.Name AS CategoryName, c.Slug AS CategorySlug,
+    COALESCE(sold_stats.SoldCount, 0) AS SoldCount,
+    COALESCE(sold_stats.SoldBox, 0) AS SoldBox,
+    COALESCE(sold_stats.SoldCard, 0) AS SoldCard,
+    COALESCE(img_agg.ImagesJson, '[]'::json) AS ImagesJson
   FROM Products p
   INNER JOIN Categories c ON p.CategoryId = c.CategoryId
+  LEFT JOIN (
+    SELECT
+      oi.ProductId,
+      CAST(COALESCE(SUM(oi.Quantity), 0) AS INT) AS SoldCount,
+      CAST(COALESCE(SUM(CASE WHEN LOWER(COALESCE(oi.PackagingOption, '')) LIKE '%card%' THEN 0 ELSE oi.Quantity END), 0) AS INT) AS SoldBox,
+      CAST(COALESCE(SUM(CASE WHEN LOWER(COALESCE(oi.PackagingOption, '')) LIKE '%card%' THEN oi.Quantity ELSE 0 END), 0) AS INT) AS SoldCard
+    FROM OrderItems oi
+    INNER JOIN Orders o ON o.OrderId = oi.OrderId
+      AND UPPER(COALESCE(o.Status, '')) <> 'CANCELLED'
+      AND UPPER(COALESCE(o.PaymentStatus, '')) <> 'REFUNDED'
+    GROUP BY oi.ProductId
+  ) sold_stats ON sold_stats.ProductId = p.ProductId
+  LEFT JOIN (
+    SELECT
+      pi.ProductId,
+      json_agg(pi.ImageUrl ORDER BY pi.SortOrder ASC, pi.ImageId ASC) AS ImagesJson
+    FROM ProductImages pi
+    GROUP BY pi.ProductId
+  ) img_agg ON img_agg.ProductId = p.ProductId
 `;
 
 /**
@@ -258,7 +338,9 @@ async function listProducts(filters = {}, { includeInactive = false } = {}) {
     price_desc: 'p.Price DESC, p.ProductId ASC',
     newest: 'p.IsNew DESC, p.ProductId ASC',
     featured: 'p.IsFeatured DESC, p.ProductId ASC',
+    best_selling: 'SoldCount DESC, p.ProductId DESC',
     name_asc: 'p.Name ASC',
+    name_desc: 'p.Name DESC',
     stock_asc: 'p.Stock ASC'
   };
   const orderBy = sortMap[filters.sort] || 'p.ProductId ASC';
@@ -309,7 +391,7 @@ async function getProductByIdOrSlug(idOrSlug, { includeInactive = false } = {}) 
   const product = mapProduct(res.recordset[0]);
 
   const [imgRes, revRes, relRes] = await Promise.all([
-    db.query('SELECT ImageUrl, SortOrder FROM ProductImages WHERE ProductId = @pid ORDER BY SortOrder ASC', { pid: product.id }),
+    db.query('SELECT ImageUrl, SortOrder FROM ProductImages WHERE ProductId = @pid ORDER BY SortOrder ASC, ImageId ASC', { pid: product.id }),
     db.query(`
       SELECT r.ReviewId, r.Rating, r.Comment, r.CreatedAt, u.FullName, u.AvatarUrl
       FROM ProductReviews r
@@ -318,26 +400,33 @@ async function getProductByIdOrSlug(idOrSlug, { includeInactive = false } = {}) 
       ORDER BY r.CreatedAt DESC
     `, { pid: product.id }),
     db.query(`
-      SELECT
-        p.ProductId, p.Sku, p.CarNumber, p.Name, p.Slug, p.Brand, p.Scale,
-        p.PackagingType, p.PriceBox, p.PriceCard, p.DiscountPercent,
-        p.Price, p.OldPrice, p.DepositAmount, p.DepositPercent, p.EditionNote,
-        p.PreOrderDeadline, p.StockBox, p.StockCard, p.Stock, p.ImageUrl, p.Description, p.Status,
-        p.ReleaseDate, p.ExpectedDelivery,
-        p.IsFeatured, p.IsNew, p.IsActive, p.CreatedAt,
-        c.CategoryId, c.Name AS CategoryName, c.Slug AS CategorySlug
-      FROM Products p
-      INNER JOIN Categories c ON p.CategoryId = c.CategoryId
+      ${SELECT_PRODUCT}
       WHERE p.CategoryId = @cid AND p.ProductId <> @pid AND p.IsActive = TRUE
       ORDER BY p.IsFeatured DESC, p.ProductId ASC
       LIMIT 4
     `, { cid: product.categoryId, pid: product.id })
   ]);
 
-  product.images = (imgRes.recordset || []).map(i => i.ImageUrl ?? i.imageurl);
-  product.reviews = revRes.recordset || [];
+  const dbImages = (imgRes.recordset || []).map(i => i.ImageUrl ?? i.imageurl).filter(Boolean);
+  product.images = normalizeImagesArray(product.imageUrl, dbImages);
+  product.Images = product.images;
+  if (product.images[0]) {
+    product.image = product.images[0];
+    product.imageUrl = product.images[0];
+    product.ImageUrl = product.images[0];
+  }
+  product.reviews = (revRes.recordset || []).map(r => ({
+    id: r.ReviewId ?? r.reviewid,
+    rating: Number(r.Rating ?? r.rating ?? 5),
+    comment: r.Comment ?? r.comment ?? '',
+    createdAt: r.CreatedAt ?? r.createdat,
+    user: {
+      fullName: r.FullName ?? r.fullname ?? 'Khách hàng',
+      avatarUrl: r.AvatarUrl ?? r.avatarurl ?? null
+    }
+  }));
   product.ratingAvg = product.reviews.length
-    ? Number((product.reviews.reduce((s, r) => s + Number(r.Rating ?? r.rating ?? 0), 0) / product.reviews.length).toFixed(1))
+    ? Number((product.reviews.reduce((s, r) => s + Number(r.rating ?? 0), 0) / product.reviews.length).toFixed(1))
     : 0;
   product.reviewCount = product.reviews.length;
   product.related = (relRes.recordset || []).map(mapProduct);
@@ -415,6 +504,8 @@ async function addCategory({ name, slug, description = '', imageUrl = '', sortOr
 module.exports = {
   BASE_SELECT: SELECT_PRODUCT,
   SELECT_PRODUCT,
+  ensureProductImagesSchema,
+  normalizeImagesArray,
   mapProduct,
   calcDiscountedPrice,
   listProducts,

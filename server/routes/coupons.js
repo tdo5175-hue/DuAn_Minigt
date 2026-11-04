@@ -4,6 +4,7 @@
 const express = require('express');
 const router = express.Router();
 const couponService = require('../services/couponService');
+const aiChatService = require('../services/aiChatService');
 
 // GET /api/coupons — Danh sách mã công khai & ưu đãi VIP
 router.get('/', async (req, res, next) => {
@@ -58,6 +59,7 @@ router.get('/admin', async (req, res, next) => {
 router.post('/admin', async (req, res, next) => {
   try {
     const coupon = await couponService.createCoupon(req.body);
+    aiChatService.invalidateStoreCache();
     return res.status(201).json({
       success: true,
       message: `Tạo mã giảm giá "${coupon.code}" thành công!`,
@@ -73,6 +75,7 @@ router.put('/admin/:id', async (req, res, next) => {
     if (!coupon) {
       return res.status(404).json({ success: false, message: 'Không tìm thấy mã giảm giá để cập nhật' });
     }
+    aiChatService.invalidateStoreCache();
     return res.status(200).json({
       success: true,
       message: `Cập nhật mã giảm giá "${coupon.code}" thành công!`,
@@ -85,6 +88,7 @@ router.put('/admin/:id', async (req, res, next) => {
 router.delete('/admin/:id', async (req, res, next) => {
   try {
     await couponService.deleteCoupon(req.params.id);
+    aiChatService.invalidateStoreCache();
     return res.status(200).json({
       success: true,
       message: 'Đã xóa mã giảm giá thành công!'

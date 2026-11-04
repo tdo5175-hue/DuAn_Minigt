@@ -38,6 +38,11 @@
 
   let cachedProducts = [];
   let cachedOrders = [];
+  let cachedDashboardStats = null;
+  let cachedRecentOrders = [];
+  let cachedBestSellers = [];
+  let cachedSubscribers = [];
+  let currentDetailOrderId = null;
   let currentActionOrderId = null;
   let currentActionOrderData = null;
 
@@ -48,6 +53,827 @@
       if (timer) clearTimeout(timer);
       timer = setTimeout(() => fn.apply(this, args), delay);
     };
+  }
+
+  // =====================================================================
+  // I18N DICTIONARY FOR ADMIN PORTAL (VI / EN)
+  // =====================================================================
+  const ADMIN_I18N = {
+  vi: {
+    "sidebar_brand_title": "MINI GT BIÊN HÒA",
+    "sidebar_brand_subtitle": "Hệ Thống Quản Trị Store",
+    "nav_dashboard": "Tổng quan hệ thống",
+    "nav_products": "Sản phẩm & Kho hàng",
+    "nav_orders": "Đơn hàng & SPX",
+    "nav_users": "Tài khoản & Phân quyền",
+    "nav_subscribers": "Đăng ký Bản tin",
+    "nav_settings": "Cài đặt cửa hàng",
+    "nav_about": "Giới thiệu Đề tài & Tác giả",
+    "dash_title": "Tổng Quan Quản Trị Store",
+    "prod_title": "Quản Lý Sản Phẩm & Kho Hàng",
+    "ord_title": "Xử Lý Đơn Hàng & Vận Đơn SPX",
+    "users_title": "Quản Lý Khách Hàng & Phân Quyền",
+    "subscribers_title": "Bản Tin & Khách Hàng Tiềm Năng",
+    "settings_title": "Cài Đặt Cửa Hàng & Thanh Toán",
+    "topbar_display_settings": "Cài Đặt Hiển Thị",
+    "topbar_theme": "Giao diện",
+    "topbar_theme_dark": "Tối",
+    "topbar_theme_light": "Sáng",
+    "topbar_lang": "Ngôn ngữ",
+    "topbar_authors": "Nhóm Tác Giả",
+    "topbar_view_store": "Xem Cửa Hàng",
+    "topbar_server_live": "Đồng bộ thời gian thực",
+    "notif_title": "Thông Báo Đơn Hàng",
+    "notif_mark_all": "Đánh dấu đã đọc",
+    "notif_view_all": "Xem Tất Cả Đơn Hàng ➔",
+    "kpi_revenue": "Tổng Doanh Thu",
+    "kpi_revenue_desc": "Đơn hoàn tất & cọc đã thu",
+    "kpi_deposit": "Tiền Cọc Pre-Order",
+    "kpi_deposit_desc": "Giữ slot các đợt phát hành",
+    "kpi_orders": "Tổng Đơn Hàng",
+    "kpi_orders_desc": "Tất cả các trạng thái",
+    "kpi_products": "Mẫu Xe Đang Bán",
+    "kpi_products_desc": "Mô hình tỉ lệ 1:64",
+    "kpi_customers": "Khách Hàng",
+    "kpi_customers_desc": "Thành viên & Khách mua",
+    "kpi_subscribers": "Đăng Ký Nhận Tin",
+    "kpi_subscribers_desc": "Email quan tâm đợt xe mới",
+    "btn_quick_add_product": "+ Thêm Mô Hình Mới",
+    "btn_sync_orders": "Đồng Bộ Đơn",
+    "recent_orders_title": "Đơn Hàng Gần Đây Cần Xử Lý",
+    "recent_orders_subtitle": "Theo dõi nhanh các đơn mới đặt cọc, cần đóng gói và lên vận đơn SPX",
+    "btn_view_all_orders": "Xem tất cả ➔",
+    "th_order_code": "Mã Đơn",
+    "th_customer": "Khách Hàng",
+    "th_total": "Tổng Tiền",
+    "th_payment": "Thanh Toán",
+    "th_order_status": "Trạng Thái",
+    "th_created_at": "Ngày Đặt",
+    "th_actions": "Thao Tác",
+    "best_sellers_title": "Mô Hình Bán Chạy Nhất",
+    "best_sellers_subtitle": "Dựa trên số lượt đặt mua thực tế",
+    "filter_search_placeholder": "Tìm kiếm theo tên xe, mã SKU (VD: MGT01413)...",
+    "filter_cat_all": "Tất cả danh mục",
+    "filter_status_all": "Tất cả trạng thái",
+    "filter_status_instock": "Có sẵn giao ngay",
+    "filter_status_preorder": "Đang mở Pre-Order",
+    "filter_status_soldout": "Đã hết hàng",
+    "filter_stock_all": "Tất cả kho",
+    "filter_stock_low": "Sắp hết hàng (≤ 5 chiếc)",
+    "filter_stock_out": "Hết hàng tồn (0 chiếc)",
+    "filter_sort_newest": "Mới nhất",
+    "filter_sort_price_asc": "Giá: Thấp đến Cao",
+    "filter_sort_price_desc": "Giá: Cao đến Thấp",
+    "filter_sort_stock_desc": "Tồn kho: Nhiều nhất",
+    "order_tab_all": "Tất Cả",
+    "order_tab_pending": "Chờ Duyệt",
+    "order_tab_confirmed": "Đã Duyệt",
+    "order_tab_preparing": "Đang Đóng Gói",
+    "order_tab_shipping": "Đang Giao SPX",
+    "order_tab_delivered": "Đã Giao Thành Công",
+    "order_tab_cancelled": "Đã Hủy",
+    "prod_modal_add_title": "Thêm Mô Hình Mới",
+    "prod_modal_edit_title": "Chỉnh Sửa Mô Hình",
+    "prod_modal_sku": "Mã SKU *",
+    "prod_modal_car_number": "Số xe (Car # / Serial)",
+    "prod_modal_category": "Danh mục *",
+    "prod_modal_btn_new_cat": "Tạo danh mục mới",
+    "prod_modal_new_cat_title": "Thêm Danh Mục Mới:",
+    "prod_modal_new_cat_placeholder": "Tên danh mục (VD: JDM Street, Supercars...)",
+    "prod_modal_slug_placeholder": "Slug (Tự động tạo)",
+    "prod_modal_btn_save_cat": "Lưu Danh Mục",
+    "prod_modal_name": "Tên mô hình đầy đủ *",
+    "prod_modal_name_placeholder": "Aston Martin AMR24 #18 Lance Stroll F1 Las Vegas GP",
+    "prod_modal_brand": "Thương hiệu *",
+    "prod_modal_brand_custom": "-- Thương hiệu khác (Nhập tay) --",
+    "prod_modal_brand_custom_placeholder": "Nhập tên thương hiệu khác (ví dụ: GCD, CM Model, Schuco...)",
+    "prod_modal_scale": "Tỉ lệ",
+    "prod_modal_pkg_config_title": "Cấu hình Giá Bản Box & Bản Card (Blister) + Khuyến mãi %",
+    "prod_modal_pkg_config_desc": "Linh hoạt: Bản Box và Bản Card có thể để giá bằng nhau hoặc Card cộng thêm chênh lệch tùy theo bạn cấu hình.",
+    "prod_modal_discount_none": "Không giảm giá (0%)",
+    "prod_modal_discount_sale": "Giảm giá trực tiếp (%)",
+    "prod_modal_packaging": "Quy cách đóng gói mở bán *",
+    "prod_modal_pkg_both": "Có cả Bản Box & Bản Card (Khách tự chọn)",
+    "prod_modal_pkg_box": "Chỉ có Bản Box (Hộp giấy)",
+    "prod_modal_pkg_card": "Chỉ có Bản Card (Vỉ Blister)",
+    "prod_modal_discount_percent_lbl": "Phần trăm giảm giá trực tiếp (%)",
+    "prod_modal_quick_discount": "Chọn nhanh % trừ vào tiền:",
+    "prod_modal_price_box": "Giá gốc Bản BOX - Hộp giấy (VNĐ) *",
+    "prod_modal_preset": "Mẫu:",
+    "prod_modal_box_disabled": "Mẫu này chỉ bán Bản Card (Tự động đồng bộ bằng giá Card)",
+    "prod_modal_price_card": "Giá gốc Bản CARD - Vỉ Blister (VNĐ) *",
+    "prod_modal_card_preset": "Mẫu Card:",
+    "prod_modal_card_equal": "(=) Bằng giá Box",
+    "prod_modal_card_disabled": "Mẫu này chỉ bán Bản Box (Không áp dụng Bản Card)",
+    "prod_modal_edition": "Ghi chú phiên bản (Edition Note)",
+    "prod_modal_status": "Tình trạng mở bán *",
+    "prod_modal_status_instock": "Có sẵn giao ngay",
+    "prod_modal_status_preorder": "Pre-Order (Đang mở cọc)",
+    "prod_modal_status_soldout": "Hết hàng (Sold Out)",
+    "prod_modal_preorder_config": "Cấu hình Đợt Hàng & Mức Cọc Pre-Order (Chỉ khi mở cọc)",
+    "prod_modal_expected_delivery": "Dự kiến hàng về (Tháng / Năm) *",
+    "prod_modal_preview_label": "Hiển thị:",
+    "prod_modal_deposit_req": "Mức cọc yêu cầu (% & VNĐ) *",
+    "prod_modal_deposit_placeholder": "Số tiền cọc VNĐ",
+    "prod_modal_deposit_hint": "Hai chiều tự tính: Bấm chọn % hoặc gõ số tiền VNĐ (10% – 100%, không vượt giá xe).",
+    "prod_modal_stock_title": "Kiểm Kho Thực Tế (Số Lượng Box & Card Còn Lại) *",
+    "prod_modal_stock_box": "Tồn kho thực tế Bản BOX (Hộp giấy)",
+    "prod_modal_stock_card": "Tồn kho thực tế Bản CARD (Vỉ Blister)",
+    "prod_modal_images_title": "Bộ sưu tập hình ảnh sản phẩm (Thêm nhiều ảnh)",
+    "prod_modal_images_desc": "Ảnh 1 hiển thị chính ở trên • Ảnh 2, 3, 4, 5... nằm hàng bên dưới • Bấm ô [+] để thêm ảnh tiếp theo hoặc chọn nhiều ảnh cùng lúc.",
+    "prod_modal_btn_clear_images": "Xóa tất cả ảnh",
+    "prod_modal_pick_images": "Chọn nhiều ảnh từ máy...",
+    "prod_modal_img_url_placeholder": "Dán đường dẫn ảnh (VD: image/rexy.jpg hoặc https://...)",
+    "prod_modal_add_url": "Thêm URL",
+    "prod_modal_select_preset": "-- + Thêm từ ảnh có sẵn --",
+    "prod_modal_featured": "Đánh dấu Mô hình Nổi Bật (Featured)",
+    "prod_modal_new_release": "Đánh dấu Hàng Mới Về (New Release)",
+    "prod_modal_desc": "Mô tả chi tiết sản phẩm",
+    "prod_modal_desc_placeholder": "Chi tiết xe, bản quyền hãng, quy cách đóng gói...",
+    "prod_modal_btn_save": "Lưu Mô Hình",
+    "btn_cancel": "Hủy",
+    "btn_close": "Đóng",
+    "cancel_modal_title": "Xác Nhận Hủy Đơn Hàng",
+    "cancel_modal_notice": "Lưu ý: Đơn hàng này đã thu tiền trước đó. Sau khi xác nhận hủy, hệ thống sẽ tự động chuyển trạng thái thanh toán sang CHỜ HOÀN TIỀN (REFUND_PENDING) để kế toán hoàn trả cho khách.",
+    "cancel_modal_reason_lbl": "Lý do hủy đơn hàng",
+    "cancel_reason_cust_request": "Khách yêu cầu hủy đơn",
+    "cancel_reason_unpaid": "Chưa nhận được tiền CK / Cọc qua MB Bank",
+    "cancel_reason_out_of_stock": "Hết hàng từ nhà phân phối Mini GT",
+    "cancel_reason_no_contact": "Không liên lạc được số điện thoại khách",
+    "cancel_reason_wrong_addr": "Thông tin địa chỉ nhận hàng không chính xác",
+    "cancel_modal_placeholder": "Nhập hoặc chọn nhanh lý do hủy bên trên...",
+    "cancel_modal_hint": "Lý do này sẽ hiển thị trực tiếp và rõ ràng cho khách hàng kèm Hotline/Zalo hỗ trợ 0981 400 400.",
+    "cancel_modal_btn_confirm": "Xác Nhận Hủy Đơn",
+    "ship_modal_title": "Quản Lý Vận Đơn SPX Express",
+    "ship_modal_dispatch_title": "Thông tin gửi kiện cho Shipper SPX:",
+    "ship_modal_btn_copy": "Sao chép thông tin",
+    "ship_modal_steps_title": "Các bước tạo đơn nhanh trên SPX Express:",
+    "ship_modal_step1": "Bước 1: Bấm \"Sao chép thông tin\" ở trên để lấy tên, SĐT, địa chỉ & tiền COD.",
+    "ship_modal_step2": "Bước 2: Bấm Mở trang SPX Express (spx.vn/vi) hoặc mở App SPX trên điện thoại để dán thông tin tạo vận đơn.",
+    "ship_modal_step3": "Bước 3: Sao chép mã vận đơn từ SPX (VD: SPXVN...), dán vào ô bên dưới và bấm \"Bắt Đầu Giao Hàng\".",
+    "ship_modal_tracking_lbl": "Mã vận đơn SPX Express (Tracking Code)",
+    "ship_modal_tracking_placeholder": "Dán mã SPXVN... vào đây",
+    "ship_modal_btn_paste": "Dán mã",
+    "ship_modal_liability_notice": "Lưu ý chuyển giao trách nhiệm: Khi bưu tá (shipper) SPX tới lấy kiện hàng từ shop, mã vận đơn đã gửi tới khách, trách nhiệm bảo quản đơn hàng và tiến độ giao phát thuộc về đơn vị SPX Express.",
+    "ship_modal_btn_save_only": "Lưu Mã Vận Đơn",
+    "ship_modal_btn_start": "Bắt Đầu Giao Hàng (SPX) ➔",
+    "coupon_modal_title": "Tạo Mã Giảm Giá Mới",
+    "coupon_modal_code_lbl": "Mã Giảm Giá (Code)",
+    "coupon_modal_code_placeholder": "Ví dụ: MINIGT50K, HE2026...",
+    "coupon_modal_code_hint": "Mã viết liền không dấu, hệ thống tự động viết hoa (VD: MINIGT50K).",
+    "coupon_modal_desc_lbl": "Nội dung / Mô tả chương trình ưu đãi",
+    "coupon_modal_desc_placeholder": "Ví dụ: Giảm ngay 50.000đ mừng tuần lễ xe đua IMSA...",
+    "coupon_modal_type_lbl": "Hình thức giảm giá",
+    "coupon_type_amount": "Giảm số tiền cố định (VNĐ)",
+    "coupon_type_percent": "Giảm theo phần trăm (%) - Tối đa 10%",
+    "coupon_modal_val_lbl": "Số tiền giảm (VNĐ)",
+    "coupon_modal_val_placeholder": "VD: 50000",
+    "coupon_modal_min_order": "Đơn hàng tối thiểu (VNĐ)",
+    "coupon_modal_max_discount": "Giảm tối đa (VNĐ)",
+    "coupon_modal_usage_limit": "Giới hạn lượt dùng",
+    "coupon_modal_end_date": "Ngày hết hạn",
+    "coupon_modal_active_lbl": "Kích hoạt mã ngay",
+    "coupon_modal_btn_save": "Lưu Mã Giảm Giá",
+    "user_orders_loading": "Đang tải hồ sơ & lịch sử mua hàng của khách...",
+    "user_orders_title": "Hồ Sơ & Lịch Sử Mua Hàng Của Khách",
+    "order_status_pending": "Chờ duyệt",
+    "order_status_confirmed": "Đã duyệt",
+    "order_status_preparing": "Đang đóng gói",
+    "order_status_shipping": "Đang giao SPX",
+    "order_status_delivered": "Đã giao thành công",
+    "order_status_cancelled": "Đã hủy",
+    "pay_vietqr_auto_paid": "VietQR Tự động • Đã thanh toán",
+    "pay_vietqr_auto_deposit": "VietQR Tự động • Đã cọc",
+    "pay_payos_refund_pending": "PayOS: Chờ hoàn tiền",
+    "pay_payos_refunded": "PayOS: Đã hoàn tiền",
+    "pay_payos_awaiting_scan": "VietQR PayOS (Chờ quét)",
+    "pay_auto_reconcile": "Hệ thống tự động đối soát",
+    "pay_full_paid": "Đã nhận đủ tiền",
+    "pay_partially_paid": "Đã nhận cọc",
+    "pay_refund_pending": "Chờ hoàn tiền",
+    "pay_refunded": "Đã hoàn tiền",
+    "pay_check_mbbank": "Check TK MB Bank",
+    "pay_check_mbbank_hint": "Kiểm tra TK trước khi duyệt!",
+    "pay_cod_on_delivery": "Thu COD khi giao",
+    "btn_approve": "Duyệt",
+    "btn_pack": "Đóng gói",
+    "btn_edit_spx": "Sửa SPX",
+    "btn_assign_spx": "Gán SPX",
+    "btn_delivered": "Đã giao",
+    "btn_detail": "Chi tiết",
+    "btn_print": "In đơn",
+    "btn_confirm_paid": "Xác nhận thu tiền",
+    "btn_refund": "Hoàn tiền",
+    "btn_cancel_order": "Hủy đơn",
+    "btn_edit": "Sửa",
+    "btn_delete": "Xóa",
+    "btn_lock": "Khóa",
+    "btn_unlock": "Mở",
+    "btn_demote_cust": "Hạ Cust",
+    "btn_promote_admin": "Lên Admin",
+    "btn_view_history": "Lịch sử",
+    "view_user_orders_title": "Xem lịch sử mua hàng của khách",
+    "status_sold_out": "Hết hàng",
+    "status_in_stock": "Có sẵn",
+    "stock_out": "Hết",
+    "stock_low": "Sắp hết",
+    "pack_box_only": "Chỉ Box",
+    "pack_card_only": "Chỉ Card",
+    "pack_both": "Box & Card",
+    "no_box_sale": "(Không bán Box)",
+    "out_of_box": "Hết Box",
+    "no_card_sale": "(Không bán Card)",
+    "out_of_card": "Hết Card",
+    "standard_edition": "Bản tiêu chuẩn",
+    "cust_fallback_name": "Hội viên MINI GT",
+    "cust_joined": "Tham gia",
+    "cust_addr_old": "ĐC CŨ",
+    "cust_addr_new": "ĐC MỚI",
+    "orders_unit": "đơn",
+    "user_active": "Hoạt động",
+    "user_locked": "Bị khóa",
+    "date_unknown": "Đơn không rõ ngày",
+    "date_today": "Hôm nay",
+    "date_yesterday": "Hôm qua",
+    "date_prefix": "Ngày",
+    "orders_empty": "Không tìm thấy đơn hàng nào phù hợp với bộ lọc",
+    "no_sales_data": "Chưa có dữ liệu bán hàng",
+    "no_orders_yet": "Khách hàng chưa có đơn hàng nào",
+    "th_total_orders": "Tổng Đơn Hàng",
+    "user_joined_date": "Ngày Tham Gia",
+    "phone_lbl": "Điện thoại",
+    "address_lbl": "Địa chỉ",
+    "account_status_lbl": "Trạng thái",
+    "th_items_count": "Số Lượng",
+    "items_unit": "mẫu",
+    "topbar_notifications": "Thông Báo Đơn Hàng",
+    "topbar_notif_mark_read": "Đánh dấu đã đọc",
+    "topbar_notif_empty": "Không có thông báo mới",
+    "topbar_notif_view_orders": "Xem Tất Cả Đơn Hàng ➔",
+    "dash_kpi_net_revenue": "Doanh Thu Thực Thu",
+    "dash_kpi_deposit": "Tiền Cọc Pre-Order",
+    "dash_kpi_total_orders": "Tổng Đơn Hàng",
+    "dash_kpi_models_in_stock": "Mẫu Xe Đang Bán",
+    "dash_kpi_customers": "Khách Hàng Thành Viên",
+    "dash_kpi_subscribers": "Đăng Ký Nhận Tin",
+    "dash_flow_status": "Tiến Trình Xử Lý Đơn",
+    "dash_recent_orders": "Đơn Hàng Gần Đây Cần Xử Lý",
+    "dash_view_all_orders": "Xem tất cả ➔",
+    "dash_best_sellers": "Mô Hình Bán Chạy Nhất",
+    "btn_refresh": "Làm Mới",
+    "col_order_code": "Mã Đơn",
+    "col_customer": "Khách Hàng",
+    "col_total": "Tổng Tiền",
+    "col_payment": "Thanh Toán",
+    "col_status": "Trạng Thái",
+    "col_time": "Ngày Đặt",
+    "col_actions": "Thao Tác",
+    "col_photo": "Ảnh",
+    "col_sku": "Mã SKU",
+    "col_model_name": "Tên Mô Hình",
+    "col_category_brand": "Danh Mục / Hãng",
+    "col_price": "Giá Bán",
+    "col_stock": "Tồn Kho",
+    "col_special": "Đặc Điểm",
+    "col_order_code_time": "Mã Đơn & Thời Gian",
+    "col_customer_phone": "Khách Hàng & SĐT",
+    "col_model_pack": "Mô Hình & Quy Cách",
+    "col_total_deposit": "Tổng Tiền & Cọc",
+    "col_payment_status": "Thanh Toán",
+    "col_status_spx": "Trạng Thái & SPX",
+    "col_action_processing": "Xử Lý Tiến Trình",
+    "col_id": "ID",
+    "col_email": "Email",
+    "col_phone": "Số Điện Thoại",
+    "col_address": "Địa Chỉ",
+    "col_total_orders": "Tổng Đơn",
+    "col_total_spent": "Tổng Chi Tiêu",
+    "col_vip_tier": "Hạng Thành Viên",
+    "col_role": "Vai Trò",
+    "col_coupon_code": "Mã Giảm Giá",
+    "col_coupon_desc": "Nội Dung / Chương Trình",
+    "col_coupon_type": "Loại Ưu Đãi",
+    "col_coupon_value": "Mức Giảm",
+    "col_coupon_min_order": "Đơn Tối Thiểu",
+    "col_coupon_usage": "Lượt Dùng",
+    "col_coupon_expiry": "Hạn Sử Dụng",
+    "col_subscribed_at": "Ngày Đăng Ký",
+    "prod_btn_add": "+ Thêm Mô Hình Mới",
+    "prod_search_placeholder": "Tìm theo tên xe, mã SKU (VD: MGT01413)...",
+    "filter_all_categories": "Tất cả danh mục",
+    "filter_all_statuses": "Tất cả trạng thái",
+    "status_pre_order": "Đang mở Pre-Order",
+    "prod_show_hidden": "Hiển thị cả sản phẩm đang ẩn",
+    "filter_stock_many": "Còn nhiều hàng (> 5 chiếc)",
+    "sort_newest": "Mới nhất",
+    "sort_best_selling": "Bán chạy nhất",
+    "sort_price_asc": "Giá: Thấp đến Cao",
+    "sort_price_desc": "Giá: Cao đến Thấp",
+    "sort_stock_asc": "Tồn kho: Ít đến Nhiều",
+    "orders_title": "Quản Lý Đơn Hàng & Vận Đơn SPX",
+    "orders_subtitle": "Theo dõi tiến trình duyệt đơn, khớp lệnh VietQR PayOS tự động và bàn giao shipper SPX",
+    "orders_btn_export_csv": "Xuất Excel / CSV",
+    "order_tab_pre_order": "Pre-Order",
+    "preorder_filter_title": "Giai Đoạn Hàng Pre-Order",
+    "preorder_filter_hint": "Phân loại theo đợt hàng để gom đơn hoặc báo hàng về",
+    "pre_stage_all": "Tất cả giai đoạn",
+    "pre_stage_need_deposit": "Cần thu tiền cọc",
+    "pre_stage_waiting_goods": "Đang chờ hàng về kho",
+    "pre_stage_goods_arrived": "Hàng đã về kho Biên Hòa",
+    "pre_stage_shipped": "Đã giao trả cọc & hàng",
+    "orders_search_placeholder": "Tìm theo mã đơn (MG...), SĐT khách, tên khách...",
+    "filter_pay_all": "Tất cả thanh toán",
+    "filter_pay_unpaid": "Chưa thanh toán",
+    "filter_pay_partial": "Đã nhận cọc",
+    "filter_pay_paid": "Đã thanh toán đủ",
+    "filter_pay_refund_pending": "Chờ hoàn tiền",
+    "filter_pay_refunded": "Đã hoàn tiền",
+    "filter_method_all": "Tất cả phương thức",
+    "filter_method_payos": "VietQR PayOS (Tự động)",
+    "filter_method_cod": "Ship COD (Thu tiền khi nhận)",
+    "filter_method_deposit": "Cọc chuyển khoản (Pre-Order)",
+    "filter_method_bank": "Chuyển khoản đủ 100%",
+    "filter_payos_tooltip": "Chỉ lọc các đơn thanh toán tự động qua PayOS",
+    "btn_payos_orders": "Đơn PayOS",
+    "filter_addr_all": "Tất cả địa chỉ",
+    "filter_addr_new": "Địa chỉ MỚI (Chuẩn)",
+    "filter_addr_old": "Địa chỉ CŨ (Cần check)",
+    "filter_spx_all": "Tất cả SPX",
+    "filter_spx_unassigned": "Chưa có mã vận đơn SPX",
+    "filter_spx_assigned": "Đã có mã vận đơn SPX",
+    "users_search_placeholder": "Tìm theo họ tên, email, số điện thoại...",
+    "coupons_vip_title": "Mã Giảm Giá & Voucher Tri Ân VIP",
+    "coupons_vip_badge": "Hệ Thống Voucher",
+    "coupons_title": "Quản Lý Mã Giảm Giá & Voucher VIP",
+    "coupons_subtitle": "Tạo mã khuyến mãi kích cầu mua sắm và chăm sóc hội viên",
+    "coupons_btn_add": "+ Tạo Mã Giảm Giá Mới",
+    "subscribers_search_placeholder": "Tìm theo email người đăng ký...",
+    "settings_btn_save": "Lưu Cấu Hình Cửa Hàng",
+    "settings_sec_store": "1. Thông Tin Cửa Hàng & Vận Hành",
+    "settings_lbl_store_name": "Tên cửa hàng *",
+    "settings_lbl_hotline": "Hotline / Zalo *",
+    "settings_lbl_email": "Email liên hệ *",
+    "settings_lbl_address": "Địa chỉ cửa hàng *",
+    "settings_lbl_shipping_fee": "Phí ship đồng giá SPX (VNĐ) *",
+    "settings_lbl_low_stock": "Ngưỡng cảnh báo sắp hết hàng (chiếc) *",
+    "settings_sec_bank": "2. Thông Tin Tài Khoản Ngân Hàng Nhận Tiền & VietQR",
+    "settings_lbl_bank_id": "Mã ngân hàng (VietQR Bank BIN) *",
+    "settings_lbl_bank_name": "Tên ngân hàng *",
+    "settings_lbl_account_no": "Số tài khoản nhận tiền *",
+    "settings_lbl_account_name": "Tên chủ tài khoản (In hoa không dấu) *",
+    "settings_lbl_preorder_deadline": "Đợt hàng Pre-Order mặc định",
+    "settings_lbl_announcement": "Thông báo nổi bật đầu trang chủ",
+    "auth_security_tag": "Bảo mật SSL 256-Bit",
+    "auth_title": "Đăng Nhập Quản Trị Store",
+    "auth_subtitle": "Hệ Thống Phân Phối Mô Hình MINI GT Biên Hòa",
+    "auth_email_lbl": "Email Quản Trị Viên",
+    "auth_password_lbl": "Mật Khẩu",
+    "auth_remember_me": "Ghi nhớ đăng nhập 30 ngày",
+    "auth_forgot_password": "Quên mật khẩu?",
+    "auth_btn_submit": "Đăng Nhập Vào Hệ Thống",
+    "auth_back_to_store": "← Quay lại xem Cửa Hàng",
+    "about_title": "Giới Thiệu Đề Tài & Nhóm Tác Giả",
+    "default_title": "Hệ Thống Quản Trị MINI GT",
+    "btn_preorder_arrived": "Báo Hàng Về",
+    "badge_arrived": "Đã về kho",
+    "cust_addr_old_hint": "Khách chọn Địa chỉ CŨ trước sáp nhập - Khi tạo đơn SPX cần đối chiếu hoặc báo khách!",
+    "cust_addr_new_hint": "Địa chỉ MỚI chuẩn sau sáp nhập",
+    "deposit_lbl": "Cọc",
+    "cod_rem_lbl": "COD còn",
+    "pay_cod_100": "Thu COD 100%",
+    "pay_full_100": "Thanh toán Full",
+    "pay_method_deposit": "⚡ Cọc MB Bank",
+    "pay_method_cod": "📦 Ship COD",
+    "pay_method_bank": "💳 Chuyển khoản",
+    "items_more": "mẫu xe khác...",
+    "coupon_modal_edit_title": "Sửa Mã Giảm Giá",
+    "coupon_type_pct": "Giảm theo %",
+    "coupon_type_amt": "Giảm tiền mặt",
+    "coupon_no_min": "Không yêu cầu",
+    "coupon_expired": "Đã hết hạn",
+    "coupon_no_exp": "Vô thời hạn",
+    "coupon_active": "Đang Bật",
+    "coupon_inactive": "Đã Tắt",
+    "coupons_empty": "Chưa có mã giảm giá nào do Admin tạo. Bấm nút \"+ Tạo Mã Giảm Giá Mới\" để thêm mã ưu đãi!",
+    "subscribers_empty": "Không có người đăng ký nào",
+    "subscribers_th_id": "Mã",
+    "subscribers_th_email": "Email Khách Hàng",
+    "subscribers_th_date": "Ngày Đăng Ký",
+    "subscribers_th_action": "Thao Tác"
+},
+  en: {
+    "sidebar_brand_title": "MINI GT BIEN HOA",
+    "sidebar_brand_subtitle": "Store Admin Portal",
+    "nav_dashboard": "Dashboard Overview",
+    "nav_products": "Products & Stock",
+    "nav_orders": "Orders & SPX",
+    "nav_users": "Customers & Roles",
+    "nav_subscribers": "Newsletter CRM",
+    "nav_settings": "Store Settings",
+    "nav_about": "Project & Authors",
+    "dash_title": "Store Administration Overview",
+    "prod_title": "Product Catalog & Inventory",
+    "ord_title": "Order Processing & SPX Logistics",
+    "users_title": "Customer Accounts & Roles",
+    "subscribers_title": "Newsletter CRM & Leads",
+    "settings_title": "Store Settings & Operations",
+    "topbar_display_settings": "Display Settings",
+    "topbar_theme": "Theme",
+    "topbar_theme_dark": "Dark",
+    "topbar_theme_light": "Light",
+    "topbar_lang": "Language",
+    "topbar_authors": "Authors",
+    "topbar_view_store": "View Storefront",
+    "topbar_server_live": "Real-time Sync Active",
+    "notif_title": "Order Notifications",
+    "notif_mark_all": "Mark all as read",
+    "notif_view_all": "View All Orders ➔",
+    "kpi_revenue": "Total Revenue",
+    "kpi_revenue_desc": "Completed orders & received deposits",
+    "kpi_deposit": "Pre-Order Deposits",
+    "kpi_deposit_desc": "Held slots for upcoming releases",
+    "kpi_orders": "Total Orders",
+    "kpi_orders_desc": "Across all order statuses",
+    "kpi_products": "Catalog Models",
+    "kpi_products_desc": "Active 1:64 scale diecast models",
+    "kpi_customers": "Members & Collectors",
+    "kpi_customers_desc": "Registered collectors & buyers",
+    "kpi_subscribers": "Newsletter CRM",
+    "kpi_subscribers_desc": "Interested collector leads",
+    "btn_quick_add_product": "+ Add New Model",
+    "btn_sync_orders": "Live Sync",
+    "recent_orders_title": "Recent Orders Requiring Attention",
+    "recent_orders_subtitle": "Review deposits, confirm packaging & generate SPX waybills",
+    "btn_view_all_orders": "View all orders ➔",
+    "th_order_code": "Order Code",
+    "th_customer": "Customer",
+    "th_total": "Total",
+    "th_payment": "Payment",
+    "th_order_status": "Status",
+    "th_created_at": "Date",
+    "th_actions": "Actions",
+    "best_sellers_title": "Top Selling Models",
+    "best_sellers_subtitle": "Based on verified checkout numbers",
+    "filter_search_placeholder": "Search by SKU, car name, car #...",
+    "filter_cat_all": "All Categories",
+    "filter_status_all": "All Statuses",
+    "filter_status_instock": "In Stock (Ready)",
+    "filter_status_preorder": "Pre-Order",
+    "filter_status_soldout": "Sold Out",
+    "filter_stock_all": "All Stock Levels",
+    "filter_stock_low": "Low Stock (≤ 5 units)",
+    "filter_stock_out": "Out of Stock (0 units)",
+    "filter_sort_newest": "Newest Releases",
+    "filter_sort_price_asc": "Price: Low to High",
+    "filter_sort_price_desc": "Price: High to Low",
+    "filter_sort_stock_desc": "Stock: High to Low",
+    "order_tab_all": "All Orders",
+    "order_tab_pending": "Pending",
+    "order_tab_confirmed": "Confirmed",
+    "order_tab_preparing": "Packaging",
+    "order_tab_shipping": "Shipping SPX",
+    "order_tab_delivered": "Delivered",
+    "order_tab_cancelled": "Cancelled",
+    "prod_modal_add_title": "Add New Model",
+    "prod_modal_edit_title": "Edit Model Details",
+    "prod_modal_sku": "SKU Code *",
+    "prod_modal_car_number": "Car # / Serial",
+    "prod_modal_category": "Category *",
+    "prod_modal_btn_new_cat": "Create new category",
+    "prod_modal_new_cat_title": "Add New Category:",
+    "prod_modal_new_cat_placeholder": "Category name (e.g. JDM Street, Supercars...)",
+    "prod_modal_slug_placeholder": "Slug (Auto generated)",
+    "prod_modal_btn_save_cat": "Save Category",
+    "prod_modal_name": "Full Model Name *",
+    "prod_modal_name_placeholder": "Aston Martin AMR24 #18 Lance Stroll F1 Las Vegas GP",
+    "prod_modal_brand": "Brand *",
+    "prod_modal_brand_custom": "-- Custom Brand (Manual entry) --",
+    "prod_modal_brand_custom_placeholder": "Enter custom brand name (e.g. GCD, CM Model, Schuco...)",
+    "prod_modal_scale": "Scale",
+    "prod_modal_pkg_config_title": "Pricing for Box & Card (Blister) + Discount %",
+    "prod_modal_pkg_config_desc": "Flexible: Box and Card editions can have equal or differential prices.",
+    "prod_modal_discount_none": "No discount (0%)",
+    "prod_modal_discount_sale": "Direct discount (%)",
+    "prod_modal_packaging": "Packaging Available *",
+    "prod_modal_pkg_both": "Both Box & Card Available (Customer Choice)",
+    "prod_modal_pkg_box": "Box Edition Only (Paper Box)",
+    "prod_modal_pkg_card": "Card Edition Only (Blister Pack)",
+    "prod_modal_discount_percent_lbl": "Direct discount percentage (%)",
+    "prod_modal_quick_discount": "Quick discount % preset:",
+    "prod_modal_price_box": "Original Box Price (VND) *",
+    "prod_modal_preset": "Presets:",
+    "prod_modal_box_disabled": "Card edition only for this model",
+    "prod_modal_price_card": "Original Card Price (VND) *",
+    "prod_modal_card_preset": "Card Presets:",
+    "prod_modal_card_equal": "(=) Same as Box",
+    "prod_modal_card_disabled": "Box edition only for this model",
+    "prod_modal_edition": "Edition Note",
+    "prod_modal_status": "Release Status *",
+    "prod_modal_status_instock": "In Stock (Ready to ship)",
+    "prod_modal_status_preorder": "Pre-Order (Taking deposits)",
+    "prod_modal_status_soldout": "Sold Out",
+    "prod_modal_preorder_config": "Pre-Order Batch & Required Deposit Config",
+    "prod_modal_expected_delivery": "Expected Delivery (Month / Year) *",
+    "prod_modal_preview_label": "Display:",
+    "prod_modal_deposit_req": "Required Deposit (% & VND) *",
+    "prod_modal_deposit_placeholder": "Deposit amount VND",
+    "prod_modal_deposit_hint": "Two-way sync: Select % or enter VND amount (10% – 100%, cannot exceed car price).",
+    "prod_modal_stock_title": "Real Stock Verification (Box & Card Quantity Remaining) *",
+    "prod_modal_stock_box": "Physical Stock: BOX (Paper Box)",
+    "prod_modal_stock_card": "Physical Stock: CARD (Blister Pack)",
+    "prod_modal_images_title": "Product Image Gallery (Multi-image)",
+    "prod_modal_images_desc": "Image 1 is primary. Images 2, 3, 4, 5... appear in thumbnail row below. Click [+] or select multiple files.",
+    "prod_modal_btn_clear_images": "Clear All Images",
+    "prod_modal_pick_images": "Choose Files from Computer...",
+    "prod_modal_img_url_placeholder": "Paste image URL (e.g. image/rexy.jpg or https://...)",
+    "prod_modal_add_url": "Add URL",
+    "prod_modal_select_preset": "-- + Add From Preset Images --",
+    "prod_modal_featured": "Mark as Featured Model",
+    "prod_modal_new_release": "Mark as New Release",
+    "prod_modal_desc": "Detailed Product Description",
+    "prod_modal_desc_placeholder": "Vehicle details, official license, packaging...",
+    "prod_modal_btn_save": "Save Model",
+    "btn_cancel": "Cancel",
+    "btn_close": "Close",
+    "cancel_modal_title": "Confirm Order Cancellation",
+    "cancel_modal_notice": "Notice: This order had prior payments. Upon cancellation, payment status will automatically change to REFUND_PENDING for accounting reconciliation.",
+    "cancel_modal_reason_lbl": "Cancellation Reason",
+    "cancel_reason_cust_request": "Customer requested cancellation",
+    "cancel_reason_unpaid": "MB Bank transfer/deposit not received",
+    "cancel_reason_out_of_stock": "Out of stock from distributor",
+    "cancel_reason_no_contact": "Customer phone unreachable",
+    "cancel_reason_wrong_addr": "Incorrect shipping address",
+    "cancel_modal_placeholder": "Enter or select cancellation reason above...",
+    "cancel_modal_hint": "This reason will be displayed directly to the customer along with Hotline/Zalo support 0981 400 400.",
+    "cancel_modal_btn_confirm": "Confirm Cancel Order",
+    "ship_modal_title": "SPX Express Waybill Management",
+    "ship_modal_dispatch_title": "Parcel dispatch info for SPX Shipper:",
+    "ship_modal_btn_copy": "Copy dispatch info",
+    "ship_modal_steps_title": "Steps to create waybill on SPX Express:",
+    "ship_modal_step1": "Step 1: Click \"Copy dispatch info\" above for customer name, phone, address & COD.",
+    "ship_modal_step2": "Step 2: Open SPX Express (spx.vn/vi) or SPX App on your phone to paste information.",
+    "ship_modal_step3": "Step 3: Copy waybill tracking code from SPX (e.g. SPXVN...), paste below and click \"Start Shipping\".",
+    "ship_modal_tracking_lbl": "SPX Express Tracking Code",
+    "ship_modal_tracking_placeholder": "Paste SPXVN... code here",
+    "ship_modal_btn_paste": "Paste code",
+    "ship_modal_liability_notice": "Liability handover notice: Once the SPX courier picks up the parcel from the shop and tracking is issued, parcel care and transit schedule are handled by SPX Express.",
+    "ship_modal_btn_save_only": "Save Tracking Code Only",
+    "ship_modal_btn_start": "Start Shipping (SPX) ➔",
+    "coupon_modal_title": "Create New Discount Coupon",
+    "coupon_modal_code_lbl": "Coupon Code",
+    "coupon_modal_code_placeholder": "E.g.: MINIGT50K, SUMMER2026...",
+    "coupon_modal_code_hint": "Letters and numbers without spaces, auto capitalized (e.g. MINIGT50K).",
+    "coupon_modal_desc_lbl": "Promotion Title / Description",
+    "coupon_modal_desc_placeholder": "E.g.: Direct 50,000 VND discount celebrating IMSA race week...",
+    "coupon_modal_type_lbl": "Discount Type",
+    "coupon_type_amount": "Fixed Amount Discount (VND)",
+    "coupon_type_percent": "Percentage Discount (%) - Max 10%",
+    "coupon_modal_val_lbl": "Discount Value (VND)",
+    "coupon_modal_val_placeholder": "E.g.: 50000",
+    "coupon_modal_min_order": "Minimum Order (VND)",
+    "coupon_modal_max_discount": "Maximum Discount (VND)",
+    "coupon_modal_usage_limit": "Usage Limit",
+    "coupon_modal_end_date": "Expiration Date",
+    "coupon_modal_active_lbl": "Activate coupon immediately",
+    "coupon_modal_btn_save": "Save Coupon",
+    "user_orders_loading": "Loading customer profile & order history...",
+    "user_orders_title": "Customer Profile & Lifetime Orders",
+    "order_status_pending": "Pending",
+    "order_status_confirmed": "Confirmed",
+    "order_status_preparing": "Packaging",
+    "order_status_shipping": "Shipping SPX",
+    "order_status_delivered": "Delivered",
+    "order_status_cancelled": "Cancelled",
+    "pay_vietqr_auto_paid": "VietQR Auto • Paid",
+    "pay_vietqr_auto_deposit": "VietQR Auto • Deposited",
+    "pay_payos_refund_pending": "PayOS: Refund Pending",
+    "pay_payos_refunded": "PayOS: Refunded",
+    "pay_payos_awaiting_scan": "VietQR PayOS (Awaiting Scan)",
+    "pay_auto_reconcile": "System Auto Reconciliation",
+    "pay_full_paid": "Full Payment Received",
+    "pay_partially_paid": "Deposit Received",
+    "pay_refund_pending": "Refund Pending",
+    "pay_refunded": "Refunded",
+    "pay_check_mbbank": "Check MB Bank App",
+    "pay_check_mbbank_hint": "Verify Account Before Approving!",
+    "pay_cod_on_delivery": "Collect COD on Delivery",
+    "btn_approve": "Approve",
+    "btn_pack": "Pack",
+    "btn_edit_spx": "Edit SPX",
+    "btn_assign_spx": "Assign SPX",
+    "btn_delivered": "Delivered",
+    "btn_detail": "Details",
+    "btn_print": "Print Invoice",
+    "btn_confirm_paid": "Confirm Payment",
+    "btn_refund": "Refund",
+    "btn_cancel_order": "Cancel Order",
+    "btn_edit": "Edit",
+    "btn_delete": "Delete",
+    "btn_lock": "Lock",
+    "btn_unlock": "Unlock",
+    "btn_demote_cust": "Demote Cust",
+    "btn_promote_admin": "Promote Admin",
+    "btn_view_history": "History",
+    "view_user_orders_title": "View customer purchase history",
+    "status_sold_out": "Sold Out",
+    "status_in_stock": "In Stock",
+    "stock_out": "Out",
+    "stock_low": "Low",
+    "pack_box_only": "Box Only",
+    "pack_card_only": "Card Only",
+    "pack_both": "Box & Card",
+    "no_box_sale": "(No Box sale)",
+    "out_of_box": "Out of Box",
+    "no_card_sale": "(No Card sale)",
+    "out_of_card": "Out of Card",
+    "standard_edition": "Standard Edition",
+    "cust_fallback_name": "MINI GT Member",
+    "cust_joined": "Joined",
+    "cust_addr_old": "OLD ADDR",
+    "cust_addr_new": "NEW ADDR",
+    "orders_unit": "orders",
+    "user_active": "Active",
+    "user_locked": "Locked",
+    "date_unknown": "Unknown Date",
+    "date_today": "Today",
+    "date_yesterday": "Yesterday",
+    "date_prefix": "Date",
+    "orders_empty": "No orders found matching the filter criteria",
+    "no_sales_data": "No sales data yet",
+    "no_orders_yet": "Customer has not placed any orders yet",
+    "th_total_orders": "Total Orders",
+    "user_joined_date": "Joined Date",
+    "phone_lbl": "Phone",
+    "address_lbl": "Address",
+    "account_status_lbl": "Account Status",
+    "th_items_count": "Quantity",
+    "items_unit": "items",
+    "topbar_notifications": "Order Notifications",
+    "topbar_notif_mark_read": "Mark all as read",
+    "topbar_notif_empty": "No new notifications",
+    "topbar_notif_view_orders": "View All Orders ➔",
+    "dash_kpi_net_revenue": "Net Revenue",
+    "dash_kpi_deposit": "Pre-Order Deposits",
+    "dash_kpi_total_orders": "Total Orders",
+    "dash_kpi_models_in_stock": "Models in Stock",
+    "dash_kpi_customers": "Registered Customers",
+    "dash_kpi_subscribers": "Newsletter Leads",
+    "dash_flow_status": "Order Flow Status",
+    "dash_recent_orders": "Recent Orders Requiring Attention",
+    "dash_view_all_orders": "View all ➔",
+    "dash_best_sellers": "Top Selling Models",
+    "btn_refresh": "Refresh",
+    "col_order_code": "Order Code",
+    "col_customer": "Customer",
+    "col_total": "Total",
+    "col_payment": "Payment",
+    "col_status": "Status",
+    "col_time": "Date & Time",
+    "col_actions": "Actions",
+    "col_photo": "Photo",
+    "col_sku": "SKU",
+    "col_model_name": "Model Name",
+    "col_category_brand": "Category / Brand",
+    "col_price": "Price",
+    "col_stock": "Stock",
+    "col_special": "Tags",
+    "col_order_code_time": "Order & Time",
+    "col_customer_phone": "Customer & Phone",
+    "col_model_pack": "Models & Packaging",
+    "col_total_deposit": "Total & Deposit",
+    "col_payment_status": "Payment Status",
+    "col_status_spx": "Status & SPX",
+    "col_action_processing": "Process Action",
+    "col_id": "ID",
+    "col_email": "Email",
+    "col_phone": "Phone Number",
+    "col_address": "Address",
+    "col_total_orders": "Total Orders",
+    "col_total_spent": "Total Spent",
+    "col_vip_tier": "VIP Tier",
+    "col_role": "Role",
+    "col_coupon_code": "Coupon Code",
+    "col_coupon_desc": "Description",
+    "col_coupon_type": "Discount Type",
+    "col_coupon_value": "Discount Value",
+    "col_coupon_min_order": "Min Order",
+    "col_coupon_usage": "Usage",
+    "col_coupon_expiry": "Expiry Date",
+    "col_subscribed_at": "Subscribed Date",
+    "prod_btn_add": "+ Add New Model",
+    "prod_search_placeholder": "Search by model name, SKU (e.g. MGT01413)...",
+    "filter_all_categories": "All Categories",
+    "filter_all_statuses": "All Statuses",
+    "status_pre_order": "Taking Pre-Orders",
+    "prod_show_hidden": "Show hidden models",
+    "filter_stock_many": "High stock (> 5 units)",
+    "sort_newest": "Newest Releases",
+    "sort_best_selling": "Best Selling",
+    "sort_price_asc": "Price: Low to High",
+    "sort_price_desc": "Price: High to Low",
+    "sort_stock_asc": "Stock: Low to High",
+    "orders_title": "Order Processing & SPX Logistics",
+    "orders_subtitle": "Monitor approvals, VietQR PayOS auto-reconciliation, and SPX courier dispatch",
+    "orders_btn_export_csv": "Export CSV / Excel",
+    "order_tab_pre_order": "Pre-Order",
+    "preorder_filter_title": "Pre-Order Fulfillment Stage",
+    "preorder_filter_hint": "Filter by batch stage for batching or arrival notice",
+    "pre_stage_all": "All Stages",
+    "pre_stage_need_deposit": "Needs Deposit",
+    "pre_stage_waiting_goods": "Awaiting Batch Arrival",
+    "pre_stage_goods_arrived": "Batch Arrived in Store",
+    "pre_stage_shipped": "Fulfilled & Shipped",
+    "orders_search_placeholder": "Search by order # (MG...), phone, customer name...",
+    "filter_pay_all": "All Payments",
+    "filter_pay_unpaid": "Unpaid",
+    "filter_pay_partial": "Deposit Paid",
+    "filter_pay_paid": "Paid in Full",
+    "filter_pay_refund_pending": "Refund Pending",
+    "filter_pay_refunded": "Refunded",
+    "filter_method_all": "All Methods",
+    "filter_method_payos": "VietQR PayOS (Auto)",
+    "filter_method_cod": "Cash on Delivery (COD)",
+    "filter_method_deposit": "Pre-Order Deposit",
+    "filter_method_bank": "Direct Bank Transfer",
+    "filter_payos_tooltip": "Filter orders paid via VietQR PayOS",
+    "btn_payos_orders": "PayOS Orders",
+    "filter_addr_all": "All Addresses",
+    "filter_addr_new": "NEW Address (Standard)",
+    "filter_addr_old": "OLD Address (Verify)",
+    "filter_spx_all": "All SPX",
+    "filter_spx_unassigned": "No SPX Tracking",
+    "filter_spx_assigned": "SPX Tracking Assigned",
+    "users_search_placeholder": "Search by name, email, phone number...",
+    "coupons_vip_title": "VIP Vouchers & Loyalty Coupons",
+    "coupons_vip_badge": "Voucher Engine",
+    "coupons_title": "VIP Coupons & Voucher Codes",
+    "coupons_subtitle": "Create promotional discount codes and VIP collector rewards",
+    "coupons_btn_add": "+ Create New Coupon",
+    "subscribers_search_placeholder": "Search subscriber email...",
+    "settings_btn_save": "Save Store Settings",
+    "settings_sec_store": "1. Store Operations & Contact",
+    "settings_lbl_store_name": "Store Name *",
+    "settings_lbl_hotline": "Hotline / Zalo *",
+    "settings_lbl_email": "Support Email *",
+    "settings_lbl_address": "Store Address *",
+    "settings_lbl_shipping_fee": "Standard SPX Flat Shipping Fee (VND) *",
+    "settings_lbl_low_stock": "Low Stock Alert Threshold (units) *",
+    "settings_sec_bank": "2. Bank Account & VietQR Payment Configuration",
+    "settings_lbl_bank_id": "Bank Code (VietQR Bank BIN) *",
+    "settings_lbl_bank_name": "Bank Name *",
+    "settings_lbl_account_no": "Bank Account Number *",
+    "settings_lbl_account_name": "Account Holder Name (Uppercase) *",
+    "settings_lbl_preorder_deadline": "Default Pre-Order Release Batch",
+    "settings_lbl_announcement": "Storefront Announcement Bar Banner",
+    "auth_security_tag": "SSL 256-Bit Encrypted",
+    "auth_title": "Store Admin Sign-In",
+    "auth_subtitle": "MINI GT Bien Hoa Diecast Management",
+    "auth_email_lbl": "Admin Email Address",
+    "auth_password_lbl": "Password",
+    "auth_remember_me": "Remember login for 30 days",
+    "auth_forgot_password": "Forgot password?",
+    "auth_btn_submit": "Sign In to Portal",
+    "auth_back_to_store": "← Return to Storefront",
+    "about_title": "Project Overview & Dev Team",
+    "default_title": "MINI GT Store Admin Portal",
+    "btn_preorder_arrived": "Pre-Order Arrived",
+    "badge_arrived": "In Warehouse",
+    "cust_addr_old_hint": "Customer selected OLD address before merger - verify before booking SPX!",
+    "cust_addr_new_hint": "Standard NEW address after merger",
+    "deposit_lbl": "Deposit",
+    "cod_rem_lbl": "Remaining COD",
+    "pay_cod_100": "Collect 100% COD",
+    "pay_full_100": "Paid in Full",
+    "pay_method_deposit": "⚡ MB Bank Deposit",
+    "pay_method_cod": "📦 Cash on Delivery",
+    "pay_method_bank": "💳 Bank Transfer",
+    "items_more": "more models...",
+    "coupon_modal_edit_title": "Edit Discount Coupon",
+    "coupon_type_pct": "Percent (%)",
+    "coupon_type_amt": "Cash Discount",
+    "coupon_no_min": "No Minimum",
+    "coupon_expired": "Expired",
+    "coupon_no_exp": "No Expiry",
+    "coupon_active": "Active",
+    "coupon_inactive": "Inactive",
+    "coupons_empty": "No discount coupons created yet. Click \"+ Create New Discount Coupon\" to add one!",
+    "subscribers_empty": "No newsletter subscribers found",
+    "subscribers_th_id": "ID",
+    "subscribers_th_email": "Subscriber Email",
+    "subscribers_th_date": "Subscribed Date",
+    "subscribers_th_action": "Action"
+}
+};
+
+  function t(key, fallback = '') {
+    const lang = localStorage.getItem('minigt_lang') || 'vi';
+    if (ADMIN_I18N[lang] && ADMIN_I18N[lang][key] != null) {
+      return ADMIN_I18N[lang][key];
+    }
+    if (ADMIN_I18N.vi && ADMIN_I18N.vi[key] != null) {
+      return ADMIN_I18N.vi[key];
+    }
+    return fallback;
   }
 
   // =====================================================================
@@ -747,16 +1573,17 @@
     // Cập nhật tiêu đề trang
     const titleEl = document.getElementById('pageTitle');
     const titles = {
-      dashboard: 'Tổng Quan Quản Trị Store',
-      products: 'Quản Lý Danh Mục & Mô Hình Xe',
-      orders: 'Quản Lý Đơn Hàng & Vận Đơn SPX',
-      users: 'Quản Lý Tài Khoản Khách Hàng',
-      coupons: 'Quản Lý Mã Giảm Giá & Voucher VIP',
-      subscribers: 'Danh Sách Khách Hàng Nhận Bản Tin',
-      settings: 'Cấu Hình Cửa Hàng & Thanh Toán VietQR',
-      about: 'Giới Thiệu Đề Tài & Nhóm Tác Giả Thực Hiện Dự Án'
+      dashboard: t('dash_title', 'Tổng Quan Quản Trị Store'),
+      products: t('prod_title', 'Quản Lý Danh Mục & Mô Hình Xe'),
+      orders: t('ord_title', 'Quản Lý Đơn Hàng & Vận Đơn SPX'),
+      users: t('users_title', 'Quản Lý Tài Khoản Khách Hàng'),
+      coupons: t('coupons_title', 'Quản Lý Mã Giảm Giá & Voucher VIP'),
+      chat: t('chat_title', 'Hỗ Trợ Khách Hàng & AI Chatbot'),
+      subscribers: t('subscribers_title', 'Danh Sách Khách Hàng Nhận Bản Tin'),
+      settings: t('settings_title', 'Cấu Hình Cửa Hàng & Thanh Toán VietQR'),
+      about: t('about_title', 'Giới Thiệu Đề Tài & Nhóm Tác Giả Thực Hiện Dự Án')
     };
-    if (titleEl) titleEl.textContent = titles[tabId] || 'Hệ Thống Quản Trị MINI GT';
+    if (titleEl) titleEl.textContent = titles[tabId] || t('default_title', 'Hệ Thống Quản Trị MINI GT');
 
     // Đóng sidebar nếu đang xem trên mobile
     if (window.innerWidth <= 992 && isSidebarOpen) {
@@ -769,6 +1596,7 @@
     else if (tabId === 'orders') loadOrders();
     else if (tabId === 'users') loadUsers();
     else if (tabId === 'coupons') loadCoupons();
+    else if (tabId === 'chat') loadAdminChats(true);
     else if (tabId === 'subscribers') loadSubscribers();
     else if (tabId === 'settings') loadStoreSettings();
   }
@@ -799,6 +1627,9 @@
       if (!res.success || !res.data) return;
 
       const { stats, recentOrders, bestSellers } = res.data;
+      cachedDashboardStats = stats;
+      cachedRecentOrders = recentOrders || [];
+      cachedBestSellers = bestSellers || [];
 
       // 1. Cập nhật 6 thẻ KPI
       const revEl = document.getElementById('statRevenue');
@@ -817,7 +1648,10 @@
       if (subEl) subEl.textContent = stats.totalSubscribers;
 
       if (lowStockNotice) {
-        lowStockNotice.textContent = `${stats.lowStockProducts} mẫu sắp hết hàng (≤5 chiếc)`;
+        const lang = localStorage.getItem('minigt_lang') || 'vi';
+        lowStockNotice.textContent = lang === 'en'
+          ? `${stats.lowStockProducts} models low on stock (≤5 units)`
+          : `${stats.lowStockProducts} mẫu sắp hết hàng (≤5 chiếc)`;
         lowStockNotice.style.color = stats.lowStockProducts > 0 ? '#dc2626' : '#059669';
       }
 
@@ -836,10 +1670,10 @@
       renderDashboardStatusPills(stats);
 
       // 3. Đơn hàng gần đây
-      renderRecentOrdersTable(recentOrders || []);
+      renderRecentOrdersTable(cachedRecentOrders);
 
       // 4. Bán chạy nhất
-      renderBestSellersList(bestSellers || []);
+      renderBestSellersList(cachedBestSellers);
     } catch (err) {
       console.warn('Backend chưa khởi động hoặc chưa có dữ liệu thống kê SQL Server:', err.message);
     } finally {
@@ -849,21 +1683,21 @@
 
   function renderDashboardStatusPills(stats) {
     const container = document.getElementById('dashboardStatusPills');
-    if (!container) return;
+    if (!container || !stats) return;
 
     const items = [
-      { label: 'Chờ duyệt', count: stats.pendingOrders, status: 'PENDING', bg: '#fef3c7', color: '#b45309' },
-      { label: 'Đã duyệt', count: stats.confirmedOrders, status: 'CONFIRMED', bg: '#eff6ff', color: '#1d4ed8' },
-      { label: 'Đang đóng gói', count: stats.preparingOrders, status: 'PREPARING', bg: '#f3e8ff', color: '#7e22ce' },
-      { label: 'Đang giao SPX', count: stats.shippingOrders, status: 'SHIPPING', bg: '#ffedd5', color: '#c2410c' },
-      { label: 'Đã giao thành công', count: stats.deliveredOrders, status: 'DELIVERED', bg: '#ecfdf5', color: '#047857' },
-      { label: 'Đã hủy', count: stats.cancelledOrders, status: 'CANCELLED', bg: '#fee2e2', color: '#b91c1c' }
+      { label: t('order_status_pending', 'Chờ duyệt'), count: stats.pendingOrders || 0, status: 'PENDING', bg: '#fef3c7', color: '#b45309' },
+      { label: t('order_status_confirmed', 'Đã duyệt'), count: stats.confirmedOrders || 0, status: 'CONFIRMED', bg: '#eff6ff', color: '#1d4ed8' },
+      { label: t('order_status_preparing', 'Đang đóng gói'), count: stats.preparingOrders || 0, status: 'PREPARING', bg: '#f3e8ff', color: '#7e22ce' },
+      { label: t('order_status_shipping', 'Đang giao SPX'), count: stats.shippingOrders || 0, status: 'SHIPPING', bg: '#ffedd5', color: '#c2410c' },
+      { label: t('order_status_delivered', 'Đã giao thành công'), count: stats.deliveredOrders || 0, status: 'DELIVERED', bg: '#ecfdf5', color: '#047857' },
+      { label: t('order_status_cancelled', 'Đã hủy'), count: stats.cancelledOrders || 0, status: 'CANCELLED', bg: '#fee2e2', color: '#b91c1c' }
     ];
 
     container.innerHTML = items.map(it => `
-      <div style="background:${it.bg}; color:${it.color}; padding:8px 14px; border-radius:8px; display:inline-flex; align-items:center; gap:8px; font-size:12.5px; font-weight:700; cursor:pointer;" onclick="setOrderTab('${it.status}'); switchTab('orders');">
+      <div class="dash-status-pill" style="background:${it.bg}; color:${it.color}; padding:8px 14px; border-radius:8px; display:inline-flex; align-items:center; gap:8px; font-size:12.5px; font-weight:700; cursor:pointer;" onclick="setOrderTab('${it.status}'); switchTab('orders');">
         <span>${it.label}:</span>
-        <strong style="font-size:14px; background:#fff; padding:1px 7px; border-radius:6px; box-shadow:0 1px 3px rgba(0,0,0,0.05);">${it.count}</strong>
+        <strong class="dash-pill-number" style="font-size:14px; background:#fff; padding:1px 7px; border-radius:6px; box-shadow:0 1px 3px rgba(0,0,0,0.05);">${it.count}</strong>
       </div>
     `).join('');
   }
@@ -872,11 +1706,12 @@
     const tbody = document.getElementById('recentOrdersTbody');
     if (!tbody) return;
 
-    if (!orders.length) {
-      tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:1.5rem; color:#64748b;">Chưa có đơn hàng nào</td></tr>';
+    if (!orders || !orders.length) {
+      tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:1.5rem; color:#64748b;">${t('no_orders_yet', 'Chưa có đơn hàng nào')}</td></tr>`;
       return;
     }
 
+    const locale = (localStorage.getItem('minigt_lang') === 'en') ? 'en-US' : 'vi-VN';
     tbody.innerHTML = orders.map(o => `
       <tr>
         <td><strong style="color:#e10600; font-family:monospace;">#${o.code}</strong></td>
@@ -887,10 +1722,10 @@
         <td><strong style="color:#0f172a;">${formatVND(o.total)}</strong></td>
         <td>${renderPaymentBadge(o.paymentStatus, o.paymentMethod)}</td>
         <td>${renderOrderBadge(o.status)}</td>
-        <td style="font-size:11.5px; color:#64748b;">${new Date(o.createdAt).toLocaleString('vi-VN')}</td>
+        <td style="font-size:11.5px; color:#64748b;">${new Date(o.createdAt).toLocaleString(locale)}</td>
         <td>
           <button class="btn-admin btn-admin-outline" style="padding:3px 8px; font-size:11.5px;" onclick="viewOrderDetail(${o.id})">
-            Chi tiết ➔
+            ${t('btn_detail', 'Chi tiết')} ➔
           </button>
         </td>
       </tr>
@@ -901,8 +1736,8 @@
     const container = document.getElementById('bestSellersContainer');
     if (!container) return;
 
-    if (!items.length) {
-      container.innerHTML = '<div style="text-align:center; padding:1rem; color:#64748b; font-size:12.5px;">Chưa có dữ liệu bán hàng</div>';
+    if (!items || !items.length) {
+      container.innerHTML = `<div style="text-align:center; padding:1rem; color:#64748b; font-size:12.5px;">${t('no_sales_data', 'Chưa có dữ liệu bán hàng')}</div>`;
       return;
     }
 
@@ -1767,7 +2602,7 @@
     const form = document.getElementById('productForm');
     if (form) form.reset();
     document.getElementById('editProductId').value = '';
-    document.getElementById('productModalTitle').textContent = 'Thêm Mô Hình Xe Mới (Cấu hình Box & Card)';
+    document.getElementById('productModalTitle').textContent = t('prod_modal_add_title', 'Thêm Mô Hình Xe Mới (Cấu hình Box & Card)');
     const carEl = document.getElementById('prodCarNumber');
     if (carEl) carEl.value = '';
 
@@ -1820,7 +2655,7 @@
 
       const pid = p.id || p.ProductId || productId;
       document.getElementById('editProductId').value = pid;
-      document.getElementById('productModalTitle').textContent = `Chỉnh Sửa Mô Hình: #${p.sku || p.Sku || pid}`;
+      document.getElementById('productModalTitle').textContent = `${t('prod_modal_edit_title', 'Chỉnh Sửa Mô Hình')}: #${p.sku || p.Sku || pid}`;
 
       document.getElementById('prodSku').value = p.sku || p.Sku || '';
       const carEditEl = document.getElementById('prodCarNumber');
@@ -2427,38 +3262,38 @@
 
     if (isPayOS) {
       if (paymentStatus === 'PAID') {
-        return `<span class="status-badge" style="background:#ecfdf5; color:#047857; border:1px solid #10b981; font-weight:800; display:inline-flex; align-items:center; gap:4px; box-shadow:0 1px 2px rgba(16,185,129,0.15);"><i class="fa-solid fa-bolt" style="color:#059669;"></i> VietQR Tự động • Đã thanh toán</span>`;
+        return `<span class="status-badge" style="background:#ecfdf5; color:#047857; border:1px solid #10b981; font-weight:800; display:inline-flex; align-items:center; gap:4px; box-shadow:0 1px 2px rgba(16,185,129,0.15);"><i class="fa-solid fa-bolt" style="color:#059669;"></i> ${t('pay_vietqr_auto_paid', 'VietQR Tự động • Đã thanh toán')}</span>`;
       }
       if (paymentStatus === 'PARTIALLY_PAID') {
-        return `<span class="status-badge" style="background:#eff6ff; color:#1d4ed8; border:1px solid #3b82f6; font-weight:800; display:inline-flex; align-items:center; gap:4px; box-shadow:0 1px 2px rgba(59,130,246,0.15);"><i class="fa-solid fa-bolt" style="color:#2563eb;"></i> VietQR Tự động • Đã cọc</span>`;
+        return `<span class="status-badge" style="background:#eff6ff; color:#1d4ed8; border:1px solid #3b82f6; font-weight:800; display:inline-flex; align-items:center; gap:4px; box-shadow:0 1px 2px rgba(59,130,246,0.15);"><i class="fa-solid fa-bolt" style="color:#2563eb;"></i> ${t('pay_vietqr_auto_deposit', 'VietQR Tự động • Đã cọc')}</span>`;
       }
       if (paymentStatus === 'REFUND_PENDING') {
-        return `<span class="status-badge" style="background:#fef3c7; color:#b45309; border:1px solid #fde68a; font-weight:700;"><i class="fa-solid fa-rotate-left"></i> PayOS: Chờ hoàn tiền</span>`;
+        return `<span class="status-badge" style="background:#fef3c7; color:#b45309; border:1px solid #fde68a; font-weight:700;"><i class="fa-solid fa-rotate-left"></i> ${t('pay_payos_refund_pending', 'PayOS: Chờ hoàn tiền')}</span>`;
       }
       if (paymentStatus === 'REFUNDED') {
-        return `<span class="status-badge" style="background:#f1f5f9; color:#475569; border:1px solid #cbd5e1; font-weight:700;"><i class="fa-solid fa-clock-rotate-left"></i> PayOS: Đã hoàn tiền</span>`;
+        return `<span class="status-badge" style="background:#f1f5f9; color:#475569; border:1px solid #cbd5e1; font-weight:700;"><i class="fa-solid fa-clock-rotate-left"></i> ${t('pay_payos_refunded', 'PayOS: Đã hoàn tiền')}</span>`;
       }
       return `
         <span class="status-badge" style="background:#f0fdf4; color:#15803d; border:1px solid #86efac; font-weight:700; font-size:11px; padding:3px 7px; display:inline-flex; align-items:center; gap:4px;">
-          <i class="fa-solid fa-qrcode"></i> VietQR PayOS (Chờ quét)
+          <i class="fa-solid fa-qrcode"></i> ${t('pay_payos_awaiting_scan', 'VietQR PayOS (Chờ quét)')}
         </span>
         <div style="font-size:10px; color:#16a34a; margin-top:2px; font-weight:600; line-height:1.2;">
-          <i class="fa-solid fa-bolt"></i> Hệ thống tự động đối soát
+          <i class="fa-solid fa-bolt"></i> ${t('pay_auto_reconcile', 'Hệ thống tự động đối soát')}
         </div>
       `;
     }
 
     if (paymentStatus === 'PAID') {
-      return `<span class="status-badge" style="background:#ecfdf5; color:#047857; border:1px solid #a7f3d0; font-weight:700;"><i class="fa-solid fa-circle-check"></i> Đã nhận đủ tiền</span>`;
+      return `<span class="status-badge" style="background:#ecfdf5; color:#047857; border:1px solid #a7f3d0; font-weight:700;"><i class="fa-solid fa-circle-check"></i> ${t('pay_full_paid', 'Đã nhận đủ tiền')}</span>`;
     }
     if (paymentStatus === 'PARTIALLY_PAID') {
-      return `<span class="status-badge" style="background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe; font-weight:700;"><i class="fa-solid fa-circle-check"></i> Đã nhận cọc</span>`;
+      return `<span class="status-badge" style="background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe; font-weight:700;"><i class="fa-solid fa-circle-check"></i> ${t('pay_partially_paid', 'Đã nhận cọc')}</span>`;
     }
     if (paymentStatus === 'REFUND_PENDING') {
-      return `<span class="status-badge" style="background:#fef3c7; color:#b45309; border:1px solid #fde68a; font-weight:700;"><i class="fa-solid fa-rotate-left"></i> Chờ hoàn tiền</span>`;
+      return `<span class="status-badge" style="background:#fef3c7; color:#b45309; border:1px solid #fde68a; font-weight:700;"><i class="fa-solid fa-rotate-left"></i> ${t('pay_refund_pending', 'Chờ hoàn tiền')}</span>`;
     }
     if (paymentStatus === 'REFUNDED') {
-      return `<span class="status-badge" style="background:#f1f5f9; color:#475569; border:1px solid #cbd5e1; font-weight:700;"><i class="fa-solid fa-clock-rotate-left"></i> Đã hoàn tiền</span>`;
+      return `<span class="status-badge" style="background:#f1f5f9; color:#475569; border:1px solid #cbd5e1; font-weight:700;"><i class="fa-solid fa-clock-rotate-left"></i> ${t('pay_refunded', 'Đã hoàn tiền')}</span>`;
     }
 
     // Trường hợp UNPAID:
@@ -2467,26 +3302,26 @@
     if (isBankOrDeposit) {
       return `
         <span class="status-badge" style="background:#fffbeb; color:#b45309; border:1.5px solid #fde68a; font-weight:800; font-size:11px; padding:3px 7px; border-radius:5px; display:inline-flex; align-items:center; gap:4px;">
-          <i class="fa-solid fa-building-columns"></i> Check TK MB Bank
+          <i class="fa-solid fa-building-columns"></i> ${t('pay_check_mbbank', 'Check TK MB Bank')}
         </span>
         <div style="font-size:10px; color:#c2410c; margin-top:2px; font-weight:700; line-height:1.2;">
-          <i class="fa-solid fa-bell"></i> Kiểm tra TK trước khi duyệt!
+          <i class="fa-solid fa-bell"></i> ${t('pay_check_mbbank_hint', 'Kiểm tra TK trước khi duyệt!')}
         </div>
       `;
     }
 
     // Đơn COD
-    return `<span class="status-badge" style="background:#f1f5f9; color:#475569; border:1px solid #cbd5e1; font-weight:700;"><i class="fa-solid fa-hand-holding-dollar"></i> Thu COD khi giao</span>`;
+    return `<span class="status-badge" style="background:#f1f5f9; color:#475569; border:1px solid #cbd5e1; font-weight:700;"><i class="fa-solid fa-hand-holding-dollar"></i> ${t('pay_cod_on_delivery', 'Thu COD khi giao')}</span>`;
   }
 
   function renderOrderBadge(status) {
     const statusMap = {
-      PENDING: { text: 'Chờ duyệt', bg: '#fef3c7', color: '#b45309', icon: 'fa-hourglass-half' },
-      CONFIRMED: { text: 'Đã duyệt', bg: '#eff6ff', color: '#1d4ed8', icon: 'fa-check' },
-      PREPARING: { text: 'Đang đóng gói', bg: '#f3e8ff', color: '#7e22ce', icon: 'fa-box' },
-      SHIPPING: { text: 'Đang giao SPX', bg: '#ffedd5', color: '#c2410c', icon: 'fa-truck-fast' },
-      DELIVERED: { text: 'Đã giao thành công', bg: '#ecfdf5', color: '#047857', icon: 'fa-circle-check' },
-      CANCELLED: { text: 'Đã hủy', bg: '#fee2e2', color: '#b91c1c', icon: 'fa-ban' }
+      PENDING: { text: t('order_status_pending', 'Chờ duyệt'), bg: '#fef3c7', color: '#b45309', icon: 'fa-hourglass-half' },
+      CONFIRMED: { text: t('order_status_confirmed', 'Đã duyệt'), bg: '#eff6ff', color: '#1d4ed8', icon: 'fa-check' },
+      PREPARING: { text: t('order_status_preparing', 'Đang đóng gói'), bg: '#f3e8ff', color: '#7e22ce', icon: 'fa-box' },
+      SHIPPING: { text: t('order_status_shipping', 'Đang giao SPX'), bg: '#ffedd5', color: '#c2410c', icon: 'fa-truck-fast' },
+      DELIVERED: { text: t('order_status_delivered', 'Đã giao thành công'), bg: '#ecfdf5', color: '#047857', icon: 'fa-circle-check' },
+      CANCELLED: { text: t('order_status_cancelled', 'Đã hủy'), bg: '#fee2e2', color: '#b91c1c', icon: 'fa-ban' }
     };
     const s = statusMap[status] || { text: status, bg: '#f1f5f9', color: '#334155', icon: 'fa-circle' };
     return `<span class="status-badge" style="background:${s.bg}; color:${s.color}; border:1px solid rgba(0,0,0,0.06); font-weight:700;"><i class="fa-solid ${s.icon}"></i> ${s.text}</span>`;
@@ -2706,10 +3541,10 @@
   }
 
   function getDateGroupKey(dateStr) {
-    if (!dateStr) return 'Đơn không rõ ngày';
+    if (!dateStr) return t('date_unknown', 'Đơn không rõ ngày');
     try {
       const dt = new Date(dateStr);
-      if (isNaN(dt.getTime())) return 'Đơn không rõ ngày';
+      if (isNaN(dt.getTime())) return t('date_unknown', 'Đơn không rõ ngày');
       const pad = n => String(n).padStart(2, '0');
       const day = dt.getDate();
       const month = dt.getMonth() + 1;
@@ -2725,14 +3560,14 @@
       const currStr = `${year}-${pad(month)}-${pad(day)}`;
 
       if (currStr === todayStr) {
-        return `Hôm nay — ${pad(day)}/${pad(month)}/${year}`;
+        return `${t('date_today', 'Hôm nay')} — ${pad(day)}/${pad(month)}/${year}`;
       } else if (currStr === yesterdayStr) {
-        return `Hôm qua — ${pad(day)}/${pad(month)}/${year}`;
+        return `${t('date_yesterday', 'Hôm qua')} — ${pad(day)}/${pad(month)}/${year}`;
       } else {
-        return `Ngày ${pad(day)}/${pad(month)}/${year}`;
+        return `${t('date_prefix', 'Ngày')} ${pad(day)}/${pad(month)}/${year}`;
       }
     } catch (e) {
-      return 'Đơn không rõ ngày';
+      return t('date_unknown', 'Đơn không rõ ngày');
     }
   }
 
@@ -2740,8 +3575,8 @@
     const tbody = document.getElementById('ordersTbody');
     if (!tbody) return;
 
-    if (!orders.length) {
-      tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:2.5rem; color:#64748b;">Không tìm thấy đơn hàng nào phù hợp với bộ lọc</td></tr>';
+    if (!orders || !orders.length) {
+      tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:2.5rem; color:#64748b;">${t('orders_empty', 'Không tìm thấy đơn hàng nào phù hợp với bộ lọc')}</td></tr>`;
       return;
     }
 
@@ -2767,7 +3602,7 @@
                 <span class="date-badge">
                   <i class="fa-regular fa-calendar-check"></i> <strong>${currentGroup}</strong>
                 </span>
-                <span class="date-count">${countInGroup} đơn hàng</span>
+                <span class="date-count">${countInGroup} ${t('orders_unit', 'đơn hàng')}</span>
               </div>
             </td>
           </tr>
@@ -2780,35 +3615,35 @@
 
       // 1. Thao tác tiến trình xử lý đơn chính (Workflow Primary)
       if (o.status === 'PENDING') {
-        actionsPrimary.push(`<button class="btn-admin btn-admin-primary" style="padding:4px 8px; font-size:11px;" onclick="changeOrderStatus(${o.id}, 'CONFIRMED')" title="Duyệt đơn hàng ngay"><i class="fa-solid fa-check"></i> Duyệt</button>`);
+        actionsPrimary.push(`<button class="btn-admin btn-admin-primary" style="padding:4px 8px; font-size:11px;" onclick="changeOrderStatus(${o.id}, 'CONFIRMED')" title="Duyệt đơn hàng ngay"><i class="fa-solid fa-check"></i> ${t('btn_approve', 'Duyệt')}</button>`);
       } else if (o.status === 'CONFIRMED') {
-        actionsPrimary.push(`<button class="btn-admin btn-admin-primary" style="padding:4px 8px; font-size:11px; background:#7e22ce; border-color:#7e22ce;" onclick="changeOrderStatus(${o.id}, 'PREPARING')" title="Chuyển sang đóng gói"><i class="fa-solid fa-box"></i> Đóng gói</button>`);
+        actionsPrimary.push(`<button class="btn-admin btn-admin-primary" style="padding:4px 8px; font-size:11px; background:#7e22ce; border-color:#7e22ce;" onclick="changeOrderStatus(${o.id}, 'PREPARING')" title="Chuyển sang đóng gói"><i class="fa-solid fa-box"></i> ${t('btn_pack', 'Đóng gói')}</button>`);
       } else if (o.status === 'PREPARING') {
-        actionsPrimary.push(`<button class="btn-admin btn-admin-primary" style="padding:4px 8px; font-size:11px; background:#ea580c; border-color:#ea580c;" onclick="openShipSpxModal(${o.id})" title="Gán mã vận đơn SPX Express"><i class="fa-solid fa-truck-fast"></i> ${o.trackingCode ? 'Sửa SPX' : 'Gán SPX'}</button>`);
+        actionsPrimary.push(`<button class="btn-admin btn-admin-primary" style="padding:4px 8px; font-size:11px; background:#ea580c; border-color:#ea580c;" onclick="openShipSpxModal(${o.id})" title="Gán mã vận đơn SPX Express"><i class="fa-solid fa-truck-fast"></i> ${o.trackingCode ? t('btn_edit_spx', 'Sửa SPX') : t('btn_assign_spx', 'Gán SPX')}</button>`);
       } else if (o.status === 'SHIPPING') {
-        actionsPrimary.push(`<button class="btn-admin btn-admin-primary" style="padding:4px 8px; font-size:11px; background:#059669; border-color:#059669;" onclick="changeOrderStatus(${o.id}, 'DELIVERED')" title="Xác nhận đã giao hàng & thu tiền"><i class="fa-solid fa-circle-check"></i> Đã giao</button>`);
+        actionsPrimary.push(`<button class="btn-admin btn-admin-primary" style="padding:4px 8px; font-size:11px; background:#059669; border-color:#059669;" onclick="changeOrderStatus(${o.id}, 'DELIVERED')" title="Xác nhận đã giao hàng & thu tiền"><i class="fa-solid fa-circle-check"></i> ${t('btn_delivered', 'Đã giao')}</button>`);
       }
 
       // Các nút tiện ích tra cứu luôn sẵn sàng ở hàng 1
-      actionsPrimary.push(`<button class="btn-admin btn-admin-outline" style="padding:4px 7px; font-size:11px;" onclick="viewOrderDetail(${o.id})" title="Xem chi tiết đơn"><i class="fa-solid fa-eye"></i> Chi tiết</button>`);
-      actionsPrimary.push(`<button class="btn-admin btn-admin-outline" style="padding:4px 7px; font-size:11px;" onclick="printOrderInvoice(${o.id})" title="In phiếu đóng gói / giao hàng"><i class="fa-solid fa-print"></i> In đơn</button>`);
+      actionsPrimary.push(`<button class="btn-admin btn-admin-outline" style="padding:4px 7px; font-size:11px;" onclick="viewOrderDetail(${o.id})" title="Xem chi tiết đơn"><i class="fa-solid fa-eye"></i> ${t('btn_detail', 'Chi tiết')}</button>`);
+      actionsPrimary.push(`<button class="btn-admin btn-admin-outline" style="padding:4px 7px; font-size:11px;" onclick="printOrderInvoice(${o.id})" title="In phiếu đóng gói / giao hàng"><i class="fa-solid fa-print"></i> ${t('btn_print', 'In đơn')}</button>`);
 
       // 2. Thao tác tài chính & bổ sung ở hàng 2 (Secondary row)
       // Gán / Đổi mã SPX nếu ở trạng thái Confirmed hoặc Shipping mà cần chỉnh
       if (['CONFIRMED', 'SHIPPING'].includes(o.status)) {
-        actionsSecondary.push(`<button class="btn-admin btn-admin-outline" style="padding:3px 7px; font-size:11px; color:#ea580c; border-color:#fdba74;" onclick="openShipSpxModal(${o.id})" title="Quản lý mã vận đơn SPX Express"><i class="fa-solid fa-truck-fast"></i> ${o.trackingCode ? 'Sửa SPX' : 'Gán SPX'}</button>`);
+        actionsSecondary.push(`<button class="btn-admin btn-admin-outline" style="padding:3px 7px; font-size:11px; color:#ea580c; border-color:#fdba74;" onclick="openShipSpxModal(${o.id})" title="Quản lý mã vận đơn SPX Express"><i class="fa-solid fa-truck-fast"></i> ${o.trackingCode ? t('btn_edit_spx', 'Sửa SPX') : t('btn_assign_spx', 'Gán SPX')}</button>`);
       }
 
       // Xác nhận tiền cọc hoặc thanh toán full
       if (o.status !== 'CANCELLED' && o.paymentStatus !== 'PAID' && o.paymentMethod !== 'COD') {
         if (o.paymentMethod === 'DEPOSIT') {
           if (o.paymentStatus === 'UNPAID') {
-            actionsSecondary.push(`<button class="btn-admin btn-admin-outline" style="padding:3px 7px; font-size:11px; color:#2563eb; border-color:#93c5fd;" onclick="confirmPaymentAction(${o.id}, 'deposit')" title="Xác nhận đã nhận cọc"><i class="fa-solid fa-money-bill-transfer"></i> Nhận Cọc</button>`);
+            actionsSecondary.push(`<button class="btn-admin btn-admin-outline" style="padding:3px 7px; font-size:11px; color:#2563eb; border-color:#93c5fd;" onclick="confirmPaymentAction(${o.id}, 'deposit')" title="Xác nhận đã nhận cọc"><i class="fa-solid fa-money-bill-transfer"></i> ${t('pay_partially_paid', 'Nhận Cọc')}</button>`);
           } else if (o.paymentStatus === 'PARTIALLY_PAID') {
-            actionsSecondary.push(`<button class="btn-admin btn-admin-outline" style="padding:3px 7px; font-size:11px; color:#059669; border-color:#a7f3d0;" onclick="confirmPaymentAction(${o.id}, 'full')" title="Xác nhận nhận đủ tiền 100%"><i class="fa-solid fa-circle-dollar-to-slot"></i> Nhận Đủ</button>`);
+            actionsSecondary.push(`<button class="btn-admin btn-admin-outline" style="padding:3px 7px; font-size:11px; color:#059669; border-color:#a7f3d0;" onclick="confirmPaymentAction(${o.id}, 'full')" title="Xác nhận nhận đủ tiền 100%"><i class="fa-solid fa-circle-dollar-to-slot"></i> ${t('pay_full_paid', 'Nhận Đủ')}</button>`);
           }
         } else if (o.paymentMethod === 'BANK_TRANSFER' && o.paymentStatus === 'UNPAID') {
-          actionsSecondary.push(`<button class="btn-admin btn-admin-outline" style="padding:3px 7px; font-size:11px; color:#2563eb; border-color:#93c5fd;" onclick="confirmPaymentAction(${o.id}, 'full')" title="Xác nhận nhận đủ tiền 100%"><i class="fa-solid fa-circle-dollar-to-slot"></i> Nhận Full</button>`);
+          actionsSecondary.push(`<button class="btn-admin btn-admin-outline" style="padding:3px 7px; font-size:11px; color:#2563eb; border-color:#93c5fd;" onclick="confirmPaymentAction(${o.id}, 'full')" title="Xác nhận nhận đủ tiền 100%"><i class="fa-solid fa-circle-dollar-to-slot"></i> ${t('pay_full_paid', 'Nhận Full')}</button>`);
         }
       }
 
@@ -2823,12 +3658,12 @@
 
       // Hoàn tiền nếu đơn hủy đang chờ hoàn tiền
       if (o.paymentStatus === 'REFUND_PENDING') {
-        actionsSecondary.push(`<button class="btn-admin btn-admin-primary" style="padding:3px 7px; font-size:11px; background:#b45309; border-color:#b45309;" onclick="markRefundedAction(${o.id})" title="Xác nhận đã hoàn tiền cho khách"><i class="fa-solid fa-hand-holding-dollar"></i> Đã hoàn tiền</button>`);
+        actionsSecondary.push(`<button class="btn-admin btn-admin-primary" style="padding:3px 7px; font-size:11px; background:#b45309; border-color:#b45309;" onclick="markRefundedAction(${o.id})" title="Xác nhận đã hoàn tiền cho khách"><i class="fa-solid fa-hand-holding-dollar"></i> ${t('pay_refunded', 'Đã hoàn tiền')}</button>`);
       }
 
       // Hủy đơn
       if (['PENDING', 'CONFIRMED', 'PREPARING'].includes(o.status)) {
-        actionsSecondary.push(`<button class="btn-admin btn-admin-outline" style="padding:3px 7px; font-size:11px; color:#dc2626; border-color:#fca5a5;" onclick="openCancelOrderModal(${o.id})" title="Hủy đơn hàng"><i class="fa-solid fa-ban"></i> Hủy</button>`);
+        actionsSecondary.push(`<button class="btn-admin btn-admin-outline" style="padding:3px 7px; font-size:11px; color:#dc2626; border-color:#fca5a5;" onclick="openCancelOrderModal(${o.id})" title="Hủy đơn hàng"><i class="fa-solid fa-ban"></i> ${t('btn_cancel', 'Hủy')}</button>`);
       }
 
       const custName = (o.customer && o.customer.fullName) || o.fullName || 'Khách hàng';
@@ -3007,6 +3842,7 @@
   // Xem chi tiết đơn hàng
   async function viewOrderDetail(orderId) {
     try {
+      currentDetailOrderId = orderId;
       const res = await api.get(`/api/admin/orders/${orderId}`);
       if (!res.success || !res.data) return;
       const order = res.data;
@@ -3030,7 +3866,7 @@
         const isPayosLog = (h.by === 'SYSTEM_PAYOS' || (h.note && (h.note.includes('PayOS') || h.note.includes('VietQR'))));
         return `
         <div style="display:flex; gap:10px; margin-bottom:8px; font-size:12px; line-height:1.4; ${isPayosLog ? 'background:#ecfdf5; padding:6px 10px; border-radius:6px; border-left:3.5px solid #10b981;' : ''}">
-          <span style="color:#64748b; font-size:11px; width:130px; flex-shrink:0;">${new Date(h.createdAt).toLocaleString('vi-VN')}</span>
+          <span style="color:#64748b; font-size:11px; width:130px; flex-shrink:0;">${new Date(h.createdAt).toLocaleString(localStorage.getItem('minigt_lang') === 'en' ? 'en-US' : 'vi-VN')}</span>
           <div>
             ${isPayosLog ? '<span style="background:#10b981; color:#fff; font-size:10px; font-weight:800; padding:1px 6px; border-radius:4px; margin-right:4px;"><i class="fa-solid fa-bolt"></i> PAYOS VIETQR</span>' : ''}
             <strong style="color:#0f172a;">${h.to}</strong>
@@ -3039,7 +3875,7 @@
           </div>
         </div>
       `;
-      }).join('') || '<div style="font-size:12px; color:#64748b;">Chưa có lịch sử trạng thái</div>';
+      }).join('') || `<div style="font-size:12px; color:#64748b;">${t('order_history_empty', 'Chưa có lịch sử trạng thái')}</div>`;
 
       const isOldAddr = order.addressType === 'OLD' || order.isOldAddress;
       const isDeliveredOrCompleted = ['DELIVERED', 'COMPLETED'].includes(String(order.status || '').toUpperCase());
@@ -3081,9 +3917,9 @@
           <div style="background:#ecfdf5; border:1.5px solid #6ee7b7; border-radius:10px; padding:12px 14px; margin-bottom:14px; display:flex; align-items:center; gap:10px; color:#065f46; font-size:13px;">
             <i class="fa-solid fa-lock" style="font-size:22px; color:#059669; flex-shrink:0;"></i>
             <div>
-              <strong style="font-size:13.5px;">ĐƠN HÀNG ĐÃ GIAO THÀNH CÔNG VÀ KHÁCH ĐÃ NHẬN ĐƯỢC HÀNG</strong>
+              <strong style="font-size:13.5px;">${t('order_detail_locked_notice', 'ĐƠN HÀNG ĐÃ GIAO THÀNH CÔNG VÀ KHÁCH ĐÃ NHẬN ĐƯỢC HÀNG')}</strong>
               <div style="font-size:11.5px; color:#047857; margin-top:2px;">
-                Đơn hàng đã hoàn tất toàn bộ quy trình giao phát và đối soát. Hệ thống đã <strong>KHÓA TOÀN BỘ CHỈNH SỬA</strong> để bảo toàn dữ liệu hóa đơn và đối soát SPX.
+                ${t('order_detail_locked_desc', 'Đơn hàng đã hoàn tất toàn bộ quy trình giao phát và đối soát. Hệ thống đã KHÓA TOÀN BỘ CHỈNH SỬA để bảo toàn dữ liệu hóa đơn và đối soát SPX.')}
               </div>
             </div>
           </div>
@@ -3091,13 +3927,13 @@
 
         <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #e2e8f0; padding-bottom:12px; margin-bottom:14px;">
           <div>
-            <span style="font-size:11px; font-weight:800; background:#fef2f2; color:#dc2626; padding:2px 8px; border-radius:4px;">CHI TIẾT ĐƠN HÀNG</span>
+            <span style="font-size:11px; font-weight:800; background:#fef2f2; color:#dc2626; padding:2px 8px; border-radius:4px;">${t('order_detail_title', 'CHI TIẾT ĐƠN HÀNG')}</span>
             <h3 style="font-size:18px; font-weight:800; color:#0f172a; margin:4px 0 0 0;">
-              Mã đơn: <span style="color:#e10600; font-family:monospace;">#${order.code}</span>
+              ${t('th_order_code', 'Mã đơn')}: <span style="color:#e10600; font-family:monospace;">#${order.code}</span>
             </h3>
           </div>
           <div style="display:flex; align-items:center; gap:6px;">
-            ${isDeliveredOrCompleted ? '<span style="font-size:11px; font-weight:800; background:#ecfdf5; color:#059669; border:1px solid #a7f3d0; padding:3px 8px; border-radius:4px;"><i class="fa-solid fa-lock"></i> ĐÃ KHÓA</span>' : ''}
+            ${isDeliveredOrCompleted ? `<span style="font-size:11px; font-weight:800; background:#ecfdf5; color:#059669; border:1px solid #a7f3d0; padding:3px 8px; border-radius:4px;"><i class="fa-solid fa-lock"></i> ${t('order_detail_locked', 'ĐÃ KHÓA')}</span>` : ''}
             ${renderOrderBadge(order.status)}
             ${renderPaymentBadge(order.paymentStatus, order.paymentMethod)}
           </div>
@@ -3112,7 +3948,7 @@
               const custTotalSpent = Number((custMatch ? custMatch.totalSpent : 0) || order.userTotalSpent || (order.customer && order.customer.userTotalSpent) || 0);
               const custVip = (order.vip && order.vip.level) ? order.vip : getCustomerVipInfo(custTotalSpent);
               return `
-                <div style="color:#64748b; margin-bottom:2px;">Người nhận hàng:</div>
+                <div style="color:#64748b; margin-bottom:2px;">${t('th_customer', 'Người nhận hàng')}:</div>
                 <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
                   <strong style="color:#0f172a; font-size:13.5px;">${escapeHtml(order.customer.fullName)}</strong>
                   <span class="vip-badge vip-${custVip.level}" style="background:${custVip.bg}; color:${custVip.color}; border:1px solid ${custVip.border}; padding:2px 8px; border-radius:12px; font-weight:800; font-size:11px; display:inline-flex; align-items:center; gap:4px;" title="Cấp độ ${custVip.label} — Tích lũy mua hàng: ${formatVND(custTotalSpent)}">
@@ -3120,23 +3956,23 @@
                   </span>
                 </div>
                 <div style="font-size:11px; color:#059669; font-weight:700; margin-top:3px;">
-                  <i class="fa-solid fa-chart-line"></i> Tích lũy mua hàng: <strong>${formatVND(custTotalSpent)}</strong>
+                  <i class="fa-solid fa-chart-line"></i> ${t('kpi_revenue', 'Tích lũy mua hàng')}: <strong>${formatVND(custTotalSpent)}</strong>
                 </div>
               `;
             })()}
-            <div style="margin-top:4px;">Điện thoại: <strong>${escapeHtml(order.customer.phone)}</strong></div>
+            <div style="margin-top:4px;">${t('phone_lbl', 'Điện thoại')}: <strong>${escapeHtml(order.customer.phone)}</strong></div>
             ${order.customer.email ? `<div>Email: <span>${escapeHtml(order.customer.email)}</span></div>` : ''}
           </div>
           <div>
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:2px;">
-              <span style="color:#64748b;">Địa chỉ giao phát kiện:</span>
+              <span style="color:#64748b;">${t('address_lbl', 'Địa chỉ giao phát kiện')}:</span>
               <span class="${isOldAddr ? 'badge-addr-old' : 'badge-addr-new'}">
                 <i class="fa-solid ${isOldAddr ? 'fa-triangle-exclamation' : 'fa-circle-check'}"></i>
-                ${isOldAddr ? 'ĐC CŨ TRƯỚC SÁP NHẬP' : 'ĐC MỚI CHUẨN'}
+                ${isOldAddr ? t('cust_addr_old', 'ĐC CŨ') : t('cust_addr_new', 'ĐC MỚI')}
               </span>
             </div>
             <div style="line-height:1.4; font-weight:600; color:#1e293b;">${escapeHtml(order.customer.address)}</div>
-            ${order.oldAddressNote ? `<div style="margin-top:4px; color:#c2410c; font-size:11.5px;"><strong>Ghi chú phường cũ:</strong> ${escapeHtml(order.oldAddressNote)}</div>` : ''}
+            ${order.oldAddressNote ? `<div style="margin-top:4px; color:#c2410c; font-size:11.5px;"><strong>Ghi chú:</strong> ${escapeHtml(order.oldAddressNote)}</div>` : ''}
             ${order.note ? `<div style="margin-top:6px; color:#b45309; font-style:italic;">Ghi chú khách: ${escapeHtml(order.note)}</div>` : ''}
           </div>
         </div>
@@ -3147,36 +3983,23 @@
             <div style="display:flex; align-items:center; gap:8px;">
               <i class="fa-solid fa-location-dot" style="color:${isOldAddr ? '#ea580c' : '#059669'}; font-size:15px;"></i>
               <strong style="color:${isOldAddr ? '#c2410c' : '#065f46'}; font-size:13px;">
-                ĐỐI SOÁT ĐỊA CHỈ NHẬN HÀNG (${isOldAddr ? 'ĐỊA CHỈ CŨ TRƯỚC SÁP NHẬP' : 'ĐỊA CHỈ MỚI CHUẨN'})
+                ĐỐI SOÁT ĐỊA CHỈ NHẬN HÀNG (${isOldAddr ? 'ĐỊA CHỈ CŨ' : 'ĐỊA CHỈ MỚI'})
               </strong>
-            </div>
-            <div style="display:flex; gap:6px; align-items:center;">
-              <span class="${isOldAddr ? 'badge-addr-old' : 'badge-addr-new'}">
-                <i class="fa-solid ${isOldAddr ? 'fa-triangle-exclamation' : 'fa-circle-check'}"></i>
-                ${isOldAddr ? 'Khách chọn: ĐỊA CHỈ CŨ' : 'Khách chọn: ĐỊA CHỈ MỚI'}
-              </span>
             </div>
           </div>
 
           <div style="font-size:12px; line-height:1.5; color:#334155; margin-bottom:8px;">
-            <div><strong>Địa chỉ khách ghi:</strong> ${escapeHtml(order.customer.address)}</div>
-            ${order.oldAddressNote ? `<div style="margin-top:2px; color:#c2410c;"><strong>Ghi chú đơn vị hành chính cũ:</strong> ${escapeHtml(order.oldAddressNote)}</div>` : ''}
-            ${order.newAddressEquivalent ? `<div style="margin-top:2px; color:#047857; font-weight:700;"><i class="fa-solid fa-arrow-right"></i> Quy đổi chuẩn hành chính mới: ${escapeHtml(order.newAddressEquivalent)}</div>` : ''}
+            <div><strong>Địa chỉ:</strong> ${escapeHtml(order.customer.address)}</div>
+            ${order.oldAddressNote ? `<div style="margin-top:2px; color:#c2410c;"><strong>Ghi chú cũ:</strong> ${escapeHtml(order.oldAddressNote)}</div>` : ''}
+            ${order.newAddressEquivalent ? `<div style="margin-top:2px; color:#047857; font-weight:700;"><i class="fa-solid fa-arrow-right"></i> Quy đổi chuẩn mới: ${escapeHtml(order.newAddressEquivalent)}</div>` : ''}
           </div>
-
-          ${isOldAddr ? `
-            <div style="background:#fff7ed; border:1px solid #fed7aa; border-radius:6px; padding:8px 10px; font-size:11.5px; color:#9a3412; margin-bottom:8px; line-height:1.45;">
-              <i class="fa-solid fa-circle-exclamation" style="color:#ea580c; margin-right:4px;"></i>
-              <strong>Cảnh báo Admin khi lên đơn SPX / GHTK:</strong> Khách khai báo theo tên phường/quận cũ trước sáp nhập. Khi nhập đơn trên ứng dụng SPX Express, nếu không tìm thấy phường cũ, Admin hãy đối chiếu sang phường mới tương đương (VD: P. Hòa Bình ➔ P. Quang Vinh; P. Thanh Bình ➔ P. Quyết Thắng; Q.2/9/Thủ Đức ➔ TP. Thủ Đức) hoặc bấm nút <strong>"Copy Báo Khách (Zalo)"</strong> bên dưới để hỏi lại khách!
-            </div>
-          ` : ''}
 
           <div class="addr-dispatch-actions">
             <button type="button" class="addr-btn-copy btn-copy-spx" onclick="copySpxFormattedAddress(${order.id})" title="Copy địa chỉ theo định dạng chuẩn để dán vào App SPX Express hoặc GHTK">
-              <i class="fa-regular fa-copy"></i> 📋 Copy Địa Chỉ Chuẩn SPX
+              <i class="fa-regular fa-copy"></i> 📋 Copy SPX Address
             </button>
             <button type="button" class="addr-btn-copy btn-copy-msg" onclick="copyCustomerAddressConfirmMsg(${order.id})" title="Copy tin nhắn soạn sẵn gửi Zalo/SMS cho khách để xác nhận địa chỉ">
-              <i class="fa-solid fa-comment-dots"></i> 💬 Copy Tin Nhắn Báo Khách (Zalo)
+              <i class="fa-solid fa-comment-dots"></i> 💬 Copy Zalo Msg
             </button>
             ${!isDeliveredOrCompleted ? `
               <button type="button" class="addr-btn-copy" onclick="toggleOrderAddressType(${order.id})" title="Chuyển đổi trạng thái đơn giữa Địa chỉ Mới và Cũ">
@@ -3191,7 +4014,7 @@
           <div style="background:linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%); border:1.5px solid #fde68a; border-radius:8px; padding:12px 14px; margin-bottom:14px; font-size:12.5px;">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; flex-wrap:wrap; gap:6px;">
               <div style="display:flex; align-items:center; gap:6px; font-weight:800; color:#92400e; font-size:13px;">
-                <span>⚡</span> TIẾN ĐỘ ĐƠN ĐẶT HÀNG TRƯỚC (PRE-ORDER)
+                <span>⚡</span> PRE-ORDER STATUS
               </div>
               <div>
                 ${(order.preOrderNotified || order.PreOrderNotified)
@@ -3201,15 +4024,14 @@
               </div>
             </div>
             <div style="font-size:12px; color:#78350f; line-height:1.5;">
-              <div>• Dự kiến phát hàng từ hãng: <strong>${escapeHtml(order.preOrderExpected || order.PreOrderExpected || 'Theo thông báo hãng')}</strong></div>
-              <div>• Tiền cọc giữ xe: <strong>${formatVND(order.depositAmount || 0)}</strong> &bull; Trạng thái cọc: <strong>${order.paymentStatus === 'PARTIALLY_PAID' ? '✓ Đã nhận cọc' : (order.paymentStatus === 'PAID' ? '✓ Đã thanh toán full 100%' : '⏳ Chưa nhận cọc')}</strong></div>
+              <div>• Dự kiến phát hàng: <strong>${escapeHtml(order.preOrderExpected || order.PreOrderExpected || 'Theo thông báo hãng')}</strong></div>
+              <div>• Tiền cọc: <strong>${formatVND(order.depositAmount || 0)}</strong> &bull; Trạng thái: <strong>${order.paymentStatus === 'PARTIALLY_PAID' ? '✓ Đã nhận cọc' : (order.paymentStatus === 'PAID' ? '✓ Đã thanh toán full 100%' : '⏳ Chưa nhận cọc')}</strong></div>
             </div>
             ${['PENDING', 'CONFIRMED', 'PREPARING'].includes(order.status) && !order.preOrderNotified && !order.PreOrderNotified ? `
               <div style="margin-top:10px; padding-top:8px; border-top:1px dashed #fcd34d; display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
                 <button type="button" class="btn-admin btn-admin-primary" style="background:#d97706; border-color:#b45309; font-size:11.5px; padding:6px 14px;" onclick="markPreOrderArrivedAction(${order.id})">
                   <i class="fa-solid fa-boxes-packing"></i> Báo Hàng Pre-Order Đã Về Kho Biên Hòa
                 </button>
-                <span style="font-size:11px; color:#92400e;">(Click để chuyển trạng thái sang đóng gói và gửi thông báo tới khách)</span>
               </div>
             ` : ''}
           </div>
@@ -3217,14 +4039,14 @@
 
         <!-- Bảng sản phẩm -->
         <div style="margin-bottom:14px;">
-          <h4 style="font-size:13px; font-weight:800; color:#1e293b; margin-bottom:8px;">Danh Sách Mô Hình Trong Đơn:</h4>
+          <h4 style="font-size:13px; font-weight:800; color:#1e293b; margin-bottom:8px;">${t('order_items_title', 'Danh Sách Mô Hình Trong Đơn:')}</h4>
           <table style="width:100%; border-collapse:collapse; font-size:12.5px;">
             <thead>
               <tr style="background:#f1f5f9; text-align:left;">
-                <th style="padding:8px 6px;">Sản phẩm</th>
-                <th style="text-align:center; padding:8px 6px;">SL</th>
-                <th style="text-align:right; padding:8px 6px;">Đơn giá</th>
-                <th style="text-align:right; padding:8px 6px;">Thành tiền</th>
+                <th style="padding:8px 6px;">${t('th_product', 'Sản phẩm')}</th>
+                <th style="text-align:center; padding:8px 6px;">${t('th_items_count', 'SL')}</th>
+                <th style="text-align:right; padding:8px 6px;">${t('th_unit_price', 'Đơn giá')}</th>
+                <th style="text-align:right; padding:8px 6px;">${t('th_line_total', 'Thành tiền')}</th>
               </tr>
             </thead>
             <tbody>${itemsHtml}</tbody>
@@ -3901,13 +4723,15 @@ Anh/chị phản hồi giúp shop để kiện xe được đóng gói gửi đi
     if (!tbody) return;
 
     if (!users || !users.length) {
-      tbody.innerHTML = '<tr><td colspan="11" style="text-align:center; padding:2rem; color:#64748b;">Không tìm thấy khách hàng nào</td></tr>';
+      tbody.innerHTML = `<tr><td colspan="11" style="text-align:center; padding:2rem; color:#64748b;">${t('no_customers_found', 'Không tìm thấy khách hàng nào')}</td></tr>`;
       return;
     }
 
+    const locale = (localStorage.getItem('minigt_lang') === 'en') ? 'en-US' : 'vi-VN';
+
     tbody.innerHTML = users.map(u => {
       const uId = u.userId || u.id || '-';
-      const uFullName = u.fullName || u.name || 'Hội viên MINI GT';
+      const uFullName = u.fullName || u.name || t('cust_fallback_name', 'Hội viên MINI GT');
       const uEmail = u.email || '-';
       const uPhone = u.phone || '-';
       const uAddress = u.address || '-';
@@ -3923,17 +4747,17 @@ Anh/chị phản hồi giúp shop để kiện xe được đóng gói gửi đi
       if (u.createdAt) {
         try {
           const d = new Date(u.createdAt);
-          if (!isNaN(d.getTime())) createdDate = d.toLocaleDateString('vi-VN');
+          if (!isNaN(d.getTime())) createdDate = d.toLocaleDateString(locale);
         } catch (_) {}
       }
 
       // Badge loại địa chỉ
       const addrTypeBadge = uAddressType === 'OLD'
-        ? `<span class="badge" style="font-size:10px; background:#fffbeb; color:#b45309; border:1px solid #fde68a; border-radius:4px; padding:1px 5px; font-weight:700; margin-right:4px;" title="Địa chỉ cũ trước sáp nhập ĐVHC"><i class="fa-solid fa-clock-rotate-left"></i> ĐC CŨ</span>`
-        : `<span class="badge" style="font-size:10px; background:#ecfdf5; color:#047857; border:1px solid #a7f3d0; border-radius:4px; padding:1px 5px; font-weight:700; margin-right:4px;" title="Địa chỉ mới sau sáp nhập ĐVHC"><i class="fa-solid fa-circle-check"></i> ĐC MỚI</span>`;
+        ? `<span class="badge" style="font-size:10px; background:#fffbeb; color:#b45309; border:1px solid #fde68a; border-radius:4px; padding:1px 5px; font-weight:700; margin-right:4px;" title="Địa chỉ cũ trước sáp nhập ĐVHC"><i class="fa-solid fa-clock-rotate-left"></i> ${t('cust_addr_old', 'ĐC CŨ')}</span>`
+        : `<span class="badge" style="font-size:10px; background:#ecfdf5; color:#047857; border:1px solid #a7f3d0; border-radius:4px; padding:1px 5px; font-weight:700; margin-right:4px;" title="Địa chỉ mới sau sáp nhập ĐVHC"><i class="fa-solid fa-circle-check"></i> ${t('cust_addr_new', 'ĐC MỚI')}</span>`;
 
       const oldNoteHtml = uOldNote
-        ? `<div style="font-size:10.5px; color:#b45309; font-style:italic; margin-top:2px;" title="Ghi chú địa chỉ cũ: ${escapeHtml(uOldNote)}"><i class="fa-solid fa-info-circle"></i> Cũ: ${escapeHtml(uOldNote)}</div>`
+        ? `<div style="font-size:10.5px; color:#b45309; font-style:italic; margin-top:2px;" title="Ghi chú: ${escapeHtml(uOldNote)}"><i class="fa-solid fa-info-circle"></i> ${escapeHtml(uOldNote)}</div>`
         : '';
 
       return `
@@ -3941,7 +4765,7 @@ Anh/chị phản hồi giúp shop để kiện xe được đóng gói gửi đi
           <td><strong style="color:#0f172a;">#${escapeHtml(String(uId))}</strong></td>
           <td>
             <div style="font-weight:700; color:#0f172a;">${escapeHtml(uFullName)}</div>
-            <div style="font-size:11px; color:#64748b;">Tham gia: ${createdDate}</div>
+            <div style="font-size:11px; color:#64748b;">${t('cust_joined', 'Tham gia')}: ${createdDate}</div>
           </td>
           <td><span style="font-size:12px; color:#334155;">${escapeHtml(uEmail)}</span></td>
           <td><span style="font-size:12px; font-weight:600; color:#0f172a;">${escapeHtml(uPhone)}</span></td>
@@ -3954,7 +4778,11 @@ Anh/chị phản hồi giúp shop để kiện xe được đóng gói gửi đi
             </div>
             ${oldNoteHtml}
           </td>
-          <td><strong style="color:#0f172a; font-size:13px;">${uOrders}</strong> đơn</td>
+          <td>
+            <button type="button" class="btn-admin btn-admin-outline" style="padding:2px 8px; font-size:12px; font-weight:700; border-color:#cbd5e1;" onclick="viewUserOrders('${escapeHtml(String(uId))}')" title="${t('view_user_orders_title', 'Xem lịch sử mua hàng của khách')}">
+              ${uOrders} ${t('orders_unit', 'đơn')} ➔
+            </button>
+          </td>
           <td><strong style="color:#e10600; font-size:13px;">${formatVND(uSpent)}</strong></td>
           <td>
             <span class="vip-badge vip-${vip.level}" style="background:${vip.bg}; color:${vip.color}; border:1px solid ${vip.border}; padding:3px 8px; border-radius:12px; font-weight:800; font-size:11px; display:inline-flex; align-items:center; gap:4px;">
@@ -3969,16 +4797,19 @@ Anh/chị phản hồi giúp shop để kiện xe được đóng gói gửi đi
           </td>
           <td>
             <span style="font-size:12px; font-weight:700; color:${uIsActive ? '#059669' : '#dc2626'};">
-              ${uIsActive ? '● Hoạt động' : '● Bị khóa'}
+              ${uIsActive ? `● ${t('user_active', 'Hoạt động')}` : `● ${t('user_locked', 'Bị khóa')}`}
             </span>
           </td>
           <td style="text-align:right; white-space:nowrap;">
             <div style="display:inline-flex; align-items:center; gap:4px;">
-              <button class="btn-admin btn-admin-outline" style="padding:4px 8px; font-size:11.5px;" onclick="toggleUserStatus('${escapeHtml(String(uId))}', ${!uIsActive})" title="${uIsActive ? 'Khóa tài khoản' : 'Mở khóa'}">
-                ${uIsActive ? '<i class="fa-solid fa-lock" style="color:#dc2626;"></i> Khóa' : '<i class="fa-solid fa-lock-open" style="color:#059669;"></i> Mở'}
+              <button class="btn-admin btn-admin-outline" style="padding:4px 8px; font-size:11.5px; color:#2563eb; border-color:#93c5fd;" onclick="viewUserOrders('${escapeHtml(String(uId))}')" title="${t('view_user_orders_title', 'Xem lịch sử mua hàng của khách')}">
+                <i class="fa-solid fa-clock-rotate-left"></i> ${t('btn_view_history', 'Lịch sử')}
               </button>
-              <button class="btn-admin btn-admin-outline" style="padding:4px 8px; font-size:11.5px;" onclick="changeUserRole('${escapeHtml(String(uId))}', '${uRole === 'admin' ? 'customer' : 'admin'}')" title="Đổi quyền người dùng">
-                ${uRole === 'admin' ? '<i class="fa-solid fa-arrow-down" style="color:#475569;"></i> Hạ Cust' : '<i class="fa-solid fa-shield" style="color:#2563eb;"></i> Lên Admin'}
+              <button class="btn-admin btn-admin-outline" style="padding:4px 8px; font-size:11.5px;" onclick="toggleUserStatus('${escapeHtml(String(uId))}', ${!uIsActive})" title="${uIsActive ? t('btn_lock', 'Khóa') : t('btn_unlock', 'Mở')}">
+                ${uIsActive ? `<i class="fa-solid fa-lock" style="color:#dc2626;"></i> ${t('btn_lock', 'Khóa')}` : `<i class="fa-solid fa-lock-open" style="color:#059669;"></i> ${t('btn_unlock', 'Mở')}`}
+              </button>
+              <button class="btn-admin btn-admin-outline" style="padding:4px 8px; font-size:11.5px;" onclick="changeUserRole('${escapeHtml(String(uId))}', '${uRole === 'admin' ? 'customer' : 'admin'}')" title="Đổi quyền">
+                ${uRole === 'admin' ? `<i class="fa-solid fa-arrow-down" style="color:#475569;"></i> ${t('btn_demote_cust', 'Hạ Cust')}` : `<i class="fa-solid fa-shield" style="color:#2563eb;"></i> ${t('btn_promote_admin', 'Lên Admin')}`}
               </button>
               <button class="btn-admin btn-admin-outline" style="padding:4px 8px; font-size:11.5px; color:#dc2626; border-color:#fecaca;" onclick="deleteUserAction('${escapeHtml(String(uId))}')" title="Xóa tài khoản này">
                 <i class="fa-solid fa-trash-can"></i>
@@ -3988,6 +4819,119 @@ Anh/chị phản hồi giúp shop để kiện xe được đóng gói gửi đi
         </tr>
       `;
     }).join('');
+  }
+
+  // Tra cứu chi tiết hồ sơ & lịch sử đơn hàng của khách
+  async function viewUserOrders(userId) {
+    if (!userId) return;
+    openAdminModal('userOrdersModal');
+    const container = document.getElementById('userOrdersModalBody');
+    if (!container) return;
+
+    container.innerHTML = `
+      <div style="text-align:center; padding:3rem 0; color:#64748b;">
+        <i class="fa-solid fa-spinner fa-spin" style="font-size:28px; color:#e10600;"></i>
+        <p style="margin-top:10px; font-weight:600;">${t('user_orders_loading', 'Đang tải hồ sơ & lịch sử mua hàng của khách...')}</p>
+      </div>
+    `;
+
+    try {
+      const res = await api.get(`/api/admin/users/${userId}/orders`);
+      if (!res.success || !res.data) {
+        container.innerHTML = `<div style="text-align:center; padding:2rem; color:#dc2626;">${escapeHtml(res.message || 'Không thể tải lịch sử đơn hàng')}</div>`;
+        return;
+      }
+
+      const { user, orders, stats } = res.data;
+      const vip = getCustomerVipInfo(stats.totalSpent);
+      const locale = (localStorage.getItem('minigt_lang') === 'en') ? 'en-US' : 'vi-VN';
+
+      const ordersListHtml = orders && orders.length ? orders.map(o => `
+        <tr>
+          <td><strong style="color:#e10600; font-family:monospace;">#${escapeHtml(o.code)}</strong></td>
+          <td style="font-size:12px; color:#64748b;">${new Date(o.createdAt).toLocaleString(locale)}</td>
+          <td><strong style="color:#0f172a;">${formatVND(o.total)}</strong></td>
+          <td>${renderPaymentBadge(o.paymentStatus, o.paymentMethod)}</td>
+          <td>${renderOrderBadge(o.status)}</td>
+          <td style="font-size:12px;">${o.itemsCount || (o.items ? o.items.length : 1)} ${t('items_unit', 'mẫu')}</td>
+          <td style="text-align:right;">
+            <button type="button" class="btn-admin btn-admin-outline" style="padding:3px 8px; font-size:11px;" onclick="closeAdminModal('userOrdersModal'); viewOrderDetail(${o.id});">
+              ${t('btn_detail', 'Chi tiết')} ➔
+            </button>
+          </td>
+        </tr>
+      `).join('') : `<tr><td colspan="7" style="text-align:center; padding:1.5rem; color:#64748b;">${t('no_orders_yet', 'Khách hàng chưa có đơn hàng nào')}</td></tr>`;
+
+      container.innerHTML = `
+        <div style="border-bottom:1px solid #e2e8f0; padding-bottom:12px; margin-bottom:16px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+          <div>
+            <span style="font-size:11px; font-weight:800; background:#fef2f2; color:#dc2626; padding:2px 8px; border-radius:4px;">${t('user_orders_title', 'Hồ Sơ & Lịch Sử Mua Hàng Của Khách')}</span>
+            <h3 style="font-size:18px; font-weight:800; color:#0f172a; margin:4px 0 0 0;">
+              ${escapeHtml(user.fullName || user.name || t('cust_fallback_name', 'Khách hàng'))} <span style="font-size:13px; color:#64748b; font-weight:600;">(#${escapeHtml(String(user.id))})</span>
+            </h3>
+          </div>
+          <span class="vip-badge vip-${vip.level}" style="background:${vip.bg}; color:${vip.color}; border:1px solid ${vip.border}; padding:4px 10px; border-radius:12px; font-weight:800; font-size:12px; display:inline-flex; align-items:center; gap:5px;">
+            <i class="fa-solid ${vip.icon}"></i> ${vip.label} (${vip.tierName})
+          </span>
+        </div>
+
+        <div class="user-orders-summary-grid">
+          <div class="user-stat-card">
+            <div class="user-stat-icon" style="background:#eff6ff; color:#2563eb;"><i class="fa-solid fa-bag-shopping"></i></div>
+            <div class="user-stat-meta">
+              <div class="stat-label">${t('th_total_orders', 'Tổng Đơn Hàng')}</div>
+              <div class="stat-number">${stats.totalOrders} ${t('orders_unit', 'đơn')}</div>
+            </div>
+          </div>
+          <div class="user-stat-card">
+            <div class="user-stat-icon" style="background:#f0fdf4; color:#16a34a;"><i class="fa-solid fa-coins"></i></div>
+            <div class="user-stat-meta">
+              <div class="stat-label">${t('kpi_revenue', 'Tổng Doanh Thu')}</div>
+              <div class="stat-number" style="color:#059669;">${formatVND(stats.totalSpent)}</div>
+            </div>
+          </div>
+          <div class="user-stat-card">
+            <div class="user-stat-icon" style="background:#fef3c7; color:#d97706;"><i class="fa-solid fa-calendar-check"></i></div>
+            <div class="user-stat-meta">
+              <div class="stat-label">${t('user_joined_date', 'Ngày Tham Gia')}</div>
+              <div class="stat-number" style="font-size:13.5px;">${new Date(user.createdAt || Date.now()).toLocaleDateString(locale)}</div>
+            </div>
+          </div>
+        </div>
+
+        <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:10px 14px; margin-bottom:14px; font-size:12px; display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+          <div>
+            <div><span style="color:#64748b;">Email:</span> <strong>${escapeHtml(user.email || '-')}</strong></div>
+            <div style="margin-top:2px;"><span style="color:#64748b;">${t('phone_lbl', 'Điện thoại')}:</span> <strong>${escapeHtml(user.phone || '-')}</strong></div>
+          </div>
+          <div>
+            <div><span style="color:#64748b;">${t('address_lbl', 'Địa chỉ')}:</span> <strong>${escapeHtml(user.address || '-')}</strong></div>
+            <div style="margin-top:2px;"><span style="color:#64748b;">${t('account_status_lbl', 'Trạng thái')}:</span> <strong style="color:${user.isActive !== false ? '#059669' : '#dc2626'};">${user.isActive !== false ? t('user_active', 'Hoạt động') : t('user_locked', 'Bị khóa')}</strong></div>
+          </div>
+        </div>
+
+        <div class="admin-table-wrapper" style="max-height:360px; overflow-y:auto;">
+          <table class="admin-table">
+            <thead>
+              <tr>
+                <th>${t('th_order_code', 'Mã Đơn')}</th>
+                <th>${t('th_created_at', 'Ngày Đặt')}</th>
+                <th>${t('th_total', 'Tổng Tiền')}</th>
+                <th>${t('th_payment', 'Thanh Toán')}</th>
+                <th>${t('th_order_status', 'Trạng Thái')}</th>
+                <th>${t('th_items_count', 'Số Lượng')}</th>
+                <th style="text-align:right;">${t('th_actions', 'Thao Tác')}</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${ordersListHtml}
+            </tbody>
+          </table>
+        </div>
+      `;
+    } catch (err) {
+      container.innerHTML = `<div style="text-align:center; padding:2rem; color:#dc2626;">Lỗi khi tải lịch sử khách hàng: ${escapeHtml(err.message)}</div>`;
+    }
   }
 
   async function toggleUserStatus(userId, willBeActive) {
@@ -4060,7 +5004,7 @@ Anh/chị phản hồi giúp shop để kiện xe được đóng gói gửi đi
         <tr>
           <td colspan="9" style="text-align:center; padding:2rem; color:#64748b;">
             <i class="fa-solid fa-ticket" style="font-size:24px; color:#cbd5e1; display:block; margin-bottom:8px;"></i>
-            Chưa có mã giảm giá nào do Admin tạo. Bấm nút <strong>"+ Tạo Mã Giảm Giá Mới"</strong> để thêm mã ưu đãi!
+            ${t('coupons_empty', 'Chưa có mã giảm giá nào do Admin tạo. Bấm nút "+ Tạo Mã Giảm Giá Mới" để thêm mã ưu đãi!')}
           </td>
         </tr>
       `;
@@ -4079,25 +5023,25 @@ Anh/chị phản hồi giúp shop để kiện xe được đóng gói gửi đi
         : `<strong style="color:#059669; font-size:13px;">-${formatVND(c.discountValue)}</strong>`;
       
       const typeLabel = isPercent
-        ? '<span class="status-badge" style="background:#fef2f2; color:#dc2626; font-weight:700;">Giảm theo %</span>'
-        : '<span class="status-badge" style="background:#ecfdf5; color:#059669; font-weight:700;">Giảm tiền mặt</span>';
+        ? `<span class="status-badge" style="background:#fef2f2; color:#dc2626; font-weight:700;">${t('coupon_type_pct', 'Giảm theo %')}</span>`
+        : `<span class="status-badge" style="background:#ecfdf5; color:#059669; font-weight:700;">${t('coupon_type_amt', 'Giảm tiền mặt')}</span>`;
 
-      const minOrderText = c.minOrderAmount > 0 ? formatVND(c.minOrderAmount) : '<span style="color:#94a3b8;">Không yêu cầu</span>';
+      const minOrderText = c.minOrderAmount > 0 ? formatVND(c.minOrderAmount) : `<span style="color:#94a3b8;">${t('coupon_no_min', 'Không yêu cầu')}</span>`;
       const usageText = `<span style="font-weight:700; color:#0f172a;">${c.usedCount || 0}</span> / ${c.usageLimit || 100}`;
       
-      let expText = '<span style="color:#94a3b8;">Vô thời hạn</span>';
+      let expText = `<span style="color:#94a3b8;">${t('coupon_no_exp', 'Vô thời hạn')}</span>`;
       let isExpired = false;
       if (c.endDate) {
         const expDate = new Date(c.endDate + 'T23:59:59');
         isExpired = Date.now() > expDate.getTime();
         expText = isExpired
-          ? `<span style="color:#dc2626; font-weight:700;"><i class="fa-solid fa-clock"></i> Đã hết hạn (${c.endDate})</span>`
+          ? `<span style="color:#dc2626; font-weight:700;"><i class="fa-solid fa-clock"></i> ${t('coupon_expired', 'Đã hết hạn')} (${c.endDate})</span>`
           : `<span style="color:#475569;">${c.endDate}</span>`;
       }
 
       const activeBadge = c.isActive && !isExpired
-        ? '<span class="status-badge" style="background:#ecfdf5; color:#059669; font-weight:700; cursor:pointer;" title="Bấm để tạm ngừng"><i class="fa-solid fa-circle-check"></i> Đang Bật</span>'
-        : '<span class="status-badge" style="background:#f1f5f9; color:#94a3b8; font-weight:700; cursor:pointer;" title="Bấm để kích hoạt"><i class="fa-solid fa-circle-pause"></i> Đã Tắt</span>';
+        ? `<span class="status-badge" style="background:#ecfdf5; color:#059669; font-weight:700; cursor:pointer;"><i class="fa-solid fa-circle-check"></i> ${t('coupon_active', 'Đang Bật')}</span>`
+        : `<span class="status-badge" style="background:#f1f5f9; color:#94a3b8; font-weight:700; cursor:pointer;"><i class="fa-solid fa-circle-pause"></i> ${t('coupon_inactive', 'Đã Tắt')}</span>`;
 
       return `
         <tr>
@@ -4122,10 +5066,10 @@ Anh/chị phản hồi giúp shop để kiện xe được đóng gói gửi đi
           <td onclick="handleToggleCouponStatus(${c.couponId || c.id}, ${!c.isActive})">${activeBadge}</td>
           <td style="text-align:right;">
             <div style="display:inline-flex; gap:6px;">
-              <button class="btn-admin btn-admin-outline" style="padding:3px 8px; font-size:11.5px;" onclick="openCouponModal(${c.couponId || c.id})" title="Chỉnh sửa">
+              <button class="btn-admin btn-admin-outline" style="padding:3px 8px; font-size:11.5px;" onclick="openCouponModal(${c.couponId || c.id})" title="${t('btn_edit', 'Chỉnh sửa')}">
                 <i class="fa-solid fa-pen-to-square"></i>
               </button>
-              <button class="btn-admin btn-admin-outline" style="padding:3px 8px; font-size:11.5px; color:#dc2626;" onclick="handleDeleteCoupon(${c.couponId || c.id}, '${escapeHtml(c.code)}')" title="Xóa mã">
+              <button class="btn-admin btn-admin-outline" style="padding:3px 8px; font-size:11.5px; color:#dc2626;" onclick="handleDeleteCoupon(${c.couponId || c.id}, '${escapeHtml(c.code)}')" title="${t('btn_delete', 'Xóa mã')}">
                 <i class="fa-solid fa-trash-can"></i>
               </button>
             </div>
@@ -4176,7 +5120,7 @@ Anh/chị phản hồi giúp shop để kiện xe được đóng gói gửi đi
         adminToast('Không tìm thấy thông tin mã giảm giá!', 'error');
         return;
       }
-      if (titleEl) titleEl.innerHTML = `<i class="fa-solid fa-ticket" style="color:var(--color-primary);"></i> Sửa Mã Giảm Giá: <strong>${escapeHtml(c.code)}</strong>`;
+      if (titleEl) titleEl.innerHTML = `<i class="fa-solid fa-ticket" style="color:var(--color-primary);"></i> ${t('coupon_modal_edit_title', 'Sửa Mã Giảm Giá')}: <strong>${escapeHtml(c.code)}</strong>`;
       if (editIdInput) editIdInput.value = c.couponId || c.id;
       if (codeInput) { codeInput.value = c.code; codeInput.readOnly = false; }
       if (descInput) descInput.value = c.description || '';
@@ -4189,7 +5133,7 @@ Anh/chị phản hồi giúp shop để kiện xe được đóng gói gửi đi
       if (activeCheck) activeCheck.checked = Boolean(c.isActive);
       handleDiscountTypeChange(c.discountType || 'amount');
     } else {
-      if (titleEl) titleEl.innerHTML = '<i class="fa-solid fa-ticket" style="color:var(--color-primary);"></i> Tạo Mã Giảm Giá Mới';
+      if (titleEl) titleEl.innerHTML = `<i class="fa-solid fa-ticket" style="color:var(--color-primary);"></i> ${t('coupon_modal_title', 'Tạo Mã Giảm Giá Mới')}`;
       if (editIdInput) editIdInput.value = '';
       if (codeInput) { codeInput.value = ''; codeInput.readOnly = false; }
       if (descInput) descInput.value = '';
@@ -4308,8 +5252,12 @@ Anh/chị phản hồi giúp shop để kiện xe được đóng gói gửi đi
     const search = document.getElementById('subscriberSearchInput')?.value.trim();
     try {
       const res = await api.get('/api/admin/subscribers', { search });
-      if (res.success && res.data) {
-        renderSubscribersTable(res.data);
+      if (res && res.success && res.data) {
+        cachedSubscribers = res.data;
+        renderSubscribersTable(cachedSubscribers);
+      } else {
+        cachedSubscribers = [];
+        renderSubscribersTable([]);
       }
     } catch (err) {
       adminToast('Không thể tải danh sách bản tin: ' + err.message, 'error');
@@ -4326,8 +5274,8 @@ Anh/chị phản hồi giúp shop để kiện xe được đóng gói gửi đi
     const tbody = document.getElementById('subscribersTbody');
     if (!tbody) return;
 
-    if (!subscribers.length) {
-      tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:2rem; color:#64748b;">Không có người đăng ký nào</td></tr>';
+    if (!subscribers || !subscribers.length) {
+      tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; padding:2rem; color:#64748b;">${t('subscribers_empty', 'Không có người đăng ký nào')}</td></tr>`;
       return;
     }
 
@@ -4335,10 +5283,10 @@ Anh/chị phản hồi giúp shop để kiện xe được đóng gói gửi đi
       <tr>
         <td>#${s.SubscriberId}</td>
         <td><strong style="color:#0f172a;">${escapeHtml(s.Email)}</strong></td>
-        <td style="color:#64748b;">${new Date(s.CreatedAt).toLocaleString('vi-VN')}</td>
+        <td style="color:#64748b;">${new Date(s.CreatedAt).toLocaleString(localStorage.getItem('minigt_lang') === 'en' ? 'en-US' : 'vi-VN')}</td>
         <td style="text-align:right;">
-          <button class="btn-admin btn-admin-outline" style="padding:3px 8px; font-size:11.5px; color:#dc2626;" onclick="deleteSubscriber(${s.SubscriberId})" title="Xóa">
-            <i class="fa-solid fa-trash-can"></i> Xóa
+          <button class="btn-admin btn-admin-outline" style="padding:3px 8px; font-size:11.5px; color:#dc2626;" onclick="deleteSubscriber(${s.SubscriberId})" title="${t('btn_delete', 'Xóa')}">
+            <i class="fa-solid fa-trash-can"></i> ${t('btn_delete', 'Xóa')}
           </button>
         </td>
       </tr>
@@ -4474,17 +5422,105 @@ Anh/chị phản hồi giúp shop để kiện xe được đóng gói gửi đi
     adminToast(next === 'dark' ? '🌙 Đã bật Giao diện Tối (Dark Mode)' : '☀️ Đã bật Giao diện Sáng (Light Mode)', 'info');
   }
 
+  function refreshActiveAdminView() {
+    // 1. Re-render active tab content with cached data
+    if (activeTab === 'dashboard') {
+      if (cachedDashboardStats) renderDashboardStatusPills(cachedDashboardStats);
+      if (cachedRecentOrders && cachedRecentOrders.length) renderRecentOrdersTable(cachedRecentOrders);
+      if (cachedBestSellers && cachedBestSellers.length) renderBestSellersList(cachedBestSellers);
+    } else if (activeTab === 'orders') {
+      if (cachedOrders && cachedOrders.length) renderOrdersTable(cachedOrders);
+    } else if (activeTab === 'products') {
+      if (cachedProducts && cachedProducts.length) renderProductsTable(cachedProducts);
+    } else if (activeTab === 'users') {
+      if (cachedUsers && cachedUsers.length) renderUsersTable(cachedUsers);
+    } else if (activeTab === 'coupons') {
+      if (typeof cachedCoupons !== 'undefined' && cachedCoupons && cachedCoupons.length) {
+        renderCouponsTable(cachedCoupons);
+      }
+    } else if (activeTab === 'subscribers') {
+      if (typeof cachedSubscribers !== 'undefined' && cachedSubscribers && cachedSubscribers.length) {
+        renderSubscribersTable(cachedSubscribers);
+      }
+    }
+
+    // 2. If Order Detail Modal is open, re-render it in new language
+    const detailModal = document.getElementById('orderDetailModal');
+    if (detailModal && detailModal.classList.contains('active') && currentDetailOrderId) {
+      viewOrderDetail(currentDetailOrderId);
+    }
+
+    // 3. If Product Modal is open, update title
+    const prodModal = document.getElementById('productModal');
+    if (prodModal && prodModal.classList.contains('active')) {
+      const editId = document.getElementById('editProductId')?.value;
+      const titleEl = document.getElementById('productModalTitle');
+      if (titleEl) {
+        if (editId) {
+          titleEl.textContent = `${t('prod_modal_edit_title', 'Chỉnh Sửa Mô Hình')}: #${editId}`;
+        } else {
+          titleEl.textContent = t('prod_modal_add_title', 'Thêm Mô Hình Xe Mới (Cấu hình Box & Card)');
+        }
+      }
+    }
+
+    // 4. If Coupon Modal is open, update title
+    const coupModal = document.getElementById('couponModal');
+    if (coupModal && coupModal.classList.contains('active')) {
+      const editId = document.getElementById('couponEditId')?.value;
+      const code = document.getElementById('couponCodeInput')?.value || '';
+      const titleEl = document.getElementById('couponModalTitle');
+      if (titleEl) {
+        if (editId) {
+          titleEl.innerHTML = `<i class="fa-solid fa-ticket" style="color:var(--color-primary);"></i> ${t('coupon_modal_edit_title', 'Sửa Mã Giảm Giá')}: <strong>${escapeHtml(code)}</strong>`;
+        } else {
+          titleEl.innerHTML = `<i class="fa-solid fa-ticket" style="color:var(--color-primary);"></i> ${t('coupon_modal_title', 'Tạo Mã Giảm Giá Mới')}`;
+        }
+      }
+    }
+  }
+
   function applyAdminLang(lang) {
     const l = lang === 'en' ? 'en' : 'vi';
     localStorage.setItem('minigt_lang', l);
+
+    // 1. Cập nhật nhãn và quốc kỳ nút chuyển ngôn ngữ
     const label = document.getElementById('adminLangLabel');
     if (label) label.textContent = l === 'en' ? 'EN' : 'VN';
+    const flag = document.getElementById('adminLangFlag');
+    if (flag) flag.textContent = l === 'en' ? '🇺🇸' : '🇻🇳';
 
+    // 2. Dịch toàn bộ các thẻ có data-i18n
+    document.querySelectorAll('[data-i18n]').forEach(el => {
+      const key = el.getAttribute('data-i18n');
+      if (key && ADMIN_I18N[l] && ADMIN_I18N[l][key] != null) {
+        el.textContent = ADMIN_I18N[l][key];
+      }
+    });
+
+    // 3. Dịch placeholders
+    document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+      const key = el.getAttribute('data-i18n-placeholder');
+      if (key && ADMIN_I18N[l] && ADMIN_I18N[l][key] != null) {
+        el.setAttribute('placeholder', ADMIN_I18N[l][key]);
+      }
+    });
+
+    // 4. Dịch titles (tooltips)
+    document.querySelectorAll('[data-i18n-title]').forEach(el => {
+      const key = el.getAttribute('data-i18n-title');
+      if (key && ADMIN_I18N[l] && ADMIN_I18N[l][key] != null) {
+        el.setAttribute('title', ADMIN_I18N[l][key]);
+      }
+    });
+
+    // 5. Cập nhật thanh điều hướng bên trái (Sidebar)
     const navMap = {
       'nav-dashboard': l === 'en' ? 'Dashboard Overview' : 'Tổng quan hệ thống',
       'nav-products': l === 'en' ? 'Products & Stock' : 'Sản phẩm & Kho hàng',
       'nav-orders': l === 'en' ? 'Orders & SPX' : 'Đơn hàng & SPX',
       'nav-users': l === 'en' ? 'Customers & Roles' : 'Tài khoản & Phân quyền',
+      'nav-coupons': l === 'en' ? 'VIP Coupons' : 'Mã Giảm Giá',
       'nav-subscribers': l === 'en' ? 'Newsletter CRM' : 'Đăng ký Bản tin',
       'nav-settings': l === 'en' ? 'Store Settings' : 'Cài đặt cửa hàng',
       'nav-about': l === 'en' ? 'Project & Authors' : 'Giới thiệu Đề tài & Tác giả'
@@ -4501,8 +5537,25 @@ Anh/chị phản hồi giúp shop để kiện xe được đóng gói gửi đi
       });
     });
 
-    // Cập nhật lại nhãn theme theo ngôn ngữ
+    // 6. Cập nhật tiêu đề trang đang hiển thị
+    const titleEl = document.getElementById('pageTitle');
+    const titles = {
+      dashboard: t('dash_title', 'Tổng Quan Quản Trị Store'),
+      products: t('prod_title', 'Quản Lý Danh Mục & Mô Hình Xe'),
+      orders: t('ord_title', 'Quản Lý Đơn Hàng & Vận Đơn SPX'),
+      users: t('users_title', 'Quản Lý Khách Hàng & Phân Quyền'),
+      coupons: t('coupons_title', 'Quản Lý Mã Giảm Giá & Voucher VIP'),
+      subscribers: t('subscribers_title', 'Danh Sách Khách Hàng Nhận Bản Tin'),
+      settings: t('settings_title', 'Cấu Hình Cửa Hàng & Thanh Toán VietQR'),
+      about: t('about_title', 'Giới Thiệu Đề Tài & Nhóm Tác Giả Thực Hiện Dự Án')
+    };
+    if (titleEl) titleEl.textContent = titles[activeTab] || t('default_title', 'Hệ Thống Quản Trị MINI GT');
+
+    // 7. Cập nhật lại nhãn theme theo ngôn ngữ mới
     applyAdminTheme(localStorage.getItem('minigt_theme') || 'light');
+
+    // 8. Tự động refresh bảng dữ liệu và modal hiện hành
+    refreshActiveAdminView();
   }
 
   function toggleAdminLang() {
@@ -4538,6 +5591,7 @@ Anh/chị phản hồi giúp shop để kiện xe được đóng gói gửi đi
     loadCategories();
     loadDashboard();
     loadOrders();
+    refreshAdminChatBadgeQuietly();
 
     // Tự động tải trước danh sách người dùng để đồng bộ xếp hạng VIP chính xác
     api.get('/api/admin/users').then(res => {
@@ -4617,6 +5671,29 @@ Anh/chị phản hồi giúp shop để kiện xe được đóng gói gửi đi
       } else if (detail.type === 'USER_REGISTERED' || detail.type === 'USER_UPDATED' || detail.type === 'users_updated') {
         loadDashboard();
         if (activeTab === 'users') loadUsers();
+      } else if (detail.type === 'CHAT_ESCALATED') {
+        const p = detail.payload || {};
+        playOrderChimeSound();
+        adminToast(
+          `💬 Khách "${p.customerName || 'Khách hàng'}" vừa hỏi câu cần Admin giải đáp: «${String(p.question || '').slice(0, 75)}»`,
+          'info',
+          'Cần Giải Đáp Chat AI!'
+        );
+        if (activeTab === 'chat') {
+          loadAdminChats(false);
+          if (activeAdminChatId && (!p.conversationId || Number(p.conversationId) === Number(activeAdminChatId))) {
+            refreshActiveAdminChatThread();
+          }
+        } else {
+          refreshAdminChatBadgeQuietly();
+        }
+      } else if (detail.type === 'CHAT_NEW_MESSAGE') {
+        if (activeTab === 'chat') {
+          loadAdminChats(false);
+          if (activeAdminChatId) refreshActiveAdminChatThread();
+        } else {
+          refreshAdminChatBadgeQuietly();
+        }
       }
     });
 
@@ -4624,6 +5701,7 @@ Anh/chị phản hồi giúp shop để kiện xe được đóng gói gửi đi
     if (adminSyncInterval) clearInterval(adminSyncInterval);
     adminSyncInterval = setInterval(async () => {
       if (!currentAdminUser) return;
+      refreshAdminChatBadgeQuietly();
       try {
         const res = await api.get('/api/admin/orders', orderFilter);
         if (res.success && Array.isArray(res.data)) {
@@ -4832,5 +5910,756 @@ Anh/chị phản hồi giúp shop để kiện xe được đóng gói gửi đi
   window.handleToggleCouponStatus = handleToggleCouponStatus;
   window.handleDeleteCoupon = handleDeleteCoupon;
   window.handleDiscountTypeChange = handleDiscountTypeChange;
+
+  // =====================================================================
+  // CHAT & AI SUPPORT MANAGEMENT (PRO ADMIN ESCALATION CONSOLE v5 — ZERO-WASTE SYNC)
+  // - Hiển thị dữ liệu thực tế sạch đẹp, không còn dấu ** markdown thô
+  // - Ghim rõ câu hỏi khó khách hỏi trước đó + Ngữ cảnh các tin nhắn trước đó
+  // - Cho phép trích dẫn trả lời trực tiếp từng câu hỏi cụ thể (Quote Reply)
+  // - Chống gửi lặp tin nhắn (isAdminSendingReply mutex)
+  // - Đồng bộ siêu nhẹ (clientHash / clientSig + Page Visibility API) giảm >95% băng thông
+  // =====================================================================
+  let activeAdminChatId = null;
+  let currentAdminChatFilter = 'all';
+  let currentAdminChatSearch = '';
+  let adminChatPollInterval = null;
+  let isAdminSendingReply = false;
+  let activeReplyToMessageId = null;
+  let activeReplyToPreviewText = '';
+  let lastRenderedThreadSig = '';
+  let lastAdminConvsHash = '';
+  let lastAdminThreadServerSig = '';
+  let adminChatSearchTimer = null;
+
+  function stripChatMarkdownPlain(str) {
+    if (!str) return '';
+    return String(str)
+      .replace(/\*\*(.*?)\*\*/g, '$1')
+      .replace(/\[((?:MGT|MG|PR|KH)[A-Z0-9\-]+)\]/g, '#$1')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
+  function formatAdminChatRichText(str, isAdminBubble = false) {
+    if (!str) return '';
+    let html = escapeHtml(str);
+    html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+    if (!isAdminBubble) {
+      html = html.replace(/\[((?:MGT|MG|PR|KH)[A-Z0-9\-]+)\]/g, '<span class="admin-msg-sku-pill">#$1</span>');
+      html = html.replace(/#((?:MGT|MG|PR|KH)[A-Z0-9\-]+)/g, '<span class="admin-msg-sku-pill">#$1</span>');
+    }
+    html = html.replace(/\n/g, '<br>');
+    return html;
+  }
+
+  function formatAdminChatTimestamp(isoStr) {
+    if (!isoStr) return '';
+    const d = new Date(isoStr);
+    if (isNaN(d.getTime())) return '';
+    const now = new Date();
+    const isToday = d.toDateString() === now.toDateString();
+    const time = d.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+    if (isToday) return time;
+    const date = d.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' });
+    return `${time} • ${date}`;
+  }
+
+  function getEscalationReasonLabel(reason) {
+    const r = String(reason || '').toLowerCase();
+    if (r === 'complaint_defect') return '⚠️ Khiếu nại / Bảo hành sản phẩm';
+    if (r === 'order_support' || r === 'order_or_complaint') return '📦 Xử lý Đơn hàng / Vận chuyển riêng';
+    if (r === 'customer_request' || r === 'user_requested_human') return '🙋 Khách yêu cầu gặp trực tiếp Admin';
+    if (r === 'wholesale_deal' || r === 'wholesale_or_discount_negotiation') return '🤝 Hỏi nhập sỉ / Chiết khấu riêng';
+    return '🤖 Câu hỏi ngoài dữ liệu AI — Cần Admin giải đáp';
+  }
+
+  function updateSidebarAndKpiSummary(summary) {
+    if (!summary) return;
+    const waitingConvs = Number(summary.waiting_conversations || 0);
+    const totalPendingQs = Number(summary.total_pending_questions || waitingConvs || 0);
+    const activeConvs = Number(summary.active_admin_conversations || 0);
+    const botConvs = Number(summary.bot_handled_conversations || 0);
+    const totalConvs = Number(summary.total_conversations || 0);
+
+    // Cập nhật badge đỏ trên menu trái
+    const badge = document.getElementById('sidebarChatCount');
+    if (badge) {
+      if (totalPendingQs > 0) {
+        badge.textContent = totalPendingQs;
+        badge.style.display = 'inline-block';
+      } else {
+        badge.style.display = 'none';
+      }
+    }
+
+    // Cập nhật 4 thẻ KPI trên đầu trang Chat
+    const kpiPending = document.getElementById('chatKpiPendingQuestions');
+    const kpiActive = document.getElementById('chatKpiAdminActive');
+    const kpiBot = document.getElementById('chatKpiBotActive');
+    const kpiTotal = document.getElementById('chatKpiTotalConvs');
+    if (kpiPending) kpiPending.textContent = totalPendingQs;
+    if (kpiActive) kpiActive.textContent = activeConvs;
+    if (kpiBot) kpiBot.textContent = botConvs;
+    if (kpiTotal) kpiTotal.textContent = totalConvs;
+
+    // Cập nhật số đếm trên 4 nút lọc
+    const cntAll = document.getElementById('chatTabCntAll');
+    const cntWaiting = document.getElementById('chatTabCntWaiting');
+    const cntActive = document.getElementById('chatTabCntActive');
+    const cntBot = document.getElementById('chatTabCntBot');
+    if (cntAll) cntAll.textContent = totalConvs;
+    if (cntWaiting) cntWaiting.textContent = waitingConvs;
+    if (cntActive) cntActive.textContent = activeConvs;
+    if (cntBot) cntBot.textContent = botConvs;
+  }
+
+  async function refreshAdminChatBadgeQuietly() {
+    if (document.hidden) return;
+    try {
+      const res = await api.get('/api/chat/admin/conversations', {
+        status: 'all',
+        clientHash: lastAdminConvsHash
+      });
+      if (res && res.hash) {
+        lastAdminConvsHash = res.hash;
+      }
+      if (res && res.summary) {
+        updateSidebarAndKpiSummary(res.summary);
+      }
+      if (res && res.unchanged) return;
+      if (activeTab === 'chat' && res && Array.isArray(res.data) && currentAdminChatFilter === 'all' && !currentAdminChatSearch) {
+        renderAdminConversationsList(res.data);
+      }
+    } catch (_) {}
+  }
+
+  function handleAdminChatSearchInput(val) {
+    currentAdminChatSearch = String(val || '').trim();
+    if (adminChatSearchTimer) clearTimeout(adminChatSearchTimer);
+    adminChatSearchTimer = setTimeout(() => {
+      loadAdminChats(false);
+    }, 260);
+  }
+
+  async function loadAdminChats(autoSelectFirst = false) {
+    const listEl = document.getElementById('adminConversationsList');
+    if (!listEl) return;
+
+    try {
+      const res = await api.get('/api/chat/admin/conversations', {
+        status: currentAdminChatFilter,
+        search: currentAdminChatSearch
+      });
+      if (currentAdminChatFilter === 'all' && !currentAdminChatSearch && res && res.hash) {
+        lastAdminConvsHash = res.hash;
+      }
+      const convs = (res && Array.isArray(res.data)) ? res.data : [];
+      if (res && res.summary) {
+        updateSidebarAndKpiSummary(res.summary);
+      }
+
+      renderAdminConversationsList(convs);
+
+      // Tự động mở cuộc hội thoại đầu tiên (ưu tiên cuộc hội thoại có câu hỏi chờ Admin!) khi Admin vừa mở tab
+      if ((autoSelectFirst || !activeAdminChatId) && convs.length > 0 && activeTab === 'chat') {
+        const stillExists = activeAdminChatId && convs.some(c => Number(c.id) === Number(activeAdminChatId));
+        if (!stillExists) {
+          selectAdminConversation(convs[0].id);
+        }
+      }
+    } catch (err) {
+      if (listEl) {
+        listEl.innerHTML = `<div class="admin-chat-empty-list" style="color:#ef4444;">Không tải được danh sách hội thoại: ${escapeHtml(err.message)}</div>`;
+      }
+    }
+  }
+
+  function getInitials(name) {
+    const parts = String(name || 'K').trim().split(/\s+/).filter(Boolean);
+    if (parts.length === 0) return 'KH';
+    if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+  }
+
+  function renderAdminConversationsList(conversations) {
+    const listEl = document.getElementById('adminConversationsList');
+    if (!listEl) return;
+
+    if (!conversations || conversations.length === 0) {
+      listEl.innerHTML = `
+        <div class="admin-chat-empty-list">
+          <i class="fa-solid fa-inbox" style="font-size:30px; margin-bottom:8px; display:block; color:#cbd5e1;"></i>
+          Chưa có cuộc hội thoại nào phù hợp trong danh mục này.
+        </div>
+      `;
+      return;
+    }
+
+    listEl.innerHTML = conversations.map(c => {
+      const cid = Number(c.id);
+      const isSelected = Number(activeAdminChatId) === cid;
+      const pendingCnt = Number(c.pending_count || 0);
+      const unread = Number(c.unread_admin || 0);
+      const isWaiting = pendingCnt > 0 || c.status === 'waiting_admin';
+
+      let badgeHtml = '';
+      if (pendingCnt > 0) {
+        badgeHtml = `<span class="conv-badge urgent"><i class="fa-solid fa-bell"></i> Cần trả lời (${pendingCnt})</span>`;
+      } else if (c.status === 'waiting_admin') {
+        badgeHtml = `<span class="conv-badge urgent"><i class="fa-solid fa-headset"></i> Chờ Admin</span>`;
+      } else if (c.status === 'admin_joined') {
+        badgeHtml = `<span class="conv-badge admin"><i class="fa-solid fa-comments"></i> Admin hỗ trợ</span>`;
+      } else if (c.status === 'resolved') {
+        badgeHtml = `<span class="conv-badge resolved"><i class="fa-solid fa-check"></i> Đã hoàn tất</span>`;
+      } else {
+        badgeHtml = `<span class="conv-badge bot"><i class="fa-solid fa-wand-magic-sparkles"></i> AI đã giải đáp</span>`;
+      }
+
+      const custName = c.customer_name || 'Khách vãng lai';
+      const contactLine = [c.customer_phone, c.customer_email].filter(Boolean).join(' • ') || `Phiên #${cid}`;
+      const timeStr = formatAdminChatTimestamp(c.latest_pending_time || c.last_message_time || c.updated_at);
+
+      const avatarSrc = c.customer_avatar
+        ? (c.customer_avatar.startsWith('http') ? c.customer_avatar : ('../' + c.customer_avatar.replace(/^\/+/, '')))
+        : '';
+      const avatarHtml = avatarSrc
+        ? `<img src="${escapeHtml(avatarSrc)}" alt="${escapeHtml(custName)}" onerror="this.parentElement.textContent='${escapeHtml(getInitials(custName))}'">`
+        : escapeHtml(getInitials(custName));
+
+      const previewHtml = c.latest_pending_question
+        ? `<div class="conv-pending-question-box"><strong>❓ Câu hỏi chờ:</strong> «${escapeHtml(stripChatMarkdownPlain(c.latest_pending_question))}»</div>`
+        : `<div class="conv-last-msg">${c.last_sender_type === 'admin' ? '🛡️ Bạn: ' : (c.last_sender_type === 'bot' ? '🤖 AI: ' : '👤 Khách: ')}${escapeHtml(stripChatMarkdownPlain(c.last_message || 'Chưa có nội dung'))}</div>`;
+
+      return `
+        <div class="admin-conv-item ${isWaiting ? 'has-pending' : ''} ${isSelected ? 'selected' : ''}" onclick="selectAdminConversation(${cid})">
+          <div class="conv-item-top">
+            <div class="conv-avatar">${avatarHtml}</div>
+            <div class="conv-title-meta">
+              <div class="conv-name-row">
+                <span class="conv-cust-name">${escapeHtml(custName)}</span>
+                <span class="conv-time">${escapeHtml(timeStr)}</span>
+              </div>
+              <div class="conv-sub-contact">${escapeHtml(contactLine)}</div>
+            </div>
+          </div>
+          ${previewHtml}
+          <div class="conv-item-bottom">
+            ${badgeHtml}
+            <div style="display:flex; align-items:center; gap:6px;">
+              <span class="conv-msg-counter">${Number(c.user_messages_count || 0)} câu khách hỏi</span>
+              ${unread > 0 ? `<span class="conv-unread-pill">${unread} mới</span>` : ''}
+            </div>
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  function setAdminChatFilter(filter) {
+    currentAdminChatFilter = filter;
+    const map = {
+      all: 'chatFilterAll',
+      waiting_admin: 'chatFilterWaiting',
+      admin_joined: 'chatFilterActive',
+      bot_active: 'chatFilterBot'
+    };
+    Object.entries(map).forEach(([key, btnId]) => {
+      const btn = document.getElementById(btnId);
+      if (btn) btn.classList.toggle('active', key === filter);
+    });
+    loadAdminChats(true);
+  }
+
+  function startAdminQuoteReply(msgId, questionText) {
+    activeReplyToMessageId = Number(msgId) || null;
+    activeReplyToPreviewText = stripChatMarkdownPlain(questionText || '').slice(0, 140);
+
+    const bar = document.getElementById('adminReplyQuoteBar');
+    const txt = document.getElementById('adminReplyQuoteText');
+    const input = document.getElementById('adminReplyInput');
+
+    if (bar && txt && activeReplyToMessageId) {
+      txt.textContent = `«${activeReplyToPreviewText}»`;
+      bar.style.display = 'flex';
+    }
+    if (input) {
+      input.placeholder = `Nhập câu trả lời cho câu hỏi: "${activeReplyToPreviewText.slice(0, 55)}..."`;
+      input.focus();
+    }
+    jumpToAdminChatMsg(msgId);
+  }
+
+  function clearAdminReplyQuote() {
+    activeReplyToMessageId = null;
+    activeReplyToPreviewText = '';
+    const bar = document.getElementById('adminReplyQuoteBar');
+    const input = document.getElementById('adminReplyInput');
+    if (bar) bar.style.display = 'none';
+    if (input) input.placeholder = 'Nhập câu trả lời trực tiếp gửi tới khách hàng (Enter để gửi)...';
+  }
+
+  function jumpToAdminChatMsg(msgId) {
+    const threadEl = document.getElementById('adminChatMessagesThread');
+    if (!threadEl || !msgId) return;
+    const row = threadEl.querySelector(`[data-admin-msg-id="${msgId}"]`);
+    if (row) {
+      row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      row.classList.add('highlight-flash');
+      setTimeout(() => row.classList.remove('highlight-flash'), 2000);
+    }
+  }
+
+  function insertAdminQuickReply(templateText) {
+    const input = document.getElementById('adminReplyInput');
+    if (!input) return;
+    input.value = templateText;
+    input.focus();
+  }
+
+  async function resolveSinglePendingQuestion(msgId) {
+    if (!activeAdminChatId || !msgId) return;
+    try {
+      await api.put(`/api/chat/admin/conversations/${activeAdminChatId}/questions/${msgId}/resolve`, {});
+      if (Number(activeReplyToMessageId) === Number(msgId)) {
+        clearAdminReplyQuote();
+      }
+      adminToast('Đã đánh dấu câu hỏi này là đã xử lý!', 'success');
+      await refreshActiveAdminChatThread(true);
+      loadAdminChats(false);
+    } catch (err) {
+      adminToast('Không thể cập nhật câu hỏi: ' + err.message, 'error');
+    }
+  }
+
+  function renderAdminHeaderInfo(conv, pendingQuestions = [], totalMsgs = 0) {
+    const titleEl = document.getElementById('adminChatCustomerTitle');
+    const subEl = document.getElementById('adminChatCustomerSub');
+    const avatarEl = document.getElementById('adminChatCustAvatar');
+    const statusPill = document.getElementById('adminChatStatusBadge');
+    const actionsEl = document.getElementById('adminChatActions');
+    const composerWrap = document.getElementById('adminChatComposerWrap');
+
+    const custName = conv.customer_name || 'Khách vãng lai';
+    if (titleEl) titleEl.textContent = custName;
+
+    if (avatarEl) {
+      const avSrc = conv.customer_avatar
+        ? (conv.customer_avatar.startsWith('http') ? conv.customer_avatar : ('../' + conv.customer_avatar.replace(/^\/+/, '')))
+        : '';
+      avatarEl.innerHTML = avSrc
+        ? `<img src="${escapeHtml(avSrc)}" alt="${escapeHtml(custName)}" onerror="this.parentElement.textContent='${escapeHtml(getInitials(custName))}'">`
+        : escapeHtml(getInitials(custName));
+    }
+
+    if (statusPill) {
+      statusPill.style.display = 'inline-flex';
+      if (pendingQuestions.length > 0 || conv.status === 'waiting_admin') {
+        statusPill.className = 'admin-chat-status-pill conv-badge urgent';
+        statusPill.innerHTML = `<i class="fa-solid fa-bell"></i> ${pendingQuestions.length > 0 ? pendingQuestions.length + ' câu hỏi chờ giải đáp' : 'Chờ Admin phản hồi'}`;
+      } else if (conv.status === 'admin_joined') {
+        statusPill.className = 'admin-chat-status-pill conv-badge admin';
+        statusPill.innerHTML = `<i class="fa-solid fa-headset"></i> Admin đang hỗ trợ`;
+      } else if (conv.status === 'resolved') {
+        statusPill.className = 'admin-chat-status-pill conv-badge resolved';
+        statusPill.innerHTML = `<i class="fa-solid fa-check-double"></i> Đã hoàn tất`;
+      } else {
+        statusPill.className = 'admin-chat-status-pill conv-badge bot';
+        statusPill.innerHTML = `<i class="fa-solid fa-wand-magic-sparkles"></i> Bé Bot AI tự giải đáp`;
+      }
+    }
+
+    if (subEl) {
+      const chips = [];
+      if (conv.customer_email) {
+        chips.push(`<span class="cust-info-chip"><i class="fa-regular fa-envelope"></i> ${escapeHtml(conv.customer_email)}</span>`);
+      }
+      if (conv.customer_phone) {
+        const cleanPhone = String(conv.customer_phone).replace(/\D/g, '');
+        chips.push(`<a href="https://zalo.me/${escapeHtml(cleanPhone)}" target="_blank" rel="noopener" class="cust-info-chip" style="color:#0284c7;text-decoration:none;" title="Nhắn Zalo cho khách"><i class="fa-solid fa-phone"></i> ${escapeHtml(conv.customer_phone)} (Zalo)</a>`);
+      }
+      chips.push(`<span class="cust-info-chip"><i class="fa-regular fa-comments"></i> Tổng ${totalMsgs} tin nhắn</span>`);
+      subEl.innerHTML = chips.join('');
+    }
+
+    if (actionsEl) actionsEl.style.display = 'flex';
+    if (composerWrap) composerWrap.style.display = 'flex';
+  }
+
+  function renderAdminPendingQuestionsPanel(pendingQuestions) {
+    const panel = document.getElementById('adminPendingQuestionsPanel');
+    if (!panel) return;
+
+    if (!Array.isArray(pendingQuestions) || pendingQuestions.length === 0) {
+      panel.style.display = 'none';
+      panel.innerHTML = '';
+      return;
+    }
+
+    panel.style.display = 'block';
+    panel.innerHTML = `
+      <div class="pending-panel-header">
+        <div class="pending-panel-title">
+          <i class="fa-solid fa-thumbtack"></i>
+          <span>CÂU HỎI KHÁCH BÁO LÊN ADMIN CHƯA GIẢI ĐÁP (${pendingQuestions.length} câu)</span>
+        </div>
+        <span class="pending-panel-hint">Kèm ngữ cảnh tin nhắn trước đó • Bấm "Trả lời câu này" để phản hồi đúng câu hỏi</span>
+      </div>
+      ${pendingQuestions.map(pq => {
+        const prior = Array.isArray(pq.priorContext) ? pq.priorContext : [];
+        const priorHtml = prior.length > 0 ? `
+          <div class="pq-prior-context">
+            <div class="pq-prior-title"><i class="fa-solid fa-clock-rotate-left"></i> Ngữ cảnh các tin nhắn ngay trước câu hỏi này:</div>
+            ${prior.map(pm => {
+              const roleCls = pm.sender_type === 'admin' ? 'admin' : (pm.sender_type === 'bot' ? 'bot' : 'user');
+              const roleLbl = pm.sender_type === 'admin' ? 'Admin:' : (pm.sender_type === 'bot' ? 'Bé Bot AI:' : 'Khách hỏi:');
+              return `<div class="pq-prior-line"><span class="p-role ${roleCls}">${roleLbl}</span> ${escapeHtml(stripChatMarkdownPlain(pm.message))}</div>`;
+            }).join('')}
+          </div>
+        ` : '';
+
+        const followUpHtml = Number(pq.followUpUserMsgs || 0) > 0
+          ? `<span class="pq-followup-note" title="Sau câu này khách tiếp tục hỏi AI và vẫn được Bé Bot trả lời bình thường">💡 Khách đã hỏi tiếp AI thêm ${pq.followUpUserMsgs} câu sau đó</span>`
+          : '';
+
+        const safeJsQ = JSON.stringify(String(pq.question || '')).replace(/"/g, '&quot;');
+
+        return `
+          <div class="pending-question-card">
+            <div class="pq-top-row">
+              <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+                <span class="pq-reason-badge">${escapeHtml(getEscalationReasonLabel(pq.reason))}</span>
+                ${followUpHtml}
+              </div>
+              <span class="pq-time"><i class="fa-regular fa-clock"></i> Hỏi lúc ${escapeHtml(formatAdminChatTimestamp(pq.created_at))}</span>
+            </div>
+            ${priorHtml}
+            <div class="pq-main-row">
+              <div class="pq-question-text">
+                <span class="q-prefix">❓ Câu hỏi cần giải đáp:</span> «${escapeHtml(pq.question)}»
+              </div>
+              <div class="pq-actions">
+                <button type="button" class="btn-pq-reply" onclick="startAdminQuoteReply(${pq.id}, ${safeJsQ})">
+                  <i class="fa-solid fa-reply"></i> Trả lời câu này
+                </button>
+                <button type="button" class="btn-pq-done" onclick="resolveSinglePendingQuestion(${pq.id})" title="Đánh dấu đã giải quyết xong câu hỏi này">
+                  <i class="fa-solid fa-check"></i> Đã xử lý
+                </button>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('')}
+    `;
+  }
+
+  function renderAdminChatMessages(messages, conv, pendingQuestions = [], forceScroll = false) {
+    const threadEl = document.getElementById('adminChatMessagesThread');
+    if (!threadEl) return;
+
+    const sig = JSON.stringify(
+      (messages || []).map(m => `${m.id}:${m.escalation_resolved ? 1 : 0}:${m.needs_admin_reply ? 1 : 0}`)
+    ) + `|p:${(pendingQuestions || []).length}|c:${conv ? conv.id : 0}`;
+
+    if (!forceScroll && sig === lastRenderedThreadSig) {
+      return;
+    }
+    lastRenderedThreadSig = sig;
+
+    renderAdminHeaderInfo(conv, pendingQuestions, (messages || []).length);
+    renderAdminPendingQuestionsPanel(pendingQuestions);
+
+    // Tự động chọn sẵn câu hỏi đang chờ đầu tiên vào thanh trích dẫn nếu Admin chưa chọn câu nào khác
+    if (Array.isArray(pendingQuestions) && pendingQuestions.length > 0 && !activeReplyToMessageId) {
+      const firstPq = pendingQuestions[0];
+      activeReplyToMessageId = Number(firstPq.id);
+      activeReplyToPreviewText = stripChatMarkdownPlain(firstPq.question).slice(0, 140);
+      const bar = document.getElementById('adminReplyQuoteBar');
+      const txt = document.getElementById('adminReplyQuoteText');
+      if (bar && txt) {
+        txt.textContent = `«${activeReplyToPreviewText}»`;
+        bar.style.display = 'flex';
+      }
+    } else if ((!pendingQuestions || pendingQuestions.length === 0) && activeReplyToMessageId) {
+      clearAdminReplyQuote();
+    }
+
+    if (!messages || messages.length === 0) {
+      threadEl.innerHTML = '<div class="admin-chat-empty-list" style="margin:auto;">Chưa có tin nhắn nào trong cuộc hội thoại này.</div>';
+      return;
+    }
+
+    let lastDateStr = '';
+    const htmlParts = [];
+
+    messages.forEach(m => {
+      if (m.created_at) {
+        const dObj = new Date(m.created_at);
+        if (!isNaN(dObj.getTime())) {
+          const dLabel = dObj.toDateString() === new Date().toDateString()
+            ? 'Hôm nay'
+            : dObj.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
+          if (dLabel !== lastDateStr) {
+            lastDateStr = dLabel;
+            htmlParts.push(`<div class="admin-msg-date-sep">${escapeHtml(dLabel)}</div>`);
+          }
+        }
+      }
+
+      const isUser = m.sender_type === 'user';
+      const isAdmin = m.sender_type === 'admin';
+      const needsReply = isUser && Boolean(m.needs_admin_reply) && !Boolean(m.escalation_resolved);
+      const resolvedEsc = isUser && Boolean(m.needs_admin_reply) && Boolean(m.escalation_resolved);
+
+      const roleClass = isAdmin ? 'from-admin' : (isUser ? 'from-user' : 'from-bot');
+      const senderClass = isAdmin ? 'admin' : (isUser ? 'user' : 'bot');
+      const senderIcon = isAdmin ? 'fa-user-shield' : (isUser ? 'fa-user' : 'fa-wand-magic-sparkles');
+      const senderName = isAdmin
+        ? (m.sender_name || 'Admin Showroom')
+        : (isUser ? (m.sender_name || conv.customer_name || 'Khách hàng') : 'Bé Bot AI Săn Xe');
+
+      const timeStr = m.created_at
+        ? new Date(m.created_at).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
+        : '';
+
+      const quoteInsideBubble = (isAdmin && m.reply_to_preview) ? `
+        <div class="admin-bubble-quote">
+          <span class="abq-lbl"><i class="fa-solid fa-reply"></i> Trả lời câu hỏi của khách:</span>
+          <span class="abq-txt">«${escapeHtml(m.reply_to_preview)}»</span>
+        </div>
+      ` : '';
+
+      const safeJsMsg = JSON.stringify(String(m.message || '')).replace(/"/g, '&quot;');
+      let footExtra = '';
+      if (needsReply) {
+        footExtra = `
+          <span class="msg-esc-flag pending"><i class="fa-solid fa-triangle-exclamation"></i> Bot chưa hiểu • Cần trả lời</span>
+          <button type="button" class="btn-inline-quote-reply" onclick="startAdminQuoteReply(${m.id}, ${safeJsMsg})">
+            <i class="fa-solid fa-reply"></i> Trả lời câu này
+          </button>
+        `;
+      } else if (resolvedEsc) {
+        footExtra = `<span class="msg-esc-flag done"><i class="fa-solid fa-circle-check"></i> Đã phản hồi</span>`;
+      } else if (isUser) {
+        footExtra = `
+          <button type="button" class="btn-inline-quote-reply" style="opacity:0.75;" onclick="startAdminQuoteReply(${m.id}, ${safeJsMsg})" title="Trích dẫn tin nhắn này để trả lời">
+            <i class="fa-solid fa-reply"></i> Trích dẫn
+          </button>
+        `;
+      }
+
+      htmlParts.push(`
+        <div class="admin-msg-row ${roleClass} ${needsReply ? 'needs-reply' : ''}" data-admin-msg-id="${m.id}">
+          <span class="admin-msg-sender ${senderClass}">
+            <i class="fa-solid ${senderIcon}"></i> ${escapeHtml(senderName)}
+          </span>
+          <div class="admin-msg-bubble">${quoteInsideBubble}${formatAdminChatRichText(m.message, isAdmin)}</div>
+          <div class="admin-msg-foot">
+            <span>${escapeHtml(timeStr)}</span>
+            ${footExtra}
+          </div>
+        </div>
+      `);
+    });
+
+    threadEl.innerHTML = htmlParts.join('');
+    threadEl.scrollTop = threadEl.scrollHeight;
+  }
+
+  async function refreshActiveAdminChatThread(forceScroll = false) {
+    if (!activeAdminChatId) return;
+    if (!forceScroll && document.hidden) return;
+    try {
+      const res = await api.get(`/api/chat/admin/conversations/${activeAdminChatId}/messages`, {
+        clientSig: forceScroll ? '' : lastAdminThreadServerSig
+      });
+      if (res && res.data) {
+        if (res.data.unchanged) return;
+        if (res.data.sig) {
+          lastAdminThreadServerSig = res.data.sig;
+        }
+        renderAdminChatMessages(
+          res.data.messages,
+          res.data.conversation,
+          res.data.pendingQuestions || [],
+          forceScroll
+        );
+      }
+    } catch (_) {}
+  }
+
+  async function selectAdminConversation(convId) {
+    activeAdminChatId = Number(convId);
+    lastRenderedThreadSig = '';
+    lastAdminThreadServerSig = '';
+    clearAdminReplyQuote();
+    loadAdminChats(false);
+
+    const threadEl = document.getElementById('adminChatMessagesThread');
+    if (threadEl) {
+      threadEl.innerHTML = '<div class="admin-chat-empty-list" style="margin:auto;"><i class="fa-solid fa-circle-notch fa-spin"></i> Đang tải chi tiết cuộc hội thoại...</div>';
+    }
+
+    try {
+      const res = await api.get(`/api/chat/admin/conversations/${activeAdminChatId}/messages`);
+      if (res && res.data) {
+        if (res.data.sig) {
+          lastAdminThreadServerSig = res.data.sig;
+        }
+        renderAdminChatMessages(
+          res.data.messages,
+          res.data.conversation,
+          res.data.pendingQuestions || [],
+          true
+        );
+
+        if (adminChatPollInterval) clearInterval(adminChatPollInterval);
+        adminChatPollInterval = setInterval(() => {
+          if (activeTab === 'chat' && activeAdminChatId === Number(convId) && !isAdminSendingReply) {
+            refreshActiveAdminChatThread(false);
+          }
+        }, 3500);
+      }
+    } catch (err) {
+      if (threadEl) {
+        threadEl.innerHTML = `<div class="admin-chat-empty-list" style="margin:auto;color:#ef4444;">Lỗi tải tin nhắn: ${escapeHtml(err.message)}</div>`;
+      }
+    }
+  }
+
+  async function handleAdminSendReply(e) {
+    if (e && e.preventDefault) e.preventDefault();
+    if (!activeAdminChatId || isAdminSendingReply) return;
+
+    const input = document.getElementById('adminReplyInput');
+    const btn = document.getElementById('adminReplySendBtn');
+    if (!input) return;
+
+    const text = input.value.trim();
+    if (!text) return;
+
+    isAdminSendingReply = true;
+    const replyToId = activeReplyToMessageId;
+    input.value = '';
+    if (btn) btn.disabled = true;
+
+    try {
+      const res = await api.post(`/api/chat/admin/conversations/${activeAdminChatId}/reply`, {
+        message: text,
+        replyToMessageId: replyToId
+      });
+      if (res && res.data) {
+        clearAdminReplyQuote();
+        await refreshActiveAdminChatThread(true);
+        await loadAdminChats(false);
+
+        if (api && typeof api.emitRealtimeSync === 'function') {
+          api.emitRealtimeSync('CHAT_ADMIN_REPLIED', {
+            conversationId: activeAdminChatId,
+            replyToMessageId: replyToId
+          });
+        }
+        adminToast('Đã gửi phản hồi trực tiếp tới khách hàng!', 'success');
+      }
+    } catch (err) {
+      input.value = text;
+      adminToast('Lỗi gửi phản hồi: ' + err.message, 'error');
+    } finally {
+      isAdminSendingReply = false;
+      if (btn) btn.disabled = false;
+      input.focus();
+    }
+  }
+
+  async function setAdminConversationStatus(status) {
+    if (!activeAdminChatId) return;
+    try {
+      await api.put(`/api/chat/admin/conversations/${activeAdminChatId}/status`, { status });
+      clearAdminReplyQuote();
+      adminToast(
+        status === 'resolved'
+          ? 'Đã đánh dấu hoàn tất toàn bộ câu hỏi của khách!'
+          : 'Đã giao lại cuộc hội thoại cho Bé Bot AI tự động!',
+        'success'
+      );
+      await refreshActiveAdminChatThread(true);
+      await loadAdminChats(false);
+      if (api && typeof api.emitRealtimeSync === 'function') {
+        api.emitRealtimeSync('CHAT_STATUS_CHANGED', { conversationId: activeAdminChatId, status });
+      }
+    } catch (err) {
+      adminToast('Lỗi cập nhật trạng thái: ' + err.message, 'error');
+    }
+  }
+
+  async function deleteAdminConversationAction() {
+    if (!activeAdminChatId) return;
+    if (!confirm('Bạn có chắc chắn muốn xóa cuộc hội thoại này khỏi hộp thư hỗ trợ?')) return;
+    const deletingId = activeAdminChatId;
+    try {
+      await api.delete(`/api/chat/admin/conversations/${deletingId}`);
+      activeAdminChatId = null;
+      lastRenderedThreadSig = '';
+      lastAdminThreadServerSig = '';
+      lastAdminConvsHash = '';
+      clearAdminReplyQuote();
+      if (adminChatPollInterval) {
+        clearInterval(adminChatPollInterval);
+        adminChatPollInterval = null;
+      }
+
+      const titleEl = document.getElementById('adminChatCustomerTitle');
+      const subEl = document.getElementById('adminChatCustomerSub');
+      const statusPill = document.getElementById('adminChatStatusBadge');
+      const actionsEl = document.getElementById('adminChatActions');
+      const composerWrap = document.getElementById('adminChatComposerWrap');
+      const pendingPanel = document.getElementById('adminPendingQuestionsPanel');
+      const threadEl = document.getElementById('adminChatMessagesThread');
+
+      if (titleEl) titleEl.textContent = 'Chọn một cuộc hội thoại bên trái';
+      if (subEl) subEl.textContent = 'Hệ thống tự động ghim rõ các câu hỏi khó Bé Bot chưa hiểu kèm ngữ cảnh tin nhắn trước đó để Admin giải đáp nhanh nhất.';
+      if (statusPill) statusPill.style.display = 'none';
+      if (actionsEl) actionsEl.style.display = 'none';
+      if (composerWrap) composerWrap.style.display = 'none';
+      if (pendingPanel) {
+        pendingPanel.style.display = 'none';
+        pendingPanel.innerHTML = '';
+      }
+      if (threadEl) {
+        threadEl.innerHTML = `
+          <div class="admin-chat-placeholder">
+            <div class="placeholder-icon"><i class="fa-solid fa-headset"></i></div>
+            <h4>Đã xóa cuộc hội thoại</h4>
+            <p>Chọn một cuộc hội thoại khác ở danh sách bên trái để tiếp tục hỗ trợ khách hàng.</p>
+          </div>
+        `;
+      }
+
+      adminToast('Đã xóa cuộc hội thoại!', 'info');
+      await loadAdminChats(true);
+    } catch (err) {
+      adminToast('Lỗi khi xóa hội thoại: ' + err.message, 'error');
+    }
+  }
+
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) {
+      refreshAdminChatBadgeQuietly();
+      if (activeTab === 'chat' && activeAdminChatId && !isAdminSendingReply) {
+        refreshActiveAdminChatThread(false);
+      }
+    }
+  });
+
+  window.loadAdminChats = loadAdminChats;
+  window.setAdminChatFilter = setAdminChatFilter;
+  window.handleAdminChatSearchInput = handleAdminChatSearchInput;
+  window.selectAdminConversation = selectAdminConversation;
+  window.startAdminQuoteReply = startAdminQuoteReply;
+  window.clearAdminReplyQuote = clearAdminReplyQuote;
+  window.insertAdminQuickReply = insertAdminQuickReply;
+  window.resolveSinglePendingQuestion = resolveSinglePendingQuestion;
+  window.handleAdminSendReply = handleAdminSendReply;
+  window.setAdminConversationStatus = setAdminConversationStatus;
+  window.deleteAdminConversationAction = deleteAdminConversationAction;
 
 })();

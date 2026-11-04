@@ -9,8 +9,49 @@ const db = require('../config/db');
 const { signToken, authenticate, requireActiveUser } = require('../middleware/auth');
 const { ok, badRequest, unauthorized, forbidden, conflict } = require('../utils/http');
 
-// Bộ nhớ lưu tạm OTP (có hiệu lực 5 phút)
+// Bộ nhớ lưu tạm OTP trong bộ nhớ (kèm backup Supabase PostgreSQL)
 const otpStore = new Map();
+
+async function setDbOtp(identifier, otp, expiresAt) {
+  const key = String(identifier || '').trim().toLowerCase();
+  otpStore.set(key, { otp: String(otp), expiresAt: Number(expiresAt) });
+  try {
+    await db.query(`
+      INSERT INTO otp_codes (identifier, otp, expires_at)
+      VALUES (@key, @otp, @exp)
+      ON CONFLICT (identifier) DO UPDATE
+      SET otp = EXCLUDED.otp, expires_at = EXCLUDED.expires_at
+    `, { key, otp: String(otp), exp: Number(expiresAt) });
+  } catch (err) {
+    console.warn('[OTP DB Write Fallback]:', err.message);
+  }
+}
+
+async function getDbOtp(identifier) {
+  const key = String(identifier || '').trim().toLowerCase();
+  try {
+    const res = await db.query(`
+      SELECT otp, expires_at FROM otp_codes WHERE identifier = @key
+    `, { key });
+    if (res.recordset && res.recordset.length > 0) {
+      return {
+        otp: res.recordset[0].otp,
+        expiresAt: Number(res.recordset[0].expires_at)
+      };
+    }
+  } catch (err) {
+    console.warn('[OTP DB Read Fallback]:', err.message);
+  }
+  return otpStore.get(key) || null;
+}
+
+async function deleteDbOtp(identifier) {
+  const key = String(identifier || '').trim().toLowerCase();
+  otpStore.delete(key);
+  try {
+    await db.query(`DELETE FROM otp_codes WHERE identifier = @key`, { key });
+  } catch (_) {}
+}
 
 // Cấu hình gửi mail qua Gmail (Tương thích Serverless Vercel & Node.js)
 const mailTransporter = nodemailer.createTransport({
@@ -19,8 +60,8 @@ const mailTransporter = nodemailer.createTransport({
   port: 465,
   secure: true,
   auth: {
-    user: (process.env.EMAIL_USER || 'tdo5175@gmail.com').trim(),
-    pass: (process.env.EMAIL_PASS || 'lyengcphlvqxyoff').replace(/\s+/g, '')
+    user: (process.env.EMAIL_USER || '').trim(),
+    pass: (process.env.EMAIL_PASS || '').replace(/\s+/g, '')
   },
   tls: {
     rejectUnauthorized: false
@@ -421,7 +462,7 @@ router.post('/send-login-otp', async (req, res, next) => {
 
     const otpCode = String(Math.floor(100000 + Math.random() * 900000));
     const expiresAt = Date.now() + 5 * 60 * 1000;
-    otpStore.set(`login_${email}`, { otp: otpCode, expiresAt });
+    await setDbOtp(`login_${email}`, otpCode, expiresAt);
 
     const emailHtml = `
       <!DOCTYPE html>
@@ -510,7 +551,7 @@ router.post('/login-otp', async (req, res, next) => {
 
     if (!email || !otp) throw badRequest('Vui lòng nhập đầy đủ Email và Mã OTP 6 chữ số');
 
-    const saved = otpStore.get(`login_${email}`);
+    const saved = await getDbOtp(`login_${email}`);
     const isMatch = saved && (Date.now() <= saved.expiresAt) && (saved.otp === otp);
 
     if (!isMatch) {
@@ -531,7 +572,7 @@ router.post('/login-otp', async (req, res, next) => {
     }
 
     await db.query('UPDATE Users SET LastLoginAt = NOW() WHERE UserId = @id', { id: user.UserId });
-    otpStore.delete(`login_${email}`);
+    await deleteDbOtp(`login_${email}`);
 
     const token = signToken(user);
     const stats = await getUserOrderStats(user.UserId, user.Email);
@@ -578,12 +619,19 @@ router.post('/forgot', async (req, res, next) => {
       u = normalizeUserRow(result.recordset[0]);
     }
 
+    // Chống spam: Giới hạn yêu cầu gửi OTP cách nhau tối thiểu 60 giây
+    const existingOtp = await getDbOtp(u.Email.toLowerCase());
+    if (existingOtp && (existingOtp.expiresAt - Date.now() > 14 * 60 * 1000)) {
+      const waitSeconds = Math.ceil((existingOtp.expiresAt - Date.now() - 14 * 60 * 1000) / 1000);
+      throw badRequest(`Mã OTP vừa được gửi tới Gmail. Vui lòng kiểm tra hộp thư hoặc đợi ${waitSeconds} giây trước khi yêu cầu lại.`);
+    }
+
     const otpCode = String(Math.floor(100000 + Math.random() * 900000)); // Mã 6 số ngẫu nhiên
     const expiresAt = Date.now() + 15 * 60 * 1000; // Hạn 15 phút
 
-    otpStore.set(u.Email.toLowerCase(), { otp: otpCode, expiresAt });
+    await setDbOtp(u.Email.toLowerCase(), otpCode, expiresAt);
     if (cleanPhone) {
-      otpStore.set(cleanPhone, { otp: otpCode, expiresAt });
+      await setDbOtp(cleanPhone, otpCode, expiresAt);
     }
 
     const emailHtml = `
@@ -721,7 +769,7 @@ router.post('/reset-password', async (req, res, next) => {
     }
 
     const u = normalizeUserRow(userRes.recordset[0]);
-    const savedRecord = otpStore.get(u.Email.toLowerCase()) || (cleanPhone ? otpStore.get(cleanPhone) : null);
+    const savedRecord = (await getDbOtp(u.Email.toLowerCase())) || (cleanPhone ? (await getDbOtp(cleanPhone)) : null);
 
     const isTestOtp = (process.env.NODE_ENV === 'test' && (otp === '6868' || otp === '123456'));
     const isSavedMatch = savedRecord && (Date.now() <= savedRecord.expiresAt) && (savedRecord.otp === otp);
@@ -742,8 +790,8 @@ router.post('/reset-password', async (req, res, next) => {
       RETURNING *
     `, { uid: u.UserId, passwordHash });
 
-    otpStore.delete(u.Email.toLowerCase());
-    if (cleanPhone) otpStore.delete(cleanPhone);
+    await deleteDbOtp(u.Email.toLowerCase());
+    if (cleanPhone) await deleteDbOtp(cleanPhone);
 
     const updatedRow = (updatedUserRes.recordset.length > 0) ? normalizeUserRow(updatedUserRes.recordset[0]) : u;
     const stats = await getUserOrderStats(updatedRow.UserId, updatedRow.Email);

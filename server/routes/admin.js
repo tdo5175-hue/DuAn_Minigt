@@ -10,6 +10,7 @@ const productService = require('../services/productService');
 const orderService = require('../services/orderService');
 const settingsService = require('../services/settingsService');
 const couponService = require('../services/couponService');
+const aiChatService = require('../services/aiChatService');
 const { authenticate, requireAdmin } = require('../middleware/auth');
 const { ok, created, badRequest, notFound, conflict } = require('../utils/http');
 const v = require('../utils/validators');
@@ -66,7 +67,9 @@ router.get(['/stats', '/dashboard'], async (req, res, next) => {
     const bestSellersRes = await db.query(`
       SELECT p.ProductId, p.Sku, p.Name, p.ImageUrl, p.Price, p.Stock, COALESCE(SUM(oi.Quantity), 0) AS "UnitsSold"
       FROM OrderItems oi
-      JOIN Orders o ON o.OrderId = oi.OrderId AND o.Status <> 'CANCELLED'
+      JOIN Orders o ON o.OrderId = oi.OrderId
+        AND UPPER(COALESCE(o.Status, '')) <> 'CANCELLED'
+        AND UPPER(COALESCE(o.PaymentStatus, '')) <> 'REFUNDED'
       JOIN Products p ON p.ProductId = oi.ProductId
       GROUP BY p.ProductId, p.Sku, p.Name, p.ImageUrl, p.Price, p.Stock
       ORDER BY "UnitsSold" DESC
@@ -128,7 +131,8 @@ router.get(['/stats', '/dashboard'], async (req, res, next) => {
         imageUrl: b.ImageUrl ?? b.imageurl,
         price: Number(b.Price ?? b.price ?? 0),
         stock: Number(b.Stock ?? b.stock ?? 0),
-        unitsSold: Number(b.UnitsSold ?? b.unitssold ?? 0)
+        unitsSold: Number(b.UnitsSold ?? b.unitssold ?? 0),
+        soldCount: Number(b.UnitsSold ?? b.unitssold ?? 0)
       }))
     }, 'Lấy dữ liệu thống kê thành công');
   } catch (err) {
@@ -154,6 +158,7 @@ router.post('/categories', async (req, res, next) => {
     const { name, slug, description, imageUrl, sortOrder } = req.body;
     if (!name || !String(name).trim()) throw badRequest('Vui lòng nhập tên danh mục');
     const createdCat = await productService.addCategory({ name, slug, description, imageUrl, sortOrder });
+    aiChatService.invalidateStoreCache();
     return created(res, createdCat, 'Thêm danh mục mới thành công');
   } catch (error) {
     next(error);
@@ -295,6 +300,97 @@ router.post('/upload-product-image', async (req, res, next) => {
   }
 });
 
+async function persistImageIfBase64(rawUrl, skuPrefix = 'car') {
+  let clean = String(rawUrl || '').trim();
+  if (!clean) return '';
+  const apiImgMatch = clean.match(/^https?:\/\/[^/]+(\/(?:api\/)?images\/\d+)(?:\?.*)?$/i);
+  if (apiImgMatch) {
+    clean = apiImgMatch[1].startsWith('/api/') ? apiImgMatch[1] : `/api${apiImgMatch[1]}`;
+  }
+  if (!clean.startsWith('data:')) return clean;
+
+  try {
+    let mimeType = 'image/webp';
+    const matches = clean.match(/^data:([a-zA-Z0-9\/+.-]+);base64,(.+)$/);
+    if (matches) mimeType = matches[1].toLowerCase();
+    const dbRes = await db.query(`
+      INSERT INTO UploadedImages (Filename, MimeType, Data, FileSize, CreatedAt)
+      VALUES (@fn, @mime, @data, @sz, NOW())
+      RETURNING ImageId
+    `, {
+      fn: `${skuPrefix || 'car'}_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
+      mime: mimeType,
+      data: clean,
+      sz: Math.round(clean.length * 0.75)
+    });
+    if (dbRes.recordset && dbRes.recordset.length > 0) {
+      const imgId = Number(dbRes.recordset[0].ImageId ?? dbRes.recordset[0].imageid);
+      if (imgId) return `/api/images/${imgId}`;
+    }
+  } catch (upErr) {
+    console.warn('[PRODUCT IMAGE] Auto-save base64 error:', upErr.message);
+  }
+  return clean;
+}
+
+async function prepareProductGalleryInput(body = {}, fallbackUrl = 'image/hero-banner.jpg', skuPrefix = 'car') {
+  let rawList = null;
+  if (Array.isArray(body.images)) {
+    rawList = body.images;
+  } else if (typeof body.images === 'string' && body.images.trim()) {
+    try {
+      const parsed = JSON.parse(body.images);
+      if (Array.isArray(parsed)) rawList = parsed;
+    } catch (_) {
+      rawList = [body.images];
+    }
+  }
+
+  if (rawList !== null) {
+    const cleaned = [];
+    for (const item of rawList) {
+      const savedUrl = await persistImageIfBase64(item, skuPrefix);
+      if (savedUrl) cleaned.push(savedUrl);
+    }
+    if (cleaned.length === 0) {
+      const singleFallback = await persistImageIfBase64(body.imageUrl ?? body.image ?? fallbackUrl, skuPrefix);
+      if (singleFallback) cleaned.push(singleFallback);
+    }
+    const primary = cleaned[0] || 'image/hero-banner.jpg';
+    return {
+      imageUrl: primary,
+      images: cleaned.length ? cleaned : [primary],
+      hasExplicitGallery: true
+    };
+  }
+
+  const rawPrimary = body.imageUrl !== undefined
+    ? body.imageUrl
+    : (body.image !== undefined ? body.image : fallbackUrl);
+  const resolvedPrimary = (await persistImageIfBase64(rawPrimary, skuPrefix)) || fallbackUrl || 'image/hero-banner.jpg';
+  return {
+    imageUrl: resolvedPrimary,
+    images: [resolvedPrimary],
+    hasExplicitGallery: false
+  };
+}
+
+async function syncProductImages(productId, imagesList = []) {
+  await productService.ensureProductImagesSchema();
+  const validImages = (Array.isArray(imagesList) ? imagesList : [])
+    .map(u => String(u || '').trim())
+    .filter(Boolean);
+
+  await db.query('DELETE FROM ProductImages WHERE ProductId = @productId', { productId });
+
+  for (let idx = 0; idx < validImages.length; idx++) {
+    await db.query(
+      'INSERT INTO ProductImages (ProductId, ImageUrl, SortOrder) VALUES (@productId, @imageUrl, @sortOrder)',
+      { productId, imageUrl: validImages[idx], sortOrder: idx }
+    );
+  }
+}
+
 router.post('/products', async (req, res, next) => {
   try {
     const sku = String(req.body.sku || '').trim();
@@ -349,30 +445,8 @@ router.post('/products', async (req, res, next) => {
     }
     const stock = stockBox + stockCard;
 
-    let imageUrl = String(req.body.imageUrl || req.body.image || 'image/hero-banner.jpg').trim();
-    if (imageUrl.startsWith('data:')) {
-      try {
-        let mimeType = 'image/webp';
-        const matches = imageUrl.match(/^data:([a-zA-Z0-9\/+.-]+);base64,(.+)$/);
-        if (matches) mimeType = matches[1].toLowerCase();
-        const dbRes = await db.query(`
-          INSERT INTO UploadedImages (Filename, MimeType, Data, FileSize, CreatedAt)
-          VALUES (@fn, @mime, @data, @sz, NOW())
-          RETURNING ImageId
-        `, {
-          fn: `${sku || 'car'}_${Date.now()}`,
-          mime: mimeType,
-          data: imageUrl,
-          sz: Math.round(imageUrl.length * 0.75)
-        });
-        if (dbRes.recordset && dbRes.recordset.length > 0) {
-          const imgId = Number(dbRes.recordset[0].ImageId ?? dbRes.recordset[0].imageid);
-          imageUrl = `/api/images/${imgId}`;
-        }
-      } catch (upErr) {
-        console.warn('[PRODUCT CREATE] Auto-save base64 error:', upErr.message);
-      }
-    }
+    const gallery = await prepareProductGalleryInput(req.body, 'image/hero-banner.jpg', sku || 'car');
+    const imageUrl = gallery.imageUrl;
     const description = String(req.body.description || '').trim() || null;
     let status = ['in_stock', 'pre_order', 'sold_out'].includes(req.body.status) ? req.body.status : 'in_stock';
     if (stock === 0 && status !== 'pre_order') status = 'sold_out';
@@ -434,6 +508,9 @@ router.post('/products', async (req, res, next) => {
     });
 
     const newId = Number(insertRes.recordset[0].ProductId ?? insertRes.recordset[0].productid);
+    await syncProductImages(newId, gallery.images);
+    aiChatService.invalidateStoreCache();
+
     const product = await productService.getProductByIdOrSlug(newId, { includeInactive: true });
     return created(res, product, 'Thêm mô hình xe thành công!');
   } catch (error) {
@@ -450,28 +527,50 @@ router.put('/products/:id', async (req, res, next) => {
     if (existingRes.recordset.length === 0) throw notFound('Không tìm thấy sản phẩm');
     const existing = existingRes.recordset[0];
 
-    const sku = req.body.sku !== undefined ? String(req.body.sku).trim() : existing.Sku;
-    const carNumber = req.body.carNumber !== undefined ? String(req.body.carNumber).trim() : existing.CarNumber;
-    const name = req.body.name !== undefined ? String(req.body.name).trim() : existing.Name;
-    const categoryId = req.body.categoryId !== undefined ? parseInt(req.body.categoryId, 10) : existing.CategoryId;
-    const brand = req.body.brand !== undefined ? String(req.body.brand).trim() : existing.Brand;
-    const scale = req.body.scale !== undefined ? String(req.body.scale).trim() : existing.Scale;
+    const exSku = existing.Sku ?? existing.sku;
+    const exCarNumber = existing.CarNumber ?? existing.carnumber;
+    const exName = existing.Name ?? existing.name;
+    const exCategoryId = existing.CategoryId ?? existing.categoryid;
+    const exBrand = existing.Brand ?? existing.brand;
+    const exScale = existing.Scale ?? existing.scale;
+    const exPackType = existing.PackagingType ?? existing.packagingtype ?? 'both';
+    const exPriceBox = existing.PriceBox ?? existing.pricebox ?? existing.Price ?? existing.price;
+    const exPriceCard = existing.PriceCard ?? existing.pricecard;
+    const exDisc = existing.DiscountPercent ?? existing.discountpercent ?? 0;
+    const exOldPrice = existing.OldPrice ?? existing.oldprice ?? null;
+    const exEditionNote = existing.EditionNote ?? existing.editionnote ?? null;
+    const exStock = Number(existing.Stock ?? existing.stock ?? 0);
+    const exImageUrl = existing.ImageUrl ?? existing.imageurl ?? 'image/hero-banner.jpg';
+    const exDescription = existing.Description ?? existing.description ?? null;
+    const exStatus = existing.Status ?? existing.status ?? 'in_stock';
+    const exDepositPercent = existing.DepositPercent ?? existing.depositpercent ?? 30;
+    const exExpectedDelivery = existing.ExpectedDelivery ?? existing.expecteddelivery;
+    const exPreOrderDeadline = existing.PreOrderDeadline ?? existing.preorderdeadline;
+    const exIsFeatured = existing.IsFeatured ?? existing.isfeatured ?? false;
+    const exIsNew = existing.IsNew ?? existing.isnew ?? false;
+
+    const sku = req.body.sku !== undefined ? String(req.body.sku).trim() : exSku;
+    const carNumber = req.body.carNumber !== undefined ? String(req.body.carNumber).trim() : exCarNumber;
+    const name = req.body.name !== undefined ? String(req.body.name).trim() : exName;
+    const categoryId = req.body.categoryId !== undefined ? parseInt(req.body.categoryId, 10) : exCategoryId;
+    const brand = req.body.brand !== undefined ? String(req.body.brand).trim() : exBrand;
+    const scale = req.body.scale !== undefined ? String(req.body.scale).trim() : exScale;
 
     const packagingType = req.body.packagingType !== undefined
-      ? (['both', 'box_only', 'card_only'].includes(req.body.packagingType) ? req.body.packagingType : existing.PackagingType)
-      : existing.PackagingType;
+      ? (['both', 'box_only', 'card_only'].includes(req.body.packagingType) ? req.body.packagingType : exPackType)
+      : exPackType;
 
     let priceBox = req.body.priceBox !== undefined
       ? Number(req.body.priceBox)
-      : Number(existing.PriceBox || existing.Price);
+      : Number(exPriceBox);
     let priceCard = req.body.priceCard !== undefined
       ? Number(req.body.priceCard)
-      : Number(existing.PriceCard != null ? existing.PriceCard : (existing.pricecard != null ? existing.pricecard : priceBox));
+      : Number(exPriceCard != null ? exPriceCard : priceBox);
     if (packagingType === 'card_only' && (priceBox <= 0 || req.body.priceBox === undefined)) priceBox = priceCard;
     if (packagingType === 'box_only' && (priceCard <= 0 || req.body.priceCard === undefined)) priceCard = priceBox;
     const discountPercent = req.body.discountPercent !== undefined
       ? Math.max(0, Math.min(80, parseInt(req.body.discountPercent, 10) || 0))
-      : Number(existing.DiscountPercent || 0);
+      : Number(exDisc || 0);
 
     const finalPriceBox = discountPercent > 0
       ? productService.calcDiscountedPrice(priceBox, discountPercent)
@@ -483,11 +582,11 @@ router.put('/products/:id', async (req, res, next) => {
     const mainPrice = packagingType === 'card_only' ? finalPriceCard : finalPriceBox;
     const mainOldPrice = discountPercent > 0
       ? (packagingType === 'card_only' ? priceCard : priceBox)
-      : (req.body.oldPrice !== undefined ? (req.body.oldPrice ? Number(req.body.oldPrice) : null) : existing.OldPrice);
+      : (req.body.oldPrice !== undefined ? (req.body.oldPrice ? Number(req.body.oldPrice) : null) : exOldPrice);
 
     const editionNote = req.body.editionNote !== undefined
       ? (String(req.body.editionNote).trim() || null)
-      : existing.EditionNote;
+      : exEditionNote;
 
     let stockBox = req.body.stockBox !== undefined
       ? Math.max(0, parseInt(req.body.stockBox, 10) || 0)
@@ -500,12 +599,12 @@ router.put('/products/:id', async (req, res, next) => {
       stockCard = 0;
       if (req.body.stockBox !== undefined) stockBox = Math.max(0, parseInt(req.body.stockBox, 10) || 0);
       else if (req.body.stock !== undefined) stockBox = Math.max(0, parseInt(req.body.stock, 10) || 0);
-      else if (stockBox == null) stockBox = Number(existing.Stock || 0);
+      else if (stockBox == null) stockBox = exStock;
     } else if (packagingType === 'card_only') {
       stockBox = 0;
       if (req.body.stockCard !== undefined) stockCard = Math.max(0, parseInt(req.body.stockCard, 10) || 0);
       else if (req.body.stock !== undefined) stockCard = Math.max(0, parseInt(req.body.stock, 10) || 0);
-      else if (stockCard == null) stockCard = Number(existing.Stock || 0);
+      else if (stockCard == null) stockCard = exStock;
     } else {
       if (req.body.stockBox !== undefined || req.body.stockCard !== undefined) {
         stockBox = stockBox != null ? stockBox : 0;
@@ -515,49 +614,25 @@ router.put('/products/:id', async (req, res, next) => {
         stockBox = Math.ceil(raw / 2);
         stockCard = Math.floor(raw / 2);
       } else {
-        stockBox = stockBox != null ? stockBox : Math.ceil(Number(existing.Stock || 0) / 2);
-        stockCard = stockCard != null ? stockCard : Math.floor(Number(existing.Stock || 0) / 2);
+        stockBox = stockBox != null ? stockBox : Math.ceil(exStock / 2);
+        stockCard = stockCard != null ? stockCard : Math.floor(exStock / 2);
       }
     }
     const stock = stockBox + stockCard;
 
-    let imageUrl = req.body.imageUrl !== undefined
-      ? String(req.body.imageUrl).trim()
-      : (req.body.image !== undefined ? String(req.body.image).trim() : existing.ImageUrl);
-    if (imageUrl && imageUrl.startsWith('data:')) {
-      try {
-        let mimeType = 'image/webp';
-        const matches = imageUrl.match(/^data:([a-zA-Z0-9\/+.-]+);base64,(.+)$/);
-        if (matches) mimeType = matches[1].toLowerCase();
-        const dbRes = await db.query(`
-          INSERT INTO UploadedImages (Filename, MimeType, Data, FileSize, CreatedAt)
-          VALUES (@fn, @mime, @data, @sz, NOW())
-          RETURNING ImageId
-        `, {
-          fn: `${existing.Sku || 'car'}_${Date.now()}`,
-          mime: mimeType,
-          data: imageUrl,
-          sz: Math.round(imageUrl.length * 0.75)
-        });
-        if (dbRes.recordset && dbRes.recordset.length > 0) {
-          const imgId = Number(dbRes.recordset[0].ImageId ?? dbRes.recordset[0].imageid);
-          imageUrl = `/api/images/${imgId}`;
-        }
-      } catch (upErr) {
-        console.warn('[PRODUCT UPDATE] Auto-save base64 error:', upErr.message);
-      }
-    }
+    const gallery = await prepareProductGalleryInput(req.body, exImageUrl, sku || exSku || 'car');
+    const imageUrl = gallery.imageUrl;
     const description = req.body.description !== undefined
       ? (String(req.body.description).trim() || null)
-      : existing.Description;
+      : exDescription;
     let status = req.body.status !== undefined
-      ? (['in_stock', 'pre_order', 'sold_out'].includes(req.body.status) ? req.body.status : existing.Status)
-      : existing.Status;
+      ? (['in_stock', 'pre_order', 'sold_out'].includes(req.body.status) ? req.body.status : exStatus)
+      : exStatus;
     if (stock === 0 && status !== 'pre_order') status = 'sold_out';
 
     const isPreOrder = status === 'pre_order';
     const depositPercent = isPreOrder
-      ? (req.body.depositPercent !== undefined ? Math.min(100, Math.max(10, parseInt(req.body.depositPercent, 10) || 30)) : (existing.DepositPercent || 30))
+      ? (req.body.depositPercent !== undefined ? Math.min(100, Math.max(10, parseInt(req.body.depositPercent, 10) || 30)) : (exDepositPercent || 30))
       : 0;
     const depositAmount = isPreOrder
       ? (req.body.depositAmount !== undefined && req.body.depositAmount !== null && Number(req.body.depositAmount) > 0
@@ -565,18 +640,20 @@ router.put('/products/:id', async (req, res, next) => {
           : Math.round((mainPrice * (depositPercent / 100)) / 1000) * 1000)
       : 0;
     const expectedDelivery = isPreOrder
-      ? (req.body.expectedDelivery !== undefined ? (String(req.body.expectedDelivery).trim() || null) : (existing.ExpectedDelivery || 'Tháng 11/2026 (Có thể trễ hơn dự kiến)'))
+      ? (req.body.expectedDelivery !== undefined ? (String(req.body.expectedDelivery).trim() || null) : (exExpectedDelivery || 'Tháng 11/2026 (Có thể trễ hơn dự kiến)'))
       : null;
-    const preOrderDeadline = req.body.preOrderDeadline ? String(req.body.preOrderDeadline).slice(0, 10) : null;
+    const preOrderDeadline = req.body.preOrderDeadline !== undefined
+      ? (req.body.preOrderDeadline ? String(req.body.preOrderDeadline).slice(0, 10) : null)
+      : (exPreOrderDeadline ? (exPreOrderDeadline instanceof Date ? exPreOrderDeadline.toISOString().slice(0, 10) : String(exPreOrderDeadline).slice(0, 10)) : null);
 
-    const isFeatured = req.body.isFeatured !== undefined ? Boolean(req.body.isFeatured) : Boolean(existing.IsFeatured);
-    const isNew = req.body.isNew !== undefined ? Boolean(req.body.isNew) : Boolean(existing.IsNew);
+    const isFeatured = req.body.isFeatured !== undefined ? Boolean(req.body.isFeatured) : Boolean(exIsFeatured);
+    const isNew = req.body.isNew !== undefined ? Boolean(req.body.isNew) : Boolean(exIsNew);
 
     if (!sku) throw badRequest('Mã SKU không được để trống');
     if (!name || name.length < 3) throw badRequest('Tên sản phẩm tối thiểu 3 ký tự');
     if (priceBox <= 0) throw badRequest('Giá bán phải lớn hơn 0');
 
-    if (sku !== existing.Sku) {
+    if (sku !== exSku) {
       const skuCheck = await db.query('SELECT ProductId FROM Products WHERE Sku = @sku AND ProductId <> @id', { sku, id: productId });
       if (skuCheck.recordset.length > 0) throw conflict(`Mã SKU "${sku}" đã được sử dụng bởi sản phẩm khác`);
     }
@@ -620,6 +697,16 @@ router.put('/products/:id', async (req, res, next) => {
       status, isFeatured, isNew
     });
 
+    if (gallery.hasExplicitGallery) {
+      await syncProductImages(productId, gallery.images);
+    } else if (req.body.imageUrl !== undefined || req.body.image !== undefined) {
+      const existingImgsRes = await db.query('SELECT ImageUrl FROM ProductImages WHERE ProductId = @productId ORDER BY SortOrder ASC, ImageId ASC', { productId });
+      const existingImgs = (existingImgsRes.recordset || []).map(r => r.ImageUrl ?? r.imageurl).filter(Boolean);
+      const nextImgs = existingImgs.length > 1 ? [imageUrl, ...existingImgs.slice(1)] : [imageUrl];
+      await syncProductImages(productId, nextImgs);
+    }
+
+    aiChatService.invalidateStoreCache();
     const updated = await productService.getProductByIdOrSlug(productId, { includeInactive: true });
     return ok(res, updated, 'Cập nhật sản phẩm thành công!');
   } catch (error) {
@@ -636,9 +723,13 @@ router.delete('/products/:id', async (req, res, next) => {
 
     if (orderCheck.recordset.length > 0) {
       await db.query('UPDATE Products SET IsActive = FALSE, UpdatedAt = NOW() WHERE ProductId = @id', { id: productId });
+      aiChatService.invalidateStoreCache();
       return ok(res, { productId, softDeleted: true }, 'Sản phẩm đã có trong đơn hàng nên được chuyển sang trạng thái "Ẩn khỏi cửa hàng"');
     } else {
+      await db.query('DELETE FROM ProductImages WHERE ProductId = @id', { id: productId });
+      await db.query('DELETE FROM ProductReviews WHERE ProductId = @id', { id: productId });
       await db.query('DELETE FROM Products WHERE ProductId = @id', { id: productId });
+      aiChatService.invalidateStoreCache();
       return ok(res, { productId, hardDeleted: true }, 'Đã xóa hoàn toàn sản phẩm khỏi hệ thống');
     }
   } catch (error) {
@@ -699,6 +790,9 @@ router.post('/products/:id/clone', async (req, res, next) => {
     });
 
     const newId = Number(insertRes.recordset[0].ProductId ?? insertRes.recordset[0].productid);
+    const clonedImages = Array.isArray(orig.images) && orig.images.length ? orig.images : [orig.imageUrl];
+    await syncProductImages(newId, clonedImages);
+    aiChatService.invalidateStoreCache();
     const cloned = await productService.getProductByIdOrSlug(newId, { includeInactive: true });
     return created(res, cloned, `Đã nhân bản sản phẩm thành công với mã SKU mới: #${newSku}`);
   } catch (error) {
@@ -712,13 +806,14 @@ router.post('/products/:id/clone', async (req, res, next) => {
 
 router.get('/orders', async (req, res, next) => {
   try {
-    const { status, paymentStatus, paymentMethod, search, spxStatus, page = 1, limit = 50 } = req.query;
+    const { status, paymentStatus, paymentMethod, search, spxStatus, userId, page = 1, limit = 50 } = req.query;
 
     const result = await orderService.listOrders({
       status,
       paymentStatus,
       paymentMethod,
       spxStatus,
+      userId: userId ? parseInt(userId, 10) : undefined,
       q: search,
       page: parseInt(page, 10) || 1,
       pageSize: parseInt(limit, 10) || 50
@@ -908,6 +1003,7 @@ router.put('/orders/:id/preorder-arrived', async (req, res, next) => {
       `, { pid });
     }
 
+    aiChatService.invalidateStoreCache();
     const updated = await orderService.getOrderByCodeOrId(oid);
     return ok(res, { order: updated, updatedProductIds: productIds }, `Đã xác nhận: Lô hàng cho đơn #${updated.code} đã về kho và các sản phẩm đã được chuyển thành Hàng có sẵn!`);
   } catch (error) {
@@ -950,6 +1046,7 @@ router.put('/products/:id/convert-to-instock', async (req, res, next) => {
       });
     }
 
+    aiChatService.invalidateStoreCache();
     const updatedProd = await productService.getProductById(productId);
     return ok(res, {
       product: updatedProd,
@@ -970,6 +1067,7 @@ router.put('/orders/:id/cancel', async (req, res, next) => {
       actorId: req.user ? req.user.userId : null,
       isAdmin: true
     });
+    aiChatService.invalidateStoreCache();
 
     const msg = updated.paymentStatus === 'REFUND_PENDING'
       ? `Đã hủy đơn hàng #${updated.code}. Đơn đã chuyển sang trạng thái "Chờ hoàn tiền".`
@@ -1116,6 +1214,47 @@ router.delete('/users/:id', async (req, res, next) => {
   }
 });
 
+// Lấy toàn bộ lịch sử đơn hàng của một khách hàng cụ thể
+router.get('/users/:id/orders', async (req, res, next) => {
+  try {
+    const userId = parseInt(req.params.id, 10);
+    if (isNaN(userId)) throw badRequest('ID tài khoản không hợp lệ');
+
+    // Lấy thông tin tóm tắt của user
+    const uCheck = await db.query('SELECT UserId, FullName, Email, Phone, Address, Role, CreatedAt FROM Users WHERE UserId = @userId', { userId });
+    if (!uCheck.recordset || !uCheck.recordset.length) {
+      throw notFound('Không tìm thấy tài khoản người dùng');
+    }
+    const user = uCheck.recordset[0];
+
+    const result = await orderService.listOrders({
+      userId,
+      pageSize: 100
+    });
+
+    const orders = result.items || [];
+    const totalSpent = orders.reduce((sum, o) => sum + (o.status !== 'CANCELLED' ? Number(o.total || 0) : 0), 0);
+    const deliveredSpent = orders.reduce((sum, o) => sum + (o.status === 'DELIVERED' ? Number(o.total || 0) : 0), 0);
+
+    return ok(res, {
+      user: {
+        userId: Number(user.UserId ?? user.userid),
+        fullName: user.FullName ?? user.fullname,
+        email: user.Email ?? user.email,
+        phone: user.Phone ?? user.phone,
+        address: user.Address ?? user.address,
+        createdAt: user.CreatedAt ?? user.createdat,
+        totalOrders: orders.length,
+        totalSpent,
+        deliveredSpent
+      },
+      orders
+    }, 'Lấy lịch sử đơn hàng của khách thành công');
+  } catch (error) {
+    next(error);
+  }
+});
+
 // =====================================================================
 // 5. QUẢN LÝ BẢN TIN (NEWSLETTER SUBSCRIBERS)
 // =====================================================================
@@ -1161,6 +1300,7 @@ router.get('/settings', async (req, res, next) => {
 router.put('/settings', async (req, res, next) => {
   try {
     const updated = settingsService.update ? await settingsService.update(req.body) : req.body;
+    aiChatService.invalidateStoreCache();
     return ok(res, updated, 'Đã cập nhật thiết lập cửa hàng thành công!');
   } catch (error) {
     next(error);
@@ -1186,6 +1326,7 @@ router.get('/coupons', async (req, res, next) => {
 router.post('/coupons', async (req, res, next) => {
   try {
     const coupon = await couponService.createCoupon(req.body);
+    aiChatService.invalidateStoreCache();
     return res.status(201).json({
       success: true,
       message: `Tạo mã giảm giá "${coupon.code}" thành công!`,
@@ -1199,6 +1340,7 @@ router.post('/coupons', async (req, res, next) => {
 router.put('/coupons/:id', async (req, res, next) => {
   try {
     const coupon = await couponService.updateCoupon(req.params.id, req.body);
+    aiChatService.invalidateStoreCache();
     return res.status(200).json({
       success: true,
       message: 'Cập nhật mã giảm giá thành công!',
@@ -1212,6 +1354,7 @@ router.put('/coupons/:id', async (req, res, next) => {
 router.delete('/coupons/:id', async (req, res, next) => {
   try {
     await couponService.deleteCoupon(req.params.id);
+    aiChatService.invalidateStoreCache();
     return res.status(200).json({
       success: true,
       message: 'Đã xóa mã giảm giá thành công!'

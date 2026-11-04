@@ -7,7 +7,10 @@ require('dotenv').config({ quiet: true });
 // Tự động ép kiểu DECIMAL/NUMERIC của Postgres sang Number
 types.setTypeParser(1700, (val) => (val === null ? null : parseFloat(val)));
 
-const CONNECTION_STRING = process.env.DATABASE_URL || process.env.DB_CONNECTION_STRING || 'postgresql://postgres.jrxqznqitjzfbhzbppuu:Doquocthinh123@aws-0-ap-northeast-1.pooler.supabase.com:6543/postgres';
+const CONNECTION_STRING = process.env.DATABASE_URL || process.env.DB_CONNECTION_STRING;
+if (!CONNECTION_STRING) {
+  console.error('❌ [DB CONFIG ERROR] Thiếu biến môi trường DATABASE_URL trong .env!');
+}
 
 const COLUMN_MAP = {
   categoryid: 'CategoryId', categoryslug: 'CategorySlug', categoryname: 'CategoryName',

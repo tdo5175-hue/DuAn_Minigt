@@ -10,6 +10,16 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
   <link rel="stylesheet" href="css/admin.css">
+  <script>
+    (function() {
+      try {
+        const savedTheme = localStorage.getItem('minigt_theme') || 'light';
+        document.documentElement.setAttribute('data-theme', savedTheme);
+        const savedLang = localStorage.getItem('minigt_lang') || 'vi';
+        document.documentElement.setAttribute('lang', savedLang);
+      } catch (_) {}
+    })();
+  </script>
 </head>
 <body>
   <!-- Slim Top Loading Progress Bar (YouTube/GitHub-style) -->
@@ -44,6 +54,10 @@
       <button class="nav-item" id="nav-coupons" onclick="switchTab('coupons')">
         <i class="fa-solid fa-ticket"></i> Mã giảm giá &amp; Voucher
         <span class="badge-count" id="sidebarCouponsCount" style="margin-left:auto; background:#10b981; color:#fff; font-size:10px; padding:1px 6px; border-radius:10px; font-weight:700;">VIP</span>
+      </button>
+      <button class="nav-item" id="nav-chat" onclick="switchTab('chat')">
+        <i class="fa-solid fa-headset"></i> Hỗ trợ &amp; AI Chat
+        <span class="badge-count" id="sidebarChatCount" style="display:none; margin-left:auto; background:#ef4444; color:#fff; font-size:10px; padding:1px 6px; border-radius:10px; font-weight:700;">0</span>
       </button>
       <button class="nav-item" id="nav-subscribers" onclick="switchTab('subscribers')">
         <i class="fa-solid fa-envelope-open-text"></i> Đăng ký bản tin
@@ -86,33 +100,33 @@
         <button class="btn-admin btn-admin-outline" id="sidebarToggleBtn" onclick="toggleSidebar()" style="display:none; padding:6px 10px;" aria-label="Toggle menu">
           <i class="fa-solid fa-bars"></i>
         </button>
-        <h1 class="topbar-title" id="pageTitle">Tổng Quan Quản Trị Store</h1>
+        <h1 class="topbar-title" id="pageTitle" data-i18n="dash_title">Tổng Quan Quản Trị Store</h1>
       </div>
 
       <div class="topbar-actions">
         <!-- Unified Display Settings (Theme & Language in 1 Dropdown) -->
         <div class="admin-settings-wrap" id="adminSettingsWrap">
           <button type="button" class="btn-admin btn-admin-outline" id="adminDisplaySettingsBtn" onclick="toggleAdminSettingsMenu(event)" title="Cài đặt giao diện & ngôn ngữ" aria-label="Cài đặt hiển thị">
-            <i class="fa-solid fa-sliders"></i> <span>Cài Đặt Hiển Thị</span> <i class="fa-solid fa-chevron-down" style="font-size:10px; margin-left:3px;"></i>
+            <i class="fa-solid fa-sliders"></i> <span data-i18n="topbar_display_settings">Cài Đặt Hiển Thị</span> <i class="fa-solid fa-chevron-down" style="font-size:10px; margin-left:3px;"></i>
           </button>
           <div class="admin-settings-dropdown" id="adminSettingsDropdown">
-            <div class="settings-dropdown-header">
+            <div class="settings-dropdown-header" data-i18n="topbar_display_settings">
               <i class="fa-solid fa-sliders"></i> Cài Đặt Hiển Thị
             </div>
             <div class="settings-dropdown-item" onclick="toggleAdminTheme()">
               <div class="settings-item-label">
                 <i class="fa-solid fa-circle-half-stroke"></i>
-                <span>Giao diện</span>
+                <span data-i18n="topbar_theme">Giao diện</span>
               </div>
               <button type="button" class="admin-pill-toggle" id="adminThemePill">
                 <i class="fa-solid fa-moon" id="adminThemeIcon"></i>
-                <span id="adminThemeLabel">Tối</span>
+                <span id="adminThemeLabel" data-i18n="topbar_theme_dark">Tối</span>
               </button>
             </div>
             <div class="settings-dropdown-item" onclick="toggleAdminLang()">
               <div class="settings-item-label">
                 <i class="fa-solid fa-globe"></i>
-                <span>Ngôn ngữ</span>
+                <span data-i18n="topbar_lang">Ngôn ngữ</span>
               </div>
               <button type="button" class="admin-pill-toggle" id="adminLangPill">
                 <span id="adminLangFlag">🇻🇳</span>
@@ -122,10 +136,10 @@
           </div>
         </div>
         <button type="button" class="btn-admin btn-admin-outline" style="border-color:#f59e0b; color:#b45309; background:#fffbeb;" onclick="switchTab('about')">
-          <i class="fa-solid fa-user-graduate"></i> Nhóm Tác Giả
+          <i class="fa-solid fa-user-graduate"></i> <span data-i18n="topbar_authors">Nhóm Tác Giả</span>
         </button>
         <a href="../index.html" class="btn-admin btn-admin-outline" style="text-decoration:none; display:inline-flex; align-items:center; gap:6px;">
-          <i class="fa-solid fa-store"></i> Xem Cửa Hàng
+          <i class="fa-solid fa-store"></i> <span data-i18n="topbar_view_store">Xem Cửa Hàng</span>
         </a>
         <div class="server-status-pill" id="serverStatusPill" title="Trạng thái máy chủ">
           <span class="dot"></span>
@@ -142,24 +156,24 @@
             <div class="notif-dropdown-header">
               <div style="display:flex; align-items:center; gap:6px;">
                 <i class="fa-solid fa-bell" style="color:#e10600;"></i>
-                <strong style="font-size:13px; color:var(--admin-text-main);">Thông Báo Đơn Hàng</strong>
+                <strong style="font-size:13px; color:var(--admin-text-main);" data-i18n="topbar_notifications">Thông Báo Đơn Hàng</strong>
               </div>
               <div style="display:flex; align-items:center; gap:8px;">
                 <button type="button" class="btn-sound-toggle" id="btnAdminSoundToggle" onclick="toggleAdminOrderSound(event)" title="Bật/Tắt âm thanh chuông báo">
                   <i class="fa-solid fa-volume-high" id="soundToggleIcon"></i>
                 </button>
-                <button type="button" class="btn-clear-notif" onclick="markAllAdminNotifsRead(event)">Đã xem</button>
+                <button type="button" class="btn-clear-notif" onclick="markAllAdminNotifsRead(event)" data-i18n="topbar_notif_mark_read">Đã xem</button>
               </div>
             </div>
             <div class="notif-list-container" id="adminNotifList">
               <div class="notif-empty-state">
                 <i class="fa-regular fa-bell-slash"></i>
-                <span>Chưa có thông báo đơn hàng mới</span>
+                <span data-i18n="topbar_notif_empty">Chưa có thông báo đơn hàng mới</span>
               </div>
             </div>
             <div class="notif-dropdown-footer">
               <button type="button" onclick="switchTab('orders'); closeAdminNotifDropdown();" class="btn-view-all-orders">
-                <span>Quản lý danh sách đơn hàng</span> <i class="fa-solid fa-arrow-right"></i>
+                <span data-i18n="topbar_notif_view_orders">Quản lý danh sách đơn hàng</span> <i class="fa-solid fa-arrow-right"></i>
               </button>
             </div>
           </div>
@@ -179,28 +193,28 @@
         <div class="stats-grid">
           <div class="stat-card">
             <div class="stat-info">
-              <div class="stat-label">Tổng Doanh Thu Thực Tế</div>
+              <div class="stat-label" data-i18n="dash_kpi_net_revenue">Tổng Doanh Thu Thực Tế</div>
               <div class="stat-val" id="statRevenue">0đ</div>
             </div>
             <div class="stat-icon" style="background:#ecfdf5; color:#059669;"><i class="fa-solid fa-sack-dollar"></i></div>
           </div>
           <div class="stat-card">
             <div class="stat-info">
-              <div class="stat-label">Tiền Cọc Đã Thu (Pre-Order)</div>
+              <div class="stat-label" data-i18n="dash_kpi_deposit">Tiền Cọc Đã Thu (Pre-Order)</div>
               <div class="stat-val" id="statDeposits">0đ</div>
             </div>
             <div class="stat-icon" style="background:#eff6ff; color:#2563eb;"><i class="fa-solid fa-money-bill-transfer"></i></div>
           </div>
           <div class="stat-card">
             <div class="stat-info">
-              <div class="stat-label">Tổng Số Đơn Hàng</div>
+              <div class="stat-label" data-i18n="dash_kpi_total_orders">Tổng Số Đơn Hàng</div>
               <div class="stat-val" id="statOrders">0</div>
             </div>
             <div class="stat-icon" style="background:#fef2f2; color:#dc2626;"><i class="fa-solid fa-boxes-packing"></i></div>
           </div>
           <div class="stat-card">
             <div class="stat-info">
-              <div class="stat-label">Tổng Mô Hình Đang Bán</div>
+              <div class="stat-label" data-i18n="dash_kpi_models_in_stock">Tổng Mô Hình Đang Bán</div>
               <div class="stat-val" id="statProducts">0</div>
               <div style="font-size:11px; color:#d97706; margin-top:2px;" id="statLowStockNotice">0 mẫu sắp hết hàng</div>
             </div>
@@ -208,14 +222,14 @@
           </div>
           <div class="stat-card">
             <div class="stat-info">
-              <div class="stat-label">Khách Hàng Đăng Ký</div>
+              <div class="stat-label" data-i18n="dash_kpi_customers">Khách Hàng Đăng Ký</div>
               <div class="stat-val" id="statCustomers">0</div>
             </div>
             <div class="stat-icon" style="background:#f3e8ff; color:#7e22ce;"><i class="fa-solid fa-users"></i></div>
           </div>
           <div class="stat-card">
             <div class="stat-info">
-              <div class="stat-label">Đăng Ký Nhận Bản Tin</div>
+              <div class="stat-label" data-i18n="dash_kpi_subscribers">Đăng Ký Nhận Bản Tin</div>
               <div class="stat-val" id="statSubscribers">0</div>
             </div>
             <div class="stat-icon" style="background:#e0e7ff; color:#4338ca;"><i class="fa-solid fa-envelope-open-text"></i></div>
@@ -225,7 +239,7 @@
         <!-- ORDER STATUS COUNTERS ROW -->
         <div class="admin-card" style="margin-bottom: 1.5rem; padding: 1rem 1.25rem;">
           <div style="font-size:13px; font-weight:700; color:#475569; margin-bottom:10px; text-transform:uppercase; letter-spacing:0.5px;">
-            <i class="fa-solid fa-filter" style="margin-right:4px;"></i> Trạng thái luồng đơn hàng hiện tại
+            <i class="fa-solid fa-filter" style="margin-right:4px;"></i> <span data-i18n="dash_flow_status">Trạng thái luồng đơn hàng hiện tại</span>
           </div>
           <div class="order-status-pills-row" id="dashboardStatusPills">
             <!-- Rendered by JS -->
@@ -236,20 +250,20 @@
           <!-- Recent Orders -->
           <div class="admin-card">
             <div class="admin-card-header">
-              <h2 class="admin-card-title"><i class="fa-solid fa-clock-rotate-left"></i> Đơn Hàng Mới Nhất</h2>
-              <button class="btn-admin btn-admin-outline" onclick="switchTab('orders')">Xem tất cả đơn ➔</button>
+              <h2 class="admin-card-title"><i class="fa-solid fa-clock-rotate-left"></i> <span data-i18n="dash_recent_orders">Đơn Hàng Mới Nhất</span></h2>
+              <button class="btn-admin btn-admin-outline" onclick="switchTab('orders')" data-i18n="dash_view_all_orders">Xem tất cả đơn ➔</button>
             </div>
             <div class="table-responsive">
               <table class="admin-table">
                 <thead>
                   <tr>
-                    <th>Mã đơn</th>
-                    <th>Khách hàng</th>
-                    <th>Tổng tiền</th>
-                    <th>Thanh toán</th>
-                    <th>Trạng thái</th>
-                    <th>Thời gian</th>
-                    <th>Chi tiết</th>
+                    <th data-i18n="col_order_code">Mã đơn</th>
+                    <th data-i18n="col_customer">Khách hàng</th>
+                    <th data-i18n="col_total">Tổng tiền</th>
+                    <th data-i18n="col_payment">Thanh toán</th>
+                    <th data-i18n="col_status">Trạng thái</th>
+                    <th data-i18n="col_time">Thời gian</th>
+                    <th data-i18n="col_actions">Chi tiết</th>
                   </tr>
                 </thead>
                 <tbody id="recentOrdersTbody"></tbody>
@@ -260,7 +274,7 @@
           <!-- Best Sellers -->
           <div class="admin-card">
             <div class="admin-card-header">
-              <h2 class="admin-card-title"><i class="fa-solid fa-fire" style="color:#ef4444;"></i> Bán Chạy Nhất</h2>
+              <h2 class="admin-card-title"><i class="fa-solid fa-fire" style="color:#ef4444;"></i> <span data-i18n="dash_best_sellers">Bán Chạy Nhất</span></h2>
             </div>
             <div id="bestSellersContainer" class="best-sellers-list">
               <!-- Rendered by JS -->
@@ -273,13 +287,13 @@
       <section class="tab-pane" id="pane-products" style="display: none;">
         <div class="admin-card">
           <div class="admin-card-header" style="flex-wrap:wrap; gap:12px;">
-            <h2 class="admin-card-title"><i class="fa-solid fa-car-side"></i> Danh Sách Mô Hình Xe Die-Cast</h2>
+            <h2 class="admin-card-title"><i class="fa-solid fa-car-side"></i> <span data-i18n="prod_title">Danh Sách Mô Hình Xe Die-Cast</span></h2>
             <div style="display:flex; gap:8px;">
               <button class="btn-admin btn-admin-outline" onclick="loadProducts()">
-                <i class="fa-solid fa-rotate-right"></i> Làm mới
+                <i class="fa-solid fa-rotate-right"></i> <span data-i18n="btn_refresh">Làm mới</span>
               </button>
               <button class="btn-admin btn-admin-primary" onclick="openAddProductModal()">
-                <i class="fa-solid fa-plus"></i> Thêm Mô Hình Mới
+                <i class="fa-solid fa-plus"></i> <span data-i18n="prod_btn_add">Thêm Mô Hình Mới</span>
               </button>
             </div>
           </div>
@@ -287,10 +301,10 @@
           <!-- Product Filters Toolbar -->
           <div class="admin-filters-bar" style="background:#f8fafc; padding:12px; border-radius:8px; border:1px solid #e2e8f0; margin-bottom:1rem; display:flex; flex-wrap:wrap; gap:10px; align-items:center;">
             <div style="flex:1; min-width:200px; position:relative;">
-              <input type="text" id="prodSearchInput" class="form-control" placeholder="Tìm theo tên xe, SKU, hãng..." oninput="handleProductSearchDebounced(this.value)">
+              <input type="text" id="prodSearchInput" class="form-control" placeholder="Tìm theo tên xe, SKU, hãng..." data-i18n-placeholder="prod_search_placeholder" oninput="handleProductSearchDebounced(this.value)">
             </div>
             <select id="prodCategoryFilter" class="form-control" style="max-width:180px;" onchange="handleProductFilterChange()">
-              <option value="all">-- Tất cả danh mục --</option>
+              <option value="all" data-i18n="filter_all_categories">-- Tất cả danh mục --</option>
               <option value="liberty-walk">Liberty Walk LBWK</option>
               <option value="f1-racing">Formula 1 Racing</option>
               <option value="gt-racing">IMSA & GT3 Racing</option>
@@ -298,27 +312,27 @@
               <option value="partner">Pop Race & Collab</option>
             </select>
             <select id="prodStatusFilter" class="form-control" style="max-width:160px;" onchange="handleProductFilterChange()">
-              <option value="all">-- Tất cả tình trạng --</option>
-              <option value="in_stock">Có sẵn</option>
-              <option value="pre_order">Pre-Order</option>
-              <option value="sold_out">Hết hàng</option>
+              <option value="all" data-i18n="filter_all_statuses">-- Tất cả tình trạng --</option>
+              <option value="in_stock" data-i18n="status_in_stock">Có sẵn</option>
+              <option value="pre_order" data-i18n="status_pre_order">Pre-Order</option>
+              <option value="sold_out" data-i18n="status_sold_out">Hết hàng</option>
             </select>
             <label style="display:flex; align-items:center; gap:5px; font-size:12.5px; font-weight:600; color:#64748b; cursor:pointer; user-select:none; white-space:nowrap;">
               <input type="checkbox" id="prodShowHiddenFilter" style="width:14px; height:14px; accent-color:#dc2626; cursor:pointer;" onchange="handleProductFilterChange()">
-              <span>Hiện SP đã ẩn</span>
+              <span data-i18n="prod_show_hidden">Hiện SP đã ẩn</span>
             </label>
             <select id="prodStockFilter" class="form-control" style="max-width:150px;" onchange="handleProductFilterChange()">
-              <option value="all">-- Tồn kho --</option>
-              <option value="in_stock">Còn nhiều (>5)</option>
-              <option value="low_stock">Sắp hết (≤5)</option>
-              <option value="out_of_stock">Hết hàng (0)</option>
+              <option value="all" data-i18n="filter_stock_all">-- Tồn kho --</option>
+              <option value="in_stock" data-i18n="filter_stock_many">Còn nhiều (>5)</option>
+              <option value="low_stock" data-i18n="filter_stock_low">Sắp hết (≤5)</option>
+              <option value="out_of_stock" data-i18n="filter_stock_out">Hết hàng (0)</option>
             </select>
             <select id="prodSortFilter" class="form-control" style="max-width:160px;" onchange="handleProductFilterChange()">
-              <option value="newest">Mới nhất</option>
-              <option value="best_selling">Bán chạy nhất</option>
-              <option value="price_asc">Giá tăng dần</option>
-              <option value="price_desc">Giá giảm dần</option>
-              <option value="stock_asc">Tồn kho ít nhất</option>
+              <option value="newest" data-i18n="sort_newest">Mới nhất</option>
+              <option value="best_selling" data-i18n="sort_best_selling">Bán chạy nhất</option>
+              <option value="price_asc" data-i18n="sort_price_asc">Giá tăng dần</option>
+              <option value="price_desc" data-i18n="sort_price_desc">Giá giảm dần</option>
+              <option value="stock_asc" data-i18n="sort_stock_asc">Tồn kho ít nhất</option>
             </select>
           </div>
 
@@ -326,15 +340,15 @@
             <table class="admin-table">
               <thead>
                 <tr>
-                  <th style="width:70px;">Ảnh</th>
-                  <th>Mã SKU</th>
-                  <th>Tên mô hình</th>
-                  <th>Danh mục / Hãng</th>
-                  <th>Giá bán</th>
-                  <th>Tồn kho</th>
-                  <th>Tình trạng</th>
-                  <th>Đặc biệt</th>
-                  <th style="text-align:right;">Thao tác</th>
+                  <th style="width:70px;" data-i18n="col_photo">Ảnh</th>
+                  <th data-i18n="col_sku">Mã SKU</th>
+                  <th data-i18n="col_model_name">Tên mô hình</th>
+                  <th data-i18n="col_category_brand">Danh mục / Hãng</th>
+                  <th data-i18n="col_price">Giá bán</th>
+                  <th data-i18n="col_stock">Tồn kho</th>
+                  <th data-i18n="col_status">Tình trạng</th>
+                  <th data-i18n="col_special">Đặc biệt</th>
+                  <th style="text-align:right;" data-i18n="col_actions">Thao tác</th>
                 </tr>
               </thead>
               <tbody id="productsTbody"></tbody>
@@ -351,15 +365,15 @@
         <div class="admin-card">
           <div class="admin-card-header" style="flex-wrap:wrap; gap:10px;">
             <div>
-              <h2 class="admin-card-title"><i class="fa-solid fa-box-archive"></i> Quản Lý Đơn Cọc & Giao Hàng</h2>
-              <p style="font-size:12px; color:#64748b; margin:2px 0 0 0;">Xử lý quy trình cọc, duyệt đơn, tạo vận đơn SPX Express và cập nhật lộ trình</p>
+              <h2 class="admin-card-title"><i class="fa-solid fa-box-archive"></i> <span data-i18n="orders_title">Quản Lý Đơn Cọc & Giao Hàng</span></h2>
+              <p style="font-size:12px; color:#64748b; margin:2px 0 0 0;" data-i18n="orders_subtitle">Xử lý quy trình cọc, duyệt đơn, tạo vận đơn SPX Express và cập nhật lộ trình</p>
             </div>
             <div style="display:flex; gap:8px;">
               <button class="btn-admin btn-admin-outline" onclick="loadOrders()">
-                <i class="fa-solid fa-rotate-right"></i> Làm mới
+                <i class="fa-solid fa-rotate-right"></i> <span data-i18n="btn_refresh">Làm mới</span>
               </button>
               <button class="btn-admin btn-admin-outline" onclick="exportOrdersToCSV()">
-                <i class="fa-solid fa-file-csv"></i> Xuất CSV
+                <i class="fa-solid fa-file-csv"></i> <span data-i18n="orders_btn_export_csv">Xuất CSV</span>
               </button>
             </div>
           </div>
@@ -367,28 +381,28 @@
           <!-- Order Tabs -->
           <div class="order-status-tabs" id="orderStatusTabsBar">
             <button class="order-tab-btn active" data-status="ALL" onclick="setOrderTab('ALL')">
-              Tất cả <span class="tab-pill-count" id="tabCountAll">0</span>
+              <span data-i18n="order_tab_all">Tất cả</span> <span class="tab-pill-count" id="tabCountAll">0</span>
             </button>
             <button class="order-tab-btn" data-status="PENDING" onclick="setOrderTab('PENDING')">
-              Chờ duyệt <span class="tab-pill-count" id="tabCountPending">0</span>
+              <span data-i18n="order_tab_pending">Chờ duyệt</span> <span class="tab-pill-count" id="tabCountPending">0</span>
             </button>
             <button class="order-tab-btn" data-status="CONFIRMED" onclick="setOrderTab('CONFIRMED')">
-              Đã duyệt <span class="tab-pill-count" id="tabCountConfirmed">0</span>
+              <span data-i18n="order_tab_confirmed">Đã duyệt</span> <span class="tab-pill-count" id="tabCountConfirmed">0</span>
             </button>
             <button class="order-tab-btn" data-status="PREPARING" onclick="setOrderTab('PREPARING')">
-              Đang đóng gói <span class="tab-pill-count" id="tabCountPreparing">0</span>
+              <span data-i18n="order_tab_preparing">Đang đóng gói</span> <span class="tab-pill-count" id="tabCountPreparing">0</span>
             </button>
             <button class="order-tab-btn" data-status="SHIPPING" onclick="setOrderTab('SHIPPING')">
-              Đang giao SPX <span class="tab-pill-count" id="tabCountShipping">0</span>
+              <span data-i18n="order_tab_shipping">Đang giao SPX</span> <span class="tab-pill-count" id="tabCountShipping">0</span>
             </button>
             <button class="order-tab-btn" data-status="DELIVERED" onclick="setOrderTab('DELIVERED')">
-              Đã giao <span class="tab-pill-count" id="tabCountDelivered">0</span>
+              <span data-i18n="order_tab_delivered">Đã giao</span> <span class="tab-pill-count" id="tabCountDelivered">0</span>
             </button>
             <button class="order-tab-btn" data-status="CANCELLED" onclick="setOrderTab('CANCELLED')">
-              Đã hủy <span class="tab-pill-count" id="tabCountCancelled">0</span>
+              <span data-i18n="order_tab_cancelled">Đã hủy</span> <span class="tab-pill-count" id="tabCountCancelled">0</span>
             </button>
             <button class="order-tab-btn pre-order-tab-highlight" data-status="PRE_ORDER" onclick="setOrderTab('PRE_ORDER')">
-              ⚡ Đơn Pre-Order <span class="tab-pill-count" id="tabCountPreOrder">0</span>
+              ⚡ <span data-i18n="order_tab_pre_order">Đơn Pre-Order</span> <span class="tab-pill-count" id="tabCountPreOrder">0</span>
             </button>
           </div>
 
@@ -396,24 +410,24 @@
           <div id="preorderSubFilterBar" class="preorder-sub-filter-bar" style="display:none;">
             <div class="preorder-sub-filter-header">
               <span class="preorder-stage-icon">⚡</span>
-              <span class="preorder-stage-title">Quy trình xử lý đơn Pre-Order:</span>
-              <span class="preorder-stage-hint">Theo dõi & cập nhật từng bước đặt cọc, chờ hàng, về kho để không bao giờ bị trôi đơn</span>
+              <span class="preorder-stage-title" data-i18n="preorder_filter_title">Quy trình xử lý đơn Pre-Order:</span>
+              <span class="preorder-stage-hint" data-i18n="preorder_filter_hint">Theo dõi & cập nhật từng bước đặt cọc, chờ hàng, về kho để không bao giờ bị trôi đơn</span>
             </div>
             <div class="preorder-sub-filter-pills">
               <button type="button" class="preorder-sub-btn active" data-prestage="ALL" onclick="setPreOrderSubStage('ALL')">
-                Tất cả Pre-Order <span class="pre-sub-count" id="preCountAll">0</span>
+                <span data-i18n="pre_stage_all">Tất cả Pre-Order</span> <span class="pre-sub-count" id="preCountAll">0</span>
               </button>
               <button type="button" class="preorder-sub-btn" data-prestage="NEED_DEPOSIT" onclick="setPreOrderSubStage('NEED_DEPOSIT')">
-                ⏳ Cần xác nhận cọc <span class="pre-sub-count" id="preCountNeedDeposit">0</span>
+                <i class="fa-regular fa-clock" style="margin-right:3px;"></i> <span data-i18n="pre_stage_need_deposit">Cần xác nhận cọc</span> <span class="pre-sub-count" id="preCountNeedDeposit">0</span>
               </button>
               <button type="button" class="preorder-sub-btn" data-prestage="WAITING_GOODS" onclick="setPreOrderSubStage('WAITING_GOODS')">
-                📦 Chờ hãng giao hàng <span class="pre-sub-count" id="preCountWaitingGoods">0</span>
+                <i class="fa-solid fa-box" style="margin-right:3px;"></i> <span data-i18n="pre_stage_waiting_goods">Chờ hãng giao hàng</span> <span class="pre-sub-count" id="preCountWaitingGoods">0</span>
               </button>
               <button type="button" class="preorder-sub-btn" data-prestage="GOODS_ARRIVED" onclick="setPreOrderSubStage('GOODS_ARRIVED')">
-                🎉 Đã về kho (Chờ xuất/giao) <span class="pre-sub-count" id="preCountGoodsArrived">0</span>
+                <i class="fa-solid fa-boxes-stacked" style="margin-right:3px;"></i> <span data-i18n="pre_stage_goods_arrived">Đã về kho (Chờ xuất/giao)</span> <span class="pre-sub-count" id="preCountGoodsArrived">0</span>
               </button>
               <button type="button" class="preorder-sub-btn" data-prestage="SHIPPED" onclick="setPreOrderSubStage('SHIPPED')">
-                🚚 Đã giao hàng / Hoàn tất <span class="pre-sub-count" id="preCountShipped">0</span>
+                <i class="fa-solid fa-truck-fast" style="margin-right:3px;"></i> <span data-i18n="pre_stage_shipped">Đã giao hàng / Hoàn tất</span> <span class="pre-sub-count" id="preCountShipped">0</span>
               </button>
             </div>
           </div>
@@ -421,35 +435,35 @@
           <!-- Order Search & Filters -->
           <div class="admin-filters-bar" style="background:#f8fafc; padding:10px 12px; border-radius:8px; border:1px solid #e2e8f0; margin-bottom:1rem; display:flex; flex-wrap:wrap; gap:8px; align-items:center;">
             <div style="flex:1; min-width:220px;">
-              <input type="text" id="orderSearchInput" class="form-control" placeholder="Tìm theo mã đơn (MGT-...), Tên, SĐT khách..." oninput="handleOrderSearchDebounced(this.value)">
+              <input type="text" id="orderSearchInput" class="form-control" placeholder="Tìm theo mã đơn (MGT-...), Tên, SĐT khách..." data-i18n-placeholder="orders_search_placeholder" oninput="handleOrderSearchDebounced(this.value)">
             </div>
             <select id="orderPayStatusFilter" class="form-control" style="max-width:180px;" onchange="handleOrderFilterChange()">
-              <option value="ALL">-- Tất cả thanh toán --</option>
-              <option value="UNPAID">Chưa thanh toán / Check MB</option>
-              <option value="PARTIALLY_PAID">Đã nhận tiền cọc</option>
-              <option value="PAID">Đã thanh toán đủ</option>
-              <option value="REFUND_PENDING">Chờ hoàn tiền</option>
-              <option value="REFUNDED">Đã hoàn tiền</option>
+              <option value="ALL" data-i18n="filter_pay_all">-- Tất cả thanh toán --</option>
+              <option value="UNPAID" data-i18n="filter_pay_unpaid">Chưa thanh toán / Check MB</option>
+              <option value="PARTIALLY_PAID" data-i18n="filter_pay_partial">Đã nhận tiền cọc</option>
+              <option value="PAID" data-i18n="filter_pay_paid">Đã thanh toán đủ</option>
+              <option value="REFUND_PENDING" data-i18n="filter_pay_refund_pending">Chờ hoàn tiền</option>
+              <option value="REFUNDED" data-i18n="filter_pay_refunded">Đã hoàn tiền</option>
             </select>
             <select id="orderPayMethodFilter" class="form-control" style="max-width:190px;" onchange="handleOrderFilterChange()">
-              <option value="ALL">-- Tất cả phương thức --</option>
-              <option value="VIETQR_PAYOS">⚡ Thanh toán PayOS tự động</option>
-              <option value="COD">Ship COD</option>
-              <option value="DEPOSIT">Đặt cọc MB Bank</option>
-              <option value="BANK_TRANSFER">Chuyển khoản Full</option>
+              <option value="ALL" data-i18n="filter_method_all">-- Tất cả phương thức --</option>
+              <option value="VIETQR_PAYOS" data-i18n="filter_method_payos">⚡ Thanh toán PayOS tự động</option>
+              <option value="COD" data-i18n="filter_method_cod">Ship COD</option>
+              <option value="DEPOSIT" data-i18n="filter_method_deposit">Đặt cọc MB Bank</option>
+              <option value="BANK_TRANSFER" data-i18n="filter_method_bank">Chuyển khoản Full</option>
             </select>
-            <button type="button" class="btn-admin" style="background:#eff6ff; color:#0284c7; border:1px solid #bae6fd; font-weight:700; font-size:12px; padding:6px 12px; display:inline-flex; align-items:center; gap:5px;" onclick="filterPayosOrders()" title="Lọc nhanh các đơn thanh toán PayOS tự động">
-              <i class="fa-solid fa-bolt"></i> Đơn PayOS Tự Động
+            <button type="button" class="btn-admin" style="background:#eff6ff; color:#0284c7; border:1px solid #bae6fd; font-weight:700; font-size:12px; padding:6px 12px; display:inline-flex; align-items:center; gap:5px;" onclick="filterPayosOrders()" title="Lọc nhanh các đơn thanh toán PayOS tự động" data-i18n-title="filter_payos_tooltip">
+              <i class="fa-solid fa-bolt"></i> <span data-i18n="btn_payos_orders">Đơn PayOS Tự Động</span>
             </button>
             <select id="orderAddressTypeFilter" class="form-control" style="max-width:175px;" onchange="handleOrderFilterChange()">
-              <option value="ALL">-- Tất cả loại địa chỉ --</option>
-              <option value="NEW">Địa chỉ MỚI (Đã sáp nhập)</option>
-              <option value="OLD">Địa chỉ CŨ (Cần đối chiếu ĐVHC)</option>
+              <option value="ALL" data-i18n="filter_addr_all">-- Tất cả loại địa chỉ --</option>
+              <option value="NEW" data-i18n="filter_addr_new">Địa chỉ MỚI (Đã sáp nhập)</option>
+              <option value="OLD" data-i18n="filter_addr_old">Địa chỉ CŨ (Cần đối chiếu ĐVHC)</option>
             </select>
             <select id="orderSpxFilter" class="form-control" style="max-width:165px;" onchange="handleOrderFilterChange()">
-              <option value="ALL">-- Trạng thái SPX --</option>
-              <option value="UNASSIGNED">Chưa gán SPX</option>
-              <option value="ASSIGNED">Đã có mã SPX</option>
+              <option value="ALL" data-i18n="filter_spx_all">-- Trạng thái SPX --</option>
+              <option value="UNASSIGNED" data-i18n="filter_spx_unassigned">Chưa gán SPX</option>
+              <option value="ASSIGNED" data-i18n="filter_spx_assigned">Đã có mã SPX</option>
             </select>
           </div>
 
@@ -457,13 +471,13 @@
             <table class="admin-table admin-orders-table">
               <thead>
                 <tr>
-                  <th style="min-width:145px; white-space:nowrap;">Mã Đơn &amp; Thời Gian</th>
-                  <th style="min-width:180px;">Khách Hàng &amp; SĐT</th>
-                  <th style="min-width:240px;">Mô Hình &amp; Quy Cách</th>
-                  <th style="min-width:140px; white-space:nowrap;">Tổng Tiền / Cọc</th>
-                  <th style="min-width:135px;">Thanh Toán</th>
-                  <th style="min-width:165px;">Trạng Thái &amp; SPX</th>
-                  <th style="min-width:210px; text-align:right;">Thao Tác Xử Lý</th>
+                  <th style="min-width:145px; white-space:nowrap;" data-i18n="col_order_code_time">Mã Đơn &amp; Thời Gian</th>
+                  <th style="min-width:180px;" data-i18n="col_customer_phone">Khách Hàng &amp; SĐT</th>
+                  <th style="min-width:240px;" data-i18n="col_model_pack">Mô Hình &amp; Quy Cách</th>
+                  <th style="min-width:140px; white-space:nowrap;" data-i18n="col_total_deposit">Tổng Tiền / Cọc</th>
+                  <th style="min-width:135px;" data-i18n="col_payment_status">Thanh Toán</th>
+                  <th style="min-width:165px;" data-i18n="col_status_spx">Trạng Thái &amp; SPX</th>
+                  <th style="min-width:210px; text-align:right;" data-i18n="col_action_processing">Thao Tác Xử Lý</th>
                 </tr>
               </thead>
               <tbody id="ordersTbody"></tbody>
@@ -478,27 +492,27 @@
       <section class="tab-pane" id="pane-users" style="display: none;">
         <div class="admin-card">
           <div class="admin-card-header" style="flex-wrap:wrap; gap:10px;">
-            <h2 class="admin-card-title"><i class="fa-solid fa-users"></i> Danh Sách Thành Viên & Khách Hàng</h2>
+            <h2 class="admin-card-title"><i class="fa-solid fa-users"></i> <span data-i18n="users_title">Danh Sách Thành Viên & Khách Hàng</span></h2>
             <div style="display:flex; gap:8px;">
-              <input type="text" id="userSearchInput" class="form-control" placeholder="Tìm theo tên, email, SĐT..." style="width:240px;" oninput="handleUserSearchDebounced(this.value)">
-              <button class="btn-admin btn-admin-outline" onclick="loadUsers()"><i class="fa-solid fa-rotate-right"></i> Làm mới</button>
+              <input type="text" id="userSearchInput" class="form-control" placeholder="Tìm theo tên, email, SĐT..." data-i18n-placeholder="users_search_placeholder" style="width:240px;" oninput="handleUserSearchDebounced(this.value)">
+              <button class="btn-admin btn-admin-outline" onclick="loadUsers()"><i class="fa-solid fa-rotate-right"></i> <span data-i18n="btn_refresh">Làm mới</span></button>
             </div>
           </div>
           <div class="table-responsive">
             <table class="admin-table">
               <thead>
                 <tr>
-                  <th>ID</th>
-                  <th>Khách hàng</th>
-                  <th>Email (Gmail)</th>
-                  <th>Điện thoại</th>
-                  <th>Địa chỉ</th>
-                  <th>Tổng đơn</th>
-                  <th>Tổng chi tiêu</th>
-                  <th>Cấp Bậc VIP</th>
-                  <th>Vai trò</th>
-                  <th>Trạng thái</th>
-                  <th style="text-align:right;">Thao tác</th>
+                  <th data-i18n="col_id">ID</th>
+                  <th data-i18n="col_customer">Khách hàng</th>
+                  <th data-i18n="col_email">Email (Gmail)</th>
+                  <th data-i18n="col_phone">Điện thoại</th>
+                  <th data-i18n="col_address">Địa chỉ</th>
+                  <th data-i18n="col_total_orders">Tổng đơn</th>
+                  <th data-i18n="col_total_spent">Tổng chi tiêu</th>
+                  <th data-i18n="col_vip_tier">Cấp Bậc VIP</th>
+                  <th data-i18n="col_role">Vai trò</th>
+                  <th data-i18n="col_status">Trạng thái</th>
+                  <th style="text-align:right;" data-i18n="col_actions">Thao tác</th>
                 </tr>
               </thead>
               <tbody id="usersTbody"></tbody>
@@ -512,8 +526,8 @@
         <!-- VIP Tier Benefits Overview Grid -->
         <div class="admin-card" style="margin-bottom: 16px; background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); color: #fff; border: 1px solid #334155;">
           <div class="admin-card-header" style="border-bottom: 1px solid rgba(255,255,255,0.1);">
-            <h2 class="admin-card-title" style="color:#f8fafc;"><i class="fa-solid fa-crown" style="color:#fbbf24;"></i> Bảng Quy Chuẩn Đặc Quyền VIP &amp; Chiết Khấu Giảm Giá (Tối Đa 10%)</h2>
-            <span style="font-size:12px; background:rgba(251,191,36,0.15); color:#fde68a; padding:3px 10px; border-radius:20px; font-weight:700; border:1px solid rgba(251,191,36,0.3);">
+            <h2 class="admin-card-title" style="color:#f8fafc;"><i class="fa-solid fa-crown" style="color:#fbbf24;"></i> <span data-i18n="coupons_vip_title">Bảng Quy Chuẩn Đặc Quyền VIP &amp; Chiết Khấu Giảm Giá (Tối Đa 10%)</span></h2>
+            <span style="font-size:12px; background:rgba(251,191,36,0.15); color:#fde68a; padding:3px 10px; border-radius:20px; font-weight:700; border:1px solid rgba(251,191,36,0.3);" data-i18n="coupons_vip_badge">
               Tự động áp dụng theo chi tiêu nhận hàng
             </span>
           </div>
@@ -569,15 +583,15 @@
         <div class="admin-card">
           <div class="admin-card-header" style="flex-wrap:wrap; gap:10px;">
             <div>
-              <h2 class="admin-card-title"><i class="fa-solid fa-ticket"></i> Danh Sách Mã Giảm Giá Do Admin Tạo</h2>
-              <p style="font-size:12px; color:#64748b; margin:2px 0 0;">Chỉ các mã được tạo ở đây hoặc mã đặc quyền VIP mới có hiệu lực khi khách thanh toán.</p>
+              <h2 class="admin-card-title"><i class="fa-solid fa-ticket"></i> <span data-i18n="coupons_title">Danh Sách Mã Giảm Giá Do Admin Tạo</span></h2>
+              <p style="font-size:12px; color:#64748b; margin:2px 0 0;" data-i18n="coupons_subtitle">Chỉ các mã được tạo ở đây hoặc mã đặc quyền VIP mới có hiệu lực khi khách thanh toán.</p>
             </div>
             <div style="display:flex; gap:8px;">
               <button class="btn-admin btn-admin-primary" onclick="openCouponModal()">
-                <i class="fa-solid fa-plus"></i> Tạo Mã Giảm Giá Mới
+                <i class="fa-solid fa-plus"></i> <span data-i18n="coupons_btn_add">Tạo Mã Giảm Giá Mới</span>
               </button>
               <button class="btn-admin btn-admin-outline" onclick="loadCoupons()">
-                <i class="fa-solid fa-rotate-right"></i> Làm mới
+                <i class="fa-solid fa-rotate-right"></i> <span data-i18n="btn_refresh">Làm mới</span>
               </button>
             </div>
           </div>
@@ -585,15 +599,15 @@
             <table class="admin-table">
               <thead>
                 <tr>
-                  <th>Mã Voucher</th>
-                  <th>Nội dung / Mô tả chương trình</th>
-                  <th>Loại ưu đãi</th>
-                  <th>Giá trị giảm</th>
-                  <th>Đơn tối thiểu</th>
-                  <th>Lượt sử dụng</th>
-                  <th>Hạn sử dụng</th>
-                  <th>Trạng thái</th>
-                  <th style="text-align:right;">Thao tác</th>
+                  <th data-i18n="col_coupon_code">Mã Voucher</th>
+                  <th data-i18n="col_coupon_desc">Nội dung / Mô tả chương trình</th>
+                  <th data-i18n="col_coupon_type">Loại ưu đãi</th>
+                  <th data-i18n="col_coupon_value">Giá trị giảm</th>
+                  <th data-i18n="col_coupon_min_order">Đơn tối thiểu</th>
+                  <th data-i18n="col_coupon_usage">Lượt sử dụng</th>
+                  <th data-i18n="col_coupon_expiry">Hạn sử dụng</th>
+                  <th data-i18n="col_status">Trạng thái</th>
+                  <th style="text-align:right;" data-i18n="col_actions">Thao tác</th>
                 </tr>
               </thead>
               <tbody id="couponsTbody"></tbody>
@@ -602,24 +616,175 @@
         </div>
       </section>
 
+      <!-- TAB CHAT: HỖ TRỢ KHÁCH HÀNG & AI CHATBOT (PRO SUPPORT CONSOLE v4) -->
+      <section class="tab-pane" id="pane-chat" style="display: none;">
+        <!-- Thanh KPI Tổng Quan Hỗ Trợ Chat -->
+        <div class="admin-chat-kpi-grid">
+          <div class="admin-chat-kpi-card urgent" onclick="setAdminChatFilter('waiting_admin')" title="Bấm để lọc các cuộc hội thoại có câu hỏi chờ Admin">
+            <div class="chat-kpi-icon"><i class="fa-solid fa-bell-concierge"></i></div>
+            <div class="chat-kpi-info">
+              <span class="chat-kpi-label">Câu hỏi chờ Admin giải đáp</span>
+              <strong class="chat-kpi-value" id="chatKpiPendingQuestions">0</strong>
+            </div>
+          </div>
+          <div class="admin-chat-kpi-card active-chat" onclick="setAdminChatFilter('admin_joined')" title="Bấm để lọc các cuộc hội thoại Admin đang trực tiếp hỗ trợ">
+            <div class="chat-kpi-icon"><i class="fa-solid fa-headset"></i></div>
+            <div class="chat-kpi-info">
+              <span class="chat-kpi-label">Admin đang hỗ trợ</span>
+              <strong class="chat-kpi-value" id="chatKpiAdminActive">0</strong>
+            </div>
+          </div>
+          <div class="admin-chat-kpi-card bot-auto" onclick="setAdminChatFilter('bot_active')" title="Bấm để xem các hội thoại Bé Bot AI đã tự giải đáp">
+            <div class="chat-kpi-icon"><i class="fa-solid fa-wand-magic-sparkles"></i></div>
+            <div class="chat-kpi-info">
+              <span class="chat-kpi-label">Bé Bot AI tự giải đáp</span>
+              <strong class="chat-kpi-value" id="chatKpiBotActive">0</strong>
+            </div>
+          </div>
+          <div class="admin-chat-kpi-card resolved" onclick="setAdminChatFilter('all')" title="Tổng số cuộc hội thoại thực tế của khách hàng">
+            <div class="chat-kpi-icon"><i class="fa-solid fa-circle-check"></i></div>
+            <div class="chat-kpi-info">
+              <span class="chat-kpi-label">Tổng hội thoại thực tế</span>
+              <strong class="chat-kpi-value" id="chatKpiTotalConvs">0</strong>
+            </div>
+          </div>
+        </div>
+
+        <div class="admin-card admin-chat-shell">
+          <div class="admin-chat-layout">
+            <!-- CỘT TRÁI: HỘP THƯ HỘI THOẠI KHÁCH HÀNG -->
+            <div class="admin-chat-sidebar">
+              <div class="admin-chat-sidebar-top">
+                <div class="admin-chat-sidebar-title-row">
+                  <h3><i class="fa-solid fa-comments"></i> Hộp Thư Khách Hàng</h3>
+                  <button type="button" class="btn-chat-refresh" onclick="loadAdminChats(true)" title="Làm mới danh sách hội thoại">
+                    <i class="fa-solid fa-rotate"></i> Làm mới
+                  </button>
+                </div>
+
+                <!-- Ô tìm kiếm hội thoại / câu hỏi -->
+                <div class="admin-chat-search-box">
+                  <i class="fa-solid fa-magnifying-glass"></i>
+                  <input type="text" id="adminChatSearchInput" placeholder="Tìm tên khách, SĐT, nội dung câu hỏi..." oninput="handleAdminChatSearchInput(this.value)" autocomplete="off">
+                </div>
+
+                <!-- Bộ lọc trạng thái trực quan -->
+                <div class="admin-chat-filter-tabs">
+                  <button type="button" class="chat-filter-tab active" id="chatFilterAll" onclick="setAdminChatFilter('all')">
+                    Tất cả <span class="tab-cnt" id="chatTabCntAll">0</span>
+                  </button>
+                  <button type="button" class="chat-filter-tab waiting" id="chatFilterWaiting" onclick="setAdminChatFilter('waiting_admin')">
+                    Cần trả lời <span class="tab-cnt urgent" id="chatTabCntWaiting">0</span>
+                  </button>
+                  <button type="button" class="chat-filter-tab" id="chatFilterActive" onclick="setAdminChatFilter('admin_joined')">
+                    Đang chat <span class="tab-cnt" id="chatTabCntActive">0</span>
+                  </button>
+                  <button type="button" class="chat-filter-tab" id="chatFilterBot" onclick="setAdminChatFilter('bot_active')">
+                    AI tự động <span class="tab-cnt" id="chatTabCntBot">0</span>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Danh sách hội thoại -->
+              <div id="adminConversationsList" class="admin-conversations-list">
+                <div class="admin-chat-empty-list">Đang tải danh sách hội thoại thực tế...</div>
+              </div>
+            </div>
+
+            <!-- CỘT PHẢI: KHÔNG GIAN XỬ LÝ & TRẢ LỜI TRỰC TIẾP -->
+            <div class="admin-chat-main">
+              <!-- Header thông tin khách hàng -->
+              <div id="adminChatHeader" class="admin-chat-main-header">
+                <div class="admin-chat-cust-profile">
+                  <div class="admin-chat-cust-avatar" id="adminChatCustAvatar">
+                    <i class="fa-solid fa-comments"></i>
+                  </div>
+                  <div class="admin-chat-cust-meta">
+                    <div class="admin-chat-cust-name-row">
+                      <h4 id="adminChatCustomerTitle">Chọn một cuộc hội thoại bên trái</h4>
+                      <span id="adminChatStatusBadge" class="admin-chat-status-pill" style="display:none;"></span>
+                    </div>
+                    <div id="adminChatCustomerSub" class="admin-chat-cust-sub">
+                      Hệ thống tự động ghim rõ các câu hỏi khó Bé Bot chưa hiểu kèm ngữ cảnh tin nhắn trước đó để Admin giải đáp nhanh nhất.
+                    </div>
+                  </div>
+                </div>
+
+                <div id="adminChatActions" class="admin-chat-header-btns" style="display:none;">
+                  <button type="button" class="btn-chat-act resolve" onclick="setAdminConversationStatus('resolved')" title="Đánh dấu đã giải quyết xong toàn bộ câu hỏi">
+                    <i class="fa-solid fa-check-double"></i> Hoàn tất
+                  </button>
+                  <button type="button" class="btn-chat-act bot" onclick="setAdminConversationStatus('bot_active')" title="Chuyển trạng thái về cho Bé Bot AI tự động">
+                    <i class="fa-solid fa-robot"></i> Giao Bé Bot
+                  </button>
+                  <button type="button" class="btn-chat-act delete" onclick="deleteAdminConversationAction()" title="Xóa cuộc hội thoại này">
+                    <i class="fa-solid fa-trash-can"></i>
+                  </button>
+                </div>
+              </div>
+
+              <!-- BẢNG GHIM CÂU HỎI TRƯỚC ĐÓ BÁO LÊN ADMIN + NGỮ CẢNH TIN NHẮN TRƯỚC -->
+              <div id="adminPendingQuestionsPanel" class="admin-pending-questions-panel" style="display:none;"></div>
+
+              <!-- Luồng lịch sử tin nhắn chi tiết -->
+              <div id="adminChatMessagesThread" class="admin-chat-thread">
+                <div class="admin-chat-placeholder">
+                  <div class="placeholder-icon"><i class="fa-solid fa-headset"></i></div>
+                  <h4>Trung Tâm Giải Đáp Khách Hàng &amp; Bé Bot AI 1:64</h4>
+                  <p>Bấm chọn một khách hàng ở cột bên trái để xem toàn bộ ngữ cảnh hội thoại, câu hỏi Bé Bot chuyển lên và phản hồi trực tiếp cho khách.</p>
+                </div>
+              </div>
+
+              <!-- Khu vực soạn tin trả lời thông minh của Admin -->
+              <div id="adminChatComposerWrap" class="admin-chat-composer-wrap" style="display:none;">
+                <!-- Thanh hiển thị câu hỏi đang được trích dẫn trả lời -->
+                <div id="adminReplyQuoteBar" class="admin-reply-quote-bar" style="display:none;">
+                  <div class="quote-bar-left">
+                    <i class="fa-solid fa-reply"></i>
+                    <span>Đang trả lời câu hỏi của khách: <strong id="adminReplyQuoteText"></strong></span>
+                  </div>
+                  <button type="button" class="btn-clear-quote" onclick="clearAdminReplyQuote()" title="Bỏ trích dẫn câu hỏi này">✕</button>
+                </div>
+
+                <!-- Phím tắt mẫu câu trả lời nhanh cho Admin -->
+                <div class="admin-quick-replies-bar">
+                  <span class="qr-label"><i class="fa-solid fa-bolt"></i> Mẫu nhanh:</span>
+                  <button type="button" class="admin-qr-chip" onclick="insertAdminQuickReply('Dạ chào anh/chị, Admin Showroom xin giải đáp câu hỏi của mình ạ: ')">👋 Chào &amp; Giải đáp</button>
+                  <button type="button" class="admin-qr-chip" onclick="insertAdminQuickReply('Dạ mẫu xe này bên Showroom đang có sẵn hàng chuẩn seal mới 100%, anh/chị đặt trên web để shop đóng gói chống sốc gửi SPX ngay hôm nay nhé ạ!')">📦 Báo sẵn hàng</button>
+                  <button type="button" class="admin-qr-chip" onclick="insertAdminQuickReply('Dạ anh/chị vui lòng cho Admin xin Mã đơn hàng (MGT-...) hoặc Số điện thoại đặt hàng để em kiểm tra và xử lý ngay lập tức cho mình ạ!')">🔍 Xin mã đơn / SĐT</button>
+                  <button type="button" class="admin-qr-chip" onclick="insertAdminQuickReply('Dạ Admin đã kiểm tra và xử lý xong yêu cầu của anh/chị rồi ạ. Cần hỗ trợ gấp anh/chị có thể nhắn Zalo 0981.903.400 nhé!')">✅ Báo đã xử lý</button>
+                </div>
+
+                <form id="adminReplyForm" class="admin-reply-form" onsubmit="handleAdminSendReply(event)">
+                  <input type="text" id="adminReplyInput" class="admin-reply-input" placeholder="Nhập câu trả lời trực tiếp gửi tới khách hàng (Enter để gửi)..." autocomplete="off">
+                  <button type="submit" class="admin-reply-send-btn" id="adminReplySendBtn">
+                    <i class="fa-solid fa-paper-plane"></i> <span>Gửi Phản Hồi</span>
+                  </button>
+                </form>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <!-- PANE 5: BẢN TIN (NEWSLETTER) -->
       <section class="tab-pane" id="pane-subscribers" style="display: none;">
         <div class="admin-card">
           <div class="admin-card-header" style="flex-wrap:wrap; gap:10px;">
-            <h2 class="admin-card-title"><i class="fa-solid fa-envelope-open-text"></i> Danh Sách Đăng Ký Nhận Lịch Mở Cọc</h2>
+            <h2 class="admin-card-title"><i class="fa-solid fa-envelope-open-text"></i> <span data-i18n="subscribers_title">Danh Sách Đăng Ký Nhận Lịch Mở Cọc</span></h2>
             <div style="display:flex; gap:8px;">
-              <input type="text" id="subscriberSearchInput" class="form-control" placeholder="Tìm địa chỉ email..." style="width:240px;" oninput="handleSubscriberSearchDebounced(this.value)">
-              <button class="btn-admin btn-admin-outline" onclick="loadSubscribers()"><i class="fa-solid fa-rotate-right"></i> Làm mới</button>
+              <input type="text" id="subscriberSearchInput" class="form-control" placeholder="Tìm địa chỉ email..." data-i18n-placeholder="subscribers_search_placeholder" style="width:240px;" oninput="handleSubscriberSearchDebounced(this.value)">
+              <button class="btn-admin btn-admin-outline" onclick="loadSubscribers()"><i class="fa-solid fa-rotate-right"></i> <span data-i18n="btn_refresh">Làm mới</span></button>
             </div>
           </div>
           <div class="table-responsive">
             <table class="admin-table">
               <thead>
                 <tr>
-                  <th style="width:80px;">ID</th>
-                  <th>Địa chỉ Email</th>
-                  <th>Thời gian đăng ký</th>
-                  <th style="text-align:right;">Thao tác</th>
+                  <th style="width:80px;" data-i18n="col_id">ID</th>
+                  <th data-i18n="col_email">Địa chỉ Email</th>
+                  <th data-i18n="col_subscribed_at">Thời gian đăng ký</th>
+                  <th style="text-align:right;" data-i18n="col_actions">Thao tác</th>
                 </tr>
               </thead>
               <tbody id="subscribersTbody"></tbody>
@@ -632,9 +797,9 @@
       <section class="tab-pane" id="pane-settings" style="display: none;">
         <div class="admin-card">
           <div class="admin-card-header">
-            <h2 class="admin-card-title"><i class="fa-solid fa-sliders"></i> Cấu Hình Cửa Hàng & Thanh Toán VietQR</h2>
+            <h2 class="admin-card-title"><i class="fa-solid fa-sliders"></i> <span data-i18n="settings_title">Cấu Hình Cửa Hàng & Thanh Toán VietQR</span></h2>
             <button class="btn-admin btn-admin-primary" onclick="saveStoreSettings(event)">
-              <i class="fa-solid fa-floppy-disk"></i> Lưu Tất Cả Thiết Lập
+              <i class="fa-solid fa-floppy-disk"></i> <span data-i18n="settings_btn_save">Lưu Tất Cả Thiết Lập</span>
             </button>
           </div>
 
@@ -644,30 +809,30 @@
               <!-- Cột 1: Thông tin liên hệ & Vận chuyển -->
               <div>
                 <h3 style="font-size:14px; font-weight:800; color:#1e293b; margin-bottom:12px; border-bottom:1px solid #e2e8f0; padding-bottom:6px;">
-                  🏢 Thông Tin Cửa Hàng & Giao Hàng
+                  <span data-i18n="settings_sec_store">🏢 Thông Tin Cửa Hàng & Giao Hàng</span>
                 </h3>
                 <div class="form-group">
-                  <label class="form-label">Tên cửa hàng</label>
+                  <label class="form-label" data-i18n="settings_lbl_store_name">Tên cửa hàng</label>
                   <input type="text" id="set_store_name" class="form-control" placeholder="MINI GT STORE Biên Hòa">
                 </div>
                 <div class="form-group">
-                  <label class="form-label">Hotline / Zalo tư vấn</label>
+                  <label class="form-label" data-i18n="settings_lbl_hotline">Hotline / Zalo tư vấn</label>
                   <input type="text" id="set_store_hotline" class="form-control" placeholder="0981 903 400">
                 </div>
                 <div class="form-group">
-                  <label class="form-label">Email liên hệ</label>
+                  <label class="form-label" data-i18n="settings_lbl_email">Email liên hệ</label>
                   <input type="email" id="set_store_email" class="form-control" placeholder="contact@minigtstore.vn">
                 </div>
                 <div class="form-group">
-                  <label class="form-label">Địa chỉ kho hàng</label>
+                  <label class="form-label" data-i18n="settings_lbl_address">Địa chỉ kho hàng</label>
                   <input type="text" id="set_store_address" class="form-control" placeholder="38/2 Võ Thị Sáu, P. Quyết Thắng, TP. Biên Hòa, Đồng Nai">
                 </div>
                 <div class="form-group">
-                  <label class="form-label">Phí ship đồng giá SPX Express (VNĐ)</label>
+                  <label class="form-label" data-i18n="settings_lbl_shipping_fee">Phí ship đồng giá SPX Express (VNĐ)</label>
                   <input type="number" id="set_shipping_fee" class="form-control" placeholder="11000">
                 </div>
                 <div class="form-group">
-                  <label class="form-label">Ngưỡng cảnh báo tồn kho thấp (Low stock)</label>
+                  <label class="form-label" data-i18n="settings_lbl_low_stock">Ngưỡng cảnh báo tồn kho thấp (Low stock)</label>
                   <input type="number" id="set_low_stock_threshold" class="form-control" placeholder="5">
                 </div>
               </div>
@@ -675,30 +840,30 @@
               <!-- Cột 2: Cấu hình VietQR & Pre-order -->
               <div>
                 <h3 style="font-size:14px; font-weight:800; color:#1e293b; margin-bottom:12px; border-bottom:1px solid #e2e8f0; padding-bottom:6px;">
-                  💳 Tài Khoản Ngân Hàng Nhận Tiền VietQR MB Bank
+                  <span data-i18n="settings_sec_bank">💳 Tài Khoản Ngân Hàng Nhận Tiền VietQR MB Bank</span>
                 </h3>
                 <div class="form-group">
-                  <label class="form-label">Ngân hàng (Mã VietQR)</label>
+                  <label class="form-label" data-i18n="settings_lbl_bank_id">Ngân hàng (Mã VietQR)</label>
                   <input type="text" id="set_bank_id" class="form-control" placeholder="MB">
                 </div>
                 <div class="form-group">
-                  <label class="form-label">Tên đầy đủ ngân hàng</label>
+                  <label class="form-label" data-i18n="settings_lbl_bank_name">Tên đầy đủ ngân hàng</label>
                   <input type="text" id="set_bank_name" class="form-control" placeholder="MBBank (Ngân Hàng Quân Đội)">
                 </div>
                 <div class="form-group">
-                  <label class="form-label">Số tài khoản MB Bank</label>
+                  <label class="form-label" data-i18n="settings_lbl_account_no">Số tài khoản MB Bank</label>
                   <input type="text" id="set_bank_account_no" class="form-control" placeholder="87654321082007">
                 </div>
                 <div class="form-group">
-                  <label class="form-label">Tên chủ tài khoản (In hoa không dấu)</label>
+                  <label class="form-label" data-i18n="settings_lbl_account_name">Tên chủ tài khoản (In hoa không dấu)</label>
                   <input type="text" id="set_bank_account_name" class="form-control" placeholder="DO QUOC THINH">
                 </div>
                 <div class="form-group">
-                  <label class="form-label">Hạn chốt cọc đợt này (Pre-order Deadline)</label>
+                  <label class="form-label" data-i18n="settings_lbl_preorder_deadline">Hạn chốt cọc đợt này (Pre-order Deadline)</label>
                   <input type="text" id="set_preorder_deadline" class="form-control" placeholder="Ví dụ: Tháng 11/2026 hoặc 2026-11-30">
                 </div>
                 <div class="form-group">
-                  <label class="form-label">Thông báo chạy trên đầu trang (Announcement)</label>
+                  <label class="form-label" data-i18n="settings_lbl_announcement">Thông báo chạy trên đầu trang (Announcement)</label>
                   <textarea id="set_announcement" class="form-control" rows="2" placeholder="Đợt mở đặt trước: Liberty Walk LBWK, F1 Las Vegas..."></textarea>
                 </div>
               </div>
@@ -707,7 +872,7 @@
 
             <div style="margin-top:1.5rem; text-align:right;">
               <button type="submit" class="btn-admin btn-admin-primary">
-                <i class="fa-solid fa-floppy-disk"></i> Lưu Tất Cả Thiết Lập
+                <i class="fa-solid fa-floppy-disk"></i> <span data-i18n="settings_btn_save">Lưu Tất Cả Thiết Lập</span>
               </button>
             </div>
           </form>
@@ -845,29 +1010,29 @@
 
   <!-- PRODUCT MODAL (ADD / EDIT) -->
   <div class="modal-overlay" id="productModal">
-    <div class="modal-card" style="max-width: 720px;">
+    <div class="modal-card" style="max-width: 860px;">
       <button class="modal-close" onclick="closeAdminModal('productModal')">✕</button>
-      <h3 style="font-size: 18px; font-weight: 800; margin-bottom: 1rem;" id="productModalTitle">Thêm Mô Hình Mới</h3>
+      <h3 style="font-size: 18px; font-weight: 800; margin-bottom: 1rem;" id="productModalTitle" data-i18n="prod_modal_add_title">Thêm Mô Hình Mới</h3>
       
       <form id="productForm" onsubmit="saveProduct(event)" novalidate>
         <input type="hidden" id="editProductId">
 
         <div class="form-grid">
           <div class="form-group">
-            <label class="form-label">Mã SKU *</label>
+            <label class="form-label" data-i18n="prod_modal_sku">Mã SKU *</label>
             <input type="text" id="prodSku" class="form-control" placeholder="MGT01413" required>
           </div>
 
           <div class="form-group">
-            <label class="form-label">Số xe (Car # / Serial)</label>
+            <label class="form-label" data-i18n="prod_modal_car_number">Số xe (Car # / Serial)</label>
             <input type="text" id="prodCarNumber" class="form-control" placeholder="1413 / S026">
           </div>
 
           <div class="form-group form-full">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
-              <label class="form-label" style="margin:0;">Danh mục *</label>
+              <label class="form-label" style="margin:0;" data-i18n="prod_modal_category">Danh mục *</label>
               <button type="button" class="btn-admin btn-admin-outline" style="padding:2px 8px; font-size:11px;" onclick="toggleAddCategoryInline()">
-                <i class="fa-solid fa-plus"></i> Tạo danh mục mới
+                <i class="fa-solid fa-plus"></i> <span data-i18n="prod_modal_btn_new_cat">Tạo danh mục mới</span>
               </button>
             </div>
             <select id="prodCategory" class="form-control" required>
@@ -880,15 +1045,15 @@
             <!-- Khung thêm danh mục mới inline -->
             <div id="newCategoryInlineWrap" style="display:none; background:#f0fdf4; border:1px solid #bbf7d0; border-radius:8px; padding:10px; margin-top:8px;">
               <div style="font-size:12px; font-weight:700; color:#166534; margin-bottom:6px;">
-                <i class="fa-solid fa-folder-plus"></i> Thêm Danh Mục Mới:
+                <i class="fa-solid fa-folder-plus"></i> <span data-i18n="prod_modal_new_cat_title">Thêm Danh Mục Mới:</span>
               </div>
               <div style="display:flex; gap:8px; flex-wrap:wrap;">
-                <input type="text" id="newCategoryNameInput" class="form-control" style="flex:2; min-width:180px;" placeholder="Tên danh mục (VD: JDM Street, Supercars...)">
-                <input type="text" id="newCategorySlugInput" class="form-control" style="flex:1; min-width:140px;" placeholder="Slug (Tự động tạo)">
+                <input type="text" id="newCategoryNameInput" class="form-control" style="flex:2; min-width:180px;" placeholder="Tên danh mục (VD: JDM Street, Supercars...)" data-i18n-placeholder="prod_modal_new_cat_placeholder">
+                <input type="text" id="newCategorySlugInput" class="form-control" style="flex:1; min-width:140px;" placeholder="Slug (Tự động tạo)" data-i18n-placeholder="prod_modal_slug_placeholder">
                 <button type="button" class="btn-admin btn-admin-primary" style="padding:6px 14px; background:#16a34a; border-color:#16a34a;" onclick="submitNewCategoryInline()">
-                  <i class="fa-solid fa-check"></i> Lưu Danh Mục
+                  <i class="fa-solid fa-check"></i> <span data-i18n="prod_modal_btn_save_cat">Lưu Danh Mục</span>
                 </button>
-                <button type="button" class="btn-admin btn-admin-outline" style="padding:6px 10px;" onclick="toggleAddCategoryInline(false)">
+                <button type="button" class="btn-admin btn-admin-outline" style="padding:6px 10px;" onclick="toggleAddCategoryInline(false)" data-i18n="btn_cancel">
                   Hủy
                 </button>
               </div>
@@ -896,12 +1061,12 @@
           </div>
 
           <div class="form-group form-full">
-            <label class="form-label">Tên mô hình đầy đủ *</label>
-            <input type="text" id="prodName" class="form-control" placeholder="Aston Martin AMR24 #18 Lance Stroll F1 Las Vegas GP" required>
+            <label class="form-label" data-i18n="prod_modal_name">Tên mô hình đầy đủ *</label>
+            <input type="text" id="prodName" class="form-control" placeholder="Aston Martin AMR24 #18 Lance Stroll F1 Las Vegas GP" data-i18n-placeholder="prod_modal_name_placeholder" required>
           </div>
 
           <div class="form-group">
-            <label class="form-label">Thương hiệu *</label>
+            <label class="form-label" data-i18n="prod_modal_brand">Thương hiệu *</label>
             <select id="prodBrand" class="form-control" onchange="handleBrandChange()" required>
               <option value="MINI GT">MINI GT (TSM-Model)</option>
               <option value="Pop Race">Pop Race</option>
@@ -913,15 +1078,15 @@
               <option value="Sparky">Sparky / Spark 1:64</option>
               <option value="Trends Hobby">Trends Hobby</option>
               <option value="Hot Wheels Premium">Hot Wheels Premium</option>
-              <option value="custom">-- Thương hiệu khác (Nhập tay) --</option>
+              <option value="custom" data-i18n="prod_modal_brand_custom">-- Thương hiệu khác (Nhập tay) --</option>
             </select>
             <div id="brandCustomWrapper" style="display:none; margin-top:6px;">
-              <input type="text" id="prodBrandCustom" class="form-control" placeholder="Nhập tên thương hiệu khác (ví dụ: GCD, CM Model, Schuco...)">
+              <input type="text" id="prodBrandCustom" class="form-control" placeholder="Nhập tên thương hiệu khác (ví dụ: GCD, CM Model, Schuco...)" data-i18n-placeholder="prod_modal_brand_custom_placeholder">
             </div>
           </div>
 
           <div class="form-group">
-            <label class="form-label">Tỉ lệ</label>
+            <label class="form-label" data-i18n="prod_modal_scale">Tỉ lệ</label>
             <input type="text" id="prodScale" class="form-control" value="1:64">
           </div>
 
@@ -930,40 +1095,40 @@
             <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:12px; padding-bottom:10px; border-bottom:1px solid #e2e8f0;">
               <div>
                 <label class="form-label" style="margin:0; font-size:13px; font-weight:800; color:#0f172a;">
-                  <i class="fa-solid fa-boxes-stacked" style="color:#e10600; margin-right:5px;"></i> Cấu hình Giá Bản Box &amp; Bản Card (Blister) + Khuyến mãi %
+                  <i class="fa-solid fa-boxes-stacked" style="color:#e10600; margin-right:5px;"></i> <span data-i18n="prod_modal_pkg_config_title">Cấu hình Giá Bản Box &amp; Bản Card (Blister) + Khuyến mãi %</span>
                 </label>
-                <div style="font-size:11px; color:#64748b; margin-top:2px;">
+                <div style="font-size:11px; color:#64748b; margin-top:2px;" data-i18n="prod_modal_pkg_config_desc">
                   Linh hoạt: Bản <strong>Box</strong> và Bản <strong>Card</strong> có thể để giá bằng nhau hoặc Card cộng thêm chênh lệch tùy theo bạn cấu hình.
                 </div>
               </div>
               <div class="discount-mode-switch" style="display:inline-flex; gap:6px; background:#e2e8f0; padding:3px; border-radius:8px;">
                 <button type="button" id="btnDiscountModeNone" class="discount-mode-btn active" onclick="setProductDiscountMode('none')">
-                  <i class="fa-solid fa-circle-check"></i> Không giảm giá (0%)
+                  <i class="fa-solid fa-circle-check"></i> <span data-i18n="prod_modal_discount_none">Không giảm giá (0%)</span>
                 </button>
                 <button type="button" id="btnDiscountModeSale" class="discount-mode-btn" onclick="setProductDiscountMode('sale')">
-                  <i class="fa-solid fa-percent"></i> Giảm giá trực tiếp (%)
+                  <i class="fa-solid fa-percent"></i> <span data-i18n="prod_modal_discount_sale">Giảm giá trực tiếp (%)</span>
                 </button>
               </div>
             </div>
 
             <div class="form-grid" style="margin-bottom:10px;">
               <div class="form-group" style="margin-bottom:0;">
-                <label class="form-label">Quy cách đóng gói mở bán *</label>
+                <label class="form-label" data-i18n="prod_modal_packaging">Quy cách đóng gói mở bán *</label>
                 <select id="prodPackagingType" class="form-control" onchange="handleProductPriceInput()">
-                  <option value="both">Có cả Bản Box &amp; Bản Card (Khách tự chọn)</option>
-                  <option value="box_only">Chỉ có Bản Box (Hộp giấy)</option>
-                  <option value="card_only">Chỉ có Bản Card (Vỉ Blister)</option>
+                  <option value="both" data-i18n="prod_modal_pkg_both">Có cả Bản Box &amp; Bản Card (Khách tự chọn)</option>
+                  <option value="box_only" data-i18n="prod_modal_pkg_box">Chỉ có Bản Box (Hộp giấy)</option>
+                  <option value="card_only" data-i18n="prod_modal_pkg_card">Chỉ có Bản Card (Vỉ Blister)</option>
                 </select>
               </div>
 
               <div class="form-group" id="prodDiscountGroup" style="margin-bottom:0; opacity:0.55;">
                 <label class="form-label" style="display:flex; justify-content:space-between; align-items:center;">
-                  <span>Phần trăm giảm giá trực tiếp (%)</span>
+                  <span data-i18n="prod_modal_discount_percent_lbl">Phần trăm giảm giá trực tiếp (%)</span>
                   <span id="prodDiscountPreviewBadge" style="font-size:10.5px; font-weight:800; color:#059669;">Đang để: 0%</span>
                 </label>
                 <input type="number" id="prodDiscountPercent" class="form-control" placeholder="0" min="0" max="80" value="0" oninput="handleProductPriceInput()" disabled>
                 <div id="discountQuickPresets" style="display:none; gap:5px; flex-wrap:wrap; margin-top:6px;">
-                  <span style="font-size:11px; color:#64748b; align-self:center;">Chọn nhanh % trừ vào tiền:</span>
+                  <span style="font-size:11px; color:#64748b; align-self:center;" data-i18n="prod_modal_quick_discount">Chọn nhanh % trừ vào tiền:</span>
                   <button type="button" class="mini-preset-chip" onclick="applyQuickDiscountPercent(5)">-5%</button>
                   <button type="button" class="mini-preset-chip" onclick="applyQuickDiscountPercent(10)">-10%</button>
                   <button type="button" class="mini-preset-chip" onclick="applyQuickDiscountPercent(15)">-15%</button>
@@ -973,10 +1138,10 @@
               </div>
 
               <div class="form-group" id="prodBoxPriceGroup" style="margin-bottom:0;">
-                <label class="form-label" id="lblPriceBox">📦 Giá gốc Bản BOX - Hộp giấy (VNĐ) *</label>
+                <label class="form-label" id="lblPriceBox"><i class="fa-solid fa-box" style="margin-right:4px; color:#3b82f6;"></i> <span data-i18n="prod_modal_price_box">Giá gốc Bản BOX - Hộp giấy (VNĐ) *</span></label>
                 <input type="number" id="prodPriceBox" class="form-control" placeholder="320000" value="320000" oninput="handleProductPriceInput()" required>
                 <div id="boxPresetsWrap" style="display:flex; gap:4px; flex-wrap:wrap; margin-top:5px;">
-                  <span style="font-size:10.5px; color:#64748b;">Mẫu:</span>
+                  <span style="font-size:10.5px; color:#64748b;" data-i18n="prod_modal_preset">Mẫu:</span>
                   <button type="button" class="mini-preset-chip" onclick="setBoxPricePreset(320000)">320k</button>
                   <button type="button" class="mini-preset-chip" onclick="setBoxPricePreset(350000)">350k</button>
                   <button type="button" class="mini-preset-chip" onclick="setBoxPricePreset(380000)">380k</button>
@@ -985,17 +1150,17 @@
                   <button type="button" class="mini-preset-chip" onclick="setBoxPricePreset(500000)">500k</button>
                 </div>
                 <div id="boxDisabledNotice" style="display:none; font-size:11px; color:#dc2626; font-style:italic; margin-top:4px; font-weight:600;">
-                  <i class="fa-solid fa-ban"></i> Mẫu này chỉ bán Bản Card (Tự động đồng bộ bằng giá Card)
+                  <i class="fa-solid fa-ban"></i> <span data-i18n="prod_modal_box_disabled">Mẫu này chỉ bán Bản Card (Tự động đồng bộ bằng giá Card)</span>
                 </div>
               </div>
 
               <div class="form-group" id="prodCardPriceGroup" style="margin-bottom:0;">
-                <label class="form-label" id="lblPriceCard">🛡️ Giá gốc Bản CARD - Vỉ Blister (VNĐ) *</label>
+                <label class="form-label" id="lblPriceCard"><i class="fa-solid fa-shield-halved" style="margin-right:4px; color:#ec4899;"></i> <span data-i18n="prod_modal_price_card">Giá gốc Bản CARD - Vỉ Blister (VNĐ) *</span></label>
                 <input type="number" id="prodPriceCard" class="form-control" placeholder="380000" value="380000" oninput="handleProductPriceInput()" required>
                 <!-- Helper khi bán cả Box & Card: Chọn bằng giá Box hoặc cộng chênh lệch -->
                 <div id="cardDiffPresetsWrap" style="display:flex; gap:4px; flex-wrap:wrap; margin-top:5px; align-items:center;">
-                  <span style="font-size:10.5px; color:#64748b; font-weight:600;">Mẫu Card:</span>
-                  <button type="button" class="mini-preset-chip" style="background:#f1f5f9; color:#0f172a; font-weight:700; border-color:#cbd5e1;" onclick="setCardPriceEqualBox()" title="Đặt giá Bản Card bằng giá Bản Box">
+                  <span style="font-size:10.5px; color:#64748b; font-weight:600;" data-i18n="prod_modal_card_preset">Mẫu Card:</span>
+                  <button type="button" class="mini-preset-chip" style="background:#f1f5f9; color:#0f172a; font-weight:700; border-color:#cbd5e1;" onclick="setCardPriceEqualBox()" title="Đặt giá Bản Card bằng giá Bản Box" data-i18n="prod_modal_card_equal">
                     (=) Bằng giá Box
                   </button>
                   <button type="button" class="mini-preset-chip" onclick="addCardDiffFromBox(20000)">+20k</button>
@@ -1006,7 +1171,7 @@
                 </div>
                 <!-- Helper khi chỉ bán bản Card: Mẫu giá Card chuẩn -->
                 <div id="cardDirectPresetsWrap" style="display:none; gap:4px; flex-wrap:wrap; margin-top:5px;">
-                  <span style="font-size:10.5px; color:#64748b;">Mẫu Card:</span>
+                  <span style="font-size:10.5px; color:#64748b;" data-i18n="prod_modal_card_preset">Mẫu Card:</span>
                   <button type="button" class="mini-preset-chip" onclick="setCardPricePreset(380000)">380k</button>
                   <button type="button" class="mini-preset-chip" onclick="setCardPricePreset(420000)">420k</button>
                   <button type="button" class="mini-preset-chip" onclick="setCardPricePreset(450000)">450k</button>
@@ -1014,7 +1179,7 @@
                   <button type="button" class="mini-preset-chip" onclick="setCardPricePreset(520000)">520k</button>
                 </div>
                 <div id="cardDisabledNotice" style="display:none; font-size:11px; color:#dc2626; font-style:italic; margin-top:4px; font-weight:600;">
-                  <i class="fa-solid fa-ban"></i> Mẫu này chỉ bán Bản Box (Không áp dụng Bản Card)
+                  <i class="fa-solid fa-ban"></i> <span data-i18n="prod_modal_card_disabled">Mẫu này chỉ bán Bản Box (Không áp dụng Bản Card)</span>
                 </div>
               </div>
             </div>
@@ -1031,7 +1196,7 @@
 
           <div class="form-grid">
             <div class="form-group" style="margin-bottom:0;">
-              <label class="form-label">Ghi chú phiên bản (Edition Note)</label>
+              <label class="form-label" data-i18n="prod_modal_edition">Ghi chú phiên bản (Edition Note)</label>
               <input type="text" id="prodEdition" class="form-control" placeholder="LHD Edition">
               <div style="display:flex; gap:4px; flex-wrap:wrap; margin-top:4px;">
                 <button type="button" class="mini-preset-chip" onclick="document.getElementById('prodEdition').value='LHD Edition'">LHD</button>
@@ -1042,11 +1207,11 @@
             </div>
 
             <div class="form-group" style="margin-bottom:0;">
-              <label class="form-label">Tình trạng mở bán *</label>
+              <label class="form-label" data-i18n="prod_modal_status">Tình trạng mở bán *</label>
               <select id="prodStatus" class="form-control" onchange="handleProductStatusChange()">
-                <option value="in_stock">Có sẵn giao ngay</option>
-                <option value="pre_order">Pre-Order (Đang mở cọc)</option>
-                <option value="sold_out">Hết hàng (Sold Out)</option>
+                <option value="in_stock" data-i18n="prod_modal_status_instock">Có sẵn giao ngay</option>
+                <option value="pre_order" data-i18n="prod_modal_status_preorder">Pre-Order (Đang mở cọc)</option>
+                <option value="sold_out" data-i18n="prod_modal_status_soldout">Hết hàng (Sold Out)</option>
               </select>
             </div>
           </div>
@@ -1054,12 +1219,12 @@
           <!-- KHỐI CẤU HÌNH DÀNH RIÊNG CHO SẢN PHẨM PRE-ORDER (CHỈ HIỂN THỊ KHI CHỌN PRE-ORDER) -->
           <div class="form-group form-full" id="preOrderConfigCard" style="display:none; background:#f5f3ff; border:1.5px solid #c4b5fd; border-radius:10px; padding:12px 14px; margin-bottom:14px;">
             <div style="font-weight:750; font-size:13px; color:#5b21b6; margin-bottom:8px; display:flex; align-items:center; gap:6px;">
-              <i class="fa-solid fa-calendar-check"></i> Cấu hình Đợt Hàng &amp; Mức Cọc Pre-Order (Chỉ khi mở cọc)
+              <i class="fa-solid fa-calendar-check"></i> <span data-i18n="prod_modal_preorder_config">Cấu hình Đợt Hàng &amp; Mức Cọc Pre-Order (Chỉ khi mở cọc)</span>
             </div>
             <div class="form-grid" style="margin-bottom:0;">
               <div class="form-group" style="margin-bottom:0;">
                 <label class="form-label" style="font-size:12px; color:#4c1d95;">
-                  📅 Dự kiến hàng về (Tháng / Năm) *
+                  <i class="fa-regular fa-calendar-days" style="margin-right:4px;"></i> <span data-i18n="prod_modal_expected_delivery">Dự kiến hàng về (Tháng / Năm) *</span>
                 </label>
                 <div style="display:flex; gap:6px;">
                   <select id="prodExpectedMonth" class="form-control" style="flex:1;" onchange="updateExpectedDeliveryString()">
@@ -1083,14 +1248,14 @@
                   </select>
                 </div>
                 <div style="margin-top:4px; font-size:11px; color:#6d28d9; font-weight:600;">
-                  Hiển thị: <span id="lblExpectedDeliveryPreview" style="font-weight:700; color:#4338ca;">Tháng 11/2026 (Có thể trễ hơn dự kiến)</span>
+                  <span data-i18n="prod_modal_preview_label">Hiển thị:</span> <span id="lblExpectedDeliveryPreview" style="font-weight:700; color:#4338ca;">Tháng 11/2026 (Có thể trễ hơn dự kiến)</span>
                 </div>
                 <input type="hidden" id="prodExpectedDelivery" value="Tháng 11/2026 (Có thể trễ hơn dự kiến)">
               </div>
 
               <div class="form-group" style="margin-bottom:0;">
                 <label class="form-label" style="font-size:12px; color:#4c1d95; display:flex; justify-content:space-between; align-items:center;">
-                  <span>🔒 Mức cọc yêu cầu (% &amp; VNĐ) *</span>
+                  <span><i class="fa-solid fa-shield-halved" style="margin-right:4px;"></i> <span data-i18n="prod_modal_deposit_req">Mức cọc yêu cầu (% &amp; VNĐ) *</span></span>
                   <span style="display:inline-flex; gap:4px;">
                     <button type="button" class="mini-preset-chip" onclick="setDepositPercentPreset(30)">30%</button>
                     <button type="button" class="mini-preset-chip" onclick="setDepositPercentPreset(50)">50%</button>
@@ -1103,13 +1268,13 @@
                     <span style="position:absolute; right:8px; top:50%; transform:translateY(-50%); font-weight:700; color:#5b21b6; pointer-events:none;">%</span>
                   </div>
                   <div style="flex:1; position:relative;">
-                    <input type="number" id="prodDepositAmount" class="form-control" placeholder="Số tiền cọc VNĐ" style="font-weight:700; padding-right:36px;" oninput="syncDepositAmountToPercent()">
+                    <input type="number" id="prodDepositAmount" class="form-control" placeholder="Số tiền cọc VNĐ" data-i18n-placeholder="prod_modal_deposit_placeholder" style="font-weight:700; padding-right:36px;" oninput="syncDepositAmountToPercent()">
                     <span style="position:absolute; right:8px; top:50%; transform:translateY(-50%); font-size:11px; font-weight:700; color:#5b21b6; pointer-events:none;">VNĐ</span>
                   </div>
                 </div>
                 <!-- Hidden compatibility input -->
                 <input type="hidden" id="prodDeposit" value="0">
-                <div style="margin-top:4px; font-size:11px; color:#6d28d9; line-height:1.4;">
+                <div style="margin-top:4px; font-size:11px; color:#6d28d9; line-height:1.4;" data-i18n="prod_modal_deposit_hint">
                   Hai chiều tự tính: Bấm chọn % hoặc gõ số tiền VNĐ (10% – 100%, không vượt giá xe).
                 </div>
               </div>
@@ -1120,7 +1285,7 @@
           <div class="form-group form-full" style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:12px; margin-bottom:14px;">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
               <span style="font-weight:750; font-size:13px; color:#0f172a;">
-                <i class="fa-solid fa-boxes-stacked" style="color:#2563eb; margin-right:4px;"></i> Kiểm Kho Thực Tế (Số Lượng Box &amp; Card Còn Lại) *
+                <i class="fa-solid fa-boxes-stacked" style="color:#2563eb; margin-right:4px;"></i> <span data-i18n="prod_modal_stock_title">Kiểm Kho Thực Tế (Số Lượng Box &amp; Card Còn Lại) *</span>
               </span>
               <span id="prodTotalStockBadge" style="font-size:11.5px; font-weight:800; color:#059669; background:#ecfdf5; border:1px solid #a7f3d0; padding:2px 8px; border-radius:99px;">
                 Tổng tồn: 20 chiếc
@@ -1128,14 +1293,14 @@
             </div>
             <div class="form-grid" style="margin-bottom:0;">
               <div class="form-group" id="stockBoxGroup" style="margin-bottom:0;">
-                <label class="form-label" id="lblStockBox" style="font-size:12px;">📦 Tồn kho thực tế Bản BOX (Hộp giấy)</label>
+                <label class="form-label" id="lblStockBox" style="font-size:12px;"><i class="fa-solid fa-box" style="margin-right:4px; color:#3b82f6;"></i> <span data-i18n="prod_modal_stock_box">Tồn kho thực tế Bản BOX (Hộp giấy)</span></label>
                 <input type="number" id="prodStockBox" class="form-control" value="12" min="0" oninput="handleStockInputs()" placeholder="12" required>
                 <div id="stockBoxDisabledNotice" style="display:none; font-size:10.5px; color:#dc2626; margin-top:3px; text-decoration:line-through;">
                   <s>Bản Box: Không áp dụng (0)</s>
                 </div>
               </div>
               <div class="form-group" id="stockCardGroup" style="margin-bottom:0;">
-                <label class="form-label" id="lblStockCard" style="font-size:12px;">🛡️ Tồn kho thực tế Bản CARD (Vỉ Blister)</label>
+                <label class="form-label" id="lblStockCard" style="font-size:12px;"><i class="fa-solid fa-shield-halved" style="margin-right:4px; color:#ec4899;"></i> <span data-i18n="prod_modal_stock_card">Tồn kho thực tế Bản CARD (Vỉ Blister)</span></label>
                 <input type="number" id="prodStockCard" class="form-control" value="8" min="0" oninput="handleStockInputs()" placeholder="8" required>
                 <div id="stockCardDisabledNotice" style="display:none; font-size:10.5px; color:#dc2626; margin-top:3px; text-decoration:line-through;">
                   <s>Bản Card: Không áp dụng (0)</s>
@@ -1145,21 +1310,41 @@
             <input type="hidden" id="prodStock" value="20">
           </div>
 
-          <div class="form-group form-full">
-            <label class="form-label" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:4px;">
-              <span><i class="fa-solid fa-image" style="color:#2563eb;"></i> Hình ảnh mô hình xe (Chọn từ máy hoặc nhập URL)</span>
-              <span style="font-size:11.5px; color:#64748b; font-weight:normal;">Hỗ trợ mở thư mục máy tính chọn ảnh trực tiếp, ảnh có sẵn hoặc dán URL</span>
-            </label>
-            <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
-              <input type="text" id="prodImage" class="form-control" style="flex:1; min-width:200px;" placeholder="image/aston-amr24-stroll.png hoặc bấm Chọn ảnh từ máy" oninput="updateProductImagePreview(this.value)" required>
-              
-              <input type="file" id="prodImageFileInput" accept="image/*" style="display:none;" onchange="handleProductImageFileUpload(this)">
-              <button type="button" id="btnPickProductImage" class="btn-admin btn-admin-outline" style="white-space:nowrap; padding:7px 14px; font-size:12.5px; font-weight:600; display:inline-flex; align-items:center; gap:6px; cursor:pointer; border-color:#d97706; color:#92400e;" onclick="openProductImagePicker(event)" title="Mở thư mục máy tính để chọn ảnh xe bất kỳ">
-                <i class="fa-solid fa-folder-open" style="color:#d97706;"></i> Chọn ảnh từ máy...
+          <div class="form-group form-full admin-multi-image-box" id="prodMultiImageSection">
+            <div class="admin-multi-image-header">
+              <div>
+                <label class="form-label" style="margin:0; font-size:13px; font-weight:800; color:#0f172a; display:flex; align-items:center; gap:6px;">
+                  <i class="fa-solid fa-images" style="color:#2563eb;"></i> <span data-i18n="prod_modal_images_title">Bộ sưu tập hình ảnh sản phẩm (Thêm nhiều ảnh)</span>
+                  <span id="prodImagesCountBadge" class="admin-img-count-pill">0 ảnh</span>
+                </label>
+                <div style="font-size:11.5px; color:#64748b; margin-top:2px;" data-i18n="prod_modal_images_desc">
+                  <strong>Ảnh 1</strong> hiển thị chính ở trên &bull; <strong>Ảnh 2, 3, 4, 5...</strong> nằm hàng bên dưới &bull; Bấm ô <strong>[+]</strong> để thêm ảnh tiếp theo hoặc chọn nhiều ảnh cùng lúc.
+                </div>
+              </div>
+              <button type="button" id="btnRemoveProdImage" class="btn-admin btn-admin-outline" style="font-size:11.5px; padding:5px 10px; color:#dc2626; border-color:#fca5a5; display:none;" onclick="clearProductImage()" title="Xóa toàn bộ danh sách ảnh">
+                <i class="fa-solid fa-trash-can"></i> <span data-i18n="prod_modal_btn_clear_images">Xóa tất cả ảnh</span>
+              </button>
+            </div>
+
+            <!-- Input ẩn giữ Ảnh 1 để tương thích ngược -->
+            <input type="hidden" id="prodImage" value="">
+            <input type="file" id="prodImageFileInput" accept="image/*" multiple style="display:none;" onchange="handleProductImageFileUpload(this)">
+
+            <!-- Thanh công cụ thêm ảnh đa nguồn -->
+            <div class="admin-multi-image-toolbar">
+              <button type="button" id="btnPickProductImage" class="btn-admin btn-admin-outline admin-pick-files-btn" onclick="openProductImagePicker(event)" title="Mở thư mục máy tính chọn một hoặc nhiều ảnh cùng lúc">
+                <i class="fa-solid fa-folder-open"></i> <span data-i18n="prod_modal_pick_images">Chọn nhiều ảnh từ máy...</span>
               </button>
 
-              <select class="form-control" style="max-width:180px; font-size:12.5px;" onchange="if(this.value){ document.getElementById('prodImage').value = this.value; updateProductImagePreview(this.value); }">
-                <option value="">-- Ảnh có sẵn --</option>
+              <div class="admin-url-add-group">
+                <input type="text" id="prodImageUrlAddInput" class="form-control" placeholder="Dán đường dẫn ảnh (VD: image/rexy.jpg hoặc https://...)" data-i18n-placeholder="prod_modal_img_url_placeholder" onkeydown="if(event.key==='Enter'){event.preventDefault(); addProductImageFromUrlInput();}">
+                <button type="button" class="btn-admin btn-admin-primary" style="white-space:nowrap; padding:7px 12px; font-size:12px;" onclick="addProductImageFromUrlInput()">
+                  <i class="fa-solid fa-plus"></i> <span data-i18n="prod_modal_add_url">Thêm URL</span>
+                </button>
+              </div>
+
+              <select id="prodImagePresetSelect" class="form-control" style="max-width:195px; font-size:12px;" onchange="addProductImageFromPreset(this)">
+                <option value="" data-i18n="prod_modal_select_preset">-- + Thêm từ ảnh có sẵn --</option>
                 <option value="image/roxy_rexy_minigt.webp">Bộ 3 AO Racing (Rexy/Roxy)</option>
                 <option value="image/hero-banner.jpg">Banner chính</option>
                 <option value="image/aston-amr24-stroll.png">AMR24 Stroll</option>
@@ -1170,23 +1355,29 @@
                 <option value="image/ske.webp">Porsche Skeleton</option>
                 <option value="image/Roxy.webp">Porsche Roxy</option>
                 <option value="image/rexy.jpg">Porsche Rexy</option>
-                <option value="image/minigt_lambogt3.jpg">Huracán GT3 EVO2</option>
+                <option value="image/Minigt_Lambo_GT3.jpg">Huracán GT3 EVO2</option>
                 <option value="image/Minigt_s15chop_lbwk.jpg">S15 Silvia LBWK</option>
                 <option value="image/Minigt_S15_LBWK.jpg">S15 Goodwood</option>
                 <option value="image/Poprace_Supra_Secret.webp">Top Secret Supra Chrome</option>
-                <option value="image/Poprace_Lambo_Secret.webp">Huracán STO Blu Laufey</option>
-                <option value="image/TH_LamboUltraman.jpg">Ultraman Tiga Huracán</option>
+                <option value="image/Poprace_Skyline.webp">Hakosuka V8 Drift</option>
+                <option value="image/Toyota_Yaris_TrendsHobby.webp">Toyota Yaris WRC</option>
+                <option value="image/roxy-rexy-2.webp">Combo Rexy &amp; Roxy</option>
+                <option value="image/f1-redbull-live.webp">Red Bull Pit Crew Set</option>
+                <option value="image/minig_lambo_lbwk.webp">Huracán Blister Card</option>
+                <option value="image/Minigt_Lambo_LBWK.jpg">Aventador Matte Black</option>
               </select>
             </div>
-            <div id="prodImagePreviewWrap" style="margin-top:8px; display:flex; align-items:center; gap:12px; background:#f8fafc; padding:8px 12px; border-radius:8px; border:1px solid #e2e8f0;">
-              <img id="prodImagePreview" src="../image/hero-banner.jpg" alt="Preview" style="width:56px; height:56px; object-fit:contain; background:#fff; border-radius:6px; border:1px solid #cbd5e1; flex-shrink:0;">
-              <div style="display:flex; flex-direction:column; overflow:hidden; flex:1;">
-                <span style="font-size:12.5px; font-weight:600; color:#1e293b;" id="prodImagePreviewTitle">Xem trước hình ảnh mô hình</span>
-                <span style="font-size:11.5px; color:#64748b; text-overflow:ellipsis; overflow:hidden; white-space:nowrap; max-width:450px;" id="prodImagePreviewText">image/hero-banner.jpg</span>
+
+            <div id="prodUploadStatusBanner" style="display:none;" class="admin-upload-status-banner"></div>
+
+            <!-- Không gian 2 cột: Trái = Bố cục hiển thị thật (Ảnh 1 trên + Ảnh 2,3,4 dưới + "+N"), Phải = Danh sách sắp xếp 1..N -->
+            <div class="admin-gallery-workspace">
+              <div class="admin-gallery-layout-preview" id="adminStorefrontGalleryPreview">
+                <!-- Render tự động bởi renderAdminProductGallery() -->
               </div>
-              <button type="button" id="btnRemoveProdImage" class="btn btn-outline" style="font-size:11.5px; padding:4px 8px; color:#ef4444; border-color:#fca5a5; display:inline-flex; align-items:center; gap:4px;" onclick="clearProductImage()" title="Xóa hình ảnh này">
-                <i class="fa-solid fa-trash-can"></i> Xóa
-              </button>
+              <div class="admin-gallery-manager-list" id="adminGalleryAllList">
+                <!-- Render tự động danh sách tất cả ảnh 1..N -->
+              </div>
             </div>
           </div>
 
@@ -1194,25 +1385,25 @@
             <div style="display:flex; gap:20px; align-items:center; margin-top:4px; flex-wrap:wrap;">
               <label style="display:flex; align-items:center; gap:6px; font-size:13px; font-weight:600; cursor:pointer;">
                 <input type="checkbox" id="prodIsFeatured" style="width:16px; height:16px;">
-                ⭐ Đánh dấu Mô hình Nổi Bật (Featured)
+                <i class="fa-solid fa-star" style="color:#f59e0b; margin-right:2px;"></i> <span data-i18n="prod_modal_featured">Đánh dấu Mô hình Nổi Bật (Featured)</span>
               </label>
               <label style="display:flex; align-items:center; gap:6px; font-size:13px; font-weight:600; cursor:pointer;">
                 <input type="checkbox" id="prodIsNew" style="width:16px; height:16px;">
-                ✨ Đánh dấu Hàng Mới Về (New Release)
+                <i class="fa-solid fa-sparkles" style="color:#0284c7; margin-right:2px;"></i> <span data-i18n="prod_modal_new_release">Đánh dấu Hàng Mới Về (New Release)</span>
               </label>
             </div>
           </div>
 
           <div class="form-group form-full">
-            <label class="form-label">Mô tả chi tiết sản phẩm</label>
-            <textarea id="prodDesc" class="form-control" rows="3" placeholder="Chi tiết xe, bản quyền hãng, quy cách đóng gói..."></textarea>
+            <label class="form-label" data-i18n="prod_modal_desc">Mô tả chi tiết sản phẩm</label>
+            <textarea id="prodDesc" class="form-control" rows="3" placeholder="Chi tiết xe, bản quyền hãng, quy cách đóng gói..." data-i18n-placeholder="prod_modal_desc_placeholder"></textarea>
           </div>
         </div>
 
         <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 1rem;">
-          <button type="button" class="btn-admin btn-admin-outline" onclick="closeAdminModal('productModal')">Hủy</button>
+          <button type="button" class="btn-admin btn-admin-outline" onclick="closeAdminModal('productModal')" data-i18n="btn_cancel">Hủy</button>
           <button type="submit" id="btnSaveProduct" class="btn-admin btn-admin-primary">
-            <i class="fa-solid fa-floppy-disk"></i> Lưu Mô Hình
+            <i class="fa-solid fa-floppy-disk"></i> <span data-i18n="prod_modal_btn_save">Lưu Mô Hình</span>
           </button>
         </div>
       </form>
@@ -1234,33 +1425,33 @@
       <div style="display:flex; align-items:center; gap:12px; margin-bottom:12px;">
         <div style="font-size:28px; color:#dc2626;"><i class="fa-solid fa-triangle-exclamation"></i></div>
         <div>
-          <h3 style="font-size:16px; font-weight:700; color:#dc2626; margin:0;">Xác Nhận Hủy Đơn Hàng</h3>
+          <h3 style="font-size:16px; font-weight:700; color:#dc2626; margin:0;" data-i18n="cancel_modal_title">Xác Nhận Hủy Đơn Hàng</h3>
           <div style="font-size:12px; color:#64748b;" id="cancelOrderCodeText">Mã đơn: ...</div>
         </div>
       </div>
       
-      <div id="cancelOrderNotice" style="background:#fee2e2; border-left:4px solid #ef4444; padding:10px 12px; border-radius:6px; font-size:12px; color:#991b1b; margin-bottom:14px; display:none;">
+      <div id="cancelOrderNotice" style="background:#fee2e2; border-left:4px solid #ef4444; padding:10px 12px; border-radius:6px; font-size:12px; color:#991b1b; margin-bottom:14px; display:none;" data-i18n="cancel_modal_notice">
         <strong>Lưu ý:</strong> Đơn hàng này đã thu tiền trước đó. Sau khi xác nhận hủy, hệ thống sẽ tự động chuyển trạng thái thanh toán sang <strong>CHỜ HOÀN TIỀN (REFUND_PENDING)</strong> để kế toán hoàn trả cho khách.
       </div>
 
       <div class="form-group">
-        <label class="form-label">Lý do hủy đơn hàng <span style="color:#dc2626;">*</span></label>
+        <label class="form-label"><span data-i18n="cancel_modal_reason_lbl">Lý do hủy đơn hàng</span> <span style="color:#dc2626;">*</span></label>
         <div class="cancel-preset-chips" style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:8px;">
-          <button type="button" class="cancel-chip-btn" onclick="setCancelReasonPreset('Khách yêu cầu hủy đơn')">Khách yêu cầu hủy</button>
-          <button type="button" class="cancel-chip-btn" onclick="setCancelReasonPreset('Chưa nhận được tiền CK / Cọc qua MB Bank')">Chưa nhận tiền MB Bank</button>
-          <button type="button" class="cancel-chip-btn" onclick="setCancelReasonPreset('Hết hàng từ nhà phân phối Mini GT')">Hết hàng từ NPP</button>
-          <button type="button" class="cancel-chip-btn" onclick="setCancelReasonPreset('Không liên lạc được số điện thoại khách')">Không gọi được SĐT</button>
-          <button type="button" class="cancel-chip-btn" onclick="setCancelReasonPreset('Thông tin địa chỉ nhận hàng không chính xác')">Sai địa chỉ giao</button>
+          <button type="button" class="cancel-chip-btn" data-i18n="cancel_reason_cust_request" onclick="setCancelReasonPreset('Khách yêu cầu hủy đơn')">Khách yêu cầu hủy</button>
+          <button type="button" class="cancel-chip-btn" data-i18n="cancel_reason_unpaid" onclick="setCancelReasonPreset('Chưa nhận được tiền CK / Cọc qua MB Bank')">Chưa nhận tiền MB Bank</button>
+          <button type="button" class="cancel-chip-btn" data-i18n="cancel_reason_out_of_stock" onclick="setCancelReasonPreset('Hết hàng từ nhà phân phối Mini GT')">Hết hàng từ NPP</button>
+          <button type="button" class="cancel-chip-btn" data-i18n="cancel_reason_no_contact" onclick="setCancelReasonPreset('Không liên lạc được số điện thoại khách')">Không gọi được SĐT</button>
+          <button type="button" class="cancel-chip-btn" data-i18n="cancel_reason_wrong_addr" onclick="setCancelReasonPreset('Thông tin địa chỉ nhận hàng không chính xác')">Sai địa chỉ giao</button>
         </div>
-        <textarea id="cancelOrderReasonInput" class="form-control" rows="3" placeholder="Nhập hoặc chọn nhanh lý do hủy bên trên..." required></textarea>
+        <textarea id="cancelOrderReasonInput" class="form-control" rows="3" placeholder="Nhập hoặc chọn nhanh lý do hủy bên trên..." data-i18n-placeholder="cancel_modal_placeholder" required></textarea>
         <div style="font-size:11.5px; color:#64748b; margin-top:6px; line-height:1.45;">
-          <i class="fa-solid fa-circle-info" style="color:#2563eb;"></i> <em>Lý do này sẽ hiển thị trực tiếp và rõ ràng cho khách hàng kèm Hotline/Zalo hỗ trợ <strong>0981 400 400</strong>.</em>
+          <i class="fa-solid fa-circle-info" style="color:#2563eb;"></i> <em data-i18n="cancel_modal_hint">Lý do này sẽ hiển thị trực tiếp và rõ ràng cho khách hàng kèm Hotline/Zalo hỗ trợ <strong>0981 400 400</strong>.</em>
         </div>
       </div>
 
       <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:1rem;">
-        <button type="button" class="btn-admin btn-admin-outline" onclick="closeAdminModal('cancelOrderModal')">Đóng</button>
-        <button type="button" class="btn-admin btn-admin-primary" style="background:#dc2626; border-color:#dc2626;" onclick="confirmCancelOrderSubmit()">Xác Nhận Hủy Đơn</button>
+        <button type="button" class="btn-admin btn-admin-outline" onclick="closeAdminModal('cancelOrderModal')" data-i18n="btn_close">Đóng</button>
+        <button type="button" class="btn-admin btn-admin-primary" style="background:#dc2626; border-color:#dc2626;" onclick="confirmCancelOrderSubmit()" data-i18n="cancel_modal_btn_confirm">Xác Nhận Hủy Đơn</button>
       </div>
     </div>
   </div>
@@ -1273,7 +1464,7 @@
         <div style="font-size:32px; color:#ea580c;"><i class="fa-solid fa-truck-fast"></i></div>
         <div>
           <h3 style="font-size:17px; font-weight:800; color:#ea580c; display:flex; align-items:center; gap:6px; margin:0;">
-            <span class="spx-badge">SPX</span> Quản Lý Vận Đơn SPX Express
+            <span class="spx-badge">SPX</span> <span data-i18n="ship_modal_title">Quản Lý Vận Đơn SPX Express</span>
           </h3>
           <div style="font-size:12px; color:#64748b;" id="shipSpxOrderCodeText">Đang tải thông tin đơn...</div>
         </div>
@@ -1282,9 +1473,9 @@
       <!-- Copy Dispatch Info -->
       <div style="background:#fff7ed; border:1px solid #fdba74; padding:10px 12px; border-radius:8px; font-size:12px; color:#9a3412; margin-bottom:12px;">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
-          <strong style="color:#c2410c;">📦 Thông tin gửi kiện cho Shipper SPX:</strong>
+          <strong style="color:#c2410c;"><i class="fa-solid fa-box" style="margin-right:4px;"></i> <span data-i18n="ship_modal_dispatch_title">Thông tin gửi kiện cho Shipper SPX:</span></strong>
           <button type="button" class="btn-admin btn-admin-outline" style="background:#fff; color:#ea580c; border-color:#fdba74; padding:2px 8px; font-size:11px;" onclick="copyShipSpxDispatchInfo()" title="Sao chép toàn bộ tên, SĐT, địa chỉ, COD">
-            <i class="fa-regular fa-copy"></i> Sao chép thông tin
+            <i class="fa-regular fa-copy"></i> <span data-i18n="ship_modal_btn_copy">Sao chép thông tin</span>
           </button>
         </div>
         <div id="shipSpxCustomerDispatchInfo" style="font-size:12px; line-height:1.5;"></div>
@@ -1292,23 +1483,23 @@
 
       <!-- 3 bước tạo đơn SPX -->
       <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:10px 12px; margin-bottom:12px; font-size:12px;">
-        <div style="font-weight:700; color:#334155; margin-bottom:6px;">Các bước tạo đơn nhanh trên SPX Express:</div>
+        <div style="font-weight:700; color:#334155; margin-bottom:6px;" data-i18n="ship_modal_steps_title">Các bước tạo đơn nhanh trên SPX Express:</div>
         <div style="display:flex; flex-direction:column; gap:5px; color:#475569;">
-          <div><strong style="color:#ea580c;">Bước 1:</strong> Bấm <strong style="color:#c2410c;">"Sao chép thông tin"</strong> ở trên để lấy tên, SĐT, địa chỉ & tiền COD.</div>
-          <div><strong style="color:#ea580c;">Bước 2:</strong> Bấm <a href="https://spx.vn/vi" target="_blank" style="color:#ea580c; font-weight:700; text-decoration:underline;">Mở trang SPX Express (spx.vn/vi) ↗</a> hoặc mở App SPX trên điện thoại để dán thông tin tạo vận đơn.</div>
-          <div><strong style="color:#ea580c;">Bước 3:</strong> Sao chép mã vận đơn từ SPX (VD: SPXVN...), dán vào ô bên dưới và bấm <strong style="color:#ea580c;">"Bắt Đầu Giao Hàng"</strong>.</div>
+          <div data-i18n="ship_modal_step1"><strong style="color:#ea580c;">Bước 1:</strong> Bấm <strong style="color:#c2410c;">"Sao chép thông tin"</strong> ở trên để lấy tên, SĐT, địa chỉ & tiền COD.</div>
+          <div data-i18n="ship_modal_step2"><strong style="color:#ea580c;">Bước 2:</strong> Bấm <a href="https://spx.vn/vi" target="_blank" style="color:#ea580c; font-weight:700; text-decoration:underline;">Mở trang SPX Express (spx.vn/vi) ↗</a> hoặc mở App SPX trên điện thoại để dán thông tin tạo vận đơn.</div>
+          <div data-i18n="ship_modal_step3"><strong style="color:#ea580c;">Bước 3:</strong> Sao chép mã vận đơn từ SPX (VD: SPXVN...), dán vào ô bên dưới và bấm <strong style="color:#ea580c;">"Bắt Đầu Giao Hàng"</strong>.</div>
         </div>
       </div>
 
       <div class="form-group" style="margin-bottom:12px;">
         <label class="form-label" style="color:#c2410c; font-weight:700; display:flex; justify-content:space-between; align-items:center;">
-          <span>Mã vận đơn SPX Express (Tracking Code) <span style="color:#dc2626;">*</span></span>
+          <span><span data-i18n="ship_modal_tracking_lbl">Mã vận đơn SPX Express (Tracking Code)</span> <span style="color:#dc2626;">*</span></span>
           <span style="font-size:11px; color:#64748b; font-weight:normal;">(VD: SPXVN0192837465)</span>
         </label>
         <div style="display:flex; gap:8px; align-items:center;">
-          <input type="text" id="shipSpxTrackingCodeInput" class="form-control" placeholder="Dán mã SPXVN... vào đây" style="font-size:14px; font-weight:700; color:#c2410c; font-family:monospace; text-transform:uppercase;" oninput="this.value = this.value.toUpperCase().trim()" required>
+          <input type="text" id="shipSpxTrackingCodeInput" class="form-control" placeholder="Dán mã SPXVN... vào đây" data-i18n-placeholder="ship_modal_tracking_placeholder" style="font-size:14px; font-weight:700; color:#c2410c; font-family:monospace; text-transform:uppercase;" oninput="this.value = this.value.toUpperCase().trim()" required>
           <button type="button" class="btn-admin btn-admin-outline" style="background:#fff7ed; border-color:#fdba74; color:#ea580c; font-weight:700; font-size:12px; white-space:nowrap; padding:0.65rem 0.85rem;" onclick="pasteTrackingToInput('shipSpxTrackingCodeInput')">
-            <i class="fa-regular fa-paste"></i> Dán mã
+            <i class="fa-regular fa-paste"></i> <span data-i18n="ship_modal_btn_paste">Dán mã</span>
           </button>
         </div>
       </div>
@@ -1316,17 +1507,17 @@
       <!-- Điều khoản chuyển giao trách nhiệm -->
       <div style="background:#fffbeb; border:1px solid #fde68a; border-radius:6px; padding:8px 10px; font-size:11.5px; color:#92400e; display:flex; gap:8px; align-items:flex-start;">
         <i class="fa-solid fa-shield-halved" style="color:#d97706; margin-top:2px;"></i>
-        <div style="line-height:1.45;">
+        <div style="line-height:1.45;" data-i18n="ship_modal_liability_notice">
           <strong>Lưu ý chuyển giao trách nhiệm:</strong> Khi bưu tá (shipper) SPX tới lấy kiện hàng từ shop, mã vận đơn đã gửi tới khách, trách nhiệm bảo quản đơn hàng và tiến độ giao phát thuộc về đơn vị SPX Express.
         </div>
       </div>
 
       <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:1.25rem; flex-wrap:wrap;">
-        <button type="button" class="btn-admin btn-admin-outline" onclick="closeAdminModal('shipSpxModal')">Đóng</button>
-        <button type="button" class="btn-admin btn-admin-outline" style="color:#ea580c; border-color:#fdba74;" onclick="saveSpxTrackingOnly()">
+        <button type="button" class="btn-admin btn-admin-outline" onclick="closeAdminModal('shipSpxModal')" data-i18n="btn_close">Đóng</button>
+        <button type="button" class="btn-admin btn-admin-outline" style="color:#ea580c; border-color:#fdba74;" onclick="saveSpxTrackingOnly()" data-i18n="ship_modal_btn_save_only">
           Lưu Mã Vận Đơn
         </button>
-        <button type="button" class="btn-admin btn-admin-primary" style="background:#ea580c; border-color:#ea580c;" onclick="confirmShipSpxSubmit()">
+        <button type="button" class="btn-admin btn-admin-primary" style="background:#ea580c; border-color:#ea580c;" onclick="confirmShipSpxSubmit()" data-i18n="ship_modal_btn_start">
           Bắt Đầu Giao Hàng (SPX) ➔
         </button>
       </div>
@@ -1339,72 +1530,85 @@
       <button class="modal-close" onclick="closeAdminModal('couponModal')">✕</button>
       <div class="modal-header" style="margin-bottom: 1rem;">
         <h3 class="modal-title" id="couponModalTitle" style="display:flex; align-items:center; gap:8px;">
-          <i class="fa-solid fa-ticket" style="color:var(--color-primary);"></i> Tạo Mã Giảm Giá Mới
+          <i class="fa-solid fa-ticket" style="color:var(--color-primary);"></i> <span data-i18n="coupon_modal_title">Tạo Mã Giảm Giá Mới</span>
         </h3>
       </div>
       <form id="couponForm" onsubmit="handleSaveCoupon(event)">
         <input type="hidden" id="couponEditId" value="">
         <div class="modal-body" style="display:flex; flex-direction:column; gap:12px;">
           <div class="form-group">
-            <label class="form-label">Mã Giảm Giá (Code) <span style="color:#ef4444;">*</span></label>
-            <input type="text" id="couponCodeInput" class="form-control" placeholder="Ví dụ: MINIGT50K, HE2026..." required style="text-transform:uppercase; font-weight:700; letter-spacing:0.5px;">
-            <small style="color:#64748b; font-size:11px;">Mã viết liền không dấu, hệ thống tự động viết hoa (VD: MINIGT50K).</small>
+            <label class="form-label"><span data-i18n="coupon_modal_code_lbl">Mã Giảm Giá (Code)</span> <span style="color:#ef4444;">*</span></label>
+            <input type="text" id="couponCodeInput" class="form-control" placeholder="Ví dụ: MINIGT50K, HE2026..." data-i18n-placeholder="coupon_modal_code_placeholder" required style="text-transform:uppercase; font-weight:700; letter-spacing:0.5px;">
+            <small style="color:#64748b; font-size:11px;" data-i18n="coupon_modal_code_hint">Mã viết liền không dấu, hệ thống tự động viết hoa (VD: MINIGT50K).</small>
           </div>
 
           <div class="form-group">
-            <label class="form-label">Nội dung / Mô tả chương trình ưu đãi <span style="color:#ef4444;">*</span></label>
-            <input type="text" id="couponDescInput" class="form-control" placeholder="Ví dụ: Giảm ngay 50.000đ mừng tuần lễ xe đua IMSA..." required>
+            <label class="form-label"><span data-i18n="coupon_modal_desc_lbl">Nội dung / Mô tả chương trình ưu đãi</span> <span style="color:#ef4444;">*</span></label>
+            <input type="text" id="couponDescInput" class="form-control" placeholder="Ví dụ: Giảm ngay 50.000đ mừng tuần lễ xe đua IMSA..." data-i18n-placeholder="coupon_modal_desc_placeholder" required>
           </div>
 
           <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px;">
             <div class="form-group">
-              <label class="form-label">Hình thức giảm giá <span style="color:#ef4444;">*</span></label>
+              <label class="form-label"><span data-i18n="coupon_modal_type_lbl">Hình thức giảm giá</span> <span style="color:#ef4444;">*</span></label>
               <select id="couponDiscountType" class="form-control" onchange="handleDiscountTypeChange(this.value)">
-                <option value="amount">Giảm số tiền cố định (VNĐ)</option>
-                <option value="percent">Giảm theo phần trăm (%) - Tối đa 10%</option>
+                <option value="amount" data-i18n="coupon_type_amount">Giảm số tiền cố định (VNĐ)</option>
+                <option value="percent" data-i18n="coupon_type_percent">Giảm theo phần trăm (%) - Tối đa 10%</option>
               </select>
             </div>
             <div class="form-group">
-              <label class="form-label" id="couponValueLabel">Số tiền giảm (VNĐ) <span style="color:#ef4444;">*</span></label>
-              <input type="number" id="couponDiscountValue" class="form-control" placeholder="VD: 50000" min="1" required>
+              <label class="form-label" id="couponValueLabel"><span data-i18n="coupon_modal_val_lbl">Số tiền giảm (VNĐ)</span> <span style="color:#ef4444;">*</span></label>
+              <input type="number" id="couponDiscountValue" class="form-control" placeholder="VD: 50000" data-i18n-placeholder="coupon_modal_val_placeholder" min="1" required>
             </div>
           </div>
 
           <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px;">
             <div class="form-group">
-              <label class="form-label">Đơn hàng tối thiểu (VNĐ)</label>
+              <label class="form-label" data-i18n="coupon_modal_min_order">Đơn hàng tối thiểu (VNĐ)</label>
               <input type="number" id="couponMinOrder" class="form-control" placeholder="0 (Không yêu cầu)" min="0" value="0">
             </div>
             <div class="form-group" id="couponMaxDiscountGroup" style="display:none;">
-              <label class="form-label">Giảm tối đa (VNĐ)</label>
+              <label class="form-label" data-i18n="coupon_modal_max_discount">Giảm tối đa (VNĐ)</label>
               <input type="number" id="couponMaxDiscount" class="form-control" placeholder="Để trống nếu không giới hạn">
             </div>
             <div class="form-group" id="couponUsageLimitGroup">
-              <label class="form-label">Giới hạn lượt dùng</label>
+              <label class="form-label" data-i18n="coupon_modal_usage_limit">Giới hạn lượt dùng</label>
               <input type="number" id="couponUsageLimit" class="form-control" placeholder="100" min="1" value="100">
             </div>
           </div>
 
           <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px;">
             <div class="form-group">
-              <label class="form-label">Ngày hết hạn</label>
+              <label class="form-label" data-i18n="coupon_modal_end_date">Ngày hết hạn</label>
               <input type="date" id="couponEndDate" class="form-control">
             </div>
             <div class="form-group" style="display:flex; align-items:center; padding-top:24px;">
               <label class="custom-checkbox" style="display:flex; align-items:center; gap:8px; cursor:pointer;">
                 <input type="checkbox" id="couponIsActive" checked>
-                <span style="font-weight:700; font-size:13px; color:#0f172a;">Kích hoạt mã ngay</span>
+                <span style="font-weight:700; font-size:13px; color:#0f172a;" data-i18n="coupon_modal_active_lbl">Kích hoạt mã ngay</span>
               </label>
             </div>
           </div>
         </div>
         <div class="modal-footer" style="display:flex; justify-content:flex-end; gap:10px; padding:12px 0 0; margin-top:12px; border-top:1px solid #e2e8f0;">
-          <button type="button" class="btn-admin btn-admin-outline" onclick="closeAdminModal('couponModal')">Hủy bỏ</button>
+          <button type="button" class="btn-admin btn-admin-outline" onclick="closeAdminModal('couponModal')" data-i18n="btn_cancel">Hủy bỏ</button>
           <button type="submit" class="btn-admin btn-admin-primary" id="btnSaveCoupon">
-            <i class="fa-solid fa-floppy-disk"></i> Lưu Mã Giảm Giá
+            <i class="fa-solid fa-floppy-disk"></i> <span data-i18n="coupon_modal_btn_save">Lưu Mã Giảm Giá</span>
           </button>
         </div>
       </form>
+    </div>
+  </div>
+
+  <!-- USER ORDERS HISTORY MODAL (LỊCH SỬ MUA SẮM KHÁCH HÀNG) -->
+  <div class="modal-overlay" id="userOrdersModal">
+    <div class="modal-card modal-order-card" style="max-width: 900px; width: 95%;">
+      <button class="modal-close" onclick="closeAdminModal('userOrdersModal')">✕</button>
+      <div id="userOrdersModalBody">
+        <div style="text-align:center; padding:3rem 0; color:#64748b;">
+          <i class="fa-solid fa-spinner fa-spin" style="font-size:28px; color:#e10600;"></i>
+          <p style="margin-top:10px; font-weight:600;" data-i18n="user_orders_loading">Đang tải hồ sơ & lịch sử mua hàng của khách...</p>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -1413,12 +1617,12 @@
     <div class="modal-card admin-auth-card">
       <!-- Branded Security Header -->
       <div class="auth-header">
-        <div class="auth-security-tag">
+        <div class="auth-security-tag" data-i18n="auth_security_tag">
           <i class="fa-solid fa-shield-halved"></i> CỔNG BẢO MẬT NỘI BỘ • SSL 256-BIT
         </div>
         <img src="../image/logo-minigt.webp" alt="MINI GT Logo" class="auth-brand-logo">
-        <h3 class="auth-title">Xác Thực Quyền Quản Trị</h3>
-        <p class="auth-subtitle">Đăng nhập tài khoản Quản trị viên để quản lý hệ thống Store</p>
+        <h3 class="auth-title" data-i18n="auth_title">Xác Thực Quyền Quản Trị</h3>
+        <p class="auth-subtitle" data-i18n="auth_subtitle">Đăng nhập tài khoản Quản trị viên để quản lý hệ thống Store</p>
       </div>
 
       <!-- Auth Form Body -->
@@ -1438,7 +1642,7 @@
         <form id="formAdminLogin" onsubmit="handleAdminLogin(event)" novalidate>
           <div class="form-group" style="text-align: left; margin-bottom: 1.15rem;">
             <label class="form-label" style="font-weight: 700; color: var(--admin-text-main); display: flex; justify-content: space-between; align-items: center;" for="adminLoginEmail">
-              <span><i class="fa-solid fa-user-shield" style="color: #e10600; margin-right: 5px;"></i> Email Quản Trị Viên</span>
+              <span><i class="fa-solid fa-user-shield" style="color: #e10600; margin-right: 5px;"></i> <span data-i18n="auth_email_lbl">Email Quản Trị Viên</span></span>
               <span style="font-size: 11px; font-weight: 600; color: #64748b;">(Cổng bảo mật SSL)</span>
             </label>
             <div class="auth-input-wrapper">
@@ -1450,7 +1654,7 @@
           <div class="form-group" style="text-align: left; margin-bottom: 1.15rem;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
               <label class="form-label" style="font-weight: 700; color: var(--admin-text-main); margin: 0;" for="adminLoginPassword">
-                <i class="fa-solid fa-lock" style="color: #e10600; margin-right: 5px;"></i> Mật Khẩu Bảo Mật
+                <i class="fa-solid fa-lock" style="color: #e10600; margin-right: 5px;"></i> <span data-i18n="auth_password_lbl">Mật Khẩu Bảo Mật</span>
               </label>
               <button type="button" class="auth-pw-toggle-btn" onclick="togglePasswordVisibility('adminLoginPassword', this)">
                 <i class="fa-solid fa-eye"></i> <span>Hiện</span>
@@ -1465,15 +1669,15 @@
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem; font-size: 12px;">
             <label style="display: flex; align-items: center; gap: 7px; color: #475569; font-weight: 600; cursor: pointer; user-select: none;">
               <input type="checkbox" id="adminRememberMe" checked style="width: 15px; height: 15px; accent-color: #e10600; cursor: pointer;">
-              Duy trì phiên đăng nhập
+              <span data-i18n="auth_remember_me">Duy trì phiên đăng nhập</span>
             </label>
             <a href="javascript:void(0)" onclick="adminToast('Quên mật khẩu? Vui lòng liên hệ Trưởng nhóm Đỗ Quốc Thịnh (0988 164 164) để cấp lại.', 'info')" style="color: #2563eb; text-decoration: none; font-weight: 600;">
-              <i class="fa-solid fa-circle-question"></i> Quên mật khẩu?
+              <i class="fa-solid fa-circle-question"></i> <span data-i18n="auth_forgot_password">Quên mật khẩu?</span>
             </a>
           </div>
 
           <button type="submit" id="btnAdminLoginSubmit" class="btn-admin-auth-submit">
-            <span>Đăng Nhập Quản Trị</span>
+            <span data-i18n="auth_btn_submit">Đăng Nhập Quản Trị</span>
             <i class="fa-solid fa-arrow-right-to-bracket"></i>
           </button>
         </form>
@@ -1485,11 +1689,27 @@
           </div>
           <div style="margin-top: 12px;">
             <a href="../index.html" class="auth-back-link">
-              <i class="fa-solid fa-arrow-left"></i> Quay về Cửa hàng mua sắm MINI GT
+              <i class="fa-solid fa-arrow-left"></i> <span data-i18n="auth_back_to_store">Quay về Cửa hàng mua sắm MINI GT</span>
             </a>
           </div>
         </div>
       </div>
+    </div>
+  </div>
+
+  <!-- ADMIN GALLERY LIGHTBOX VIEWER (XEM ẢNH 5+ & TOÀN BỘ GALLERY) -->
+  <div id="adminGalleryLightbox" class="admin-lightbox-overlay" onclick="if(event.target===this) closeAdminGalleryLightbox()">
+    <div class="admin-lightbox-box">
+      <div class="admin-lightbox-top">
+        <span id="adminLightboxCounter" class="admin-lightbox-counter">Ảnh 1 / 1</span>
+        <button type="button" class="admin-lightbox-close" onclick="closeAdminGalleryLightbox()">✕</button>
+      </div>
+      <div class="admin-lightbox-stage">
+        <button type="button" class="admin-lightbox-nav prev" onclick="stepAdminGalleryLightbox(-1)"><i class="fa-solid fa-chevron-left"></i></button>
+        <img id="adminLightboxMainImg" src="" alt="Preview">
+        <button type="button" class="admin-lightbox-nav next" onclick="stepAdminGalleryLightbox(1)"><i class="fa-solid fa-chevron-right"></i></button>
+      </div>
+      <div id="adminLightboxThumbs" class="admin-lightbox-thumbs"></div>
     </div>
   </div>
 

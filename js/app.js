@@ -22,7 +22,7 @@ const FALLBACK_PRODUCTS = (typeof window !== 'undefined' && window.api && typeof
     PreOrderDeadline: '2026-10-30', Stock: 15,
     ImageUrl: 'image/lambo-sterrato-set.png',
     Description: 'Bộ 4 xe Lamborghini Huracán Sterrato địa hình kèm hộp trưng bày Collector Box cao cấp chính hãng TSM-Model.',
-    Status: 'pre_order', IsFeatured: 1, IsNew: 1, soldCount: undefined
+    Status: 'pre_order', IsFeatured: 1, IsNew: 1, soldCount: 0
   },
   {
     ProductId: 2, id: 2, Sku: 'MGT01413', CarNumber: '1413',
@@ -36,7 +36,7 @@ const FALLBACK_PRODUCTS = (typeof window !== 'undefined' && window.api && typeof
     PreOrderDeadline: '2026-10-30', Stock: 25,
     ImageUrl: 'image/aston-amr24-stroll.png',
     Description: 'Mô hình xe đua F1 Aston Martin AMR24 #18 chặng Las Vegas GP 2024, sơn xanh Racing Green ánh kim tuyệt đẹp.',
-    Status: 'pre_order', IsFeatured: 1, IsNew: 1, soldCount: undefined
+    Status: 'pre_order', IsFeatured: 1, IsNew: 1, soldCount: 0
   },
   {
     ProductId: 3, id: 3, Sku: 'MGT01396', CarNumber: '1396',
@@ -50,7 +50,7 @@ const FALLBACK_PRODUCTS = (typeof window !== 'undefined' && window.api && typeof
     PreOrderDeadline: '2026-10-30', Stock: 18,
     ImageUrl: 'image/aston-amr24-alonso.png',
     Description: 'Phiên bản xe đua F1 của huyền thoại Fernando Alonso #14 tại chặng đua đêm Las Vegas 2024.',
-    Status: 'pre_order', IsFeatured: 1, IsNew: 1, soldCount: undefined
+    Status: 'pre_order', IsFeatured: 1, IsNew: 1, soldCount: 0
   },
   {
     ProductId: 4, id: 4, Sku: 'MGT00550', CarNumber: '550',
@@ -64,7 +64,7 @@ const FALLBACK_PRODUCTS = (typeof window !== 'undefined' && window.api && typeof
     PreOrderDeadline: null, Stock: 14,
     ImageUrl: 'image/f1_redbull.jpg',
     Description: 'Chiếc xe vô địch thế giới F1 Red Bull RB18 #1 của Max Verstappen với chi tiết khí động học tỉ lệ 1:64 sắc nét.',
-    Status: 'in_stock', IsFeatured: 1, IsNew: 1, soldCount: undefined
+    Status: 'in_stock', IsFeatured: 1, IsNew: 1, soldCount: 0
   },
   {
     ProductId: 5, id: 5, Sku: 'MGT01055', CarNumber: '1055',
@@ -78,7 +78,7 @@ const FALLBACK_PRODUCTS = (typeof window !== 'undefined' && window.api && typeof
     PreOrderDeadline: null, Stock: 22,
     ImageUrl: 'image/mgt01055.webp',
     Description: 'Siêu phẩm độ thân rộng Liberty Walk Lamborghini Huracán GT màu tím xanh Gravity Racing cực kỳ nổi bật.',
-    Status: 'in_stock', IsFeatured: 1, IsNew: 1, soldCount: undefined
+    Status: 'in_stock', IsFeatured: 1, IsNew: 1, soldCount: 0
   },
   {
     ProductId: 6, id: 6, Sku: 'MGT01143', CarNumber: '1143',
@@ -92,7 +92,7 @@ const FALLBACK_PRODUCTS = (typeof window !== 'undefined' && window.api && typeof
     PreOrderDeadline: '2026-10-30', Stock: 20,
     ImageUrl: 'image/ske.webp',
     Description: 'Phiên bản giới hạn Halloween Petit Le Mans với đồ họa bộ xương khủng long Rexy trên nền đen mờ.',
-    Status: 'pre_order', IsFeatured: 1, IsNew: 1, soldCount: undefined
+    Status: 'pre_order', IsFeatured: 1, IsNew: 1, soldCount: 0
   },
   {
     ProductId: 7, id: 7, Sku: 'MGT01093', CarNumber: '1093',
@@ -106,7 +106,7 @@ const FALLBACK_PRODUCTS = (typeof window !== 'undefined' && window.api && typeof
     PreOrderDeadline: null, Stock: 12,
     ImageUrl: 'image/Roxy.webp',
     Description: 'Mẫu Porsche 911 GT3 R khủng long hồng Roxy #77 siêu hot của đội đua AO Racing tại giải IMSA.',
-    Status: 'in_stock', IsFeatured: 1, IsNew: 1, soldCount: undefined
+    Status: 'in_stock', IsFeatured: 1, IsNew: 1, soldCount: 0
   },
   {
     ProductId: 8, id: 8, Sku: 'MGT00782', CarNumber: '782',
@@ -120,7 +120,7 @@ const FALLBACK_PRODUCTS = (typeof window !== 'undefined' && window.api && typeof
     PreOrderDeadline: null, Stock: 8,
     ImageUrl: 'image/rexy.jpg',
     Description: 'Huyền thoại khủng long xanh Rexy #80 AO Racing được săn đón nhất trong giới sưu tầm MINI GT 1:64.',
-    Status: 'in_stock', IsFeatured: 1, IsNew: 0, soldCount: undefined
+    Status: 'in_stock', IsFeatured: 1, IsNew: 0, soldCount: 0
   },
   {
     ProductId: 9, id: 9, Sku: 'MGT01129', CarNumber: '1129',
@@ -134,7 +134,7 @@ const FALLBACK_PRODUCTS = (typeof window !== 'undefined' && window.api && typeof
     PreOrderDeadline: null, Stock: 19,
     ImageUrl: 'image/Minigt_Lambo_GT3.jpg',
     Description: 'Mẫu xe đua Lamborghini Huracán GT3 EVO2 tham chiến giải đua sức bền 24 Giờ Daytona 2024.',
-    Status: 'in_stock', IsFeatured: 0, IsNew: 1, soldCount: undefined
+    Status: 'in_stock', IsFeatured: 0, IsNew: 1, soldCount: 0
   },
   {
     ProductId: 10, id: 10, Sku: 'MGT00465', CarNumber: '465',
@@ -148,7 +148,7 @@ const FALLBACK_PRODUCTS = (typeof window !== 'undefined' && window.api && typeof
     PreOrderDeadline: null, Stock: 16,
     ImageUrl: 'image/Minigt_s15chop_lbwk.jpg',
     Description: 'Biểu tượng JDM Nissan Silvia S15 độ bodykit Super Silhouette hầm hố từ nhà độ Liberty Walk Nhật Bản.',
-    Status: 'in_stock', IsFeatured: 1, IsNew: 0, soldCount: undefined
+    Status: 'in_stock', IsFeatured: 1, IsNew: 0, soldCount: 0
   },
   {
     ProductId: 11, id: 11, Sku: 'MGT00618', CarNumber: '618',
@@ -162,7 +162,7 @@ const FALLBACK_PRODUCTS = (typeof window !== 'undefined' && window.api && typeof
     PreOrderDeadline: null, Stock: 9,
     ImageUrl: 'image/Minigt_S15_LBWK.jpg',
     Description: 'Phiên bản kỷ niệm màn trình diễn drift của chiếc S15 #23 tại lễ hội tốc độ Goodwood Vương Quốc Anh.',
-    Status: 'in_stock', IsFeatured: 1, IsNew: 0, soldCount: undefined
+    Status: 'in_stock', IsFeatured: 1, IsNew: 0, soldCount: 0
   },
   {
     ProductId: 12, id: 12, Sku: 'PR640325', CarNumber: '325',
@@ -176,7 +176,7 @@ const FALLBACK_PRODUCTS = (typeof window !== 'undefined' && window.api && typeof
     PreOrderDeadline: null, Stock: 11,
     ImageUrl: 'image/Poprace_Supra_Secret.webp',
     Description: 'Phiên bản mạ Chrome bạc đặc biệt của Top Secret Supra GT300, mở được nắp ca-pô chiêm ngưỡng khối động cơ 2JZ.',
-    Status: 'in_stock', IsFeatured: 1, IsNew: 1, soldCount: undefined
+    Status: 'in_stock', IsFeatured: 1, IsNew: 1, soldCount: 0
   },
   {
     ProductId: 13, id: 13, Sku: 'PR640118', CarNumber: '118',
@@ -190,7 +190,7 @@ const FALLBACK_PRODUCTS = (typeof window !== 'undefined' && window.api && typeof
     PreOrderDeadline: null, Stock: 14,
     ImageUrl: 'image/Poprace_Skyline.webp',
     Description: 'Huyền thoại Hakosuka độ Drift động cơ V8 của Pop Race với sơn đỏ Metallic và bánh lốp cao su thật.',
-    Status: 'in_stock', IsFeatured: 0, IsNew: 1, soldCount: undefined
+    Status: 'in_stock', IsFeatured: 0, IsNew: 1, soldCount: 0
   },
   {
     ProductId: 14, id: 14, Sku: 'TH640012', CarNumber: 'KH12',
@@ -204,7 +204,7 @@ const FALLBACK_PRODUCTS = (typeof window !== 'undefined' && window.api && typeof
     PreOrderDeadline: null, Stock: 10,
     ImageUrl: 'image/Toyota_Yaris_TrendsHobby.webp',
     Description: 'Mô hình xe đua địa hình WRC Toyota Yaris kèm đế trưng bày và hộp chống bụi Acrylic sang trọng.',
-    Status: 'in_stock', IsFeatured: 0, IsNew: 1, soldCount: undefined
+    Status: 'in_stock', IsFeatured: 0, IsNew: 1, soldCount: 0
   },
   {
     ProductId: 15, id: 15, Sku: 'MGTS0019', CarNumber: 'S019',
@@ -218,7 +218,7 @@ const FALLBACK_PRODUCTS = (typeof window !== 'undefined' && window.api && typeof
     PreOrderDeadline: null, Stock: 6,
     ImageUrl: 'image/roxy-rexy-2.webp',
     Description: 'Bộ đôi khủng long đường đua Rexy #80 (Xanh) và Roxy #77 (Hồng) đóng gói Combo 2 xe ưu đãi.',
-    Status: 'in_stock', IsFeatured: 1, IsNew: 1, soldCount: undefined
+    Status: 'in_stock', IsFeatured: 1, IsNew: 1, soldCount: 0
   },
   {
     ProductId: 16, id: 16, Sku: 'MGT00642', CarNumber: '642',
@@ -232,7 +232,7 @@ const FALLBACK_PRODUCTS = (typeof window !== 'undefined' && window.api && typeof
     PreOrderDeadline: null, Stock: 7,
     ImageUrl: 'image/f1-redbull-live.webp',
     Description: 'Hộp sa bàn Pit Stop Red Bull Racing gồm 2 xe F1 RB18 và dàn nhân vật kỹ thuật viên thay lốp.',
-    Status: 'in_stock', IsFeatured: 1, IsNew: 0, soldCount: undefined
+    Status: 'in_stock', IsFeatured: 1, IsNew: 0, soldCount: 0
   },
   {
     ProductId: 17, id: 17, Sku: 'MGT01055-LW', CarNumber: '1055C',
@@ -246,7 +246,7 @@ const FALLBACK_PRODUCTS = (typeof window !== 'undefined' && window.api && typeof
     PreOrderDeadline: null, Stock: 12,
     ImageUrl: 'image/minig_lambo_lbwk.webp',
     Description: 'Phiên bản đóng gói Vỉ nhựa cứng Blister Card cao cấp kèm ảnh bìa nghệ thuật Liberty Walk chống cấn góc 100%.',
-    Status: 'in_stock', IsFeatured: 0, IsNew: 1, soldCount: undefined
+    Status: 'in_stock', IsFeatured: 0, IsNew: 1, soldCount: 0
   },
   {
     ProductId: 18, id: 18, Sku: 'MGT00688', CarNumber: '688',
@@ -260,7 +260,7 @@ const FALLBACK_PRODUCTS = (typeof window !== 'undefined' && window.api && typeof
     PreOrderDeadline: null, Stock: 10,
     ImageUrl: 'image/Minigt_Lambo_LBWK.jpg',
     Description: 'Siêu bò Lamborghini Aventador độ thân rộng LB★WORKS màu đen nhám kết hợp cánh gió GT cỡ lớn.',
-    Status: 'in_stock', IsFeatured: 1, IsNew: 0, soldCount: undefined
+    Status: 'in_stock', IsFeatured: 1, IsNew: 0, soldCount: 0
   }
 ];
 
@@ -307,8 +307,13 @@ function applyStoreSettingsUI() {
 
   // 1. Cập nhật thanh thông báo chạy đầu trang (Announcement Ticker)
   const ticker = document.querySelector('.announcement-ticker span:nth-child(2)');
+  const isEn = typeof currentSiteLang !== 'undefined' && currentSiteLang === 'en';
   if (ticker && storeSettings.announcement) {
-    ticker.innerHTML = `${escapeHtml(storeSettings.announcement)} | <i class="fa-regular fa-clock" style="font-size:11px; margin-left:4px;"></i> Hạn chốt cọc: <strong>${escapeHtml(storeSettings.preorder_deadline || 'Tháng 11/2026')}</strong>`;
+    if (isEn && I18N_TRANSLATIONS && I18N_TRANSLATIONS.en && I18N_TRANSLATIONS.en.topbar_ticker) {
+      ticker.innerHTML = I18N_TRANSLATIONS.en.topbar_ticker;
+    } else {
+      ticker.innerHTML = `${escapeHtml(storeSettings.announcement)} | <i class="fa-regular fa-clock" style="font-size:11px; margin-left:4px;"></i> Hạn chốt cọc: <strong>${escapeHtml(storeSettings.preorder_deadline || 'Tháng 11/2026')}</strong>`;
+    }
   }
 
   // 2. Cập nhật tên cửa hàng ở các vị trí hiển thị
@@ -350,7 +355,12 @@ function applyStoreSettingsUI() {
   if (storeSettings.preorder_deadline) {
     const stripSub = document.querySelector('#preorder-strip .preorder-strip-text p');
     if (stripSub) {
-      stripSub.innerHTML = `<span data-i18n="countdown_sub">Đợt mở đặt trước xe mô hình giới hạn:</span> <strong>Dự kiến giao ${escapeHtml(storeSettings.preorder_deadline)}</strong>`;
+      if (isEn) {
+        const engDl = String(storeSettings.preorder_deadline).replace('Tháng ', 'Nov ');
+        stripSub.innerHTML = `<span data-i18n="countdown_sub">Limited diecast pre-order wave open now:</span> <strong>Estimated Delivery: ${escapeHtml(engDl)}</strong>`;
+      } else {
+        stripSub.innerHTML = `<span data-i18n="countdown_sub">Đợt mở đặt trước xe mô hình giới hạn:</span> <strong>Dự kiến giao ${escapeHtml(storeSettings.preorder_deadline)}</strong>`;
+      }
     }
     if (typeof setupCountdown === 'function') {
       setupCountdown();
@@ -464,28 +474,31 @@ function renderWishlistModal() {
   }
 
   container.innerHTML = items.map(p => {
+    const isEn = typeof currentSiteLang !== 'undefined' && currentSiteLang === 'en';
     const isPreOrder = (p.Status || p.status) === 'pre_order';
-    const isSoldOut = (p.Status || p.status) === 'sold_out';
+    const isSoldOut = (p.Status || p.status) === 'sold_out' || (typeof p.Stock === 'number' && p.Stock <= 0);
     const pId = p.ProductId || p.id;
     const pName = p.Name || p.name;
-    const pImg = p.ImageUrl || p.image || 'image/hero-banner.jpg';
+    const pImg = typeof getProductGalleryImages === 'function' ? getProductGalleryImages(p)[0] : (p.ImageUrl || p.image || 'image/hero-banner.jpg');
     const pPrice = p.Price || p.price;
     const pSku = p.Sku || p.sku;
+    const soldCount = typeof getProductRealSoldCount === 'function' ? getProductRealSoldCount(p) : Math.max(0, Number(p.soldCount ?? p.SoldCount ?? 0) || 0);
 
     return `
       <div style="display:flex; align-items:center; gap:12px; padding:10px 0; border-bottom:1px solid #f1f5f9;">
-        <img src="${pImg}" alt="${escapeHtml(pName)}" style="width:60px; height:60px; object-fit:contain; border-radius:8px; background:#f8fafc; border:1px solid #e2e8f0; padding:2px; cursor:pointer;" onclick="closeModal('wishlistModal'); openQuickView(${pId});">
+        <img src="${escapeHtml(pImg)}" alt="${escapeHtml(pName)}" style="width:60px; height:60px; object-fit:contain; border-radius:8px; background:#f8fafc; border:1px solid #e2e8f0; padding:2px; cursor:pointer;" onclick="closeModal('wishlistModal'); openQuickView(${pId});" onerror="this.onerror=null; this.src='image/hero-banner.jpg';">
         <div style="flex:1;">
           <div style="font-weight:700; font-size:13px; color:var(--color-navy); line-height:1.3; cursor:pointer;" onclick="closeModal('wishlistModal'); openQuickView(${pId});">${escapeHtml(pName)}</div>
-          <div style="display:flex; align-items:center; gap:6px; margin-top:3px;">
+          <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap; margin-top:3px;">
             <span style="font-size:10px; background:#f1f5f9; color:#475569; padding:1px 5px; border-radius:3px; font-weight:700;">#${escapeHtml(pSku)}</span>
             <strong style="color:var(--color-primary); font-size:13px;">${formatVND(pPrice)}</strong>
+            <span class="card-sold-badge ${soldCount > 0 ? 'has-sales' : 'zero-sales'}"><i class="fa-solid ${soldCount > 0 ? 'fa-fire-flame-curved' : 'fa-bag-shopping'}"></i> ${isEn ? `Sold ${soldCount}` : `Đã bán ${soldCount}`}</span>
             ${isPreOrder ? '<span class="badge badge-preorder" style="font-size:9.5px; padding:1px 6px;">Pre-Order</span>' : (isSoldOut ? '<span class="badge badge-soldout" style="font-size:9.5px; padding:1px 6px;">Hết hàng</span>' : '<span class="badge badge-instock" style="font-size:9.5px; padding:1px 6px;">Sẵn hàng</span>')}
           </div>
         </div>
         <div style="display:flex; align-items:center; gap:8px;">
-          <button type="button" class="btn btn-sm btn-primary" ${isSoldOut ? 'disabled' : ''} style="font-size:11.5px; padding:4px 10px;" onclick="addToCart(${pId}, 1); closeModal('wishlistModal'); openCartDrawer();">
-            <i class="fa-solid fa-cart-shopping" style="margin-right:4px;"></i> ${isPreOrder ? 'Đặt cọc' : 'Mua ngay'}
+          <button type="button" class="btn btn-sm btn-primary" ${isSoldOut ? 'disabled' : ''} style="font-size:11.5px; padding:4px 10px;" onclick="closeModal('wishlistModal'); handleCardAction(${pId}, event);">
+            <i class="fa-solid fa-cart-shopping" style="margin-right:4px;"></i> ${isPreOrder ? (isEn ? 'Pre-Order' : 'Đặt cọc') : (isEn ? 'Buy Now' : 'Mua ngay')}
           </button>
           <button type="button" class="btn btn-sm btn-outline" style="color:#dc2626; border-color:#fca5a5; font-size:11.5px; padding:4px 8px;" onclick="toggleWishlist(${pId}, event); renderWishlistModal();" title="Xóa khỏi yêu thích">
             <i class="fa-solid fa-trash"></i>
@@ -956,8 +969,383 @@ async function loadProducts() {
   renderDynamicBrandFilter();
   renderProductsGrid();
   renderPreOrderQuickRow();
+  syncStaticShowcaseProducts();
   updateFilterCounts();
 }
+
+// =====================================================================
+// 4B. CHUẨN HÓA ĐA ẢNH GALLERY & DỮ LIỆU ĐÃ BÁN THỰC TẾ (REAL SOLD COUNT)
+// =====================================================================
+function resolveStorefrontImageUrl(rawUrl) {
+  let u = String(rawUrl || '').trim();
+  if (!u || u === 'null' || u === 'undefined') return 'image/hero-banner.jpg';
+
+  // 1. Nhận diện chuẩn xác mọi định dạng ảnh upload CSDL: api/images/3, /api/images/3, images/3, /images/3, http://...:5500/api/images/3
+  const apiMatch = u.match(/^(?:https?:\/\/[^\/]+(?::\d+)?)?\/?(?:api\/)?images\/(\d+)(?:\?.*)?$/i);
+  if (apiMatch) {
+    const imgId = apiMatch[1];
+    let host = '';
+    if (typeof api !== 'undefined' && api.BASE_URL && (!api.isLocalServerOffline || !api.isLocalServerOffline())) {
+      host = api.BASE_URL.replace(/\/+$/, '');
+    } else if (typeof window !== 'undefined' && window.location && String(window.location.port) === '5000') {
+      host = '';
+    } else {
+      // Khi mở qua Live Server (port 5500) hoặc file://, trỏ thẳng tới server backend local hoặc Cloud backend
+      const isOffline = typeof api !== 'undefined' && typeof api.isLocalServerOffline === 'function' && api.isLocalServerOffline();
+      host = isOffline
+        ? ((typeof api !== 'undefined' && api.CLOUD_BACKEND_URL) ? api.CLOUD_BACKEND_URL : 'https://projectnhom2.vercel.app')
+        : 'http://127.0.0.1:5000';
+    }
+    return host ? `${host}/api/images/${imgId}` : `/api/images/${imgId}`;
+  }
+
+  if (u.startsWith('/') && typeof api !== 'undefined' && api.BASE_URL && (u.startsWith('/api/') || u.startsWith('/images/'))) {
+    return api.BASE_URL.replace(/\/+$/, '') + u;
+  }
+  if (u.includes('amr24.webp')) return 'image/aston-amr24-alonso.png';
+  if (u.includes('f1.webp')) return 'image/aston-amr24-stroll.png';
+  if (u.includes('huracan.webp')) return 'image/lambo-sterrato-set.png';
+  if (u.includes('lambo.webp')) return 'image/Minigt_Lambo_GT3.jpg';
+  return u;
+}
+window.resolveStorefrontImageUrl = resolveStorefrontImageUrl;
+
+function getProductGalleryImages(prod) {
+  if (!prod) return ['image/hero-banner.jpg'];
+  const rawArr = Array.isArray(prod.images)
+    ? prod.images
+    : (Array.isArray(prod.Images) ? prod.Images : []);
+
+  const primaryRaw = prod.ImageUrl || prod.imageUrl || prod.image || prod.Image || '';
+  const list = [];
+  const addUnique = (val) => {
+    const raw = typeof val === 'string'
+      ? val.trim()
+      : (val && typeof val === 'object' ? String(val.url || val.ImageUrl || val.imageUrl || '').trim() : '');
+    if (!raw || raw === 'null' || raw === 'undefined') return;
+    const resolved = resolveStorefrontImageUrl(raw);
+    if (resolved && !list.includes(resolved)) {
+      list.push(resolved);
+    }
+  };
+
+  // Đảm bảo ảnh đầu tiên (Ảnh 1) luôn là ảnh hiển thị chính
+  if (primaryRaw) addUnique(primaryRaw);
+  rawArr.forEach(addUnique);
+
+  if (list.length === 0) {
+    list.push('image/hero-banner.jpg');
+  }
+  return list;
+}
+window.getProductGalleryImages = getProductGalleryImages;
+
+function getProductRealSoldCount(prod) {
+  if (!prod) return 0;
+  const val = prod.soldCount ?? prod.SoldCount ?? prod.soldcount ?? 0;
+  const parsed = parseInt(val, 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
+}
+window.getProductRealSoldCount = getProductRealSoldCount;
+
+function formatCompactPrice(num) {
+  const n = Number(num) || 0;
+  if (n <= 0) return '0k';
+  if (n >= 1000000) {
+    const m = n / 1000000;
+    return (m % 1 === 0 ? m : m.toFixed(1)) + 'tr';
+  }
+  if (n >= 1000) {
+    return Math.round(n / 1000) + 'k';
+  }
+  return n + 'đ';
+}
+window.formatCompactPrice = formatCompactPrice;
+
+function syncStaticShowcaseProducts() {
+  const isEn = typeof currentSiteLang !== 'undefined' && currentSiteLang === 'en';
+  const source = (allProducts && allProducts.length > 0) ? allProducts : FALLBACK_PRODUCTS;
+
+  // 1. Đồng bộ số lượng Đã bán thực tế lên tất cả thẻ showcase trên trang chủ (LBWK, GT3 Rexy/Roxy/Ske, Secret Chase)
+  document.querySelectorAll('[data-sold-product-id]').forEach(el => {
+    const pid = Number(el.getAttribute('data-sold-product-id'));
+    const prod = source.find(p => Number(p.ProductId || p.id) === pid);
+    const sold = prod ? getProductRealSoldCount(prod) : 0;
+    el.classList.toggle('zero-sales', sold === 0);
+    el.innerHTML = `<i class="fa-solid ${sold > 0 ? 'fa-fire-flame-curved' : 'fa-bag-shopping'}"></i> ${isEn ? `Sold ${sold}` : `Đã bán ${sold}`}`;
+  });
+
+  // 2. Đồng bộ hình ảnh đại diện chính (Ảnh 1) cho tất cả thẻ showcase
+  document.querySelectorAll('img[data-product-img-id]').forEach(imgEl => {
+    const pid = Number(imgEl.getAttribute('data-product-img-id'));
+    const prod = source.find(p => Number(p.ProductId || p.id) === pid);
+    if (prod) {
+      const mainImg = getProductGalleryImages(prod)[0];
+      if (mainImg && imgEl.getAttribute('src') !== mainImg) {
+        imgEl.setAttribute('src', mainImg);
+      }
+    }
+  });
+
+  // 3. Đồng bộ chuyên sâu các thẻ IMSA GT3 Dino (Rexy #80, Roxy #77, Skeleton #77)
+  document.querySelectorAll('.gt3-dino-card[data-id]').forEach(cardEl => {
+    const pid = Number(cardEl.getAttribute('data-id'));
+    const prod = source.find(p => Number(p.ProductId || p.id) === pid);
+    if (!prod) return;
+
+    const pricing = getProductBoxCardPricing(prod);
+    const pName = prod.Name || prod.name || '';
+    const pSku = prod.Sku || prod.sku || '';
+    const pCarNum = prod.CarNumber || (pSku ? pSku.replace(/\D/g, '').replace(/^0+/, '') : '') || '64';
+    const statusVal = String(prod.Status || prod.status || 'in_stock').toLowerCase();
+    const isPreOrder = statusVal === 'pre_order';
+    const stockCount = typeof prod.Stock === 'number' ? prod.Stock : (typeof prod.stock === 'number' ? prod.stock : 10);
+    const isOutOfStock = stockCount <= 0 || statusVal === 'sold_out' || statusVal === 'out_of_stock' || Boolean(prod.isOutOfStock);
+
+    // Tên mô hình
+    const titleEl = cardEl.querySelector('h3');
+    if (titleEl) titleEl.textContent = pName;
+
+    // Tag SKU & Car #
+    const skuTagEl = cardEl.querySelector('.gt3-sku-tag');
+    if (skuTagEl) {
+      let nick = 'IMSA GT3';
+      if (pid === 8) nick = 'REXY #80';
+      else if (pid === 7) nick = 'ROXY #77';
+      else if (pid === 6) nick = 'SKELETON #77';
+      else if (pCarNum) nick = `CAR #${pCarNum}`;
+      skuTagEl.textContent = `#${pSku} • ${nick}`;
+    }
+
+    // Status Pill (Giảm giá, Pre-Order, Hết hàng, Sẵn kho)
+    const statusPill = cardEl.querySelector('.gt3-status-pill');
+    if (statusPill) {
+      statusPill.className = 'gt3-status-pill';
+      if (isOutOfStock) {
+        statusPill.classList.add('soldout');
+        statusPill.textContent = isEn ? 'Sold Out' : 'Tạm hết hàng';
+      } else if (isPreOrder) {
+        statusPill.classList.add('preorder');
+        const depPct = Number(prod.DepositPercent || prod.depositPercent || 30);
+        statusPill.textContent = isEn ? `Pre-Order (Dep ${depPct}%)` : `Pre-Order (Cọc ${depPct}%)`;
+      } else if (pricing.hasDiscount) {
+        statusPill.classList.add('sale');
+        statusPill.textContent = isEn ? `-${pricing.discountPercent}% OFF` : `Đang giảm -${pricing.discountPercent}%`;
+      } else {
+        statusPill.classList.add('rexy-status');
+        statusPill.textContent = isEn ? 'In Stock' : 'Sẵn kho Biên Hòa';
+      }
+    }
+
+    // Nút chọn Box & Card
+    const boxBtn = cardEl.querySelector('.card-pack-btn.is-box, .card-pack-btn:first-child');
+    const cardBtn = cardEl.querySelector('.card-pack-btn.is-card, .card-pack-btn:last-child');
+    if (boxBtn) {
+      const boxPriceSpan = boxBtn.querySelector('.pack-price');
+      if (boxPriceSpan) boxPriceSpan.textContent = formatCompactPrice(pricing.finalPriceBox);
+      boxBtn.classList.toggle('pack-unavailable', !pricing.isBoxAvailable);
+      boxBtn.disabled = !pricing.isBoxAvailable;
+    }
+    if (cardBtn) {
+      const cardPriceSpan = cardBtn.querySelector('.pack-price');
+      if (cardPriceSpan) cardPriceSpan.textContent = formatCompactPrice(pricing.finalPriceCard);
+      cardBtn.classList.toggle('pack-unavailable', !pricing.isCardAvailable);
+      cardBtn.disabled = !pricing.isCardAvailable;
+    }
+
+    // Giá hiển thị chính
+    const activePack = selectedCardPackaging[pid] || 'box';
+    const chosenFinal = (activePack === 'card' && pricing.isCardAvailable) ? pricing.finalPriceCard : pricing.finalPriceBox;
+    const chosenBase = (activePack === 'card' && pricing.isCardAvailable) ? pricing.priceCard : pricing.priceBox;
+    const strongPrice = cardEl.querySelector('.gt3-price-group strong');
+    if (strongPrice) {
+      strongPrice.textContent = formatVND(chosenFinal);
+      strongPrice.className = (pricing.hasDiscount && chosenBase > chosenFinal) ? 'price-sale' : '';
+    }
+
+    // Nút hành động
+    const actionBtn = cardEl.querySelector('.card-btn-buy, .card-btn-preorder, .card-btn-soldout');
+    if (actionBtn) {
+      if (isOutOfStock) {
+        actionBtn.className = 'card-btn-soldout';
+        actionBtn.disabled = true;
+        actionBtn.innerHTML = isEn ? 'Sold Out' : 'Hết hàng';
+      } else if (isPreOrder) {
+        actionBtn.className = 'card-btn-preorder';
+        actionBtn.disabled = false;
+        actionBtn.innerHTML = `<i class="fa-solid fa-plus"></i> <span>${isEn ? 'Pre-Order' : 'Đặt cọc'}</span>`;
+      } else {
+        actionBtn.className = 'card-btn-buy';
+        actionBtn.disabled = false;
+        actionBtn.innerHTML = `<i class="fa-solid fa-bag-shopping"></i> <span>${isEn ? 'Buy Now' : 'Mua ngay'}</span>`;
+      }
+    }
+  });
+
+  // 4. Đồng bộ chuyên sâu cụm Bản độ Liberty Walk (LB★WORKS)
+  // 4A. Spotlight Card lớn: S15 Silvia Presentation (#10)
+  document.querySelectorAll('.lbwk-hero-feature[data-showcase-product-id], .lbwk-hero-feature').forEach(heroCard => {
+    const pid = Number(heroCard.getAttribute('data-showcase-product-id')) || 10;
+    const prod = source.find(p => Number(p.ProductId || p.id) === pid);
+    if (!prod) return;
+
+    const pricing = getProductBoxCardPricing(prod);
+    const pName = prod.Name || prod.name || '';
+    const pSku = prod.Sku || prod.sku || '';
+
+    const titleEl = heroCard.querySelector('.lbwk-feature-title');
+    if (titleEl) titleEl.textContent = pName;
+
+    const tagRed = heroCard.querySelector('.lbwk-tag-red');
+    if (tagRed) tagRed.textContent = `#${pSku} • FORMULA DRIFT`;
+
+    const chips = heroCard.querySelectorAll('.lbwk-spec-chips .lbwk-spec-chip');
+    if (chips.length >= 3) {
+      chips[1].innerHTML = `<i class="fa-solid fa-box"></i> Box: ${formatVND(pricing.finalPriceBox)}`;
+      chips[2].innerHTML = `<i class="fa-solid fa-shield-halved"></i> Card: ${formatVND(pricing.finalPriceCard)}`;
+    }
+
+    const priceVal = heroCard.querySelector('.lbwk-price-val');
+    if (priceVal) {
+      priceVal.textContent = formatVND(pricing.finalPriceBox);
+    }
+  });
+
+  // 4B. 3 Mini Cards bên phải (Huracán #5, Huracán Blister #17, S15 Goodwood #11)
+  document.querySelectorAll('.lbwk-mini-spotlight[data-showcase-product-id]').forEach(miniCard => {
+    const pid = Number(miniCard.getAttribute('data-showcase-product-id'));
+    const prod = source.find(p => Number(p.ProductId || p.id) === pid);
+    if (!prod) return;
+
+    const pricing = getProductBoxCardPricing(prod);
+    const pName = prod.Name || prod.name || '';
+    const pSku = prod.Sku || prod.sku || '';
+
+    const titleEl = miniCard.querySelector('.lbwk-mini-title');
+    if (titleEl) titleEl.textContent = pName;
+
+    const skuEl = miniCard.querySelector('.lbwk-mini-sku');
+    if (skuEl) {
+      const soldPill = skuEl.querySelector('.showcase-sold-pill');
+      const soldHtml = soldPill ? soldPill.outerHTML : '';
+      const packDesc = pricing.packagingType === 'card_only'
+        ? (isEn ? `#${pSku} • CARD BLISTER` : `#${pSku} • BẢN VỈ BLISTER CARD`)
+        : `#${pSku} • BOX ${formatCompactPrice(pricing.finalPriceBox).toUpperCase()} / CARD ${formatCompactPrice(pricing.finalPriceCard).toUpperCase()}`;
+      skuEl.innerHTML = `${packDesc} ${soldHtml}`;
+    }
+
+    const priceEl = miniCard.querySelector('.lbwk-mini-price');
+    if (priceEl) {
+      if (pricing.hasDiscount && pricing.priceBox > pricing.finalPriceBox) {
+        priceEl.innerHTML = `<span style="font-size:11px; text-decoration:line-through; color:#94a3b8; font-weight:600; margin-right:4px;">${formatVND(pricing.priceBox)}</span><span style="color:#e10600; font-weight:800;">${formatVND(pricing.finalPriceBox)}</span>`;
+      } else {
+        priceEl.textContent = formatVND(pricing.finalPriceBox);
+      }
+    }
+
+    const stockCount = typeof prod.Stock === 'number' ? prod.Stock : 10;
+    const isOutOfStock = stockCount <= 0 || String(prod.Status || prod.status || '').toLowerCase() === 'sold_out';
+    const buyBtn = miniCard.querySelector('.btn-primary');
+    if (buyBtn && isOutOfStock) {
+      buyBtn.disabled = true;
+      buyBtn.classList.add('disabled');
+      buyBtn.innerHTML = isEn ? 'Sold Out' : 'Hết hàng';
+    }
+  });
+
+  // 5. Đồng bộ Hero Trio Cards (Rexy, Roxy, Skeleton)
+  document.querySelectorAll('.hero-trio-card').forEach(trioCard => {
+    const rawId = trioCard.getAttribute('data-id');
+    const m = rawId ? [null, rawId] : (trioCard.getAttribute('onclick') || '').match(/openQuickView\((\d+)\)/);
+    if (!m) return;
+    const pid = Number(m[1]);
+    const prod = source.find(p => Number(p.ProductId || p.id) === pid);
+    if (!prod) return;
+
+    const pricing = getProductBoxCardPricing(prod);
+    const mainImg = getProductGalleryImages(prod)[0];
+    const imgEl = trioCard.querySelector('img');
+    if (imgEl && mainImg) imgEl.src = mainImg;
+
+    const titleEl = trioCard.querySelector('.trio-title');
+    if (titleEl) {
+      if (pid === 8) titleEl.textContent = 'Porsche GT3 R Rexy';
+      else if (pid === 7) titleEl.textContent = 'Porsche GT3 R Roxy';
+      else if (pid === 6) titleEl.textContent = 'GT3 R Skeleton';
+      else {
+        const full = prod.Name || prod.name || '';
+        titleEl.textContent = full.length > 20 ? full.slice(0, 18) + '...' : full;
+      }
+      titleEl.title = prod.Name || prod.name || '';
+    }
+
+    const priceBoxEl = trioCard.querySelector('.trio-price');
+    if (priceBoxEl) {
+      priceBoxEl.textContent = `Box ${formatCompactPrice(pricing.finalPriceBox)}${pricing.hasDiscount ? ` (-${pricing.discountPercent}%)` : ''}`;
+      priceBoxEl.classList.toggle('highlight', pricing.hasDiscount);
+    }
+    const priceCardEl = trioCard.querySelector('.trio-price-card');
+    if (priceCardEl) {
+      priceCardEl.textContent = `Card ${formatCompactPrice(pricing.finalPriceCard)}`;
+    }
+  });
+
+  // 6. Đồng bộ Tooltips trên Hero Hotspots & Hero Slides
+  document.querySelectorAll('.hero-hotspot').forEach(btn => {
+    const m = (btn.getAttribute('onclick') || '').match(/openQuickView\((\d+)\)/);
+    if (!m) return;
+    const pid = Number(m[1]);
+    const prod = source.find(p => Number(p.ProductId || p.id) === pid);
+    if (!prod) return;
+    const pricing = getProductBoxCardPricing(prod);
+    const priceSpan = btn.querySelector('.hs-price > span:first-child');
+    if (priceSpan) priceSpan.textContent = formatVND(pricing.finalPriceBox);
+    const titleSpan = btn.querySelector('.hs-title');
+    if (titleSpan) titleSpan.textContent = prod.Name || prod.name || '';
+  });
+
+  // Hero Slides
+  const slide2 = document.querySelector('.hero-slide[data-slide-index="1"]');
+  if (slide2) {
+    const prod10 = source.find(p => Number(p.ProductId || p.id) === 10);
+    if (prod10) {
+      const pr10 = getProductBoxCardPricing(prod10);
+      const pills = slide2.querySelectorAll('.hero-pack-preview-pills .hero-pack-pill');
+      if (pills.length >= 2) {
+        pills[0].innerHTML = `<i class="fa-solid fa-box"></i> ${isEn ? 'Box:' : 'Bản Box:'} <strong>${formatVND(pr10.finalPriceBox)}</strong>`;
+        pills[1].innerHTML = `<i class="fa-solid fa-shield-halved"></i> ${isEn ? 'Card:' : 'Bản Card:'} <strong>${formatVND(pr10.finalPriceCard)}</strong>`;
+      }
+    }
+  }
+  const slide3 = document.querySelector('.hero-slide[data-slide-index="2"]');
+  if (slide3) {
+    const prod4 = source.find(p => Number(p.ProductId || p.id) === 4);
+    if (prod4) {
+      const pr4 = getProductBoxCardPricing(prod4);
+      const pills = slide3.querySelectorAll('.hero-pack-preview-pills .hero-pack-pill');
+      if (pills.length >= 2) {
+        pills[0].innerHTML = `<i class="fa-solid fa-box"></i> ${isEn ? 'Box:' : 'Bản Box:'} <strong>${formatVND(pr4.finalPriceBox)}</strong>${pr4.hasDiscount ? ` (-${pr4.discountPercent}%)` : ''}`;
+        pills[1].innerHTML = `<i class="fa-solid fa-shield-halved"></i> ${isEn ? 'Card:' : 'Bản Card:'} <strong>${formatVND(pr4.finalPriceCard)}</strong>${pr4.hasDiscount ? ` (-${pr4.discountPercent}%)` : ''}`;
+      }
+    }
+  }
+
+  // 7. Đồng bộ Secret Chase Showcase Box (#12)
+  const chaseBox = document.querySelector('.chase-showcase-box');
+  if (chaseBox) {
+    const prod12 = source.find(p => Number(p.ProductId || p.id) === 12);
+    if (prod12) {
+      const mainImg = getProductGalleryImages(prod12)[0];
+      const imgEl = chaseBox.querySelector('.chase-car-img');
+      if (imgEl && mainImg) imgEl.src = mainImg;
+      const nameEl = chaseBox.querySelector('.chase-car-name');
+      if (nameEl) nameEl.textContent = prod12.Name || prod12.name;
+      const skuEl = chaseBox.querySelector('.chase-car-sku');
+      if (skuEl) skuEl.textContent = prod12.Sku || prod12.sku;
+    }
+  }
+}
+window.syncStaticShowcaseProducts = syncStaticShowcaseProducts;
 
 // Đồng bộ sản phẩm tức thì khi Admin thêm/sửa Box, Card hoặc % giảm giá
 try {
@@ -984,14 +1372,9 @@ function createProductCardHTML(p, idx = 0) {
   const pId = p.ProductId || p.id;
   const pName = p.Name || p.name || 'Mini GT 1:64';
   const pSku = p.Sku || p.sku || 'MGT0000';
-  let pImg = p.ImageUrl || p.imageUrl || p.image || p.Image || 'image/hero-banner.jpg';
-  if ((pImg.startsWith('/api/images/') || pImg.startsWith('/images/')) && typeof api !== 'undefined' && api.BASE_URL) {
-    pImg = api.BASE_URL.replace(/\/+$/, '') + pImg;
-  }
-  if (pImg.includes('amr24.webp')) pImg = 'image/aston-amr24-alonso.png';
-  else if (pImg.includes('f1.webp')) pImg = 'image/aston-amr24-stroll.png';
-  else if (pImg.includes('huracan.webp')) pImg = 'image/lambo-sterrato-set.png';
-  else if (pImg.includes('lambo.webp')) pImg = 'image/Minigt_Lambo_GT3.jpg';
+  const galleryImages = getProductGalleryImages(p);
+  const pImg = galleryImages[0];
+  const soldCount = getProductRealSoldCount(p);
   const statusVal = String(p.Status || p.status || 'in_stock').toLowerCase();
   const isPreOrder = statusVal === 'pre_order';
   const stockCount = typeof p.Stock === 'number' ? p.Stock : (typeof p.stock === 'number' ? p.stock : 10);
@@ -1122,7 +1505,15 @@ function createProductCardHTML(p, idx = 0) {
     ? (isEn ? 'Sold Out' : 'Hết hàng')
     : (isPreOrder ? 'Pre-Order' : (isEn ? 'In Stock' : 'Sẵn hàng'));
   const statusPillColor = isOutOfStock ? '#dc2626' : (isPreOrder ? '#d97706' : '#059669');
-  const editionLabel = p.EditionNote || p.editionNote || (isEn ? 'Alloy Body • Rubber Tires' : 'Thân kim loại • Lốp cao su');
+  let editionLabel = p.EditionNote || p.editionNote || (isEn ? 'Alloy Body • Rubber Tires' : 'Thân kim loại • Lốp cao su');
+  if (isEn && editionLabel) {
+    editionLabel = editionLabel
+      .replace(/Thân kim loại • Lốp cao su/gi, 'Alloy Body • Rubber Tires')
+      .replace(/Bản kỷ niệm 50 năm/gi, '50th Anniversary Edition')
+      .replace(/Bản giới hạn/gi, 'Limited Edition')
+      .replace(/Độc quyền/gi, 'Exclusive')
+      .replace(/Nguyên seal/gi, 'Factory Sealed');
+  }
   const scaleLabel = p.Scale || p.scale || '1:64';
 
   return `
@@ -1135,6 +1526,7 @@ function createProductCardHTML(p, idx = 0) {
         </button>
         <img class="card-image" src="${escapeHtml(pImg)}" alt="${escapeHtml(pName)}" loading="lazy" onerror="this.onerror=null; this.src='image/hero-banner.jpg';">
         <span class="card-car-num"><span class="play-icon">▶</span> ${escapeHtml(String(carNum))}</span>
+        ${galleryImages.length > 1 ? `<span class="card-photo-count-pill" title="${isEn ? `${galleryImages.length} product photos` : `${galleryImages.length} ảnh chi tiết`}"><i class="fa-regular fa-images"></i> ${galleryImages.length}</span>` : ''}
         <span class="card-scale-pill">${activePack === 'card' ? 'CARD BLISTER' : 'BOX SEAL'}</span>
         
         <div class="card-hover-overlay">
@@ -1145,7 +1537,13 @@ function createProductCardHTML(p, idx = 0) {
       <div class="card-body">
         <div class="card-brand-sku-row">
           <span class="card-sku-code">#${escapeHtml(pSku)}</span>
-          <span style="font-size:10px; font-weight:700; color:${statusPillColor};">${statusPillText}</span>
+          <div class="card-status-sold-group">
+            <span class="card-sold-badge ${soldCount > 0 ? 'has-sales' : 'zero-sales'}" data-sold-badge-id="${pId}">
+              <i class="fa-solid ${soldCount > 0 ? 'fa-fire-flame-curved' : 'fa-bag-shopping'}"></i>
+              ${isEn ? `Sold ${soldCount}` : `Đã bán ${soldCount}`}
+            </span>
+            <span style="font-size:10px; font-weight:700; color:${statusPillColor};">${statusPillText}</span>
+          </div>
         </div>
         <h3 class="product-title" onclick="openQuickView(${pId})" title="${escapeHtml(pName)}">${escapeHtml(pName)}</h3>
         <div class="card-collector-specs">
@@ -1155,7 +1553,7 @@ function createProductCardHTML(p, idx = 0) {
         ${isPreOrder && expDelivery ? `
           <div class="card-preorder-eta" style="font-size:10.5px; color:#6d28d9; background:#f5f3ff; border:1px solid #ddd6fe; border-radius:5px; padding:3px 7px; margin-top:5px; font-weight:700; display:flex; align-items:center; gap:5px;">
             <i class="fa-regular fa-calendar-check" style="color:#7c3aed;"></i>
-            <span>Dự kiến về: <strong>${escapeHtml(expDelivery)}</strong></span>
+            <span>${isEn ? 'ETA:' : 'Dự kiến về:'} <strong>${escapeHtml(isEn ? String(expDelivery).replace('Tháng ', 'Month ') : expDelivery)}</strong></span>
           </div>
         ` : ''}
         ${packSwitchHtml}
@@ -1245,10 +1643,11 @@ function renderPreOrderQuickRow() {
   container.innerHTML = sourceList.map(p => {
     const pId = p.ProductId || p.id;
     const pricing = getProductBoxCardPricing(p);
+    const soldCount = getProductRealSoldCount(p);
     return `
       <div class="preorder-quick-card">
         <div>
-          <div class="quick-card-meta">#${escapeHtml(p.Sku || p.sku || 'MGT')} • Box / Card</div>
+          <div class="quick-card-meta">#${escapeHtml(p.Sku || p.sku || 'MGT')} • Box / Card • ${isEn ? `Sold ${soldCount}` : `Đã bán ${soldCount}`}</div>
           <div class="quick-card-price">
             ${formatVND(pricing.finalPriceBox)}
             ${pricing.hasDiscount ? `<span class="quick-card-old">${formatVND(pricing.priceBox)}</span>` : ''}
@@ -1291,7 +1690,11 @@ function matchesProductFilter(p, filterKey) {
   const isOutOfStock = stockVal <= 0 || st === 'sold_out' || st === 'out_of_stock' || Boolean(p.isOutOfStock);
 
   if (filterKey === 'bestseller') {
-    return Boolean(p.IsBestSeller || (p.soldCount && p.soldCount > 20) || p.isHot || [10, 8, 4, 5, 1, 2, 6].includes(Number(p.ProductId || p.id)));
+    const anyRealSales = Array.isArray(allProducts) && allProducts.some(item => getProductRealSoldCount(item) > 0);
+    if (anyRealSales) {
+      return getProductRealSoldCount(p) > 0;
+    }
+    return Boolean(p.IsBestSeller || p.IsFeatured);
   }
   if (filterKey === 'in_stock') {
     return !isOutOfStock && st !== 'pre_order';
@@ -1354,17 +1757,18 @@ function renderProductsGrid() {
     filtered.sort((a, b) => (b.Name || b.name || '').localeCompare(a.Name || a.name || '', 'vi'));
   } else if (currentSort === 'newest') {
     filtered.sort((a, b) => ((b.IsNew || b.isNew || 0) - (a.IsNew || a.isNew || 0)) || ((b.ProductId || b.id) - (a.ProductId || a.id)));
-  } else if (currentSort === 'best_selling') {
-    filtered.sort((a, b) => ((b.soldCount || 0) - (a.soldCount || 0)) || ((b.QuotaPercent || 0) - (a.QuotaPercent || 0)));
+  } else if (currentSort === 'best_selling' || (currentFilter === 'bestseller' && currentSort === 'default')) {
+    filtered.sort((a, b) => (getProductRealSoldCount(b) - getProductRealSoldCount(a)) || ((b.ProductId || b.id) - (a.ProductId || a.id)));
   }
 
+  const isEn = typeof currentSiteLang !== 'undefined' && currentSiteLang === 'en';
   // Cập nhật nhãn bộ lọc trên toolbar
   const filterLabelEl = document.getElementById('currentFilterLabel');
   if (filterLabelEl) {
     const pillBtn = document.querySelector(`.filter-pill[data-filter="${currentFilter}"]`);
-    const pillText = pillBtn ? pillBtn.textContent.replace(/\(\d+\)/g, '').trim() : 'Tất cả';
-    const brandText = currentBrandFilter !== 'all' ? ` • Hãng: ${currentBrandFilter}` : '';
-    filterLabelEl.textContent = `${pillText}${brandText} (${filtered.length} xe)`;
+    const pillText = pillBtn ? pillBtn.textContent.replace(/\(\d+\)/g, '').trim() : (isEn ? 'All Models' : 'Tất cả');
+    const brandText = currentBrandFilter !== 'all' ? ` • ${isEn ? 'Brand' : 'Hãng'}: ${currentBrandFilter}` : '';
+    filterLabelEl.textContent = `${pillText}${brandText} (${filtered.length} ${isEn ? 'models' : 'xe'})`;
   }
 
   const totalItems = filtered.length;
@@ -1374,12 +1778,12 @@ function renderProductsGrid() {
 
   if (totalItems === 0) {
     container.innerHTML = `
-      <div style="grid-column: 1 / -1; text-align: center; padding: 48px 20px; color: #64748b; background: #f8fafc; border-radius: 14px; border: 1px dashed #cbd5e1;">
+      <div style="grid-column: 1 / -1; text-align: center; padding: 48px 20px; color: var(--text-secondary, #64748b); background: var(--bg-surface-alt, #f8fafc); border-radius: 14px; border: 1px dashed var(--border-subtle, #cbd5e1);">
         <i class="fa-solid fa-car-side" style="font-size: 40px; margin-bottom: 14px; opacity: 0.4;"></i>
-        <h4 style="margin: 0 0 8px 0; color: #0f172a; font-weight: 700;">Không có mô hình xe nào phù hợp bộ lọc</h4>
-        <p style="margin: 0 0 16px 0; font-size: 13px;">Hãy thử chọn bộ lọc khác hoặc đặt lại bộ lọc ban đầu.</p>
+        <h4 style="margin: 0 0 8px 0; color: var(--text-primary, #0f172a); font-weight: 700;">${isEn ? 'No diecast models match your current filter' : 'Không có mô hình xe nào phù hợp bộ lọc'}</h4>
+        <p style="margin: 0 0 16px 0; font-size: 13px;">${isEn ? 'Try selecting another category or reset your filters.' : 'Hãy thử chọn bộ lọc khác hoặc đặt lại bộ lọc ban đầu.'}</p>
         <button class="btn btn-secondary btn-sm" onclick="currentBrandFilter='all'; currentSort='default'; const selB=document.getElementById('catalogBrandFilter'); if(selB) selB.value='all'; const selS=document.getElementById('catalogSortSelect'); if(selS) selS.value='default'; filterAndScroll(event, 'all');">
-          <i class="fa-solid fa-rotate-left"></i> Đặt lại bộ lọc
+          <i class="fa-solid fa-rotate-left"></i> ${isEn ? 'Reset Filters' : 'Đặt lại bộ lọc'}
         </button>
       </div>
     `;
@@ -1402,8 +1806,14 @@ function renderCatalogPagination(totalItems, totalPages) {
   const controlsEl = document.getElementById('catalogPaginationControls');
   if (!wrap || !controlsEl) return;
 
+  const isEn = typeof currentSiteLang !== 'undefined' && currentSiteLang === 'en';
+
   if (totalItems <= CATALOG_PER_PAGE) {
-    if (infoEl) infoEl.innerHTML = `Hiển thị toàn bộ <strong>${totalItems}</strong> mô hình xe`;
+    if (infoEl) {
+      infoEl.innerHTML = isEn
+        ? `Showing all <strong>${totalItems}</strong> diecast models`
+        : `Hiển thị toàn bộ <strong>${totalItems}</strong> mô hình xe`;
+    }
     controlsEl.innerHTML = '';
     return;
   }
@@ -1411,14 +1821,16 @@ function renderCatalogPagination(totalItems, totalPages) {
   const start = (catalogCurrentPage - 1) * CATALOG_PER_PAGE + 1;
   const end = Math.min(catalogCurrentPage * CATALOG_PER_PAGE, totalItems);
   if (infoEl) {
-    infoEl.innerHTML = `Hiển thị <strong>${start} - ${end}</strong> trong số <strong>${totalItems}</strong> mô hình xe (Trang ${catalogCurrentPage}/${totalPages})`;
+    infoEl.innerHTML = isEn
+      ? `Showing <strong>${start} - ${end}</strong> of <strong>${totalItems}</strong> models (Page ${catalogCurrentPage}/${totalPages})`
+      : `Hiển thị <strong>${start} - ${end}</strong> trong số <strong>${totalItems}</strong> mô hình xe (Trang ${catalogCurrentPage}/${totalPages})`;
   }
 
   let html = '';
   // Nút Trước
   html += `
     <button type="button" class="page-btn" ${catalogCurrentPage === 1 ? 'disabled' : ''} onclick="goToCatalogPage(${catalogCurrentPage - 1})">
-      <i class="fa-solid fa-chevron-left"></i> Trước
+      <i class="fa-solid fa-chevron-left"></i> ${isEn ? 'Prev' : 'Trước'}
     </button>
   `;
 
@@ -1434,7 +1846,7 @@ function renderCatalogPagination(totalItems, totalPages) {
   // Nút Sau
   html += `
     <button type="button" class="page-btn" ${catalogCurrentPage === totalPages ? 'disabled' : ''} onclick="goToCatalogPage(${catalogCurrentPage + 1})">
-      Sau <i class="fa-solid fa-chevron-right"></i>
+      ${isEn ? 'Next' : 'Sau'} <i class="fa-solid fa-chevron-right"></i>
     </button>
   `;
 
@@ -1488,12 +1900,21 @@ function renderDynamicCategoryFilterPills() {
   const container = document.querySelector('.filter-tags-wrapper');
   if (!container) return;
 
+  const isEn = typeof currentSiteLang !== 'undefined' && currentSiteLang === 'en';
   const staticPills = [
-    { key: 'all', icon: 'fa-solid fa-border-all', label: 'Tất cả mô hình', countId: 'count-all' },
-    { key: 'bestseller', icon: 'fa-solid fa-fire', iconColor: '#e10600', label: 'Bán chạy nhất', countId: 'count-bestseller' },
-    { key: 'in_stock', icon: 'fa-solid fa-circle-check', iconColor: '#10b981', label: 'Còn hàng', countId: 'count-in_stock' },
-    { key: 'pre_order', icon: 'fa-solid fa-clock', label: 'Pre-Order Đợt Mới', countId: 'count-pre_order' }
+    { key: 'all', icon: 'fa-solid fa-border-all', label: isEn ? 'All Models' : 'Tất cả mô hình', countId: 'count-all' },
+    { key: 'bestseller', icon: 'fa-solid fa-fire', iconColor: '#e10600', label: isEn ? 'Best Sellers' : 'Bán chạy nhất', countId: 'count-bestseller' },
+    { key: 'in_stock', icon: 'fa-solid fa-circle-check', iconColor: '#10b981', label: isEn ? 'In Stock' : 'Còn hàng', countId: 'count-in_stock' },
+    { key: 'pre_order', icon: 'fa-solid fa-clock', label: isEn ? 'Pre-Order 2026' : 'Pre-Order Đợt Mới', countId: 'count-pre_order' }
   ];
+
+  const enCatNames = {
+    'liberty-walk': 'Liberty Walk LBWK',
+    'partner': 'Secret Chase Car',
+    'f1-racing': 'Formula 1 Series',
+    'box-sets': 'Box Sets & Combo',
+    'gt-racing': 'AO Racing GT3'
+  };
 
   const dynamicPills = (appCategories && appCategories.length > 0)
     ? appCategories.map(c => {
@@ -1510,7 +1931,7 @@ function renderDynamicCategoryFilterPills() {
           key: slug,
           icon,
           iconColor,
-          label: c.name || c.Name,
+          label: (isEn && enCatNames[slug]) ? enCatNames[slug] : (c.name || c.Name),
           countId: `count-${slug}`
         };
       })
@@ -1542,6 +1963,7 @@ function renderDynamicBrandFilter() {
   const brandSelect = document.getElementById('catalogBrandFilter');
   if (!brandSelect) return;
   const currentVal = brandSelect.value || currentBrandFilter || 'all';
+  const isEn = typeof currentSiteLang !== 'undefined' && currentSiteLang === 'en';
 
   const brandSet = new Set();
   (allProducts || []).forEach(p => {
@@ -1551,7 +1973,7 @@ function renderDynamicBrandFilter() {
 
   const sortedBrands = Array.from(brandSet).sort((a, b) => a.localeCompare(b, 'vi'));
 
-  let html = `<option value="all" ${currentVal === 'all' ? 'selected' : ''}>Tất cả hãng xe</option>`;
+  let html = `<option value="all" data-i18n="brand_all" ${currentVal === 'all' ? 'selected' : ''}>${isEn ? 'All Brands' : 'Tất cả hãng xe'}</option>`;
   sortedBrands.forEach(b => {
     const isSel = currentVal.toLowerCase() === b.toLowerCase();
     html += `<option value="${escapeHtml(b)}" ${isSel ? 'selected' : ''}>${escapeHtml(b)}</option>`;
@@ -1745,7 +2167,7 @@ function setupCountdown() {
 // =====================================================================
 // 9. QUẢN LÝ GIỎ HÀNG & ĐẶT CỌC (CART DRAWER & HIỆU ỨNG BAY VÀO GIỎ)
 // =====================================================================
-function handleCardAction(productId, event, explicitPackType = null) {
+function handleCardAction(productId, event, explicitPackType = null, quantity = 1, openDrawer = true) {
   if (event && event.stopPropagation) {
     event.stopPropagation();
   }
@@ -1757,11 +2179,14 @@ function handleCardAction(productId, event, explicitPackType = null) {
     const isEn = typeof currentSiteLang !== 'undefined' && currentSiteLang === 'en';
     showToast(isEn ? 'Please sign in to buy or pre-order models!' : 'Vui lòng đăng nhập tài khoản để tiến hành đặt mua / cọc xe mô hình!', 'info');
     openAuthModal('login');
-    return;
+    return false;
   }
 
+  const safeQty = Math.max(1, parseInt(quantity, 10) || 1);
+  const added = addToCart(productId, safeQty, explicitPackType);
+  if (!added) return false;
+
   flyToCart(productId, event);
-  addToCart(productId, 1, explicitPackType);
 
   // Micro-feedback badge animation
   const targetBadge = document.getElementById('cartBadgeCount');
@@ -1772,9 +2197,12 @@ function handleCardAction(productId, event, explicitPackType = null) {
   }
 
   // Open cart drawer smoothly after fly animation
-  setTimeout(() => {
-    openCartDrawer();
-  }, 380);
+  if (openDrawer) {
+    setTimeout(() => {
+      openCartDrawer();
+    }, 380);
+  }
+  return true;
 }
 
 function flyToCart(productId, event) {
@@ -1824,14 +2252,14 @@ function flyToCart(productId, event) {
 
 function addToCart(productId, quantity = 1, explicitPackType = null) {
   const prod = (allProducts && allProducts.length ? allProducts : FALLBACK_PRODUCTS).find(p => (p.ProductId || p.id || p.productid) == productId);
-  if (!prod) return;
+  if (!prod) return false;
 
   const isEn = typeof currentSiteLang !== 'undefined' && currentSiteLang === 'en';
   const stock = typeof prod.Stock === 'number' ? prod.Stock : (typeof prod.stock === 'number' ? prod.stock : 999);
   const pName = prod.Name || prod.name;
   if (stock <= 0) {
     showToast(isEn ? `"${pName}" is currently out of stock!` : `Mẫu xe "${pName}" hiện đã hết hàng!`, 'error');
-    return;
+    return false;
   }
 
   const pricing = getProductBoxCardPricing(prod);
@@ -1848,7 +2276,7 @@ function addToCart(productId, quantity = 1, explicitPackType = null) {
         showToast(isEn ? `"${pName}" (Paper Box) is sold out, automatically switched to Blister Card!` : `Mẫu xe "${pName}" (Bản Box) đã hết hàng, hệ thống tự động chọn Bản Vỉ Card cho bạn!`, 'info');
       } else {
         showToast(isEn ? `"${pName}" is completely sold out!` : `Mẫu xe "${pName}" hiện đã hết hàng cả bản Box và Card!`, 'error');
-        return;
+        return false;
       }
     } else if (chosenPack === 'card' && !pricing.isCardAvailable) {
       if (pricing.isBoxAvailable) {
@@ -1856,7 +2284,7 @@ function addToCart(productId, quantity = 1, explicitPackType = null) {
         showToast(isEn ? `"${pName}" (Blister Card) is sold out, automatically switched to Paper Box!` : `Mẫu xe "${pName}" (Bản Card) đã hết hàng, hệ thống tự động chọn Bản Hộp Box cho bạn!`, 'info');
       } else {
         showToast(isEn ? `"${pName}" is completely sold out!` : `Mẫu xe "${pName}" hiện đã hết hàng cả bản Box và Card!`, 'error');
-        return;
+        return false;
       }
     }
   }
@@ -1890,19 +2318,20 @@ function addToCart(productId, quantity = 1, explicitPackType = null) {
           'error'
         );
       }
-      return;
+      return false;
     }
 
     const totalInCartForProd = cart.filter(it => (it.productId == productId || it.id == productId)).reduce((s, i) => s + i.quantity, 0);
     if (totalInCartForProd + quantity > stock) {
       showToast(isEn ? `Total available stock for "${pName}" is ${stock} models.` : `Tổng số lượng tồn kho của mẫu xe "${pName}" chỉ còn ${stock} xe (cả Box & Card).`, 'error');
-      return;
+      return false;
     }
   }
 
   const depPct = isPreOrder ? Number(prod.DepositPercent || prod.depositPercent || 30) : 0;
   const pDeposit = isPreOrder ? (Math.round((unitFinalPrice * (depPct / 100)) / 1000) * 1000) : 0;
   const expDelivery = isPreOrder ? (prod.ExpectedDelivery || prod.expectedDelivery || null) : null;
+  const primaryImg = getProductGalleryImages(prod)[0];
 
   if (existing) {
     existing.quantity += quantity;
@@ -1919,6 +2348,7 @@ function addToCart(productId, quantity = 1, explicitPackType = null) {
     existing.depositPercent = depPct;
     existing.isPreOrder = isPreOrder;
     existing.expectedDelivery = expDelivery;
+    existing.imageUrl = primaryImg;
   } else {
     cart.push({
       productId: prod.ProductId || prod.id || prod.productid,
@@ -1936,7 +2366,7 @@ function addToCart(productId, quantity = 1, explicitPackType = null) {
       depositAmount: pDeposit,
       depositPercent: depPct,
       expectedDelivery: expDelivery,
-      imageUrl: prod.ImageUrl || prod.image || prod.imageurl,
+      imageUrl: primaryImg,
       isPreOrder: isPreOrder,
       quantity: quantity,
       selected: true
@@ -1946,7 +2376,8 @@ function addToCart(productId, quantity = 1, explicitPackType = null) {
   saveCart();
   renderCartDrawer();
   const packName = chosenPack === 'card' ? 'Bản Card Blister' : 'Bản Hộp Box';
-  showToast(isEn ? `Added "${pName}" (${chosenPack.toUpperCase()}) to cart!` : `Đã thêm "${pName}" (${packName}) vào giỏ!`, 'success');
+  showToast(isEn ? `Added ${quantity}x "${pName}" (${chosenPack.toUpperCase()}) to cart!` : `Đã thêm ${quantity > 1 ? quantity + ' xe ' : ''}"${pName}" (${packName}) vào giỏ!`, 'success');
+  return true;
 }
 
 function switchCartItemPackaging(productId, currentPack, newPack) {
@@ -2230,7 +2661,7 @@ function renderCartDrawer() {
     const cardDisabled = pricing.packagingType === 'box_only' || (!isPreOrder && (pricing.stockCard ?? 0) <= 0);
 
     // Xác định ảnh hợp lệ có fallback onerror
-    let itemImg = it.imageUrl || (prod ? (prod.ImageUrl || prod.image) : 'image/hero-banner.jpg');
+    let itemImg = resolveStorefrontImageUrl(it.imageUrl || (prod ? (prod.ImageUrl || prod.image) : 'image/hero-banner.jpg'));
     if (itemImg.includes('amr24.webp')) itemImg = 'image/aston-amr24-alonso.png';
     else if (itemImg.includes('f1.webp')) itemImg = 'image/aston-amr24-stroll.png';
     else if (itemImg.includes('huracan.webp')) itemImg = 'image/lambo-sterrato-set.png';
@@ -2373,8 +2804,243 @@ function closeCartDrawer() {
 }
 
 // =====================================================================
-// 10. MODAL XEM NHANH SẢN PHẨM (QUICK VIEW VỚI CHỌN BOX / CARD & TRỪ % TRỰC TIẾP)
+// 10. MODAL CHI TIẾT SẢN PHẨM CỠ LỚN (MULTI-IMAGE GALLERY, ĐÃ BÁN THẬT, BOX/CARD & SẢN PHẨM LIÊN QUAN)
 // =====================================================================
+let activeQuickViewState = {
+  productId: null,
+  images: [],
+  activeIndex: 0,
+  title: '',
+  lightboxIndex: 0
+};
+
+function buildQuickViewGalleryHTML(pId, pName, galleryImages, activeIndex, pricing, isSoldOut, isEn) {
+  const imgs = Array.isArray(galleryImages) && galleryImages.length > 0 ? galleryImages : ['image/hero-banner.jpg'];
+  const total = imgs.length;
+  const safeIdx = Math.max(0, Math.min(total - 1, Number(activeIndex) || 0));
+  const mainSrc = imgs[safeIdx];
+
+  // Dãy các ảnh phụ nằm ngay dưới Ảnh 1: Ảnh 2, Ảnh 3, Ảnh 4, Ảnh 5... hiển thị sắc nét, không bị che mờ
+  let subRowHtml = '';
+  if (total >= 2) {
+    const subItems = [];
+    for (let subIdx = 1; subIdx < total; subIdx++) {
+      const subSrc = imgs[subIdx];
+      const isActiveSub = safeIdx === subIdx;
+      const tooltip = isEn ? `View photo #${subIdx + 1}` : `Xem Ảnh ${subIdx + 1}`;
+
+      subItems.push(`
+        <div class="qv-gallery-subitem ${isActiveSub ? 'active' : ''}" onclick="setQuickViewMainImage(${subIdx}, event)" title="${escapeHtml(tooltip)}">
+          <img src="${escapeHtml(subSrc)}" alt="${escapeHtml(pName)} - ${subIdx + 1}" loading="lazy" onerror="this.onerror=null; this.src='image/hero-banner.jpg';">
+        </div>
+      `);
+    }
+
+    if (total >= 6) {
+      subItems.push(`
+        <div class="qv-gallery-subitem qv-subitem-viewall" onclick="openStorefrontGalleryLightbox(0, event)" title="${isEn ? `View all ${total} photos` : `Xem toàn bộ ${total} ảnh`}">
+          <i class="fa-solid fa-expand" style="font-size:15px; color:#e10600; margin-bottom:2px;"></i>
+          <span style="font-size:10px; font-weight:800; line-height:1.2;">+${total}<br><span style="font-size:8.5px; color:#64748b;">${isEn ? 'All' : 'Tất cả'}</span></span>
+        </div>
+      `);
+    }
+    subRowHtml = `<div class="qv-gallery-subrow ${total >= 6 ? 'is-scrollable' : ''}">${subItems.join('')}</div>`;
+  }
+
+  return `
+    <div class="qv-gallery-main" onclick="openStorefrontGalleryLightbox(${safeIdx}, event)" title="${isEn ? 'Click to view full-screen gallery' : 'Bấm để phóng to toàn màn hình'}">
+      <div class="qv-main-badge-left">
+        ${pricing && pricing.hasDiscount && !isSoldOut ? `<span style="background:#e11d48; color:#fff; font-size:11px; font-weight:800; padding:4px 10px; border-radius:7px; box-shadow:0 4px 10px rgba(225,29,72,0.3);">-${pricing.discountPercent}% ${isEn ? 'OFF' : 'TRỰC TIẾP'}</span>` : ''}
+      </div>
+      <div class="qv-main-counter-right">
+        <i class="fa-regular fa-images"></i>
+        <span>${safeIdx + 1} / ${total}</span>
+      </div>
+      ${total > 1 ? `
+        <button type="button" class="qv-main-nav-btn prev" onclick="stepQuickViewMainImage(-1, event)" aria-label="Ảnh trước" title="${isEn ? 'Previous photo' : 'Ảnh trước'}">
+          <i class="fa-solid fa-chevron-left"></i>
+        </button>
+        <button type="button" class="qv-main-nav-btn next" onclick="stepQuickViewMainImage(1, event)" aria-label="Ảnh tiếp" title="${isEn ? 'Next photo' : 'Ảnh tiếp theo'}">
+          <i class="fa-solid fa-chevron-right"></i>
+        </button>
+      ` : ''}
+      <img class="qv-main-photo" id="qvMainImg_${pId}" src="${escapeHtml(mainSrc)}" alt="${escapeHtml(pName)}" onerror="this.onerror=null; this.src='image/hero-banner.jpg';">
+      <span class="qv-zoom-hint-pill">
+        <i class="fa-solid fa-magnifying-glass-plus"></i> ${isEn ? 'Zoom' : 'Phóng to'}
+      </span>
+    </div>
+    ${subRowHtml}
+  `;
+}
+
+function refreshQuickViewGalleryDOM() {
+  const pId = activeQuickViewState.productId;
+  if (!pId) return;
+  const mount = document.getElementById(`qvGalleryMount_${pId}`);
+  if (!mount) return;
+  const prod = (allProducts && allProducts.length ? allProducts : FALLBACK_PRODUCTS).find(p => (p.ProductId || p.id) == pId);
+  const isEn = typeof currentSiteLang !== 'undefined' && currentSiteLang === 'en';
+  const pricing = prod ? getProductBoxCardPricing(prod) : null;
+  const pStock = prod ? (typeof prod.Stock === 'number' ? prod.Stock : (typeof prod.stock === 'number' ? prod.stock : 0)) : 1;
+  const isSoldOut = prod ? (String(prod.Status || prod.status || '').toLowerCase() === 'sold_out' || pStock <= 0) : false;
+
+  mount.innerHTML = buildQuickViewGalleryHTML(
+    pId,
+    activeQuickViewState.title || (prod && (prod.Name || prod.name)) || 'MINI GT 1:64',
+    activeQuickViewState.images,
+    activeQuickViewState.activeIndex,
+    pricing,
+    isSoldOut,
+    isEn
+  );
+}
+
+function setQuickViewMainImage(targetIndex, event) {
+  if (event && event.stopPropagation) event.stopPropagation();
+  const total = activeQuickViewState.images.length;
+  if (!total) return;
+  const idx = Number(targetIndex) || 0;
+  // Nếu người dùng bấm lại đúng ảnh phụ đang xem -> tự động quay về Ảnh 1 (ảnh chính) rất tiện lợi
+  if (idx > 0 && activeQuickViewState.activeIndex === idx) {
+    activeQuickViewState.activeIndex = 0;
+  } else {
+    activeQuickViewState.activeIndex = ((idx % total) + total) % total;
+  }
+  refreshQuickViewGalleryDOM();
+}
+window.setQuickViewMainImage = setQuickViewMainImage;
+
+function stepQuickViewMainImage(delta, event) {
+  if (event && event.stopPropagation) event.stopPropagation();
+  const total = activeQuickViewState.images.length;
+  if (total <= 1) return;
+  activeQuickViewState.activeIndex = ((activeQuickViewState.activeIndex + delta) % total + total) % total;
+  refreshQuickViewGalleryDOM();
+}
+window.stepQuickViewMainImage = stepQuickViewMainImage;
+
+function openStorefrontGalleryLightbox(startIndex = 0, event = null) {
+  if (event && event.stopPropagation) event.stopPropagation();
+  const imgs = activeQuickViewState.images || [];
+  if (!imgs.length) return;
+  const overlay = document.getElementById('productGalleryLightbox');
+  if (!overlay) return;
+
+  const total = imgs.length;
+  activeQuickViewState.lightboxIndex = Math.max(0, Math.min(total - 1, Number(startIndex) || 0));
+  renderStorefrontGalleryLightbox();
+  overlay.classList.add('active');
+}
+window.openStorefrontGalleryLightbox = openStorefrontGalleryLightbox;
+
+function closeStorefrontGalleryLightbox() {
+  const overlay = document.getElementById('productGalleryLightbox');
+  if (overlay) overlay.classList.remove('active');
+}
+window.closeStorefrontGalleryLightbox = closeStorefrontGalleryLightbox;
+
+function stepStorefrontGalleryLightbox(delta) {
+  const imgs = activeQuickViewState.images || [];
+  if (imgs.length <= 1) return;
+  activeQuickViewState.lightboxIndex = ((activeQuickViewState.lightboxIndex + delta) % imgs.length + imgs.length) % imgs.length;
+  renderStorefrontGalleryLightbox();
+}
+window.stepStorefrontGalleryLightbox = stepStorefrontGalleryLightbox;
+
+function selectStorefrontLightboxImage(idx) {
+  const imgs = activeQuickViewState.images || [];
+  if (!imgs.length) return;
+  activeQuickViewState.lightboxIndex = Math.max(0, Math.min(imgs.length - 1, Number(idx) || 0));
+  renderStorefrontGalleryLightbox();
+}
+window.selectStorefrontLightboxImage = selectStorefrontLightboxImage;
+
+function renderStorefrontGalleryLightbox() {
+  const imgs = activeQuickViewState.images || [];
+  if (!imgs.length) return;
+  const isEn = typeof currentSiteLang !== 'undefined' && currentSiteLang === 'en';
+  const idx = Math.max(0, Math.min(imgs.length - 1, activeQuickViewState.lightboxIndex || 0));
+
+  const mainImgEl = document.getElementById('productLightboxMainImg');
+  const counterEl = document.getElementById('productLightboxCounter');
+  const titleEl = document.getElementById('productLightboxTitle');
+  const prevBtn = document.getElementById('productLightboxPrevBtn');
+  const nextBtn = document.getElementById('productLightboxNextBtn');
+  const thumbsEl = document.getElementById('productLightboxThumbs');
+
+  if (mainImgEl) mainImgEl.src = imgs[idx];
+  if (counterEl) counterEl.textContent = isEn ? `Photo ${idx + 1} / ${imgs.length}` : `Ảnh ${idx + 1} / ${imgs.length}`;
+  if (titleEl) titleEl.textContent = activeQuickViewState.title || '';
+  if (prevBtn) prevBtn.style.display = imgs.length > 1 ? 'inline-flex' : 'none';
+  if (nextBtn) nextBtn.style.display = imgs.length > 1 ? 'inline-flex' : 'none';
+
+  if (thumbsEl) {
+    thumbsEl.innerHTML = imgs.map((url, i) => `
+      <div class="storefront-lightbox-thumb ${i === idx ? 'active' : ''}" onclick="selectStorefrontLightboxImage(${i})" title="${isEn ? `Photo ${i + 1}` : `Ảnh ${i + 1}`}">
+        <img src="${escapeHtml(url)}" alt="Thumb ${i + 1}" onerror="this.onerror=null; this.src='image/hero-banner.jpg';">
+        <span>${i + 1}</span>
+      </div>
+    `).join('');
+  }
+}
+
+function changeQuickViewQty(productId, delta) {
+  const input = document.getElementById(`qvQtyInput_${productId}`);
+  if (!input) return;
+  const prod = (allProducts && allProducts.length ? allProducts : FALLBACK_PRODUCTS).find(p => (p.ProductId || p.id) == productId);
+  const pricing = prod ? getProductBoxCardPricing(prod) : null;
+  const isPreOrder = prod ? String(prod.Status || prod.status || '').toLowerCase() === 'pre_order' : false;
+  const chosenPack = prod ? getSelectedPackForProduct(prod) : 'box';
+  let maxQty = 20;
+  if (prod && !isPreOrder && pricing) {
+    const packStock = chosenPack === 'card' ? (pricing.stockCard ?? 0) : (pricing.stockBox ?? 0);
+    maxQty = Math.max(1, packStock);
+  }
+  const current = parseInt(input.value, 10) || 1;
+  const next = Math.max(1, Math.min(maxQty, current + delta));
+  input.value = String(next);
+}
+window.changeQuickViewQty = changeQuickViewQty;
+
+function copyProductLink(productId) {
+  const isEn = typeof currentSiteLang !== 'undefined' && currentSiteLang === 'en';
+  const url = window.location.origin + window.location.pathname + '#product-' + productId;
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(url).then(() => {
+      showToast(isEn ? 'Product link copied to clipboard!' : 'Đã sao chép liên kết mẫu xe vào bộ nhớ tạm!', 'success');
+    }).catch(() => {
+      prompt(isEn ? 'Copy this product link:' : 'Sao chép liên kết mẫu xe:', url);
+    });
+  } else {
+    prompt(isEn ? 'Copy this product link:' : 'Sao chép liên kết mẫu xe:', url);
+  }
+}
+window.copyProductLink = copyProductLink;
+
+function handleQuickViewPurchase(productId, event, buyNow = true) {
+  const prod = (allProducts && allProducts.length ? allProducts : FALLBACK_PRODUCTS).find(p => (p.ProductId || p.id) == productId);
+  const chosenPack = selectedCardPackaging[productId] || (prod ? getSelectedPackForProduct(prod) : 'box');
+  const qtyInput = document.getElementById(`qvQtyInput_${productId}`);
+  const qty = Math.max(1, parseInt(qtyInput ? qtyInput.value : '1', 10) || 1);
+
+  if (!buyNow) {
+    handleCardAction(productId, event, chosenPack, qty, true);
+    return;
+  }
+
+  // MUA NGAY / ĐẶT CỌC: Bỏ qua bước xem giỏ hàng, chỉ chọn mẫu này và mở thẳng modal Thanh toán
+  const ok = handleCardAction(productId, event, chosenPack, qty, false);
+  if (ok) {
+    cart.forEach(it => {
+      it.selected = (it.productId == productId && it.packType === chosenPack);
+    });
+    saveCart();
+    closeModal('quickViewModal');
+    openCheckoutModal();
+  }
+}
+window.handleQuickViewPurchase = handleQuickViewPurchase;
+
 function openQuickView(productId) {
   const prod = (allProducts && allProducts.length ? allProducts : FALLBACK_PRODUCTS).find(p => (p.ProductId || p.id) == productId);
   if (!prod) return;
@@ -2385,22 +3051,35 @@ function openQuickView(productId) {
 
   const isEn = typeof currentSiteLang !== 'undefined' && currentSiteLang === 'en';
   const pId = prod.ProductId || prod.id;
-  const pName = prod.Name || prod.name;
-  let pImg = prod.ImageUrl || prod.image || 'image/hero-banner.jpg';
-  if ((pImg.startsWith('/api/images/') || pImg.startsWith('/images/')) && typeof api !== 'undefined' && api.BASE_URL) {
-    pImg = api.BASE_URL.replace(/\/+$/, '') + pImg;
-  }
-  if (pImg.includes('amr24.webp')) pImg = 'image/aston-amr24-alonso.png';
-  else if (pImg.includes('f1.webp')) pImg = 'image/aston-amr24-stroll.png';
-  else if (pImg.includes('huracan.webp')) pImg = 'image/lambo-sterrato-set.png';
-  else if (pImg.includes('lambo.webp')) pImg = 'image/Minigt_Lambo_GT3.jpg';
-  const pSku = prod.Sku || prod.sku;
+
+  try {
+    history.replaceState(null, '', '#product-' + pId);
+  } catch (_) {}
+  const pName = prod.Name || prod.name || 'MINI GT 1:64';
+  const galleryImages = getProductGalleryImages(prod);
+  const soldCount = getProductRealSoldCount(prod);
+  const soldBox = Math.max(0, parseInt(prod.soldBox ?? prod.SoldBox ?? 0, 10) || 0);
+  const soldCard = Math.max(0, parseInt(prod.soldCard ?? prod.SoldCard ?? 0, 10) || 0);
+
+  activeQuickViewState = {
+    productId: pId,
+    images: galleryImages,
+    activeIndex: 0,
+    title: pName,
+    lightboxIndex: 0
+  };
+
+  const pSku = prod.Sku || prod.sku || 'MGT';
+  const pCarNum = prod.CarNumber || prod.carNumber || (pSku ? pSku.replace(/\D/g, '').replace(/^0+/, '') : '') || '64';
   const pBrand = prod.Brand || prod.brand || 'MINI GT';
   const pScale = prod.Scale || prod.scale || '1:64';
+  const rawCatName = prod.CategoryName || prod.categoryName || (prod.category && prod.category.name) || '';
+  const pCategoryName = (rawCatName && rawCatName !== 'undefined') ? rawCatName : (isEn ? '1:64 Diecast Collection' : 'Bộ sưu tập Diecast 1:64');
+  const pEdition = prod.EditionNote || prod.editionNote || (isEn ? 'Alloy Body • Rubber Tires • Factory Sealed' : 'Thân kim loại nguyên khối • Lốp cao su • Nguyên seal');
   const pDesc = prod.Description || prod.description || 'Mô hình diecast tỉ lệ 1:64 chính hãng bản quyền, thân kim loại nguyên khối, lốp cao su Real Riders.';
   const pStock = typeof prod.Stock === 'number' ? prod.Stock : (typeof prod.stock === 'number' ? prod.stock : 0);
   const isPreOrder = String(prod.Status || prod.status || '').toLowerCase() === 'pre_order';
-  const isSoldOut = String(prod.Status || prod.status || '').toLowerCase() === 'sold_out' || pStock <= 0;
+  const isSoldOut = String(prod.Status || prod.status || '').toLowerCase() === 'sold_out' || (!isPreOrder && pStock <= 0);
   const isWish = isInWishlist(pId);
 
   const pricing = getProductBoxCardPricing(prod);
@@ -2414,96 +3093,325 @@ function openQuickView(productId) {
   const isBoxDisabled = !pricing.isBoxAvailable;
   const isCardDisabled = !pricing.isCardAvailable;
   const boxReason = pricing.packagingType === 'card_only'
-    ? (isEn ? 'No Box' : 'Không có Box')
-    : (pricing.stockBox <= 0 ? (isEn ? 'Out of Box' : 'Hết Box') : '');
+    ? (isEn ? 'Not produced in Box' : 'Hãng chỉ phát hành bản Card')
+    : (pricing.stockBox <= 0 ? (isEn ? 'Out of Box stock' : 'Tạm hết bản Box') : '');
   const cardReason = pricing.packagingType === 'box_only'
-    ? (isEn ? 'No Card' : 'Không có Card')
-    : (pricing.stockCard <= 0 ? (isEn ? 'Out of Card' : 'Hết Card') : '');
+    ? (isEn ? 'Not produced in Card' : 'Hãng chỉ phát hành bản Box')
+    : (pricing.stockCard <= 0 ? (isEn ? 'Out of Card stock' : 'Tạm hết bản Card') : '');
+
+  const boxStockLabel = isBoxDisabled
+    ? boxReason
+    : (isPreOrder ? (isEn ? 'Open for Pre-Order' : 'Đang nhận đặt cọc') : (isEn ? `${pricing.stockBox} Box in stock` : `Còn ${pricing.stockBox} hộp tại kho`));
+  const cardStockLabel = isCardDisabled
+    ? cardReason
+    : (isPreOrder ? (isEn ? 'Open for Pre-Order' : 'Đang nhận đặt cọc') : (isEn ? `${pricing.stockCard} Card in stock` : `Còn ${pricing.stockCard} vỉ tại kho`));
+
+  const packModeText = pricing.packagingType === 'box_only'
+    ? (isEn ? 'Paper Box Only' : 'Chỉ Bản Hộp Giấy (Box)')
+    : (pricing.packagingType === 'card_only'
+      ? (isEn ? 'Blister Card Only' : 'Chỉ Bản Vỉ Nhựa (Card)')
+      : (isEn ? 'Both Box & Blister Card' : 'Đầy đủ Hộp Box & Vỉ Card'));
+
+  const isDark = (typeof currentThemeMode !== 'undefined' ? currentThemeMode : (document.documentElement.getAttribute('data-theme') || 'light')) === 'dark';
+  const qvBoxBg = isDark ? '#111a2e' : '#f8fafc';
+  const qvBorderColor = isDark ? '#263554' : '#e2e8f0';
+  const qvTextMain = isDark ? '#f8fafc' : '#0f172a';
+  const qvTextMuted = isDark ? '#94a3b8' : '#475569';
+  const qvPreorderBox = isDark
+    ? 'background: rgba(109, 40, 217, 0.22); border: 1.5px solid rgba(167, 139, 250, 0.35); color: #ddd6fe;'
+    : 'background: #f5f3ff; border: 1.5px solid #c4b5fd; color: #5b21b6;';
+  const qvPreorderText = isDark ? '#e9d5ff' : '#4c1d95';
+  const qvPreorderHi = isDark ? '#c4b5fd' : '#6d28d9';
+  const dispArrival = isEn ? String(expectedArrival).replace('Tháng ', 'Nov ') : expectedArrival;
+
+  const soldBreakdownHint = (soldCount > 0 && (soldBox > 0 || soldCard > 0))
+    ? ` (${isEn ? `Box: ${soldBox} • Card: ${soldCard}` : `Box: ${soldBox} • Card: ${soldCard}`})`
+    : '';
 
   body.innerHTML = `
-    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1.5rem; align-items: start;">
-      <div style="background: #f8fafc; border-radius: 14px; padding: 1.5rem; text-align: center; border: 1px solid #e2e8f0; position: relative;">
-        ${pricing.hasDiscount && !isSoldOut ? `<span style="position:absolute; top:12px; left:12px; background:#e11d48; color:#fff; font-size:11px; font-weight:800; padding:4px 10px; border-radius:6px;">-${pricing.discountPercent}% TRỰC TIẾP</span>` : ''}
-        <img src="${pImg}" alt="${escapeHtml(pName)}" style="max-height: 240px; margin: 0 auto; object-fit: contain;" onerror="this.onerror=null; this.src='image/hero-banner.jpg';">
-      </div>
-      <div>
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 8px;">
-          <span class="badge ${isPreOrder ? 'badge-preorder' : (isSoldOut ? 'badge-soldout' : 'badge-instock')}">
-            ${isPreOrder ? 'PRE-ORDER 2026' : (isSoldOut ? (isEn ? 'SOLD OUT' : 'HẾT HÀNG') : (isEn ? 'IN STOCK' : 'SẴN HÀNG GIAO NGAY'))}
-          </span>
-          <span style="font-size:12px; color:#64748b; font-weight:700;">#${escapeHtml(pSku)} • ${escapeHtml(pScale)}</span>
+    <div class="qv-detail-grid">
+      <!-- CỘT TRÁI: MULTI-IMAGE GALLERY (ẢNH 1 Ở TRÊN + ẢNH 2, 3, 4 KẾ NHAU Ở DƯỚI + +N TRÊN ẢNH 4) -->
+      <div class="qv-gallery-col">
+        <div id="qvGalleryMount_${pId}">
+          ${buildQuickViewGalleryHTML(pId, pName, galleryImages, 0, pricing, isSoldOut, isEn)}
         </div>
-        <h2 style="font-size: 1.15rem; font-weight: 800; margin-bottom: 8px; color: #0f172a; line-height: 1.35;">${escapeHtml(pName)}</h2>
-
-        <div id="qvPriceBox_${pId}" style="margin-bottom: 12px; padding: 10px 14px; background: #f8fafc; border-radius: 10px; border: 1px solid #e2e8f0;">
-          <div style="display:flex; align-items:baseline; gap:10px; flex-wrap:wrap;">
-            <span id="qvCurrentPrice_${pId}" style="font-size: 1.45rem; font-weight: 800; color: #e11d48;">${formatVND(currentFinal)}</span>
-            <span id="qvOldPrice_${pId}" style="font-size: 0.9rem; color: #94a3b8; text-decoration: line-through; display: ${pricing.hasDiscount && currentOrig > currentFinal ? 'inline' : 'none'};">${formatVND(currentOrig)}</span>
-            ${pricing.hasDiscount ? `<span style="font-size:11px; font-weight:800; color:#059669; background:#ecfdf5; padding:2px 8px; border-radius:99px;">Đã trừ ${pricing.discountPercent}% (-${formatVND(currentOrig - currentFinal)})</span>` : ''}
+        <div class="qv-guarantee-strip">
+          <div class="qv-guarantee-chip">
+            <i class="fa-solid fa-certificate"></i>
+            <span>${isEn ? '100% Official Sealed' : '100% Chính hãng Nguyên seal'}</span>
           </div>
-          <div id="qvPackHint_${pId}" style="font-size:11.5px; color:#475569; margin-top:4px; font-weight:600;">
+          <div class="qv-guarantee-chip">
+            <i class="fa-solid fa-box-open"></i>
+            <span>${isEn ? '4-Layer Corner Mint Pack' : 'Bọc chống sốc 4 lớp'}</span>
+          </div>
+          <div class="qv-guarantee-chip">
+            <i class="fa-solid fa-truck-fast"></i>
+            <span>${isEn ? 'SPX Express Nationwide' : 'Giao nhanh SPX toàn quốc'}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- CỘT PHẢI: THÔNG TIN CHI TIẾT ĐẦY ĐỦ, ĐÃ BÁN THẬT, CHỌN BOX/CARD & MUA HÀNG -->
+      <div class="qv-info-col">
+        <div class="qv-top-meta-row" style="display:flex; justify-content:space-between; align-items:center;">
+          <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+            <span class="badge ${isPreOrder ? 'badge-preorder' : (isSoldOut ? 'badge-soldout' : 'badge-instock')}">
+              ${isPreOrder ? 'PRE-ORDER 2026' : (isSoldOut ? (isEn ? 'SOLD OUT' : 'HẾT HÀNG') : (isEn ? 'IN STOCK' : 'SẴN HÀNG GIAO NGAY'))}
+            </span>
+            <span class="qv-brand-pill"><i class="fa-solid fa-shield-halved" style="color:#ef4444;"></i> ${escapeHtml(pBrand)}</span>
+            <span style="font-size:12px; color:${qvTextMuted}; font-weight:800; font-family:monospace;">#${escapeHtml(pSku)} • Car #${escapeHtml(String(pCarNum))}</span>
+          </div>
+          <button type="button" class="btn btn-outline btn-sm" onclick="copyProductLink(${pId})" style="padding:3px 9px; font-size:11.5px; border-radius:6px; height:28px; display:inline-flex; align-items:center; gap:5px; font-weight:700;" title="${isEn ? 'Copy link to share this model' : 'Sao chép link chia sẻ mẫu xe này'}">
+            <i class="fa-solid fa-share-nodes" style="color:var(--color-primary);"></i>
+            <span>${isEn ? 'Share' : 'Chia sẻ'}</span>
+          </button>
+        </div>
+
+        <h2 class="qv-product-title" style="color: ${qvTextMain};">${escapeHtml(pName)}</h2>
+
+        <!-- Thanh chỉ số thực tế: Đã bán thật + Tồn kho thực tế -->
+        <div class="qv-metrics-bar">
+          <div class="qv-metric-pill">
+            <span id="qvSoldMetric_${pId}" class="qv-sold-highlight ${soldCount === 0 ? 'zero' : ''}">
+              <i class="fa-solid ${soldCount > 0 ? 'fa-fire-flame-curved' : 'fa-bag-shopping'}"></i>
+              ${isEn ? `Sold: ${soldCount} pcs` : `Đã bán: ${soldCount} chiếc`}${escapeHtml(soldBreakdownHint)}
+            </span>
+          </div>
+          <span class="qv-metric-divider"></span>
+          <div class="qv-metric-pill" id="qvStockMetric_${pId}">
+            <i class="fa-solid fa-warehouse" style="color:${isSoldOut ? '#dc2626' : '#059669'};"></i>
+            <span>${isSoldOut
+              ? (isEn ? 'Out of stock' : 'Tạm hết hàng')
+              : (isPreOrder
+                ? (isEn ? `Pre-Order Slots: ${pStock}` : `Suất cọc còn: ${pStock} xe`)
+                : (isEn ? `In Stock: ${pStock} pcs` : `Kho sẵn: ${pStock} chiếc`))}</span>
+          </div>
+        </div>
+
+        <!-- Khung giá động theo quy cách Box / Card -->
+        <div id="qvPriceBox_${pId}" style="padding: 12px 16px; background: ${qvBoxBg}; border-radius: 12px; border: 1.5px solid ${qvBorderColor};">
+          <div style="display:flex; align-items:baseline; gap:10px; flex-wrap:wrap;">
+            <span id="qvCurrentPrice_${pId}" style="font-size: 1.7rem; font-weight: 900; color: #e11d48; letter-spacing:-0.02em;">${formatVND(currentFinal)}</span>
+            <span id="qvOldPrice_${pId}" style="font-size: 0.98rem; color: #94a3b8; text-decoration: line-through; display: ${pricing.hasDiscount && currentOrig > currentFinal ? 'inline' : 'none'};">${formatVND(currentOrig)}</span>
+            ${pricing.hasDiscount ? `<span style="font-size:11.5px; font-weight:800; color:#059669; background:rgba(16, 185, 129, 0.15); padding:3px 9px; border-radius:99px;">${isEn ? `Save ${pricing.discountPercent}% (-${formatVND(currentOrig - currentFinal)})` : `Đã trừ ${pricing.discountPercent}% (-${formatVND(currentOrig - currentFinal)})`}</span>` : ''}
+          </div>
+          <div id="qvPackHint_${pId}" style="font-size:12px; color:${qvTextMuted}; margin-top:4px; font-weight:600;">
             ${activePack === 'box'
-              ? `📦 Bản Hộp Giấy (Box) nguyên seal — Rẻ hơn bản Card ${formatVND(diffPrice)}`
-              : `🛡️ Bản Vỉ Nhựa (Card Blister) seal trưng bày chống bụi cao cấp`}
+              ? (isEn ? `<i class="fa-solid fa-box" style="margin-right:4px; color:#3b82f6;"></i> Sealed Paper Box — Saves ${formatVND(diffPrice)} vs Card` : `<i class="fa-solid fa-box" style="margin-right:4px; color:#3b82f6;"></i> Bản Hộp Giấy (Box) nguyên seal — Rẻ hơn bản Card ${formatVND(diffPrice)}`)
+              : (isEn ? `<i class="fa-solid fa-shield-halved" style="margin-right:4px; color:#ec4899;"></i> Collector Blister Card — Dustproof display packaging` : `<i class="fa-solid fa-shield-halved" style="margin-right:4px; color:#ec4899;"></i> Bản Vỉ Nhựa (Card Blister) seal trưng bày chống bụi cao cấp`)}
           </div>
         </div>
 
         ${isPreOrder && expectedArrival ? `
-          <div style="margin-bottom: 12px; padding: 10px 14px; background: #f5f3ff; border-radius: 10px; border: 1.5px solid #c4b5fd; color: #5b21b6;">
+          <div style="padding: 11px 14px; ${qvPreorderBox} border-radius: 12px;">
             <div style="font-weight: 800; font-size: 12.5px; display: flex; align-items: center; gap: 6px;">
-              <i class="fa-solid fa-calendar-check" style="color: #7c3aed;"></i> THÔNG TIN ĐỢT HÀNG PRE-ORDER
+              <i class="fa-solid fa-calendar-check" style="color: #7c3aed;"></i> ${isEn ? 'PRE-ORDER BATCH INFORMATION' : 'THÔNG TIN ĐỢT HÀNG PRE-ORDER'}
             </div>
-            <div style="margin-top: 5px; font-size: 12.5px; color: #4c1d95;">
-              📅 <strong>Hàng dự kiến về kho:</strong> <span style="font-weight: 800; color: #6d28d9;">${escapeHtml(expectedArrival)}</span>
+            <div style="margin-top: 5px; font-size: 12.5px; color: ${qvPreorderText};">
+              <i class="fa-regular fa-calendar-days" style="margin-right:4px; color:#7c3aed;"></i> <strong>${isEn ? 'Estimated Arrival:' : 'Hàng dự kiến về kho:'}</strong> <span style="font-weight: 800; color: ${qvPreorderHi};">${escapeHtml(dispArrival)}</span>
             </div>
-            <div style="margin-top: 4px; font-size: 11.5px; color: #6d28d9; line-height: 1.45;">
-              🔒 <strong>Chính sách đặt cọc:</strong> Khách hàng chỉ cọc trước <strong>${depPct}%</strong> giá bán. Khi lô xe cập bến tại cửa hàng Biên Hòa, Admin sẽ chủ động liên hệ gửi thông báo qua Zalo / Email hoặc gọi điện thoại trực tiếp trước khi giao.
+            <div style="margin-top: 4px; font-size: 11.5px; color: ${qvPreorderHi}; line-height: 1.45;">
+              <i class="fa-solid fa-shield-check" style="margin-right:4px; color:#059669;"></i> <strong>${isEn ? 'Deposit Policy:' : 'Chính sách đặt cọc:'}</strong> ${isEn ? `Deposit only <strong>${depPct}%</strong> (${formatVND(Math.round((currentFinal * (depPct / 100)) / 1000) * 1000)}). Admin will notify via Zalo/Email upon arrival.` : `Khách hàng chỉ cọc trước <strong>${depPct}%</strong> (${formatVND(Math.round((currentFinal * (depPct / 100)) / 1000) * 1000)}). Khi lô xe cập bến kho Biên Hòa, Admin sẽ liên hệ qua Zalo / Email trước khi giao.`}
             </div>
           </div>
         ` : ''}
 
-        <div style="font-size:11.5px; font-weight:800; color:#334155; text-transform:uppercase; letter-spacing:0.04em; margin-bottom:4px;">
-          ${isEn ? 'Select Packaging (Box vs Blister Card):' : 'Chọn quy cách đóng gói (Box / Card):'}
-        </div>
-        <div class="qv-pack-selector" id="qvPackSelector_${pId}">
-          <div class="qv-pack-option ${activePack === 'box' ? 'active' : ''} ${isBoxDisabled ? 'disabled' : ''}" ${isBoxDisabled ? `title="${boxReason}"` : `onclick="selectQuickViewPack(${pId}, 'box')"`}>
-            <div class="qv-pack-option-title">
-              <i class="fa-solid fa-cube" style="color:${isBoxDisabled ? '#94a3b8' : '#0284c7'};"></i>
-              ${isBoxDisabled ? `<del>${isEn ? 'Paper Box' : 'Hộp Giấy (Box)'}</del><span class="qv-pack-disabled-badge">${boxReason}</span>` : (isEn ? 'Paper Box' : 'Hộp Giấy (Box)')}
-            </div>
-            <div class="qv-pack-option-price">${formatVND(pricing.finalPriceBox)} ${pricing.hasDiscount ? `<span style="font-size:10.5px; color:#94a3b8; text-decoration:line-through; font-weight:500;">${formatVND(pricing.priceBox)}</span>` : ''}</div>
-            <div class="qv-pack-option-sub">${isBoxDisabled ? (isEn ? 'Unavailable' : 'Không có sẵn') : (isEn ? `Saves ${formatVND(diffPrice)} vs Card` : `Tiết kiệm ${formatVND(diffPrice)} so với Card`)}</div>
+        <!-- Bộ chọn quy cách đóng gói tương tác (Box vs Blister Card) -->
+        <div>
+          <div style="font-size:11.5px; font-weight:800; color:${qvTextMuted}; text-transform:uppercase; letter-spacing:0.04em; margin-bottom:6px;">
+            ${isEn ? 'Select Packaging (Box vs Blister Card):' : 'Chọn quy cách đóng gói (Box / Card):'}
           </div>
-          <div class="qv-pack-option ${activePack === 'card' ? 'active' : ''} ${isCardDisabled ? 'disabled' : ''}" ${isCardDisabled ? `title="${cardReason}"` : `onclick="selectQuickViewPack(${pId}, 'card')"`}>
-            <div class="qv-pack-option-title">
-              <i class="fa-solid fa-shield-halved" style="color:${isCardDisabled ? '#94a3b8' : '#e11d48'};"></i>
-              ${isCardDisabled ? `<del>${isEn ? 'Blister Card' : 'Vỉ Nhựa (Card)'}</del><span class="qv-pack-disabled-badge">${cardReason}</span>` : (isEn ? 'Blister Card' : 'Vỉ Nhựa (Card)')}
-            </div>
-            <div class="qv-pack-option-price">${formatVND(pricing.finalPriceCard)} ${pricing.hasDiscount ? `<span style="font-size:10.5px; color:#94a3b8; text-decoration:line-through; font-weight:500;">${formatVND(pricing.priceCard)}</span>` : ''}</div>
-            <div class="qv-pack-option-sub">${isCardDisabled ? (isEn ? 'Unavailable' : 'Không có sẵn') : (isEn ? 'Collector display blister' : 'Vỉ nhựa trưng bày kèm hộp giấy')}</div>
+          <div class="qv-pack-selector" id="qvPackSelector_${pId}">
+            <button type="button" class="qv-pack-option ${activePack === 'box' ? 'active' : ''} ${isBoxDisabled ? 'disabled' : ''}" ${isBoxDisabled ? 'disabled' : ''} onclick="selectQuickViewPack(${pId}, 'box')">
+              <div class="qv-pack-opt-top">
+                <span><i class="fa-solid fa-cube" style="color:#ea580c;"></i> ${isEn ? 'Paper Box' : 'Bản Hộp Giấy (Box)'}</span>
+                ${activePack === 'box' && !isBoxDisabled ? '<i class="fa-solid fa-circle-check" style="color:#e10600;"></i>' : ''}
+              </div>
+              <div class="qv-pack-opt-price">${formatVND(pricing.finalPriceBox)}</div>
+              <div class="qv-pack-opt-stock">${escapeHtml(boxStockLabel)}</div>
+            </button>
+            <button type="button" class="qv-pack-option ${activePack === 'card' ? 'active' : ''} ${isCardDisabled ? 'disabled' : ''}" ${isCardDisabled ? 'disabled' : ''} onclick="selectQuickViewPack(${pId}, 'card')">
+              <div class="qv-pack-opt-top">
+                <span><i class="fa-solid fa-shield-halved" style="color:#2563eb;"></i> ${isEn ? 'Blister Card' : 'Bản Vỉ Nhựa (Card)'}</span>
+                ${activePack === 'card' && !isCardDisabled ? '<i class="fa-solid fa-circle-check" style="color:#e10600;"></i>' : ''}
+              </div>
+              <div class="qv-pack-opt-price">${formatVND(pricing.finalPriceCard)}</div>
+              <div class="qv-pack-opt-stock">${escapeHtml(cardStockLabel)}</div>
+            </button>
           </div>
         </div>
 
-        <p style="font-size: 12.5px; color: #475569; margin: 12px 0; line-height: 1.55;">
-          ${escapeHtml(pDesc)}
-        </p>
+        <!-- Chọn số lượng + Thêm giỏ + Mua ngay + Yêu thích -->
+        <div class="qv-purchase-row">
+          <div class="qv-qty-stepper" aria-label="Số lượng">
+            <button type="button" onclick="changeQuickViewQty(${pId}, -1)" ${isSoldOut ? 'disabled' : ''}>−</button>
+            <input type="number" id="qvQtyInput_${pId}" value="1" min="1" max="${isPreOrder ? 20 : Math.max(1, activePack === 'card' ? pricing.stockCard : pricing.stockBox)}" readonly>
+            <button type="button" onclick="changeQuickViewQty(${pId}, 1)" ${isSoldOut ? 'disabled' : ''}>+</button>
+          </div>
 
-        <div style="display: flex; gap: 8px; margin-top: 12px;">
-          <button class="btn btn-primary" id="qvActionBtn_${pId}" style="flex: 1;" ${isSoldOut ? 'disabled' : ''} onclick="handleCardAction(${pId}, event, selectedCardPackaging[${pId}] || '${activePack}'); closeModal('quickViewModal');">
+          <button type="button" class="btn btn-outline" style="height:44px; padding:0 14px; font-weight:800;" ${isSoldOut ? 'disabled' : ''} onclick="handleQuickViewPurchase(${pId}, event, false)">
+            <i class="fa-solid fa-cart-plus" style="margin-right:5px;"></i> ${isEn ? 'Add to Cart' : 'Thêm vào giỏ'}
+          </button>
+
+          <button type="button" class="btn btn-primary" id="qvActionBtn_${pId}" style="flex: 1; min-width: 190px; height:44px; font-weight:800;" ${isSoldOut ? 'disabled' : ''} onclick="handleQuickViewPurchase(${pId}, event, true)">
             ${isSoldOut
               ? (isEn ? 'Sold Out' : 'Hết hàng')
-              : `<i class="fa-solid fa-bag-shopping" style="margin-right:6px;"></i> ${isPreOrder ? (isEn ? 'Pre-Order' : 'Đặt cọc') : (isEn ? 'Buy Now' : 'Mua ngay')} (${activePack === 'card' ? 'Card' : 'Box'} - ${formatVND(currentFinal)})`}
+              : `<i class="fa-solid fa-bag-shopping" style="margin-right:6px;"></i> ${isPreOrder ? (isEn ? 'Pre-Order' : 'Đặt cọc ngay') : (isEn ? 'Buy Now' : 'Mua ngay')} (${activePack === 'card' ? 'Card' : 'Box'} - ${formatVND(currentFinal)})`}
           </button>
-          <button type="button" class="btn btn-outline" id="quickViewWishlistBtn" style="min-width: 44px; padding: 0 12px;" onclick="toggleWishlist(${pId}, event);" title="${isWish ? 'Đã lưu yêu thích' : 'Yêu thích'}">
-            <i class="fa-${isWish ? 'solid' : 'regular'} fa-heart" style="color:${isWish ? '#dc2626' : 'inherit'}; font-size: 14px;"></i>
+
+          <button type="button" class="btn btn-outline" id="quickViewWishlistBtn" style="min-width: 44px; height:44px; padding: 0 12px;" onclick="toggleWishlist(${pId}, event);" title="${isWish ? 'Đã lưu yêu thích' : 'Yêu thích'}">
+            <i class="fa-${isWish ? 'solid' : 'regular'} fa-heart" style="color:${isWish ? '#dc2626' : 'inherit'}; font-size: 15px;"></i>
           </button>
+        </div>
+
+        <!-- Bảng thông số kỹ thuật đầy đủ cho Collector -->
+        <div class="qv-specs-grid">
+          <div class="qv-spec-item">
+            <span class="qv-spec-label">${isEn ? 'Brand' : 'Thương hiệu'}</span>
+            <span class="qv-spec-val">${escapeHtml(pBrand)}</span>
+          </div>
+          <div class="qv-spec-item">
+            <span class="qv-spec-label">${isEn ? 'Scale & Material' : 'Tỉ lệ & Chất liệu'}</span>
+            <span class="qv-spec-val">${escapeHtml(pScale)} • Diecast Metal</span>
+          </div>
+          <div class="qv-spec-item">
+            <span class="qv-spec-label">${isEn ? 'Official SKU / Car #' : 'Mã SKU / Số hiệu'}</span>
+            <span class="qv-spec-val">#${escapeHtml(pSku)} (No. ${escapeHtml(String(pCarNum))})</span>
+          </div>
+          <div class="qv-spec-item">
+            <span class="qv-spec-label">${isEn ? 'Collection' : 'Bộ sưu tập'}</span>
+            <span class="qv-spec-val">${escapeHtml(pCategoryName)}</span>
+          </div>
+          <div class="qv-spec-item">
+            <span class="qv-spec-label">${isEn ? 'Packaging Options' : 'Quy cách phát hành'}</span>
+            <span class="qv-spec-val">${escapeHtml(packModeText)}</span>
+          </div>
+          <div class="qv-spec-item">
+            <span class="qv-spec-label">${isEn ? 'Warehouse Breakdown' : 'Tồn kho từng bản'}</span>
+            <span class="qv-spec-val">${isPreOrder ? (isEn ? 'Pre-Order Wave' : 'Nhận cọc theo đợt') : `Box: ${pricing.stockBox} • Card: ${pricing.stockCard}`}</span>
+          </div>
+          <div class="qv-spec-item" style="grid-column: 1 / -1;">
+            <span class="qv-spec-label">${isEn ? 'Special Edition Note' : 'Đặc điểm phiên bản'}</span>
+            <span class="qv-spec-val">${escapeHtml(pEdition)}</span>
+          </div>
+        </div>
+
+        <!-- Mô tả chi tiết sản phẩm -->
+        <div class="qv-description-box">
+          <div class="qv-description-title">
+            <i class="fa-solid fa-circle-info" style="color:#e10600;"></i>
+            <span>${isEn ? 'Collector Model Description' : 'Mô tả chi tiết mô hình'}</span>
+          </div>
+          <div style="white-space: pre-line;">${escapeHtml(pDesc)}</div>
         </div>
       </div>
     </div>
+
+    <!-- KHU VỰC ĐỒNG BỘ TRỰC TIẾP: ĐÁNH GIÁ KHÁCH HÀNG & MẪU XE CÙNG BỘ SƯU TẬP -->
+    <div id="qvAsyncExtra_${pId}" class="qv-extra-wrap"></div>
   `;
 
   modal.classList.add('active');
+  const modalContainer = modal.querySelector('.modal-container');
+  if (modalContainer) modalContainer.scrollTop = 0;
+
+  // Tải ngầm chi tiết đầy đủ từ /api/products/:id (cập nhật tức thì bộ ảnh mới, đã bán thật, đánh giá & xe liên quan)
+  loadQuickViewAsyncDetails(pId);
 }
+
+async function loadQuickViewAsyncDetails(productId) {
+  try {
+    const res = await safeFetch(`/api/products/${encodeURIComponent(productId)}`);
+    if (!res || !res.success || !res.data) return;
+    if (activeQuickViewState.productId != productId) return;
+
+    const fullProd = (window.api && typeof window.api.normalizeProductObject === 'function')
+      ? window.api.normalizeProductObject(res.data)
+      : res.data;
+
+    // Đồng bộ lại vào allProducts để card bên ngoài cũng có dữ liệu ảnh & đã bán mới nhất
+    const idx = allProducts.findIndex(p => (p.ProductId || p.id) == productId);
+    if (idx !== -1) {
+      allProducts[idx] = Object.assign({}, allProducts[idx], fullProd);
+    }
+
+    const isEn = typeof currentSiteLang !== 'undefined' && currentSiteLang === 'en';
+    const freshImages = getProductGalleryImages(fullProd);
+    if (JSON.stringify(freshImages) !== JSON.stringify(activeQuickViewState.images)) {
+      activeQuickViewState.images = freshImages;
+      if (activeQuickViewState.activeIndex >= freshImages.length) {
+        activeQuickViewState.activeIndex = 0;
+      }
+      refreshQuickViewGalleryDOM();
+    }
+
+    // Cập nhật chỉ số Đã bán thật & Đánh giá mới nhất từ CSDL
+    const freshSold = getProductRealSoldCount(fullProd);
+    const freshSoldBox = Math.max(0, parseInt(fullProd.soldBox ?? fullProd.SoldBox ?? 0, 10) || 0);
+    const freshSoldCard = Math.max(0, parseInt(fullProd.soldCard ?? fullProd.SoldCard ?? 0, 10) || 0);
+    const soldEl = document.getElementById(`qvSoldMetric_${productId}`);
+    if (soldEl) {
+      const breakdown = (freshSold > 0 && (freshSoldBox > 0 || freshSoldCard > 0))
+        ? ` (Box: ${freshSoldBox} • Card: ${freshSoldCard})`
+        : '';
+      soldEl.className = `qv-sold-highlight ${freshSold === 0 ? 'zero' : ''}`;
+      soldEl.innerHTML = `<i class="fa-solid ${freshSold > 0 ? 'fa-fire-flame-curved' : 'fa-bag-shopping'}"></i> ${isEn ? `Sold: ${freshSold} pcs` : `Đã bán: ${freshSold} chiếc`}${escapeHtml(breakdown)}`;
+    }
+
+    const relatedRaw = Array.isArray(res.data.related) && res.data.related.length > 0
+      ? res.data.related
+      : allProducts.filter(p => (p.ProductId || p.id) != productId && (p.CategoryId || p.categoryId) == (fullProd.CategoryId || fullProd.categoryId)).slice(0, 4);
+
+    renderQuickViewExtraSection(productId, relatedRaw);
+  } catch (_) {}
+}
+
+function renderQuickViewExtraSection(productId, related = []) {
+  const extraEl = document.getElementById(`qvAsyncExtra_${productId}`);
+  if (!extraEl) return;
+
+  const isEn = typeof currentSiteLang !== 'undefined' && currentSiteLang === 'en';
+
+  if (!related || related.length === 0) {
+    extraEl.innerHTML = '';
+    extraEl.style.display = 'none';
+    return;
+  }
+
+  extraEl.style.display = 'block';
+  extraEl.innerHTML = `
+    <div>
+      <h4 class="qv-extra-heading">
+        <span><i class="fa-solid fa-layer-group" style="color:#e10600; margin-right:6px;"></i>${isEn ? 'Related Models in This Collection' : 'Mẫu Xe Cùng Bộ Sưu Tập Đề Xuất'}</span>
+      </h4>
+      <div class="qv-related-grid">
+        ${related.slice(0, 4).map(rp => {
+          const normR = (window.api && window.api.normalizeProductObject) ? window.api.normalizeProductObject(rp) : rp;
+          const rId = normR.ProductId || normR.id;
+          const rName = normR.Name || normR.name || 'MINI GT';
+          const rImg = getProductGalleryImages(normR)[0];
+          const rPricing = getProductBoxCardPricing(normR);
+          const rSold = getProductRealSoldCount(normR);
+          return `
+            <div class="qv-related-card" onclick="openQuickView(${rId})">
+              <img src="${escapeHtml(rImg)}" alt="${escapeHtml(rName)}" loading="lazy" onerror="this.onerror=null; this.src='image/hero-banner.jpg';">
+              <div style="font-size:12px; font-weight:800; line-height:1.35; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;">${escapeHtml(rName)}</div>
+              <div style="margin-top:auto; display:flex; align-items:center; justify-content:space-between; gap:4px; flex-wrap:wrap;">
+                <strong style="color:#e10600; font-size:12.5px;">${formatVND(rPricing.finalPriceBox)}</strong>
+                <span class="card-sold-badge ${rSold > 0 ? 'has-sales' : 'zero-sales'}">${isEn ? `Sold ${rSold}` : `Đã bán ${rSold}`}</span>
+              </div>
+            </div>
+          `;
+        }).join('')}
+      </div>
+    </div>
+  `;
+}
+
+async function submitProductReview(event) {
+  if (event && event.preventDefault) event.preventDefault();
+}
+window.submitProductReview = submitProductReview;
 
 function selectQuickViewPack(productId, packType) {
   const prod = (allProducts && allProducts.length ? allProducts : FALLBACK_PRODUCTS).find(p => (p.ProductId || p.id) == productId);
@@ -2527,6 +3435,28 @@ function selectQuickViewPack(productId, packType) {
     if (opts.length >= 2) {
       opts[0].classList.toggle('active', chosen === 'box');
       opts[1].classList.toggle('active', chosen === 'card');
+      const top0 = opts[0].querySelector('.qv-pack-opt-top');
+      const top1 = opts[1].querySelector('.qv-pack-opt-top');
+      if (top0) {
+        const chk0 = top0.querySelector('.fa-circle-check');
+        if (chosen === 'box' && !chk0) top0.insertAdjacentHTML('beforeend', '<i class="fa-solid fa-circle-check" style="color:#e10600;"></i>');
+        if (chosen !== 'box' && chk0) chk0.remove();
+      }
+      if (top1) {
+        const chk1 = top1.querySelector('.fa-circle-check');
+        if (chosen === 'card' && !chk1) top1.insertAdjacentHTML('beforeend', '<i class="fa-solid fa-circle-check" style="color:#e10600;"></i>');
+        if (chosen !== 'card' && chk1) chk1.remove();
+      }
+    }
+  }
+
+  // Clamp lại số lượng đang chọn theo tồn kho của bản vừa đổi
+  const qtyInput = document.getElementById(`qvQtyInput_${productId}`);
+  if (qtyInput && !isPreOrder) {
+    const maxPackStock = Math.max(1, chosen === 'card' ? (pricing.stockCard ?? 1) : (pricing.stockBox ?? 1));
+    qtyInput.max = String(maxPackStock);
+    if ((parseInt(qtyInput.value, 10) || 1) > maxPackStock) {
+      qtyInput.value = String(maxPackStock);
     }
   }
 
@@ -2545,14 +3475,14 @@ function selectQuickViewPack(productId, packType) {
 
   const hintEl = document.getElementById(`qvPackHint_${productId}`);
   if (hintEl) {
-    hintEl.textContent = chosen === 'box'
-      ? `📦 Bản Hộp Giấy (Box) nguyên seal — Rẻ hơn bản Card ${formatVND(diffPrice)}`
-      : `🛡️ Bản Vỉ Nhựa (Card Blister) seal trưng bày chống bụi cao cấp`;
+    hintEl.innerHTML = chosen === 'box'
+      ? (isEn ? `<i class="fa-solid fa-box" style="margin-right:4px; color:#3b82f6;"></i> Sealed Paper Box — Saves ${formatVND(diffPrice)} vs Card` : `<i class="fa-solid fa-box" style="margin-right:4px; color:#3b82f6;"></i> Bản Hộp Giấy (Box) nguyên seal — Rẻ hơn bản Card ${formatVND(diffPrice)}`)
+      : (isEn ? `<i class="fa-solid fa-shield-halved" style="margin-right:4px; color:#ec4899;"></i> Collector Blister Card — Dustproof display packaging` : `<i class="fa-solid fa-shield-halved" style="margin-right:4px; color:#ec4899;"></i> Bản Vỉ Nhựa (Card Blister) seal trưng bày chống bụi cao cấp`);
   }
 
   const actionBtn = document.getElementById(`qvActionBtn_${productId}`);
   if (actionBtn && !actionBtn.disabled) {
-    actionBtn.innerHTML = `<i class="fa-solid fa-bag-shopping" style="margin-right:6px;"></i> ${isPreOrder ? (isEn ? 'Pre-Order' : 'Đặt cọc') : (isEn ? 'Buy Now' : 'Mua ngay')} (${chosen === 'card' ? 'Card' : 'Box'} - ${formatVND(finalPrice)})`;
+    actionBtn.innerHTML = `<i class="fa-solid fa-bag-shopping" style="margin-right:6px;"></i> ${isPreOrder ? (isEn ? 'Pre-Order' : 'Đặt cọc ngay') : (isEn ? 'Buy Now' : 'Mua ngay')} (${chosen === 'card' ? 'Card' : 'Box'} - ${formatVND(finalPrice)})`;
   }
 }
 window.selectQuickViewPack = selectQuickViewPack;
@@ -3179,7 +4109,7 @@ function renderCheckoutStep1() {
 
     return `
       <div style="display:flex; align-items:center; gap:12px; padding:12px 0; border-bottom:1px solid #f1f5f9;">
-        <img src="${it.imageUrl || 'image/hero-banner.jpg'}" alt="${escapeHtml(it.name)}" style="width:58px; height:58px; object-fit:contain; border-radius:8px; background:#f8fafc; border:1.5px solid #e2e8f0; padding:2px; flex-shrink:0;">
+        <img src="${escapeHtml(resolveStorefrontImageUrl(it.imageUrl || 'image/hero-banner.jpg'))}" alt="${escapeHtml(it.name)}" style="width:58px; height:58px; object-fit:contain; border-radius:8px; background:#f8fafc; border:1.5px solid #e2e8f0; padding:2px; flex-shrink:0;" onerror="this.onerror=null; this.src='image/hero-banner.jpg';">
         <div style="flex:1; min-width:0;">
           <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap; margin-bottom:3px;">
             <span class="pack-badge ${pack === 'card' ? 'pack-card' : 'pack-box'}">${pack === 'card' ? '<i class="fa-solid fa-shield-halved"></i> VỈ CARD BLISTER' : '<i class="fa-solid fa-cube"></i> HỘP GIẤY BOX'}</span>
@@ -3540,11 +4470,11 @@ function renderCheckoutStep3() {
           return `
             <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; font-size:12px; border-bottom:1px dashed #e2e8f0; padding-bottom:5px;">
               <div style="display:flex; align-items:center; gap:8px; overflow:hidden;">
-                <img src="${it.imageUrl || 'image/hero-banner.jpg'}" style="width:36px; height:36px; object-fit:contain; border-radius:6px; border:1px solid #e2e8f0; background:#fff; padding:1px; flex-shrink:0;">
+                <img src="${escapeHtml(resolveStorefrontImageUrl(it.imageUrl || 'image/hero-banner.jpg'))}" style="width:36px; height:36px; object-fit:contain; border-radius:6px; border:1.5px solid #e2e8f0; background:#fff; padding:1px; flex-shrink:0;" onerror="this.onerror=null; this.src='image/hero-banner.jpg';">
                 <div style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
                   <div style="font-weight:700; color:#0f172a; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:280px;">${escapeHtml(it.name)}</div>
                   <div style="display:flex; align-items:center; gap:6px; margin-top:1px;">
-                    <span class="pack-badge ${pack === 'card' ? 'pack-card' : 'pack-box'}">${pack === 'card' ? '🛡️ VỈ CARD' : '📦 HỘP BOX'}</span>
+                    <span class="pack-badge ${pack === 'card' ? 'pack-card' : 'pack-box'}">${pack === 'card' ? '<i class="fa-solid fa-shield-halved"></i> VỈ CARD' : '<i class="fa-solid fa-box"></i> HỘP BOX'}</span>
                     <span style="color:#64748b; font-size:11px;">x${it.quantity}</span>
                   </div>
                 </div>
@@ -3794,6 +4724,10 @@ async function handleCheckoutSubmit(e) {
 
       showToast(`🎉 Đặt đơn #${code} thành công! Cảm ơn bạn đã đặt hàng, thông tin xác nhận kiện mô hình đã được gửi tự động qua email của bạn!`, 'success', 6000);
       renderCheckoutStep4(createdOrder);
+      // Đồng bộ lại ngay số lượng Đã bán thật & tồn kho trên toàn bộ sản phẩm
+      if (typeof loadProducts === 'function') {
+        loadProducts().catch(() => {});
+      }
     } else {
       showToast(json.message || 'Không thể khởi tạo đơn hàng, vui lòng kiểm tra lại.', 'error');
     }
@@ -3900,11 +4834,11 @@ function renderCheckoutStep4(rawOrder) {
           return `
             <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; font-size:12px; border-bottom:1px dashed #f1f5f9; padding-bottom:5px;">
               <div style="display:flex; align-items:center; gap:8px; overflow:hidden;">
-                <img src="${pImg}" onerror="this.src='image/hero-banner.jpg'" style="width:36px; height:36px; object-fit:contain; border-radius:6px; border:1px solid #e2e8f0; background:#f8fafc; padding:1px; flex-shrink:0;">
+                <img src="${escapeHtml(resolveStorefrontImageUrl(pImg))}" onerror="this.onerror=null; this.src='image/hero-banner.jpg';" style="width:36px; height:36px; object-fit:contain; border-radius:6px; border:1px solid #e2e8f0; background:#f8fafc; padding:1px; flex-shrink:0;">
                 <div style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
                   <div style="font-weight:700; color:#0f172a; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:260px;" title="${escapeHtml(pName)}">${escapeHtml(pName)}</div>
                   <div style="display:flex; align-items:center; gap:6px; margin-top:1px;">
-                    <span class="pack-badge ${pack === 'card' ? 'pack-card' : 'pack-box'}">${pack === 'card' ? '🛡️ VỈ CARD' : '📦 HỘP BOX'}</span>
+                    <span class="pack-badge ${pack === 'card' ? 'pack-card' : 'pack-box'}">${pack === 'card' ? '<i class="fa-solid fa-shield-halved"></i> VỈ CARD' : '<i class="fa-solid fa-box"></i> HỘP BOX'}</span>
                     <span style="color:#64748b; font-size:11px;">x${itQty}</span>
                   </div>
                 </div>
@@ -4144,7 +5078,34 @@ async function initPayosStep4Checkout(orderCode, expectedAmount) {
   }
 }
 
-const notifiedOrdersInStep4 = new Set();
+// Quản lý các sự kiện thông báo đơn hàng & thanh toán đã được xác nhận (Persistent Notification Storage)
+function getAcknowledgedOrderEvents() {
+  try {
+    const raw = localStorage.getItem('minigt_notified_order_events');
+    return raw ? new Set(JSON.parse(raw)) : new Set();
+  } catch (_) {
+    return new Set();
+  }
+}
+
+function markOrderEventAsAcknowledged(code, status, subKey = '') {
+  if (!code || !status) return;
+  try {
+    const set = getAcknowledgedOrderEvents();
+    const key = `${String(code).trim().toUpperCase()}_${String(status).trim().toUpperCase()}_${String(subKey).trim().toUpperCase()}`;
+    set.add(key);
+    const arr = Array.from(set);
+    if (arr.length > 200) arr.splice(0, arr.length - 200);
+    localStorage.setItem('minigt_notified_order_events', JSON.stringify(arr));
+  } catch (_) {}
+}
+
+function hasOrderEventBeenAcknowledged(code, status, subKey = '') {
+  if (!code || !status) return false;
+  const set = getAcknowledgedOrderEvents();
+  const key = `${String(code).trim().toUpperCase()}_${String(status).trim().toUpperCase()}_${String(subKey).trim().toUpperCase()}`;
+  return set.has(key);
+}
 
 function updateLiveStep4OrderStatus(rawOrd) {
   if (!rawOrd) return;
@@ -4179,11 +5140,14 @@ function updateLiveStep4OrderStatus(rawOrd) {
   const trackingCode = ord.trackingCode || ord.TrackingCode || null;
   const isApproved = ['CONFIRMED', 'PREPARING', 'SHIPPING', 'DELIVERED'].includes(status) || Boolean(trackingCode);
 
-  // Kích hoạt pháo hoa và thông báo chúc mừng khi đơn vừa được chuyển trạng thái thanh toán thành công
-  if ((ord.paymentStatus === 'PAID' || ord.paymentStatus === 'PARTIALLY_PAID' || isApproved) && status !== 'CANCELLED' && !notifiedOrdersInStep4.has(code)) {
-    notifiedOrdersInStep4.add(code);
-    if (typeof launchCollectorConfetti === 'function') launchCollectorConfetti();
-    showToast(`🎉 Đơn hàng #${code} đã được xác nhận thanh toán tự động thành công!`, 'success', 5000);
+  // Kích hoạt pháo hoa và thông báo chúc mừng DUY NHẤT 1 LẦN cho mỗi đơn hàng (chống lặp thông báo vĩnh viễn)
+  const paymentAcknowledgedKey = `STEP4_PAID_${ord.paymentStatus}_${status}`;
+  if ((ord.paymentStatus === 'PAID' || ord.paymentStatus === 'PARTIALLY_PAID' || isApproved) && status !== 'CANCELLED') {
+    if (!hasOrderEventBeenAcknowledged(code, paymentAcknowledgedKey)) {
+      markOrderEventAsAcknowledged(code, paymentAcknowledgedKey);
+      if (typeof launchCollectorConfetti === 'function') launchCollectorConfetti();
+      showToast(`🎉 Đơn hàng #${code} đã được xác nhận thanh toán tự động thành công!`, 'success', 5000);
+    }
   }
 
   if (status === 'CANCELLED') {
@@ -4288,7 +5252,7 @@ function updateLiveStep4OrderStatus(rawOrd) {
         <div style="font-size:26px; color:#059669; line-height:1;"><i class="fa-solid fa-boxes-packing"></i></div>
         <div style="flex:1;">
           <div style="font-size:14px; font-weight:900; color:#047857; text-transform:uppercase;">
-            📦 LÔ HÀNG PRE-ORDER ĐÃ VỀ KHO BIÊN HÒA #${escapeHtml(code)}!
+            <i class="fa-solid fa-boxes-packing" style="margin-right:4px;"></i> LÔ HÀNG PRE-ORDER ĐÃ VỀ KHO BIÊN HÒA #${escapeHtml(code)}!
           </div>
           <div style="font-size:12px; color:#065f46; margin-top:3px;">
             Trạng thái hiện tại: <strong>${escapeHtml(ord.statusLabel || status)}</strong> | Thanh toán: <strong>${escapeHtml(ord.paymentStatusLabel || ord.paymentStatus)}</strong>
@@ -4402,6 +5366,10 @@ function fallbackCopyText(text, successMsg) {
 
 async function triggerInstantPayOSCheck(orderCode) {
   if (!orderCode) return;
+  const paymentAcknowledgedKey = `STEP4_PAID_CONFIRMED`;
+  const isAlreadyNotified = hasOrderEventBeenAcknowledged(orderCode, paymentAcknowledgedKey) ||
+                            hasOrderEventBeenAcknowledged(orderCode, `STEP4_PAID_PAID_CONFIRMED`);
+
   showToast('Đang kết nối cổng PayOS để kiểm tra giao dịch tức thì...', 'info');
   try {
     const json = await safeFetch(`/api/orders/check-status/${encodeURIComponent(orderCode)}`);
@@ -4409,7 +5377,9 @@ async function triggerInstantPayOSCheck(orderCode) {
       const ord = api.normalizeOrderObject ? api.normalizeOrderObject(json.data) : json.data;
       updateLiveStep4OrderStatus(ord);
       if (ord.paymentStatus === 'PAID' || ord.paymentStatus === 'PARTIALLY_PAID' || ord.status === 'CONFIRMED') {
-        showToast('🎉 Giao dịch thành công! Đơn hàng của bạn đã được xác nhận tự động!', 'success');
+        if (isAlreadyNotified) {
+          showToast(`Đơn hàng #${orderCode} đã được ghi nhận thanh toán hoàn tất trước đó!`, 'info');
+        }
       } else {
         showToast('Hệ thống ngân hàng đang chuyển tiền. Vui lòng đợi trong 5 - 15 giây, hệ thống sẽ tự động khớp lệnh ngay!', 'info');
       }
@@ -5428,7 +6398,7 @@ function updateUserHeaderUI() {
                 <div class="user-dropdown-name">${escapeHtml(currentUser.fullName)}</div>
                 <div class="user-dropdown-email">${escapeHtml(currentUser.email)}</div>
                 <div style="font-size:11px; color:#e10600; font-weight:700; margin-top:4px;">
-                  <i class="fa-solid fa-coins"></i> Điểm cọc: ${pts} pts
+                  <i class="fa-solid fa-coins"></i> ${isEn ? 'Collector Points:' : 'Điểm cọc:'} ${pts} pts
                 </div>
               </div>
               <div class="user-dropdown-item" onclick="openUserProfileModal()"><i class="fa-solid fa-id-card" style="margin-right:6px; color:#e10600;"></i> ${isEn ? 'Collector Pass' : 'Hồ sơ hội viên & Địa chỉ'}</div>
@@ -5460,15 +6430,15 @@ function updateUserHeaderUI() {
             </div>
           </div>
           <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-bottom:8px;">
-            <button type="button" onclick="closeMobileNav(); openUserProfileModal();" style="padding:7px 8px; font-size:11.5px; font-weight:700; border-radius:8px; border:1px solid #cbd5e1; background:#fff; color:#1e293b; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:4px;">
-              <i class="fa-solid fa-id-card" style="color:#dc2626;"></i> Hồ sơ
+            <button type="button" onclick="closeMobileNav(); openUserProfileModal();" style="padding:7px 8px; font-size:11.5px; font-weight:700; border-radius:8px; border:1px solid var(--border-subtle, #cbd5e1); background:var(--bg-surface, #fff); color:var(--text-primary, #1e293b); cursor:pointer; display:flex; align-items:center; justify-content:center; gap:4px;">
+              <i class="fa-solid fa-id-card" style="color:#dc2626;"></i> ${isEn ? 'Profile' : 'Hồ sơ'}
             </button>
-            <button type="button" onclick="closeMobileNav(); openMyOrdersModal();" style="padding:7px 8px; font-size:11.5px; font-weight:700; border-radius:8px; border:1px solid #cbd5e1; background:#fff; color:#1e293b; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:4px;">
-              <i class="fa-solid fa-box-archive" style="color:#2563eb;"></i> Đơn SPX
+            <button type="button" onclick="closeMobileNav(); openMyOrdersModal();" style="padding:7px 8px; font-size:11.5px; font-weight:700; border-radius:8px; border:1px solid var(--border-subtle, #cbd5e1); background:var(--bg-surface, #fff); color:var(--text-primary, #1e293b); cursor:pointer; display:flex; align-items:center; justify-content:center; gap:4px;">
+              <i class="fa-solid fa-box-archive" style="color:#2563eb;"></i> ${isEn ? 'Orders' : 'Đơn SPX'}
             </button>
           </div>
-          <button type="button" onclick="closeMobileNav(); logout();" style="width:100%; padding:8px; font-size:12px; font-weight:800; border-radius:8px; border:1px solid #fecdd3; background:#fff1f2; color:#e11d48; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px;">
-            <i class="fa-solid fa-right-from-bracket"></i> ĐĂNG XUẤT TÀI KHOẢN
+          <button type="button" onclick="closeMobileNav(); logout();" style="width:100%; padding:8px; font-size:12px; font-weight:800; border-radius:8px; border:1px solid rgba(225, 29, 72, 0.35); background:rgba(225, 29, 72, 0.12); color:#f43f5e; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px;">
+            <i class="fa-solid fa-right-from-bracket"></i> ${isEn ? 'SIGN OUT' : 'ĐĂNG XUẤT TÀI KHOẢN'}
           </button>
         </div>
       `;
@@ -5493,10 +6463,10 @@ function updateUserHeaderUI() {
       drawerUserArea.innerHTML = `
         <div style="background:var(--bg-card, #f8fafc); border:1px solid var(--border-subtle, #e2e8f0); border-radius:12px; padding:12px; text-align:center;">
           <div style="font-size:12.5px; color:var(--text-secondary, #64748b); margin-bottom:8px;">
-            Đăng nhập để nhận cọc 11k, tích điểm và theo dõi đơn SPX Express
+            ${isEn ? 'Sign in to enjoy 11k SPX shipping, earn points & track pre-orders' : 'Đăng nhập để nhận cọc 11k, tích điểm và theo dõi đơn SPX Express'}
           </div>
           <button type="button" class="btn btn-primary" style="width:100%; height:40px; font-size:12.5px; font-weight:800; border-radius:8px; display:flex; align-items:center; justify-content:center; gap:6px;" onclick="closeMobileNav(); openAuthModal('login');">
-            <i class="fa-regular fa-user"></i> ĐĂNG NHẬP / ĐĂNG KÝ
+            <i class="fa-regular fa-user"></i> ${isEn ? 'SIGN IN / REGISTER' : 'ĐĂNG NHẬP / ĐĂNG KÝ'}
           </button>
         </div>
       `;
@@ -6538,20 +7508,20 @@ function buildUnifiedCustomerOrderCardHTML(ord) {
     } else if (isStockArrived) {
       statusBadgeHTML = `<span style="font-size:11px; font-weight:800; padding:3px 10px; border-radius:9999px; background:#dcfce7; color:#15803d;"><i class="fa-solid fa-boxes-stacked"></i> Hàng đã về kho • Sẵn sàng</span>`;
     } else {
-      statusBadgeHTML = `<span style="font-size:11px; font-weight:800; padding:3px 10px; border-radius:9999px; background:#dcfce7; color:#15803d;">✅ Admin đã duyệt đơn</span>`;
+      statusBadgeHTML = `<span style="font-size:11px; font-weight:800; padding:3px 10px; border-radius:9999px; background:#dcfce7; color:#15803d;"><i class="fa-solid fa-check" style="margin-right:3px;"></i> Admin đã duyệt đơn</span>`;
     }
   } else if (ordStatus === 'PREPARING') {
     if (wasPreOrder && isStockArrived) {
-      statusBadgeHTML = `<span style="font-size:11px; font-weight:800; padding:3px 10px; border-radius:9999px; background:#dcfce7; color:#15803d;"><i class="fa-solid fa-boxes-packing"></i> Hàng đã về kho • Đang đóng gói</span>`;
+      statusBadgeHTML = `<span style="font-size:11px; font-weight:800; padding:3px 10px; border-radius:9999px; background:#dcfce7; color:#15803d;"><i class="fa-solid fa-boxes-packing" style="margin-right:3px;"></i> Hàng đã về kho • Đang đóng gói</span>`;
     } else {
-      statusBadgeHTML = `<span style="font-size:11px; font-weight:800; padding:3px 10px; border-radius:9999px; background:#e0f2fe; color:#0369a1;">📦 Đang đóng gói chống sốc</span>`;
+      statusBadgeHTML = `<span style="font-size:11px; font-weight:800; padding:3px 10px; border-radius:9999px; background:#e0f2fe; color:#0369a1;"><i class="fa-solid fa-box" style="margin-right:3px;"></i> Đang đóng gói chống sốc</span>`;
     }
   } else if (ordStatus === 'SHIPPING' || (trackingCode && ordStatus !== 'DELIVERED' && ordStatus !== 'CANCELLED')) {
-    statusBadgeHTML = `<span style="font-size:11px; font-weight:800; padding:3px 10px; border-radius:9999px; background:#ffedd5; color:#c2410c;">🚚 Đang giao SPX (${escapeHtml(trackingCode || 'SPX')})</span>`;
+    statusBadgeHTML = `<span style="font-size:11px; font-weight:800; padding:3px 10px; border-radius:9999px; background:#ffedd5; color:#c2410c;"><i class="fa-solid fa-truck-fast" style="margin-right:3px;"></i> Đang giao SPX (${escapeHtml(trackingCode || 'SPX')})</span>`;
   } else if (ordStatus === 'DELIVERED') {
-    statusBadgeHTML = `<span style="font-size:11px; font-weight:800; padding:3px 10px; border-radius:9999px; background:#dcfce7; color:#166534;">🏆 Giao hàng thành công</span>`;
+    statusBadgeHTML = `<span style="font-size:11px; font-weight:800; padding:3px 10px; border-radius:9999px; background:#dcfce7; color:#166534;"><i class="fa-solid fa-circle-check" style="margin-right:3px;"></i> Giao hàng thành công</span>`;
   } else if (ordStatus === 'CANCELLED') {
-    statusBadgeHTML = `<span style="font-size:11px; font-weight:800; padding:3px 10px; border-radius:9999px; background:#fee2e2; color:#991b1b;">✖ Đã hủy đơn</span>`;
+    statusBadgeHTML = `<span style="font-size:11px; font-weight:800; padding:3px 10px; border-radius:9999px; background:#fee2e2; color:#991b1b;"><i class="fa-solid fa-xmark" style="margin-right:3px;"></i> Đã hủy đơn</span>`;
   }
 
   const canEditShipping = ['PENDING', 'CONFIRMED', 'PREPARING'].includes(ordStatus) && !trackingCode;
@@ -6648,7 +7618,7 @@ function buildUnifiedCustomerOrderCardHTML(ord) {
           <div style="font-size:22px; color:#16a34a; line-height:1;"><i class="fa-solid fa-boxes-packing"></i></div>
           <div style="flex:1; font-size:12.5px; color:#14532d; line-height:1.5;">
             <div style="font-weight:800; color:#15803d; font-size:13px; margin-bottom:2px;">
-              📦 LÔ HÀNG PRE-ORDER ĐÃ CẬP BẾN KHO BIÊN HÒA!
+              <i class="fa-solid fa-boxes-packing" style="margin-right:4px;"></i> LÔ HÀNG PRE-ORDER ĐÃ CẬP BẾN KHO BIÊN HÒA!
             </div>
             Lô xe mô hình bạn đặt cọc đã về đến kho cửa hàng và chuyển sang hàng có sẵn. Shop đang tiến hành bọc xốp chống sốc 4 lớp và chuẩn bị giao cho SPX Express${codToCollect > 0 ? ` (Số tiền còn lại cần thanh toán khi nhận xe: <strong>${formatVND(codToCollect)}</strong>)` : ''}.
           </div>
@@ -6734,11 +7704,11 @@ function buildUnifiedCustomerOrderCardHTML(ord) {
               : '';
             return `
             <div style="display:flex; align-items:center; gap:8px; padding:6px 0; border-bottom:1px dashed #e2e8f0; font-size:12px;">
-              <img src="${pImg}" onerror="this.src='image/hero-banner.jpg'" style="width:38px; height:38px; object-fit:contain; border-radius:6px; border:1px solid #cbd5e1; background:#fff; padding:2px; flex-shrink:0;">
+              <img src="${escapeHtml(resolveStorefrontImageUrl(pImg))}" onerror="this.onerror=null; this.src='image/hero-banner.jpg';" style="width:38px; height:38px; object-fit:contain; border-radius:6px; border:1px solid #cbd5e1; background:#fff; padding:2px; flex-shrink:0;">
               <div style="flex:1; min-width:0;">
                 <div style="font-weight:700; color:#0f172a; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${escapeHtml(pName)}">${escapeHtml(pName)}</div>
                 <div style="display:flex; align-items:center; gap:6px; margin-top:2px; flex-wrap:wrap;">
-                  <span class="pack-badge ${pack === 'card' ? 'pack-card' : 'pack-box'}">${pack === 'card' ? '🛡️ Card' : '📦 Box'}</span>
+                  <span class="pack-badge ${pack === 'card' ? 'pack-card' : 'pack-box'}">${pack === 'card' ? '<i class="fa-solid fa-shield-halved"></i> Card' : '<i class="fa-solid fa-box"></i> Box'}</span>
                   ${itemPreStatusBadge}
                   <span style="font-size:11px; color:#64748b;">SL: <strong>x${qty}</strong> • Đơn giá: ${formatVND(unitPrice)}</span>
                 </div>
@@ -7104,6 +8074,10 @@ async function cancelMyOrder(orderCode) {
       }
       showToast(`Đã hủy đơn hàng #${orderCode} thành công!`, 'success');
       loadMyOrdersList(true);
+      // Đồng bộ lại ngay số lượng Đã bán thật & tồn kho sau khi hủy đơn
+      if (typeof loadProducts === 'function') {
+        loadProducts().catch(() => {});
+      }
     } else {
       showToast(json.message || 'Không thể hủy đơn hàng', 'error');
     }
@@ -7167,12 +8141,12 @@ function renderTrackingResults(orders) {
 function showCustomerOrderRealtimeBanner(orderCode, status, trackingCode, cancelReason, extraInfo = {}) {
   if (!orderCode) return;
 
-  // Chống lặp thông báo: Mỗi thay đổi trạng thái chỉ hiển thị thông báo 1 lần duy nhất
-  const alertKey = `minigt_seen_alert_${orderCode}_${status}_${trackingCode || ''}_${extraInfo.isStockArrived ? 'arrived' : ''}`;
-  try {
-    if (sessionStorage.getItem(alertKey)) return;
-    sessionStorage.setItem(alertKey, '1');
-  } catch (_) {}
+  const subKey = `${trackingCode || ''}_${extraInfo.isStockArrived ? 'arrived' : ''}`;
+  // Chống lặp thông báo triệt để: Nếu sự kiện này đã từng được hiển thị cho khách thì KHÔNG BAO GIỜ HIỂN THỊ LẠI
+  if (hasOrderEventBeenAcknowledged(orderCode, status, subKey)) {
+    return;
+  }
+  markOrderEventAsAcknowledged(orderCode, status, subKey);
 
   const existing = document.getElementById('customerRealtimeOrderAlert');
   if (existing) existing.remove();
@@ -7199,14 +8173,6 @@ function showCustomerOrderRealtimeBanner(orderCode, status, trackingCode, cancel
           trackingCode: trackingCode || null,
           cancelReason: cancelReason || null
         });
-      }
-      if (isCancelled) {
-        showToast(`Đơn #${orderCode} đã bị hủy bởi Admin. Lý do: ${cancelReason || 'Vui lòng liên hệ Hotline 0981 400 400'}`, 'error', 'Hủy đơn hàng');
-      } else if (isDelivered) {
-        if (typeof launchCollectorConfetti === 'function') launchCollectorConfetti();
-        showToast(`🎉 Cảm ơn quý khách! Đơn hàng #${orderCode} đã giao thành công!`, 'success', 'Giao Hàng Thành Công');
-      } else {
-        showToast(trackingCode ? `Đơn #${orderCode} đã được duyệt & cấp mã SPX: ${trackingCode}` : `Admin đã duyệt đơn hàng #${orderCode}!`, 'success', 'Cập nhật đơn hàng');
       }
       return;
     }
@@ -7296,7 +8262,7 @@ function showCustomerOrderRealtimeBanner(orderCode, status, trackingCode, cancel
 
     let statusText = 'Đã được duyệt bởi Admin';
     if (isStockArrived) {
-      statusText = '📦 Hàng pre-order đã về kho Biên Hòa! Chuẩn bị gửi SPX Express';
+      statusText = 'Hàng pre-order đã về kho Biên Hòa! Chuẩn bị gửi SPX Express';
     } else if (status === 'PREPARING') {
       statusText = 'Đang đóng gói 4 lớp xốp khí chống sốc';
     } else if (status === 'SHIPPING') {
@@ -7315,7 +8281,7 @@ function showCustomerOrderRealtimeBanner(orderCode, status, trackingCode, cancel
         </div>
         <div style="flex:1;">
           <div style="font-size:11px; font-weight:800; color:${kickerColor}; text-transform:uppercase; letter-spacing:0.5px;">
-            ${isStockArrived ? '📦 HÀNG ĐÃ VỀ KHO • MINI GT BIÊN HÒA' : '🔔 CẬP NHẬT ĐƠN HÀNG • MINI GT BIÊN HÒA'}
+            ${isStockArrived ? '<i class="fa-solid fa-boxes-packing" style="margin-right:3px;"></i> HÀNG ĐÃ VỀ KHO • MINI GT BIÊN HÒA' : '<i class="fa-solid fa-bell" style="margin-right:3px;"></i> CẬP NHẬT ĐƠN HÀNG • MINI GT BIÊN HÒA'}
           </div>
           <div style="font-size:14px; font-weight:800; color:#0f172a; margin-top:2px;">
             ${isStockArrived ? `LÔ HÀNG PRE-ORDER #${escapeHtml(orderCode)} ĐÃ VỀ KHO!` : (isSpx ? `ĐƠN HÀNG #${escapeHtml(orderCode)} ĐÃ XUẤT MÃ SPX` : `ĐƠN HÀNG #${escapeHtml(orderCode)}: ${statusText}`)}
@@ -7369,15 +8335,31 @@ function initCustomerRealtimeOrderWatcher() {
             customerOrderStateSnapshot[code] = { status: newStatus, tracking: newTracking, cancelledByCustomer: true };
             return;
           }
-          const prev = customerOrderStateSnapshot[code] || {};
+          const prev = customerOrderStateSnapshot[code];
           const isCustCancel = String(cancelReason || '').toLowerCase().includes('khách');
+
+          // NẾU ĐƠN NÀY CHƯA CÓ TRONG SNAPSHOT: Đây là lần đầu nạp (hydration)
+          // TUYỆT ĐỐI không kích hoạt banner coi như thay đổi trạng thái!
+          if (!prev || !prev.status) {
+            customerOrderStateSnapshot[code] = {
+              status: newStatus,
+              tracking: newTracking,
+              cancelledByCustomer: isCustCancel
+            };
+            return;
+          }
+
           const newlyDelivered = newStatus === 'DELIVERED' && prev.status !== 'DELIVERED';
           const newlyApproved = ['CONFIRMED', 'PREPARING', 'SHIPPING'].includes(newStatus) && prev.status === 'PENDING';
           const newlyTracked = Boolean(newTracking) && newTracking !== prev.tracking;
           const newlyCancelled = newStatus === 'CANCELLED' && prev.status !== 'CANCELLED' && !prev.cancelledByCustomer && !isCustCancel;
-          const statusChanged = Boolean(newStatus) && newStatus !== prev.status;
+          const isPreOrderArrived = Boolean(payload.isStockArrived || payload.action === 'preorder-arrived' || orderObj?.isStockArrived);
 
-          customerOrderStateSnapshot[code] = { status: newStatus || prev.status, tracking: newTracking || prev.tracking, cancelledByCustomer: prev.cancelledByCustomer || isCustCancel };
+          customerOrderStateSnapshot[code] = {
+            status: newStatus || prev.status,
+            tracking: newTracking || prev.tracking,
+            cancelledByCustomer: prev.cancelledByCustomer || isCustCancel
+          };
 
           // Cập nhật tích lũy đã giao (deliveredSpent) của khách nếu giao thành công
           if (newlyDelivered && currentUser) {
@@ -7390,8 +8372,8 @@ function initCustomerRealtimeOrderWatcher() {
             updateUserHeaderUI();
           }
 
-          const isPreOrderArrived = Boolean(payload.isStockArrived || payload.action === 'preorder-arrived' || orderObj?.isStockArrived);
-          if (newlyDelivered || newlyApproved || newlyTracked || newlyCancelled || statusChanged || isPreOrderArrived) {
+          // Chỉ kích hoạt banner khi có chuyển trạng thái thực sự
+          if (newlyDelivered || newlyApproved || newlyTracked || newlyCancelled || isPreOrderArrived) {
             showCustomerOrderRealtimeBanner(code, newStatus, newTracking, cancelReason, {
               isStockArrived: isPreOrderArrived,
               action: payload.action
@@ -7434,6 +8416,14 @@ function initCustomerRealtimeOrderWatcher() {
       if (document.getElementById('myOrdersModal')?.classList.contains('active')) {
         loadMyOrdersList(true);
       }
+      if (typeof loadProducts === 'function') {
+        loadProducts().catch(() => {});
+      }
+    }
+    if (detail.type === 'ORDER_UPDATED' || detail.type === 'ORDER_CREATED') {
+      if (typeof loadProducts === 'function') {
+        loadProducts().catch(() => {});
+      }
     }
   });
 
@@ -7466,9 +8456,8 @@ function initCustomerRealtimeOrderWatcher() {
           const newlyApproved = ['CONFIRMED', 'PREPARING', 'SHIPPING'].includes(st) && old.status === 'PENDING';
           const newlyTracked = Boolean(tk) && tk !== old.tracking;
           const newlyCancelled = st === 'CANCELLED' && old.status !== 'CANCELLED' && !old.cancelledByCustomer && !isCustCancel;
-          const statusChanged = Boolean(st) && st !== old.status;
 
-          if (newlyDelivered || newlyApproved || newlyTracked || newlyCancelled || statusChanged || newlyArrived) {
+          if (newlyDelivered || newlyApproved || newlyTracked || newlyCancelled || newlyArrived) {
             showCustomerOrderRealtimeBanner(c, st, tk, o.CancelReason || o.cancelReason, { isStockArrived: isNotified });
           }
         }
@@ -7517,17 +8506,27 @@ function setupSearch() {
     }).slice(0, 8);
 
     if (matched.length === 0) {
-      dropdown.innerHTML = '<div style="padding:12px; font-size:12px; color:var(--color-gray-500); text-align:center;">Không tìm thấy mô hình nào</div>';
+      const isEn = typeof currentSiteLang !== 'undefined' && currentSiteLang === 'en';
+      dropdown.innerHTML = `<div style="padding:12px; font-size:12px; color:var(--color-gray-500); text-align:center;">${isEn ? 'No matching models found' : 'Không tìm thấy mô hình nào'}</div>`;
     } else {
-      dropdown.innerHTML = matched.map(p => `
-        <div class="search-result-item" onclick="openQuickView(${p.ProductId}); document.getElementById('searchResultsDropdown').classList.remove('active');">
-          <img class="search-result-thumb" src="${p.ImageUrl}" alt="${p.Name}">
+      const isEn = typeof currentSiteLang !== 'undefined' && currentSiteLang === 'en';
+      dropdown.innerHTML = matched.map(p => {
+        const pId = p.ProductId || p.id;
+        const pImg = getProductGalleryImages(p)[0];
+        const soldCount = getProductRealSoldCount(p);
+        return `
+        <div class="search-result-item" onclick="openQuickView(${pId}); document.getElementById('searchResultsDropdown').classList.remove('active');">
+          <img class="search-result-thumb" src="${escapeHtml(pImg)}" alt="${escapeHtml(p.Name || p.name)}" onerror="this.onerror=null; this.src='image/hero-banner.jpg';">
           <div class="search-result-info">
-            <div class="search-result-title">${p.Name}</div>
-            <div class="search-result-price">${formatVND(p.Price)}</div>
+            <div class="search-result-title">${escapeHtml(p.Name || p.name)}</div>
+            <div style="display:flex; align-items:center; gap:8px; margin-top:2px;">
+              <span class="search-result-price">${formatVND(p.Price || p.price)}</span>
+              <span class="card-sold-badge ${soldCount > 0 ? 'has-sales' : 'zero-sales'}">${isEn ? `Sold ${soldCount}` : `Đã bán ${soldCount}`}</span>
+            </div>
           </div>
         </div>
-      `).join('');
+      `;
+      }).join('');
     }
 
     dropdown.classList.add('active');
@@ -7546,7 +8545,7 @@ function setupSearch() {
 function initSearchTypewriter(input) {
   if (!input) return;
 
-  const phrases = [
+  const phrasesVi = [
     'Tìm theo tên xe, SKU, hãng...',
     'Tìm Porsche 911 GT3 R Rexy #80...',
     'Tìm Nissan Silvia S15 LB★WORKS...',
@@ -7554,6 +8553,16 @@ function initSearchTypewriter(input) {
     'Tìm Scania Transporter Box Set...',
     'Tìm Pop Race Secret Chase 1:64...',
     'Tìm Lamborghini Huracán Sterrato...'
+  ];
+
+  const phrasesEn = [
+    'Search by model, SKU, brand...',
+    'Search Porsche 911 GT3 R Rexy #80...',
+    'Search Nissan Silvia S15 LB★WORKS...',
+    'Search Oracle Red Bull Racing RB19...',
+    'Search Scania Transporter Box Set...',
+    'Search Pop Race Secret Chase 1:64...',
+    'Search Lamborghini Huracán Sterrato...'
   ];
 
   let phraseIdx = 0;
@@ -7564,7 +8573,8 @@ function initSearchTypewriter(input) {
 
   input.addEventListener('focus', () => {
     isPaused = true;
-    input.setAttribute('placeholder', 'Tìm theo tên xe, SKU, hãng...');
+    const isEn = typeof currentSiteLang !== 'undefined' && currentSiteLang === 'en';
+    input.setAttribute('placeholder', isEn ? 'Search by model, SKU, brand...' : 'Tìm theo tên xe, SKU, hãng...');
   });
 
   input.addEventListener('blur', () => {
@@ -7583,14 +8593,17 @@ function initSearchTypewriter(input) {
       return;
     }
 
-    const current = phrases[phraseIdx];
+    const isEn = typeof currentSiteLang !== 'undefined' && currentSiteLang === 'en';
+    const activePhrases = isEn ? phrasesEn : phrasesVi;
+    if (phraseIdx >= activePhrases.length) phraseIdx = 0;
+    const current = activePhrases[phraseIdx];
 
     if (isDeleting) {
       charIdx--;
       input.setAttribute('placeholder', current.substring(0, charIdx) || ' ');
       if (charIdx <= 0) {
         isDeleting = false;
-        phraseIdx = (phraseIdx + 1) % phrases.length;
+        phraseIdx = (phraseIdx + 1) % activePhrases.length;
         timer = setTimeout(tick, 450);
         return;
       }
@@ -7644,6 +8657,14 @@ async function handleNewsletterSubmit(e) {
 function closeModal(modalId) {
   const modal = document.getElementById(modalId);
   if (modal) modal.classList.remove('active');
+  if (modalId === 'quickViewModal') {
+    closeStorefrontGalleryLightbox();
+    if (window.location.hash && window.location.hash.startsWith('#product-')) {
+      try {
+        history.replaceState(null, '', window.location.pathname + window.location.search);
+      } catch (_) {}
+    }
+  }
   if (modalId === 'checkoutModal') {
     document.body.classList.remove('checkout-modal-open');
     if (paymentPollInterval) {
@@ -8093,7 +9114,7 @@ function renderCompareFloatingBar() {
     const pid = p.Id || p.ProductId;
     return `
       <div class="compare-slot-chip">
-        <img src="${p.ImageUrl || 'image/hero-banner.jpg'}" onerror="this.src='image/hero-banner.jpg'" alt="${escapeHtml(p.Name)}">
+        <img src="${escapeHtml(resolveStorefrontImageUrl(p.ImageUrl || 'image/hero-banner.jpg'))}" onerror="this.onerror=null; this.src='image/hero-banner.jpg';" alt="${escapeHtml(p.Name)}">
         <span>${escapeHtml(p.Name)}</span>
         <button type="button" onclick="toggleCompareModel(${pid}, event)" title="Xóa khỏi so sánh">&times;</button>
       </div>
@@ -8131,19 +9152,26 @@ function openCompareModal() {
           <tr>
             <th style="padding:12px; border:1px solid #e2e8f0; background:#f8fafc; text-align:left; width:170px;">Tiêu chí so sánh</th>
             ${items.map(p => {
-              const pImg = p.ImageUrl || p.imageUrl || p.image || 'image/hero-banner.jpg';
+              const pImg = getProductGalleryImages(p)[0];
               const pName = p.Name || p.name;
               const pSku = p.Sku || p.sku;
               return `
               <th style="padding:12px; border:1px solid #e2e8f0; text-align:center; min-width:210px;">
-                <img src="${escapeHtml(pImg)}" onerror="this.src='image/hero-banner.jpg'" style="width:110px; height:80px; object-fit:contain; margin:0 auto 8px;">
-                <div style="font-size:13.5px; color:var(--color-navy); font-weight:800;">${escapeHtml(pName)}</div>
+                <img src="${escapeHtml(resolveStorefrontImageUrl(pImg))}" onerror="this.onerror=null; this.src='image/hero-banner.jpg';" style="width:110px; height:80px; object-fit:contain; margin:0 auto 8px; cursor:pointer;" onclick="closeModal('compareModal'); openQuickView(${p.Id || p.ProductId || p.id});">
+                <div style="font-size:13.5px; color:var(--color-navy); font-weight:800; cursor:pointer;" onclick="closeModal('compareModal'); openQuickView(${p.Id || p.ProductId || p.id});">${escapeHtml(pName)}</div>
                 <div style="font-size:11px; color:#64748b; font-family:monospace; margin-top:2px;">SKU: #${escapeHtml(pSku)}</div>
               </th>
             `;}).join('')}
           </tr>
         </thead>
         <tbody>
+          <tr>
+            <td style="padding:10px 12px; border:1px solid #e2e8f0; font-weight:700; background:#f8fafc;">Số lượng đã bán thực tế</td>
+            ${items.map(p => {
+              const sold = getProductRealSoldCount(p);
+              return `<td style="padding:10px 12px; border:1px solid #e2e8f0; text-align:center;"><span class="card-sold-badge ${sold > 0 ? 'has-sales' : 'zero-sales'}"><i class="fa-solid ${sold > 0 ? 'fa-fire-flame-curved' : 'fa-bag-shopping'}"></i> Đã bán ${sold} chiếc</span></td>`;
+            }).join('')}
+          </tr>
           <tr>
             <td style="padding:10px 12px; border:1px solid #e2e8f0; font-weight:700; background:#f8fafc;">Giá Box / Card</td>
             ${items.map(p => {
@@ -8187,7 +9215,7 @@ function openCompareModal() {
               const isPreOrder = String(p.Status || p.status || '').toLowerCase() === 'pre_order';
               return `
                 <td style="padding:10px 12px; border:1px solid #e2e8f0; text-align:center;">
-                  <button type="button" class="btn btn-primary btn-sm" onclick="closeModal('compareModal'); addToCart(${pid});">
+                  <button type="button" class="btn btn-primary btn-sm" onclick="closeModal('compareModal'); handleCardAction(${pid}, event);">
                     <i class="fa-solid fa-cart-plus"></i> ${isPreOrder ? 'Đặt cọc mẫu này' : 'Mua mẫu này'}
                   </button>
                 </td>
@@ -8341,34 +9369,41 @@ function applyThemeMode(theme, showFeedback = false) {
   try { localStorage.setItem('minigt_theme', currentThemeMode); } catch (_) {}
 
   document.documentElement.setAttribute('data-theme', currentThemeMode);
+  document.documentElement.classList.toggle('dark-mode', currentThemeMode === 'dark');
   document.body.classList.toggle('dark-mode', currentThemeMode === 'dark');
 
-  const btn = document.getElementById('themeToggleBtn');
-  const label = document.getElementById('themeToggleLabel');
-  const mobBtn = document.getElementById('mobThemeToggleBtn');
-  const isEn = currentSiteLang === 'en';
+  const isDark = currentThemeMode === 'dark';
+  const isEn = typeof currentSiteLang !== 'undefined' && currentSiteLang === 'en';
 
-  if (btn) {
-    btn.classList.toggle('active', currentThemeMode === 'dark');
-    const icon = btn.querySelector('i');
-    if (icon) {
-      icon.className = currentThemeMode === 'dark' ? 'fa-solid fa-sun' : 'fa-solid fa-moon';
-    }
-  }
-  if (label) {
-    label.textContent = currentThemeMode === 'dark'
-      ? (isEn ? 'Light' : 'Sáng')
-      : (isEn ? 'Dark' : 'Tối');
-  }
-  if (mobBtn) {
-    mobBtn.innerHTML = currentThemeMode === 'dark'
-      ? `<i class="fa-solid fa-sun"></i> ${isEn ? 'Light Mode' : 'Giao diện Sáng'}`
-      : `<i class="fa-solid fa-moon"></i> ${isEn ? 'Dark Mode' : 'Giao diện Tối'}`;
+  // 1. Segmented control inside Header Settings Menu
+  const segLight = document.getElementById('segThemeLight');
+  const segDark = document.getElementById('segThemeDark');
+  if (segLight && segDark) {
+    segLight.classList.toggle('active', !isDark);
+    segDark.classList.toggle('active', isDark);
+    segLight.setAttribute('aria-pressed', (!isDark).toString());
+    segDark.setAttribute('aria-pressed', isDark.toString());
   }
 
-  if (showFeedback) {
+  // 2. Segmented control inside Mobile Drawer
+  const drawerSegLight = document.getElementById('drawerSegLight');
+  const drawerSegDark = document.getElementById('drawerSegDark');
+  if (drawerSegLight && drawerSegDark) {
+    drawerSegLight.classList.toggle('active', !isDark);
+    drawerSegDark.classList.toggle('active', isDark);
+    drawerSegLight.setAttribute('aria-pressed', (!isDark).toString());
+    drawerSegDark.setAttribute('aria-pressed', isDark.toString());
+  }
+
+  // 3. Optional quick indicators if present
+  const topIcon = document.getElementById('topThemeIcon');
+  const topText = document.getElementById('topThemeText');
+  if (topIcon) topIcon.className = isDark ? 'fa-solid fa-sun' : 'fa-solid fa-moon';
+  if (topText) topText.textContent = isDark ? (isEn ? 'Light' : 'Sáng') : (isEn ? 'Dark' : 'Tối');
+
+  if (showFeedback && typeof showToast === 'function') {
     showToast(
-      currentThemeMode === 'dark'
+      isDark
         ? (isEn ? 'Switched to Collector Dark Mode 🌙' : 'Đã bật Giao diện Tối (Dark Mode Collector) 🌙')
         : (isEn ? 'Switched to Showroom Light Mode ☀️' : 'Đã chuyển sang Giao diện Sáng (Showroom Light) ☀️'),
       'info'
@@ -8376,9 +9411,15 @@ function applyThemeMode(theme, showFeedback = false) {
   }
 }
 
+function setThemeMode(theme, showFeedback = true) {
+  applyThemeMode(theme, showFeedback);
+}
+window.setThemeMode = setThemeMode;
+
 function toggleThemeMode() {
   applyThemeMode(currentThemeMode === 'dark' ? 'light' : 'dark', true);
 }
+window.toggleThemeMode = toggleThemeMode;
 
 function toggleHeaderSettingsMenu(event) {
   if (event && event.stopPropagation) {
@@ -8400,7 +9441,7 @@ document.addEventListener('click', (e) => {
 const I18N_TRANSLATIONS = {
   en: {
     // Topbar & Navigation
-    topbar_ticker: 'Global Pre-Order: <strong>Liberty Walk LBWK, GT3 IMSA, F1 Las Vegas &amp; Secret Chase</strong> | <i class="fa-regular fa-clock" style="font-size:11px; margin-left:4px;"></i> Deadline: <strong>Oct 30, 2026</strong>',
+    topbar_ticker: 'Global Pre-Order: <strong>Liberty Walk LBWK, GT3 IMSA, F1 Las Vegas &amp; Secret Chase</strong> | <i class="fa-regular fa-clock" style="font-size:11px; margin-left:4px;"></i> Deadline: <strong>Nov 2026</strong>',
     topbarLeft: '<i class="fa-solid fa-shield-halved" style="color:#e11d48; margin-right:4px;"></i> Official <strong>TSM-Model (MINI GT) 1:64</strong> Distributor in Bien Hoa • Sealed Box &amp; Blister Card',
     topbarTrackBtn: '<i class="fa-solid fa-magnifying-glass-location"></i> Track Order',
     topbarOrdersBtn: '<i class="fa-solid fa-box-archive"></i> My Orders (SPX)',
@@ -8422,6 +9463,8 @@ const I18N_TRANSLATIONS = {
     settings_title: '<i class="fa-solid fa-sliders"></i> Display Settings',
     settings_theme: 'Theme',
     settings_lang: 'Language',
+    theme_light_short: 'Light',
+    theme_dark_short: 'Dark',
     navAll: 'All Models',
     navPreOrder: 'Pre-Order 2026',
     navLbwk: 'Liberty Walk',
@@ -8432,15 +9475,21 @@ const I18N_TRANSLATIONS = {
     btnMyOrders: 'My Orders',
     btnCart: 'Cart',
     mob_home: 'Home',
-    mob_catalog: 'Kho Xe',
-    mob_orders: 'Orders',
+    mob_catalog: 'Models',
+    mob_orders: 'SPX Orders',
     mob_cart: 'Cart',
     mobHome: 'Home',
     mobCatalog: '1:64 Models',
     mobLbwk: 'LBWK & GT3',
     mobOrders: 'Orders',
     mobCart: 'Cart',
-    // Hero Slide 1
+    drawer_sec_explore: 'EXPLORE COLLECTION',
+    drawer_sec_tools: 'COLLECTOR TOOLS & ORDERS',
+    drawer_wishlist: 'My Wishlist',
+    drawer_sec_support: 'DIRECT SUPPORT',
+    // Hero Hotspots & Slides
+    hs_view_now: 'View now ➔',
+    hs_in_stock: 'In Stock ➔',
     s1Tag: '<span class="pulse-dot"></span> MINI GT 2026 COLLECTION • SEALED BOX & BLISTER CARD',
     s1Title: 'OFFICIAL 1:64 DIECAST<br>MINI GT BIEN HOA',
     s1Desc: 'Choose between <strong>Paper Box</strong> or <strong>Blister Card</strong> packaging, with direct percentage discounts and nationwide SPX Express delivery.',
@@ -8450,21 +9499,25 @@ const I18N_TRANSLATIONS = {
     s1PanelTitle: 'SECURE YOUR SLOT',
     s1CountdownLabel: '⏰ Pre-Order Batch Closes In:',
     // Hero Slide 2
-    s2_badge: '🔥 OFFICIAL LIBERTY WALK NAGOYA • SEALED BOX & BLISTER CARD',
+    s2_badge: '<i class="fa-solid fa-shield-halved"></i> LIBERTY WALK OFFICIAL LICENSED',
     s2_title: 'NISSAN SILVIA S15 LB-SUPER SILHOUETTE',
-    s2_desc: 'Signature riveted widebody fenders, deep dish racing rims and authentic racing liveries.',
-    s2_btn1: 'Explore LB★WORKS &rarr;',
+    s2_desc: 'Official Widebody edition from <strong>LB★WORKS Japan</strong>. Iconic Group 5 aerodynamic silhouette with riveted overfenders, massive GT wing and your choice of <strong>Paper Box</strong> or <strong>Blister Card</strong>.',
+    s2_pack_box: '<i class="fa-solid fa-box"></i> Paper Box: <strong>320.000đ</strong>',
+    s2_pack_card: '<i class="fa-solid fa-shield-halved"></i> Blister Card: <strong>370.000đ</strong>',
+    s2_btn1: 'Explore LB★WORKS ➔',
     s2_btn2: 'View S15 #465 Details',
-    s2Tag: '✨ WATARU KATO • NAGOYA WIDEBODY 1:64',
+    s2Tag: '<i class="fa-solid fa-star"></i> WATARU KATO • NAGOYA WIDEBODY 1:64',
     s2Title: 'LIBERTY WALK<br>LB★WORKS EDITION',
     s2Desc: 'Featuring Nissan S15 Super Silhouette, GT-R R35 Type 2, Lamborghini Countach & Ferrari F40 LBWK in both Sealed Box and Blister Card.',
     s2BtnExplore: '<i class="fa-solid fa-bolt"></i> View LBWK Collection &rarr;',
     s2BtnAll: 'Filter LBWK Models',
     // Hero Slide 3
-    s3_badge: '🏆 WORLD CHAMPION F1 RACING • ORACLE RED BULL',
-    s3_title: 'ORACLE RED BULL RACING F1 - MAX VERSTAPPEN #1',
-    s3_desc: 'Authentic 1:64 championship RB18 / RB19 diecast models with pit-crew figures and collector box sets.',
-    s3_btn1: 'View Red Bull RB18 #1 &rarr;',
+    s3_badge: '<i class="fa-solid fa-flag-checkered"></i> OFFICIAL FORMULA 1 COLLECTION',
+    s3_title: 'ORACLE RED BULL RACING F1 — MAX VERSTAPPEN #1',
+    s3_desc: 'Precision 1:64 scale World Champion Oracle Red Bull Racing RB18 / RB19: Multi-element front & rear wings, Pirelli P-Zero rubber tires and official MINI GT racing livery.',
+    s3_pack_box: '<i class="fa-solid fa-box"></i> Paper Box: <strong>378.000đ</strong> (-10%)',
+    s3_pack_card: '<i class="fa-solid fa-shield-halved"></i> Blister Card: <strong>432.000đ</strong> (-10%)',
+    s3_btn1: 'View Red Bull RB18 #1 ➔',
     s3_btn2: 'F1 Series Collection',
     s3Tag: '🏆 FORMULA 1 ORACLE RED BULL RACING 1:64',
     s3Title: 'ORACLE RED BULL<br>F1 RB18 & RB19 MAX #1',
@@ -8475,30 +9528,26 @@ const I18N_TRANSLATIONS = {
     s4_badge: '<i class="fa-solid fa-trophy"></i> IMSA WEATHERTECH GTD PRO • AO RACING',
     s4_title: 'PORSCHE 911 GT3 R: REXY • ROXY • SKELETON',
     s4_desc: 'Complete the iconic AO Racing Porsche 911 GT3 R trio: Green dinosaur <strong>Rexy #80</strong>, Pink dinosaur <strong>Roxy #77</strong> and limited edition <strong>Skeleton #77</strong> Petit Le Mans. Available in both <strong>Box</strong> and <strong>Blister Card</strong>.',
-    s4_btn1: 'View AO Racing Trio &rarr;',
+    s4_btn1: 'View AO Racing Trio ➔',
     s4_btn2: 'Filter AO Racing Cars',
     s4Tag: '🦖 AO RACING IMSA GTD PRO • 911 GT3 R (992)',
     s4Title: 'REXY • ROXY<br>& SKELETON TRIO',
-    s4Desc: 'Complete the iconic AO Racing Porsche 911 GT3 R trio: #80 Rexy (Green), #80 Roxy (Pink) & #77 Skeleton Halloween Livery.',
+    s4Desc: 'Complete the iconic AO Racing Porsche 911 GT3 R trio: #80 Rexy (Green), #77 Roxy (Pink) & #77 Skeleton Halloween Livery.',
     s4BtnRexy: '<i class="fa-solid fa-dragon"></i> Collect Rexy • Roxy • Skeleton &rarr;',
     s4BtnGt3: 'Explore GT3 Paddock',
     // Countdown Box
     countdown_title: 'TSM-MODEL & POP RACE GLOBAL PRE-ORDER SYSTEM',
-    countdown_sub: 'Batch deadline: Estimated delivery Nov 2026',
+    countdown_sub: 'Limited diecast pre-order wave open now: <strong>Estimated Delivery Nov 2026</strong>',
     cd_days: 'DAYS',
     cd_hours: 'HOURS',
     cd_mins: 'MINS',
     cd_secs: 'SECS',
     countdown_btn: 'Pre-Order Slot Now',
-    // Category Visual Cards
-    cat1Sub: 'S15, R35, F40, Countach Widebody',
-    cat2Sub: 'Rexy #80, Roxy #80 & Skeleton #77',
-    cat3Sub: 'Oracle Red Bull Racing RB18 / RB19',
-    cat4Sub: 'Raw Metal & Chrome Limited 1/24',
+    marquee_spx: '<i class="fa-solid fa-truck-fast"></i> SPX EXPRESS 4-LAYER SHOCKPROOF PACKAGING',
     // Catalogue & Filter Pills
     catalog_eyebrow: 'OFFICIAL 1:64 DIE-CAST CATALOGUE (BOX & BLISTER CARD)',
     catalog_title: 'OFFICIAL 2026 1:64 DIECAST COLLECTION',
-    catalog_desc: 'Choose between Paper Box (save 40k-100k) or Blister Card right on each model — Direct % discount deducted automatically.',
+    catalog_desc: 'Flexible choice between <strong>Paper Box (Save 40k–100k)</strong> and <strong>Blister Card (Collector Pack)</strong>. Direct percentage discounts applied automatically.',
     catalogTitle: 'OFFICIAL 1:64 DIECAST CATALOGUE',
     catalogSub: 'Select Box (Paper Box) or Card (Blister Pack) right on each model — Direct % discount deducted automatically',
     filter_all: 'All Models',
@@ -8510,61 +9559,139 @@ const I18N_TRANSLATIONS = {
     filter_f1: 'Formula 1 Series',
     filter_boxsets: 'Box Sets & Combo',
     filter_aoracing: 'AO Racing GT3',
-    pillAll: 'All',
+    pillAll: 'All Models',
     pillBestSeller: 'Best Sellers',
     pillInStock: 'In Stock',
     pillPreOrder: 'Pre-Order 2026',
-    pillLbwk: 'Liberty Walk',
-    pillChase: 'Secret / Chase',
-    pillF1: 'F1 Red Bull',
-    pillBoxSets: 'Box Sets',
-    pillAoRacing: 'AO Racing',
+    pillLbwk: 'Liberty Walk LBWK',
+    pillChase: 'Secret Chase Car',
+    pillF1: 'Formula 1 Series',
+    pillBoxSets: 'Box Sets & Combo',
+    pillAoRacing: 'AO Racing GT3',
     // Toolbar & Sort
-    toolbar_filtering: 'Filter:',
+    toolbar_filtering: 'Filtering:',
     toolbar_brand: 'Brand:',
     brand_all: 'All Brands',
     toolbar_sort: 'Sort by:',
     sort_default: 'Default (Featured)',
-    sort_price_asc: 'Price: Low to High ↑',
-    sort_price_desc: 'Price: High to Low ↓',
-    sort_name_asc: 'Name: A → Z',
-    sort_name_desc: 'Name: Z → A',
+    sort_price_asc: 'Price: Low to High ↗',
+    sort_price_desc: 'Price: High to Low ↘',
+    sort_name_asc: 'Name: A ➔ Z',
+    sort_name_desc: 'Name: Z ➔ A',
     sort_newest: 'Newest 2026',
     sort_bestselling: 'Best Sellers',
-    // Thematic Sections
-    lbwk_title: 'LIBERTY WALK (LB★WORKS) 1:64 WIDEBODY COLLECTION',
-    lbwk_desc: 'Authentic Nagoya riveted widebody culture by Wataru Kato. Choose between Paper Box and Blister Card.',
+    // Common Action Buttons
+    btn_details: 'Details',
+    btn_buy_now: 'Buy Now',
+    btn_view_car: 'View Car',
+    btn_preorder_deposit: 'Pre-Order',
+    // LBWK Section
+    lbwk_title: '<span>LIBERTY WALK (LB★WORKS)</span> 1:64 WIDEBODY COLLECTION',
+    lbwk_desc: 'Explore Wataru Kato’s widebody heritage: Muscular riveted overfenders, slammed stance, and aerodynamic GT wings crafted in 1:64 diecast metal.',
+    lbwk_s15_desc: 'Inspired by 1980s Group 5 racing legends combined with MINI GT diecast engineering: Vented hood, riveted widebody fenders and 5-spoke racing wheels.',
+    lbwk_chip_scale: '<i class="fa-solid fa-car-side"></i> Scale 1:64 (~7.3 cm)',
+    lbwk_price_from: 'From (Paper Box):',
+    lbwk_mini1_sub: 'Riveted widebody kit + Swan-Neck GT Wing',
+    lbwk_mini2_sku: '#MGT01055-LW • BLISTER CARD EDITION',
+    lbwk_mini2_title: 'LB★WORKS Huracán GT (Wall Display Blister)',
+    lbwk_mini2_sub: 'Factory sealed hard blister pack with collector Card Art',
+    lbwk_mini3_sub: 'Commemorating the iconic drift run at Goodwood Festival of Speed UK',
     lbwk_btn_all: 'View All LB★WORKS Models',
-    lbwkBadge: '🇯🇵 WATARU KATO • NAGOYA WIDEBODY CULTURE',
-    lbwkTitle: 'LIBERTY WALK LB★WORKS 1:64 SHOWCASE',
-    lbwkDesc: 'Signature riveted widebody fenders, deep-dish rims, and iconic liveries — available in both Paper Box and Blister Card.',
-    lbwkBtnFilter: 'Filter All LBWK Models &rarr;',
-    gt3_title: 'AO RACING: REXY • ROXY • SKELETON & GT3 TRACK',
-    gt3_desc: '<span class="gt3-checkered-badge"><i class="fa-solid fa-flag-checkered"></i> Black &amp; white checkered flag on the track: The finish flag (Checkered flag)</span>',
-    gt3Badge: '🏁 IMSA GTD PRO & FIA WEC PADDOCK',
-    gt3Title: 'AO RACING: REXY • ROXY • SKELETON & GT3',
-    gt3Desc: '<span class="gt3-checkered-badge"><i class="fa-solid fa-flag-checkered"></i> Black &amp; white checkered flag on the track: The finish flag (Checkered flag)</span>',
-    gt3BtnFilter: 'View All GT3 & Motorsport &rarr;',
-    aoHeadline: 'TRIO REXY #80 • ROXY #80 • SKELETON #77',
-    aoSubDesc: 'Authentic AO Racing Porsche 911 GT3 R (992) models in both Box & Blister Card.',
-    aoBtnFilter: 'Filter AO Racing Trio',
-    boxBadge: '🎁 LIMITED COLLECTOR SETS',
-    boxTitle: 'MINI GT COLLECTOR BOX SETS & PADDOCK PACKS',
-    boxDesc: 'Multi-car gift sets with pit crew figures and numbered collector packaging.',
-    chase_badge: '<i class="fa-solid fa-gem"></i> SECRET CHASE 1/24 • POP RACE & MINI GT',
-    chase_title: 'WHAT IS A "SECRET CHASE" 1/24 DIECAST?',
-    chase_desc: 'Secret Chase is a rare collector variant randomly inserted into factory sealed master cartons with a 1/24 chance.',
-    chase_b1_title: '2x to 5x Collector Market Value',
-    chase_b1_desc: 'Highly sought after by worldwide collectors thanks to limited release ratios.',
-    chase_b2_title: '100% Factory Sealed Box & Card',
-    chase_b2_desc: 'Official TSM-Model & Pop Race anti-counterfeit labels with collector box protectors.',
-    chase_btn: 'View Chase Eligible Models in this Batch',
-    chaseBadge: '💎 COLLECTOR GUIDE & SECRET CHASE 1/24',
-    chaseTitle: 'BOX VS BLISTER CARD & CHASE EDITION GUIDE',
-    chaseDesc: 'Understand the difference between Paper Box and Blister Card packaging (Box is 40k–100k cheaper than Card) and how to spot 1/24 Chase models.',
-    chaseBtnFilter: 'View Chase Eligible Models &rarr;',
-    hub_title: 'EXCLUSIVE 1:64 COLLECTOR TOOLS & GUIDES',
-    hub_desc: 'Tools to compare models, estimate pre-order quotas, choose packaging, and learn scale details.'
+    // GT3 Paddock & 3 Dino Cards
+    ao_banner_title: 'IMSA GTD PRO Dinosaur Racing Collection',
+    ao_banner_desc: 'Authentic Porsche 911 GT3 R duo <strong>Rexy #80</strong> &amp; <strong>Roxy #77</strong> alongside the limited <strong>Skeleton #77</strong> Petit Le Mans edition.',
+    ao_banner_btn: 'Filter All AO Racing Models',
+    rexy_status: 'In Stock Bien Hoa',
+    rexy_desc: 'Green T-Rex livery from Sebring &amp; Daytona endurance races. Available in Paper Box or Blister Card.',
+    pack_box_save_label: 'Paper Box Edition (Value Saver)',
+    roxy_status: 'On Sale -5%',
+    roxy_desc: 'Pink dinosaur Roxy livery at VIR &amp; Road America. Accurate Magenta finish with green dorsal spikes.',
+    roxy_pack_label: 'Paper Box Edition (-5% Off)',
+    ske_status: 'Pre-Order (150k Deposit)',
+    ske_desc: 'Petit Le Mans Halloween limited edition with glow-style Rexy skeleton graphics on matte black. Box or Card.',
+    // Secret Chase Section
+    chase_badge: '<i class="fa-solid fa-crown"></i> PRO COLLECTOR PRIVILEGE',
+    chase_title: 'WHAT IS A &ldquo;SECRET CHASE&rdquo; 1/24 DIECAST?',
+    chase_desc: 'Inside every factory-sealed master carton of 24 cars from <strong>Pop Race</strong> or <strong>MINI GT</strong>, the manufacturer randomly inserts just <strong>01 special Chase Car</strong> (Mirror Chrome, Unpainted Raw Metal or exclusive livery).',
+    chase_b1_title: '2x to 5x Higher Collector Value',
+    chase_b1_desc: 'Highly sought after by international collectors due to strict 1/24 production ratios.',
+    chase_b2_title: '100% Factory Sealed Box &amp; Blister',
+    chase_b2_desc: 'Complete with official TSM-Model / Pop Race hologram seals and protective cases.',
+    chase_btn: 'View Secret Chase Models in This Batch',
+    // Collector Hub Section
+    hub_eyebrow: 'BUILT EXCLUSIVELY FOR 1:64 DIECAST COLLECTORS',
+    hub_title: 'EXCLUSIVE 1:64 COLLECTOR TOOLS &amp; GUIDES',
+    hub_desc: 'Integrated pro tools found on leading international MINI GT &amp; Pop Race distributors: 1:64 Scale Guide, Box Saver order consolidation, and Live Container Wave Tracker.',
+    hub_u1_tag: 'SIZE &amp; PACKAGING STANDARD',
+    hub_u1_title: 'Official 1:64 Scale Handbook',
+    hub_u1_ruler_sub: 'Actual 1:64 model length (Fits in the palm of your hand)',
+    hub_u1_ruler_val: 'Length: 7.0 cm – 7.8 cm',
+    hub_u1_b1: '<strong><i class="fa-solid fa-box" style="margin-right:4px; color:#3b82f6;"></i> Paper Box:</strong> Compact with inner plastic tray, easy to unbox for diorama display.',
+    hub_u1_b2: '<strong><i class="fa-solid fa-shield-halved" style="margin-right:4px; color:#ec4899;"></i> Blister Pack:</strong> Factory sealed rigid clamshell + full Card Art, 100% corner protection.',
+    hub_u1_b3: '<strong><i class="fa-solid fa-gem" style="margin-right:4px; color:#06b6d4;"></i> Acrylic Case:</strong> Includes display base + dust-proof acrylic cover (Pop Race / Trends Hobby).',
+    hub_u2_tag: 'SAVE SHIPPING &amp; PROTECT BOXES',
+    hub_u2_title: '"Box Saver" &amp; PVC Protector',
+    hub_u2_desc: 'Collectors pre-ordering across multiple waves can choose <strong>"Box Saver Storage (0đ shipping)"</strong> at checkout to hold cars in our humidity-controlled warehouse and ship together in one parcel!',
+    hub_u2_box_title: '<i class="fa-solid fa-shield-cat" style="color:#e10600;"></i> Optional 0.5mm Rigid PVC Box Protector:',
+    hub_u2_box_desc: '0.5mm thick PET protector prevents corner dents 100% during long-distance transit (Selectable at Checkout).',
+    hub_u2_btn: 'Open Cart &amp; Try Box Saver',
+    hub_u3_tag: 'BIEN HOA WAREHOUSE ARRIVALS',
+    hub_u3_title: 'Pre-Order Container Wave Tracker',
+    hub_w1_sub: 'Hong Kong Port ➔ Bien Hoa Warehouse',
+    hub_w1_badge: 'Arrived',
+    hub_w2_sub: 'Estimated release: Nov 20, 2026',
+    hub_w2_badge: 'Open for Pre-Order',
+    hub_w3_sub: 'Estimated release: Nov 30, 2026',
+    hub_w3_badge: 'Low Slots Left',
+    hub_u3_btn: 'Track Your Pre-Order Code',
+    // Workflow & Guarantees Section
+    wf_eyebrow: '100% TRANSPARENCY &amp; PEACE OF MIND',
+    wf_title: 'OFFICIAL PRE-ORDER WORKFLOW &amp; GUARANTEES',
+    wf_desc: 'International 4-step pre-order workflow combined with 4 golden guarantees protecting your collector rights and mint-corner condition.',
+    wf_col1_title: '4 Easy Pre-Order Steps',
+    wf_col1_sub: 'Professional process — Fast &amp; automated',
+    wf_s1_title: 'Select Model &amp; Deposit 30–50%',
+    wf_s1_desc: 'Pick your favorite SKU and place a quick deposit via automated 24/7 VietQR or at our showroom.',
+    wf_s2_title: 'Receive Order Code &amp; Digital Receipt',
+    wf_s2_desc: 'Automatically synced with SQL Server database, issuing your order code and instant confirmation.',
+    wf_s3_title: 'Track Container Shipment Live',
+    wf_s3_desc: 'Continuous status updates from TSM-Model factory in Hong Kong/China to Bien Hoa warehouse.',
+    wf_s4_title: 'Pay Balance &amp; Receive via SPX',
+    wf_s4_desc: 'Express nationwide delivery with factory seals and 4-layer corner-mint protection.',
+    wf_col2_title: '4 Golden Store Guarantees',
+    wf_col2_sub: 'Diecast collector protection standards',
+    wf_g1_title: '100% Authentic Factory Sealed',
+    wf_g1_desc: 'Official distribution of TSM-Model, Pop Race and Kaido House with anti-counterfeit hologram seals.',
+    wf_g2_title: '4-Layer Shockproof Packaging',
+    wf_g2_desc: '5-layer rigid carton box with 4-sided bubble wrap, guaranteeing Corner Mint box condition.',
+    wf_g3_title: 'Global 1/24 Secret Chase Opportunity',
+    wf_g3_desc: 'Master carton pre-orders have a fair factory chance of pulling rare Chrome or Raw Metal Chase cars.',
+    wf_g4_title: '100% Flexible Deposit Refund',
+    wf_g4_desc: 'Full 100% deposit refund with zero fees if the manufacturer cancels production or delays past commitment.',
+    // Newsletter
+    nl_eyebrow: 'NEVER MISS A RARE DROP',
+    nl_title: 'SUBSCRIBE FOR NEXT PRE-ORDER WAVE ALERTS',
+    nl_desc: 'Get early notifications on upcoming MINI GT, LBWK, Kaido House and Pop Race releases straight to your inbox.',
+    nl_placeholder: 'Enter your email address...',
+    nl_btn: 'Subscribe',
+    // Cart Drawer
+    cart_drawer_title: 'Collector Pre-Order Cart',
+    cart_drawer_sub: '30-Day Box Saver • 100% Factory Sealed',
+    cart_sum_total: '<i class="fa-solid fa-tags"></i> Total Order Value:',
+    cart_sum_deposit: '<i class="fa-solid fa-shield-halved"></i> Required Deposit (30%):',
+    cart_sum_remain: '<i class="fa-solid fa-hand-holding-dollar"></i> Balance on Delivery (70%):',
+    cart_btn_checkout: 'Proceed to Checkout Now',
+    // Footer
+    ft_about_text: '<strong>MINI GT STORE BIEN HOA</strong> — Authorized distributor of official 1:64 die-cast scale models from TrueScale Miniatures (TSM-Model), Pop Race and Kaido House in Vietnam.',
+    ft_col2_title: 'Collections',
+    ft_col3_title: 'Customer Care',
+    ft_link_track: 'Track Pre-Order Status',
+    ft_link_wf: 'Pre-Order Slot Workflow',
+    ft_link_warranty: 'Mint Box Warranty Policy',
+    ft_link_chase: '1/24 Secret Chase Guide',
+    ft_link_account: 'Member Account &amp; Orders',
+    ft_col4_title: 'Payment &amp; System',
+    ft_col4_desc: 'Automated SQL Server inventory &amp; order management. Supports 24/7 VietQR MB Bank instant order confirmation within 30 seconds.'
   },
   vi: {
     // Topbar & Navigation
@@ -8586,10 +9713,12 @@ const I18N_TRANSLATIONS = {
     btnSignIn: 'Đăng nhập',
     btn_signin: 'Đăng nhập',
     search_placeholder: 'Tìm theo tên xe, hãng...',
-    searchPlaceholder: 'Tìm mã MGT, tên xe (LBWK, F1, Porsche, Rexy)... ',
+    searchPlaceholder: 'Tìm mã MGT, tên xe (LBWK, F1, Porsche, Rexy)...',
     settings_title: '<i class="fa-solid fa-sliders"></i> Cài Đặt Hiển Thị',
     settings_theme: 'Giao diện',
     settings_lang: 'Ngôn ngữ',
+    theme_light_short: 'Sáng',
+    theme_dark_short: 'Tối',
     navAll: 'Tất Cả Xe',
     navPreOrder: 'Pre-Order 2026',
     navLbwk: 'Liberty Walk',
@@ -8608,7 +9737,13 @@ const I18N_TRANSLATIONS = {
     mobLbwk: 'LBWK & GT3',
     mobOrders: 'Đơn hàng',
     mobCart: 'Giỏ cọc',
-    // Hero Slide 1
+    drawer_sec_explore: 'DANH MỤC KHÁM PHÁ',
+    drawer_sec_tools: 'TIỆN ÍCH &amp; ĐƠN MUA',
+    drawer_wishlist: 'Danh sách yêu thích',
+    drawer_sec_support: 'HỖ TRỢ TRỰC TIẾP',
+    // Hero Hotspots & Slides
+    hs_view_now: 'Xem ngay ➔',
+    hs_in_stock: 'Sẵn kho ➔',
     s1Tag: '<span class="pulse-dot"></span> BỘ SƯU TẬP MINI GT 2026 • ĐẦY ĐỦ BẢN BOX & CARD BLISTER',
     s1Title: 'THẾ GIỚI MÔ HÌNH<br>MINI GT 1:64 BIÊN HÒA',
     s1Desc: 'Tùy chọn <strong>Hộp Giấy (Box)</strong> tiết kiệm hoặc <strong>Vỉ Nhựa (Card Blister)</strong> trưng bày cao cấp — Giảm giá trừ trực tiếp % trên từng mẫu xe.',
@@ -8618,21 +9753,25 @@ const I18N_TRANSLATIONS = {
     s1PanelTitle: 'ĐẶT CỌC GIỮ SLOT SỚM',
     s1CountdownLabel: '⏰ Thời gian chốt sổ đợt cọc hiện tại:',
     // Hero Slide 2
-    s2_badge: '🔥 CHÍNH HÃNG LIBERTY WALK NAGOYA • BẢN BOX & CARD NGUYÊN SEAL',
+    s2_badge: '<i class="fa-solid fa-shield-halved"></i> LIBERTY WALK OFFICIAL LICENSED',
     s2_title: 'NISSAN SILVIA S15 LB-SUPER SILHOUETTE',
-    s2_desc: 'Huyền thoại độ thân rộng Widebody đinh tán trứ danh của Wataru Kato với cánh gió Super Silhouette hầm hố.',
-    s2_btn1: 'Khám phá LB★WORKS &rarr;',
+    s2_desc: 'Phiên bản độ thân rộng Widebody chính thức từ <strong>LB★WORKS Japan</strong>. Thiết kế khí động học Group 5 đặc trưng với vòm bánh tán đinh, cánh gió đuôi lớn và hai tùy chọn đóng gói <strong>Hộp Giấy (Box)</strong> hoặc <strong>Vỉ Nhựa (Blister Card)</strong>.',
+    s2_pack_box: '<i class="fa-solid fa-box"></i> Bản Box: <strong>320.000đ</strong>',
+    s2_pack_card: '<i class="fa-solid fa-shield-halved"></i> Bản Card: <strong>370.000đ</strong>',
+    s2_btn1: 'Khám phá LB★WORKS ➔',
     s2_btn2: 'Xem chi tiết S15 #465',
-    s2Tag: '✨ WATARU KATO • NAGOYA WIDEBODY 1:64',
+    s2Tag: '<i class="fa-solid fa-star"></i> WATARU KATO • NAGOYA WIDEBODY 1:64',
     s2Title: 'CHUYÊN TRANG<br>LIBERTY WALK LB★WORKS',
     s2Desc: 'Quy tụ Nissan S15 Super Silhouette, GT-R R35 Type 2, Lamborghini Countach & Ferrari F40 LBWK chuẩn tỉ lệ 1:64 nguyên seal Box & Card.',
     s2BtnExplore: '<i class="fa-solid fa-bolt"></i> Xem bộ sưu tập LBWK &rarr;',
     s2BtnAll: 'Lọc toàn bộ xe LBWK',
     // Hero Slide 3
-    s3_badge: '🏆 ĐỘI ĐUA VÔ ĐỊCH THẾ GIỚI F1 • ORACLE RED BULL',
-    s3_title: 'ORACLE RED BULL RACING F1 - MAX VERSTAPPEN #1',
-    s3_desc: 'Cỗ máy vô địch F1 RB18 / RB19 tái hiện tỉ mỉ từng chi tiết khí động học kèm đội ngũ Pit-Crew thay lốp 1:64.',
-    s3_btn1: 'Xem Red Bull RB18 #1 &rarr;',
+    s3_badge: '<i class="fa-solid fa-flag-checkered"></i> OFFICIAL FORMULA 1 COLLECTION',
+    s3_title: 'ORACLE RED BULL RACING F1 — MAX VERSTAPPEN #1',
+    s3_desc: 'Tái hiện mẫu xe vô địch thế giới Oracle Red Bull Racing RB18 / RB19 tỷ lệ 1:64 chuẩn xác: Cánh gió trước sau nhiều tầng, lốp Pirelli P-Zero và tem đấu bản quyền chính hãng từ MINI GT.',
+    s3_pack_box: '<i class="fa-solid fa-box"></i> Bản Box: <strong>378.000đ</strong> (-10%)',
+    s3_pack_card: '<i class="fa-solid fa-shield-halved"></i> Bản Card: <strong>432.000đ</strong> (-10%)',
+    s3_btn1: 'Xem Red Bull RB18 #1 ➔',
     s3_btn2: 'Bộ sưu tập F1 Series',
     s3Tag: '🏆 ĐỘI ĐUA VÔ ĐỊCH FORMULA 1 ORACLE RED BULL RACING',
     s3Title: 'ORACLE RED BULL<br>F1 RB18 & RB19 MAX #1',
@@ -8643,96 +9782,170 @@ const I18N_TRANSLATIONS = {
     s4_badge: '<i class="fa-solid fa-trophy"></i> IMSA WEATHERTECH GTD PRO • AO RACING',
     s4_title: 'PORSCHE 911 GT3 R: REXY • ROXY • SKELETON',
     s4_desc: 'Trọn bộ 3 mẫu Porsche 911 GT3 R được săn đón nhất của đội đua AO Racing: Khủng long xanh <strong>Rexy #80</strong>, Khủng long hồng <strong>Roxy #77</strong> và bản giới hạn <strong>Skeleton #77</strong> Petit Le Mans. Có đầy đủ tùy chọn <strong>Box</strong> và <strong>Blister Card</strong>.',
-    s4_btn1: 'Xem Bộ 3 AO Racing &rarr;',
+    s4_btn1: 'Xem Bộ 3 AO Racing ➔',
     s4_btn2: 'Lọc xe AO Racing',
     s4Tag: '🦖 AO RACING IMSA GTD PRO • PORSCHE 911 GT3 R (992)',
     s4Title: 'BỘ BA REXY • ROXY<br>& SKELETON TRỨ DANH',
-    s4Desc: 'Sưu tầm trọn bộ 3 siêu phẩm Porsche 911 GT3 R đội đua AO Racing: Khủng long xanh #80 Rexy, Khủng long hồng #80 Roxy và #77 Skeleton.',
+    s4Desc: 'Sưu tầm trọn bộ 3 siêu phẩm Porsche 911 GT3 R đội đua AO Racing: Khủng long xanh #80 Rexy, Khủng long hồng #77 Roxy và #77 Skeleton.',
     s4BtnRexy: '<i class="fa-solid fa-dragon"></i> Săn trọn bộ Rexy • Roxy • Skeleton &rarr;',
     s4BtnGt3: 'Khám phá GT3 Paddock',
     // Countdown Box
-    countdown_title: 'HỆ THỐNG ĐẶT TRƯỚC TOÀN CẦU TSM-MODEL & POP RACE',
-    countdown_sub: 'Đợt mở đặt trước xe mô hình giới hạn: Dự kiến giao Tháng 11/2026',
+    countdown_title: 'HỆ THỐNG ĐẶT TRƯỚC TOÀN CẦU TSM-MODEL &amp; POP RACE',
+    countdown_sub: 'Đợt mở đặt trước xe mô hình giới hạn: <strong>Dự kiến giao Tháng 11/2026</strong>',
     cd_days: 'NGÀY',
     cd_hours: 'GIỜ',
     cd_mins: 'PHÚT',
     cd_secs: 'GIÂY',
     countdown_btn: 'Đặt cọc giữ mẫu ngay',
-    // Category Visual Cards
-    cat1Sub: 'S15, R35, F40, Countach Widebody',
-    cat2Sub: 'Rexy #80, Roxy #80 & Skeleton #77',
-    cat3Sub: 'Oracle Red Bull Racing RB18 / RB19',
-    cat4Sub: 'Bản giới hạn Raw Metal & Chrome 1/24',
+    marquee_spx: '<i class="fa-solid fa-truck-fast"></i> SPX EXPRESS ĐÓNG GÓI CHỐNG SỐC 4 LỚP',
     // Catalogue & Filter Pills
-    catalog_eyebrow: 'CATALOGUE CHÍNH HÃNG 1:64 DIE-CAST (BOX & BLISTER CARD)',
+    catalog_eyebrow: 'CATALOGUE CHÍNH HÃNG 1:64 DIE-CAST (BOX &amp; BLISTER CARD)',
     catalog_title: 'BỘ SƯU TẬP XE MÔ HÌNH CHÍNH HÃNG 2026',
-    catalog_desc: 'Chọn nhanh quy cách Hộp Giấy (Box) tiết kiệm hoặc Vỉ Nhựa (Card) cao cấp ngay trên từng mẫu xe — Trừ trực tiếp % chiết khấu.',
+    catalog_desc: 'Tùy chọn linh hoạt giữa <strong>Bản Box (Hộp giấy tiết kiệm 40k–100k)</strong> và <strong>Bản Card (Vỉ nhựa Blister sưu tầm)</strong>. Giá ưu đãi giảm trực tiếp theo % niêm yết.',
     catalogTitle: 'KHO XE MÔ HÌNH TỈ LỆ 1:64 CHÍNH HÃNG',
     catalogSub: 'Chọn nhanh phiên bản Hộp giấy (Box) hoặc Vỉ nhựa (Card) ngay trên từng mẫu xe — Giá ưu đãi đã trừ trực tiếp % giảm giá',
     filter_all: 'Tất cả mô hình',
     filter_bestseller: 'Bán chạy nhất',
     filter_instock: 'Còn hàng',
-    filter_preorder: 'Pre-Order Đặt Mới',
+    filter_preorder: 'Pre-Order Đợt Mới',
     filter_lbwk: 'Liberty Walk LBWK',
     filter_chase: 'Secret Chase Car',
     filter_f1: 'Formula 1 Series',
-    filter_boxsets: 'Box Sets & Combo',
+    filter_boxsets: 'Box Sets &amp; Combo',
     filter_aoracing: 'AO Racing GT3',
-    pillAll: 'Tất cả',
-    pillBestSeller: 'Bán chạy',
+    pillAll: 'Tất cả mô hình',
+    pillBestSeller: 'Bán chạy nhất',
     pillInStock: 'Còn hàng',
-    pillPreOrder: 'Pre-Order 2026',
-    pillLbwk: 'Liberty Walk',
-    pillChase: 'Secret / Chase',
-    pillF1: 'F1 Red Bull',
-    pillBoxSets: 'Box Sets',
-    pillAoRacing: 'AO Racing',
+    pillPreOrder: 'Pre-Order Đợt Mới',
+    pillLbwk: 'Liberty Walk LBWK',
+    pillChase: 'Secret Chase Car',
+    pillF1: 'Formula 1 Series',
+    pillBoxSets: 'Box Sets & Combo',
+    pillAoRacing: 'AO Racing GT3',
     // Toolbar & Sort
     toolbar_filtering: 'Đang lọc:',
     toolbar_brand: 'Hãng:',
     brand_all: 'Tất cả hãng xe',
     toolbar_sort: 'Sắp xếp:',
     sort_default: 'Mặc định (Nổi bật nhất)',
-    sort_price_asc: 'Giá: Thấp đến Cao ↑',
-    sort_price_desc: 'Giá: Cao đến Thấp ↓',
-    sort_name_asc: 'Tên: A → Z',
-    sort_name_desc: 'Tên: Z → A',
+    sort_price_asc: 'Giá: Thấp đến Cao ↗',
+    sort_price_desc: 'Giá: Cao đến Thấp ↘',
+    sort_name_asc: 'Tên: A ➔ Z',
+    sort_name_desc: 'Tên: Z ➔ A',
     sort_newest: 'Mới nhất 2026',
     sort_bestselling: 'Bán chạy nhất',
-    // Thematic Sections
-    lbwk_title: 'BỘ SƯU TẬP BẢN ĐỘ LIBERTY WALK (LB★WORKS) 1:64',
-    lbwk_desc: 'Văn hóa widebody đinh tán trứ danh Nagoya Nhật Bản từ Wataru Kato. Có sẵn cả bản Hộp Giấy và Vỉ Blister.',
+    // Common Action Buttons
+    btn_details: 'Chi tiết',
+    btn_buy_now: 'Mua ngay',
+    btn_view_car: 'Xem xe',
+    btn_preorder_deposit: 'Đặt cọc',
+    // LBWK Section
+    lbwk_title: 'BỘ SƯU TẬP BẢN ĐỘ <span>LIBERTY WALK (LB★WORKS)</span> 1:64',
+    lbwk_desc: 'Khám phá di sản độ xe thân rộng của Wataru Kato: Vòm bánh xe đinh tán cơ bắp (Overfenders), gầm hạ sát mặt đường và cánh gió GT khí động học trên từng mẫu mô hình kim loại 1:64.',
+    lbwk_s15_desc: 'Cảm hứng thiết kế từ huyền thoại đua Group 5 thập niên 80 kết hợp kỹ thuật chế tác diecast của MINI GT: Nắp ca-pô xẻ rãnh thoát nhiệt, vòm bánh đúc liền thân và mâm 5 chấu thể thao.',
+    lbwk_chip_scale: '<i class="fa-solid fa-car-side"></i> Tỷ lệ 1:64 (~7.3 cm)',
+    lbwk_price_from: 'Giá từ (Bản Box):',
+    lbwk_mini1_sub: 'Bodykit vòm bánh rộng tán đinh + Cánh gió GT Swan-Neck',
+    lbwk_mini2_sku: '#MGT01055-LW • BẢN VỈ BLISTER CARD',
+    lbwk_mini2_title: 'LB★WORKS Huracán GT (Bản Vỉ Treo Tường)',
+    lbwk_mini2_sub: 'Đóng gói vỉ nhựa bảo vệ cứng kèm Card Art sưu tầm nguyên seal',
+    lbwk_mini3_sub: 'Phiên bản kỷ niệm màn trình diễn drift tại lễ hội tốc độ Anh Quốc',
     lbwk_btn_all: 'Xem tất cả xe LB★WORKS',
-    lbwkBadge: '🇯🇵 WATARU KATO • NAGOYA WIDEBODY CULTURE',
-    lbwkTitle: 'CHUYÊN TRANG LIBERTY WALK LB★WORKS 1:64',
-    lbwkDesc: 'Thiết kế vè tán đinh tán Widebody đặc trưng từ Nagoya Nhật Bản — Có sẵn tùy chọn Hộp Giấy (Box) và Vỉ Nhựa (Card Blister).',
-    lbwkBtnFilter: 'Lọc toàn bộ xe Liberty Walk &rarr;',
-    gt3_title: 'BỘ BA REXY • ROXY • SKELETON & ĐƯỜNG ĐUA GT3',
-    gt3_desc: '<span class="gt3-checkered-badge"><i class="fa-solid fa-flag-checkered"></i> Cờ caro đen trắng trên đường đua: Là cờ đích (Checkered flag)</span>',
-    gt3Badge: '🏁 ĐƯỜNG ĐUA IMSA GTD PRO & FIA WEC',
-    gt3Title: 'BỘ BA REXY • ROXY • SKELETON & ĐƯỜNG ĐUA GT3',
-    gt3Desc: '<span class="gt3-checkered-badge"><i class="fa-solid fa-flag-checkered"></i> Cờ caro đen trắng trên đường đua: Là cờ đích (Checkered flag)</span>',
-    gt3BtnFilter: 'Xem toàn bộ xe GT3 & Đua &rarr;',
-    aoHeadline: 'BỘ 3 REXY #80 • ROXY #80 • SKELETON #77',
-    aoSubDesc: 'Đầy đủ cả phiên bản Box (Hộp giấy) và Card (Vỉ Blister có hình minh họa khủng long).',
-    aoBtnFilter: 'Lọc ngay bộ 3 AO Racing',
-    boxBadge: '🎁 BỘ SƯU TẬP HỘP QUÀ GIỚI HẠN',
-    boxTitle: 'MINI GT COLLECTOR BOX SETS & PADDOCK PACKS',
-    boxDesc: 'Hộp quà nhiều xe kèm mô hình nhân vật kỹ thuật viên Pit Crew và đánh số thứ tự giới hạn.',
-    chase_badge: '<i class="fa-solid fa-gem"></i> BÍ MẬT XE CHASE 1/24 • POP RACE & MINI GT',
-    chase_title: 'BÍ MẬT XE "SECRET CHASE" 1/24 LÀ GÌ?',
-    chase_desc: 'Secret Chase là phiên bản xe đặc biệt được nhà sản xuất bỏ ngẫu nhiên vào thùng carton nguyên seal với tỷ lệ 1/24.',
+    // GT3 Paddock & 3 Dino Cards
+    ao_banner_title: 'Bộ Sưu Tập Khủng Long Đường Đua IMSA GTD PRO',
+    ao_banner_desc: 'Hình ảnh thực tế bộ đôi Porsche 911 GT3 R <strong>Rexy #80</strong> &amp; <strong>Roxy #77</strong> cùng phiên bản giới hạn <strong>Skeleton #77</strong> Petit Le Mans.',
+    ao_banner_btn: 'Lọc trọn bộ AO Racing',
+    rexy_status: 'Sẵn kho Biên Hòa',
+    rexy_desc: 'Phiên bản khủng long xanh T-Rex tại giải đua Sebring &amp; Daytona. Tùy chọn Hộp Giấy (Box) hoặc Vỉ Nhựa (Card Blister).',
+    pack_box_save_label: 'Bản Hộp Giấy (Box Tiết Kiệm)',
+    roxy_status: 'Đang giảm -5%',
+    roxy_desc: 'Phiên bản khủng long hồng Roxy tại chặng Virginia &amp; Road America. Sơn hồng Magenta kết hợp gai lưng xanh chuẩn xác.',
+    roxy_pack_label: 'Bản Hộp Giấy (-5% Chiết Khấu)',
+    ske_status: 'Pre-Order (Cọc 150k)',
+    ske_desc: 'Bản giới hạn Halloween Petit Le Mans với đồ họa bộ xương khủng long Rexy trên nền đen mờ. Tùy chọn Box hoặc Card.',
+    // Secret Chase Section
+    chase_badge: '<i class="fa-solid fa-crown"></i> ĐẶC QUYỀN NHÀ SƯU TẦM CHUYÊN NGHIỆP',
+    chase_title: 'BÍ MẬT XE &ldquo;SECRET CHASE&rdquo; 1/24 LÀ GÌ?',
+    chase_desc: 'Trong mỗi thùng tiêu chuẩn 24 xe xuất xưởng từ hãng <strong>Pop Race</strong> hoặc <strong>MINI GT</strong>, nhà sản xuất chỉ trộn lẫn duy nhất <strong>01 chiếc Chase Car đặc biệt</strong> (mạ Chrome sáng gương, phôi thép không sơn Raw Metal hoặc tem sơn riêng).',
     chase_b1_title: 'Giá trị sưu tầm cao gấp 2 đến 5 lần',
-    chase_b1_desc: 'Được giới collector quốc tế săn đón nhờ số lượng phát hành giới hạn theo tỷ lệ 1/24.',
-    chase_b2_title: 'Nguyên seal Box & Blister chính hãng',
+    chase_b1_desc: 'Được giới collector quốc tế săn đón nhờ số lượng phát hành giới hạn theo tỉ lệ 1/24.',
+    chase_b2_title: 'Nguyên seal Box &amp; Blister chính hãng',
     chase_b2_desc: 'Đầy đủ tem chống giả TSM-Model / Pop Race và hộp bảo vệ chuyên dụng.',
     chase_btn: 'Xem các mẫu Secret Chase trong đợt này',
-    chaseBadge: '💎 CẨM NANG COLLECTOR 1:64: PHÂN BIỆT BOX / CARD & CHASE',
-    chaseTitle: 'SO SÁNH BẢN BOX VÀ CARD BLISTER • SĂN CHASE 1/24',
-    chaseDesc: 'Tìm hiểu vì sao bản Box rẻ hơn bản Card từ 40.000đ – 100.000đ và bí quyết săn phiên bản giới hạn Chase Raw Metal 1/24.',
-    chaseBtnFilter: 'Xem các mẫu có cơ hội trúng Chase &rarr;',
-    hub_title: 'TIỆN ÍCH ĐỘC QUYỀN COLLECTOR 1:64 DIE-CAST',
-    hub_desc: 'Bộ công cụ so sánh mô hình, tính toán hạn ngạch cọc, chọn quy cách đóng gói và cẩm nang tỉ lệ chuẩn.'
+    // Collector Hub Section
+    hub_eyebrow: 'CHUẨN MỰC DÀNH RIÊNG CHO NGƯỜI CHƠI MÔ HÌNH 1:64',
+    hub_title: 'TIỆN ÍCH ĐẶC QUYỀN COLLECTOR 1:64 DIE-CAST',
+    hub_desc: 'Tích hợp các công cụ chuyên sâu thường có trên những hệ thống phân phối mô hình MINI GT &amp; Pop Race quốc tế: Quy chuẩn kích thước 1:64, Lưu kho Gom đơn (Box Saver) và Theo dõi lịch tàu cập bến.',
+    hub_u1_tag: 'CHUẨN KÍCH THƯỚC &amp; QUY CÁCH',
+    hub_u1_title: 'Cẩm Nang Tỉ Lệ 1:64 Chuẩn',
+    hub_u1_ruler_sub: 'Kích thước thực tế mô hình 1:64 (Nằm gọn lòng bàn tay)',
+    hub_u1_ruler_val: 'Chiều dài: 7.0 cm – 7.8 cm',
+    hub_u1_b1: '<strong><i class="fa-solid fa-box" style="margin-right:4px; color:#3b82f6;"></i> Hộp Giấy (Paper Box):</strong> Nhỏ gọn, có khay nhựa trong suốt, dễ lấy xe trưng bày diorama.',
+    hub_u1_b2: '<strong><i class="fa-solid fa-shield-halved" style="margin-right:4px; color:#ec4899;"></i> Vỉ Nhựa (Blister Pack):</strong> Ép seal nhựa cứng + Bìa Card Art lớn, chống cấn góc tuyệt đối.',
+    hub_u1_b3: '<strong><i class="fa-solid fa-gem" style="margin-right:4px; color:#06b6d4;"></i> Hộp Acrylic (Collector Case):</strong> Gồm đế trưng bày + nắp mica chống bụi (Pop Race / Trends Hobby).',
+    hub_u2_tag: 'TIẾT KIỆM PHÍ SHIP &amp; BẢO VỆ HỘP',
+    hub_u2_title: 'Gom Đơn "Box Saver" &amp; Protector',
+    hub_u2_desc: 'Người chơi Pre-Order nhiều đợt xe khác nhau có thể chọn chế độ <strong>"Gom đơn lưu kho Box Saver (0đ phí ship)"</strong> ở bước Thanh toán để giữ xe tại kho lạnh chống ẩm của Store, gộp giao chung 1 kiện lớn khi đủ xe!',
+    hub_u2_box_title: '<i class="fa-solid fa-shield-cat" style="color:#e10600;"></i> Tùy chọn Bọc Hộp Nhựa Cứng PVC Protector:',
+    hub_u2_box_desc: 'Ốp nhựa PET dày 0.5mm chống móp góc hộp giấy 100% khi vận chuyển đường xa (Tùy chọn thêm trực tiếp trong bước Thanh toán).',
+    hub_u2_btn: 'Mở giỏ hàng &amp; Trải nghiệm Box Saver',
+    hub_u3_tag: 'LỊCH TÀU VỀ KHO BIÊN HÒA',
+    hub_u3_title: 'Tiến Độ Container Pre-Order',
+    hub_w1_sub: 'Cảng Hồng Kông ➔ Kho Biên Hòa',
+    hub_w1_badge: 'Đã cập kho',
+    hub_w2_sub: 'Dự kiến trả hàng: 20/11/2026',
+    hub_w2_badge: 'Đang nhận cọc',
+    hub_w3_sub: 'Dự kiến trả hàng: 30/11/2026',
+    hub_w3_badge: 'Sắp hết slot',
+    hub_u3_btn: 'Tra cứu mã đơn Pre-Order của bạn',
+    // Workflow & Guarantees Section
+    wf_eyebrow: 'MINH BẠCH &amp; AN TÂM TUYỆT ĐỐI',
+    wf_title: 'QUY TRÌNH &amp; CAM KẾT ĐẶT CỌC CHÍNH HÃNG',
+    wf_desc: 'Quy trình cọc 4 bước chuẩn quốc tế kết hợp 4 cam kết vàng bảo chứng quyền lợi và tình trạng xe góc hộp hoàn hảo cho mọi nhà sưu tập.',
+    wf_col1_title: '4 Bước Đặt Cọc An Tâm',
+    wf_col1_sub: 'Quy trình chuyên nghiệp - Tiết kiệm thời gian',
+    wf_s1_title: 'Chọn mẫu &amp; Đặt cọc 30-50%',
+    wf_s1_desc: 'Chọn mã xe yêu thích và đặt cọc nhanh qua chuyển khoản VietQR tự động hoặc tại store.',
+    wf_s2_title: 'Nhận Mã Đơn Cọc &amp; Biên nhận',
+    wf_s2_desc: 'Hệ thống tự động đồng bộ CSDL SQL Server, cấp mã vận đơn và gửi xác nhận tức thì.',
+    wf_s3_title: 'Theo dõi Lộ trình Vận chuyển',
+    wf_s3_desc: 'Cập nhật trạng thái liên tục từ nhà máy TSM-Model tại Trung Quốc/Hồng Kông về kho Biên Hòa.',
+    wf_s4_title: 'Thanh toán &amp; Nhận xe SPX',
+    wf_s4_desc: 'Giao xe hỏa tốc toàn quốc kèm seal bảo chứng niêm phong, chống móp cấn góc hộp.',
+    wf_col2_title: '4 Cam Kết Vàng Từ Store',
+    wf_col2_sub: 'Tiêu chuẩn bảo vệ người chơi mô hình diecast',
+    wf_g1_title: '100% Chính Hãng Tem Seal',
+    wf_g1_desc: 'Phân phối chuẩn hãng TSM-Model, Pop Race và Kaido House. Đầy đủ tem chống hàng giả.',
+    wf_g2_title: 'Bọc Chống Sốc 4 Lớp Chuyên Dụng',
+    wf_g2_desc: 'Thùng carton cứng 5 lớp, lót bóng khí 4 mặt, cam kết bảo vệ góc hộp hoàn hảo (Corner Mint).',
+    wf_g3_title: 'Cơ Chế Săn Xe Chase 1/24 Toàn Cầu',
+    wf_g3_desc: 'Khách đặt trước nguyên thùng có tỉ lệ bóc trúng xe Chase hiếm mạ chrome hoặc raw metal.',
+    wf_g4_title: 'Hoàn Tiền Cọc 100% Linh Hoạt',
+    wf_g4_desc: 'Store hoàn 100% cọc không mất phí nếu hãng hủy lịch sản xuất hoặc trễ hạn cam kết.',
+    // Newsletter
+    nl_eyebrow: 'KHÔNG BỎ LỠ MẪU HIẾM',
+    nl_title: 'ĐĂNG KÝ NHẬN THÔNG BÁO MỞ CỌC ĐỢT KẾ TIẾP',
+    nl_desc: 'Nhận thông tin sớm nhất về các đợt phát hành mới của MINI GT, LBWK, Kaido House và Pop Race trực tiếp vào hộp thư của bạn.',
+    nl_placeholder: 'Nhập địa chỉ email của bạn...',
+    nl_btn: 'Đăng Ký',
+    // Cart Drawer
+    cart_drawer_title: 'Giỏ Đặt Cọc Mô Hình',
+    cart_drawer_sub: 'Lưu kho 30 ngày • 100% Nguyên seal chính hãng',
+    cart_sum_total: '<i class="fa-solid fa-tags"></i> Tổng giá trị đơn xe:',
+    cart_sum_deposit: '<i class="fa-solid fa-shield-halved"></i> Tiền cọc giữ mẫu (30%):',
+    cart_sum_remain: '<i class="fa-solid fa-hand-holding-dollar"></i> Còn lại khi nhận xe (70%):',
+    cart_btn_checkout: 'Tiến Hành Đặt Cọc Ngay',
+    // Footer
+    ft_about_text: '<strong>MINI GT STORE BIÊN HÒA</strong> — Đại lý chuyên phân phối mô hình xe die-cast 1:64 bản quyền chính thức từ TrueScale Miniatures (TSM-Model), Pop Race và Kaido House tại Việt Nam.',
+    ft_col2_title: 'Bộ Sưu Tập',
+    ft_col3_title: 'Chăm Sóc Khách Hàng',
+    ft_link_track: 'Tra cứu tiến độ cọc',
+    ft_link_wf: 'Quy trình giữ slot Pre-Order',
+    ft_link_warranty: 'Chính sách bảo hành hộp xe',
+    ft_link_chase: 'Cơ chế săn Secret Chase',
+    ft_link_account: 'Tài khoản &amp; Đơn mua',
+    ft_col4_title: 'Thanh Toán &amp; Hệ Thống',
+    ft_col4_desc: 'Hệ thống quản lý dữ liệu tự động đồng bộ máy chủ CSDL SQL Server. Hỗ trợ quét mã VietQR MB Bank tự động xác nhận đơn cọc sau 30 giây.'
   }
 };
 
@@ -8741,7 +9954,10 @@ function applySiteLanguage(lang, showFeedback = false) {
   try { localStorage.setItem('minigt_lang', currentSiteLang); } catch (_) {}
   document.documentElement.setAttribute('lang', currentSiteLang);
 
+  const isEn = currentSiteLang === 'en';
   const dict = I18N_TRANSLATIONS[currentSiteLang] || I18N_TRANSLATIONS.vi;
+
+  // 1. Sync Topbar & Legacy Language Buttons
   const langBtn = document.getElementById('langToggleBtn');
   const langLabel = document.getElementById('langToggleLabel') || document.getElementById('langCodeLabel');
   const langFlagIcon = document.getElementById('langFlagIcon');
@@ -8749,19 +9965,37 @@ function applySiteLanguage(lang, showFeedback = false) {
   const topLangFlag = document.getElementById('topLangFlag');
   const mobLangBtn = document.getElementById('mobLangToggleBtn');
 
-  if (langBtn) langBtn.classList.toggle('active', currentSiteLang === 'en');
-  if (langLabel) langLabel.textContent = currentSiteLang === 'en' ? 'EN' : 'VN';
-  if (langFlagIcon) langFlagIcon.textContent = currentSiteLang === 'en' ? '🇺🇸' : '🇻🇳';
-  if (topLangText) topLangText.textContent = currentSiteLang === 'en' ? 'EN' : 'VN';
-  if (topLangFlag) topLangFlag.textContent = currentSiteLang === 'en' ? '🇺🇸' : '🇻🇳';
-
+  if (langBtn) langBtn.classList.toggle('active', isEn);
+  if (langLabel) langLabel.textContent = isEn ? 'EN' : 'VN';
+  if (langFlagIcon) langFlagIcon.textContent = isEn ? '🇺🇸' : '🇻🇳';
+  if (topLangText) topLangText.textContent = isEn ? 'EN' : 'VN';
+  if (topLangFlag) topLangFlag.textContent = isEn ? '🇺🇸' : '🇻🇳';
   if (mobLangBtn) {
-    mobLangBtn.innerHTML = currentSiteLang === 'en'
+    mobLangBtn.innerHTML = isEn
       ? '<i class="fa-solid fa-globe"></i> Language: EN (Switch to VN)'
       : '<i class="fa-solid fa-globe"></i> Ngôn ngữ: VN / EN';
   }
 
-  // Dịch tự động toàn bộ phần tử có thuộc tính [data-i18n]
+  // 2. Sync Segmented Language Controls (Header Settings & Mobile Drawer)
+  const segLangVi = document.getElementById('segLangVi');
+  const segLangEn = document.getElementById('segLangEn');
+  if (segLangVi && segLangEn) {
+    segLangVi.classList.toggle('active', !isEn);
+    segLangEn.classList.toggle('active', isEn);
+    segLangVi.setAttribute('aria-pressed', (!isEn).toString());
+    segLangEn.setAttribute('aria-pressed', isEn.toString());
+  }
+
+  const drawerLangVi = document.getElementById('drawerLangVi');
+  const drawerLangEn = document.getElementById('drawerLangEn');
+  if (drawerLangVi && drawerLangEn) {
+    drawerLangVi.classList.toggle('active', !isEn);
+    drawerLangEn.classList.toggle('active', isEn);
+    drawerLangVi.setAttribute('aria-pressed', (!isEn).toString());
+    drawerLangEn.setAttribute('aria-pressed', isEn.toString());
+  }
+
+  // 3. Translate all [data-i18n] elements
   document.querySelectorAll('[data-i18n]').forEach(el => {
     const key = el.getAttribute('data-i18n');
     if (key && dict[key] !== undefined) {
@@ -8769,7 +10003,7 @@ function applySiteLanguage(lang, showFeedback = false) {
     }
   });
 
-  // Dịch các input có [data-i18n-placeholder]
+  // 4. Translate all [data-i18n-placeholder] inputs
   document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
     const key = el.getAttribute('data-i18n-placeholder');
     if (key && dict[key] !== undefined) {
@@ -8777,76 +10011,67 @@ function applySiteLanguage(lang, showFeedback = false) {
     }
   });
 
-  // Search Input
+  // 5. Header Search Input & Action Tooltips
   const searchInput = document.getElementById('headerSearchInput');
   if (searchInput && (dict.search_placeholder || dict.searchPlaceholder)) {
     searchInput.placeholder = dict.search_placeholder || dict.searchPlaceholder;
   }
+  const wishBtn = document.getElementById('headerWishlistBtn');
+  if (wishBtn) wishBtn.setAttribute('title', isEn ? 'My Wishlist' : 'Danh sách xe yêu thích');
+  const cartBtn = document.getElementById('headerCartBtn');
+  if (cartBtn) cartBtn.setAttribute('title', isEn ? 'Shopping Cart' : 'Giỏ hàng mô hình');
+  const settingsBtn = document.getElementById('headerSettingsBtn');
+  if (settingsBtn) settingsBtn.setAttribute('title', isEn ? 'Display & Language Settings' : 'Cài đặt giao diện & ngôn ngữ');
 
-  // Main Navigation Links
-  const navLinks = document.querySelectorAll('#mainNavList .nav-link');
-  const navKeys = ['navAll', 'navPreOrder', 'navLbwk', 'navGt3', 'navBoxSets', 'navGuide', 'navShowroom'];
-  navLinks.forEach((a, idx) => {
-    const key = navKeys[idx];
-    if (!key || !dict[key]) return;
-    const badge = a.querySelector('.nav-badge-hot');
-    a.textContent = dict[key] + ' ';
-    if (badge) a.appendChild(badge);
-  });
-
-  // Header Action Labels
-  const myOrdersSpan = document.querySelector('#myOrdersHeaderBtn span');
-  if (myOrdersSpan) myOrdersSpan.textContent = dict.btnMyOrders;
-  const cartSpan = document.querySelector('#cartToggleBtn > span:not(.cart-badge)');
-  if (cartSpan) cartSpan.textContent = dict.btnCart;
-
-  // Mobile Bottom Nav
-  const mobSpans = document.querySelectorAll('#mobileBottomNav .mob-bottom-item > span');
-  const mobKeys = ['mobHome', 'mobCatalog', 'mobLbwk', 'mobOrders', 'mobCart'];
-  mobSpans.forEach((sp, idx) => {
-    if (mobKeys[idx] && dict[mobKeys[idx]]) sp.textContent = dict[mobKeys[idx]];
-  });
-
-  // Filter Pills
+  // 6. Filter Pills (Preserve .pill-count IDs & support both static and dynamic slugs)
   const pillMap = {
-    all: dict.pillAll,
-    best_seller: dict.pillBestSeller,
-    in_stock: dict.pillInStock,
-    pre_order: dict.pillPreOrder,
-    lbwk: dict.pillLbwk,
-    chase: dict.pillChase,
-    f1: dict.pillF1,
-    box_sets: dict.pillBoxSets,
-    ao_racing: dict.pillAoRacing
+    all: dict.filter_all,
+    bestseller: dict.filter_bestseller,
+    best_seller: dict.filter_bestseller,
+    in_stock: dict.filter_instock,
+    pre_order: dict.filter_preorder,
+    lbwk: dict.filter_lbwk,
+    'liberty-walk': dict.filter_lbwk,
+    chase: dict.filter_chase,
+    partner: dict.filter_chase,
+    f1: dict.filter_f1,
+    'f1-racing': dict.filter_f1,
+    box_sets: dict.filter_boxsets,
+    'box-sets': dict.filter_boxsets,
+    ao_racing: dict.filter_aoracing,
+    'gt-racing': dict.filter_aoracing
   };
   document.querySelectorAll('.filter-pill').forEach(btn => {
     const fKey = btn.getAttribute('data-filter');
     if (fKey && pillMap[fKey]) {
       const icon = btn.querySelector('i');
       const countEl = btn.querySelector('.pill-count');
-      const countText = countEl ? countEl.textContent : '';
-      btn.innerHTML = `${icon ? icon.outerHTML + ' ' : ''}${pillMap[fKey]} <span class="pill-count">${countText}</span>`;
+      const countHtml = countEl ? countEl.outerHTML : '';
+      btn.innerHTML = `${icon ? icon.outerHTML + ' ' : ''}<span>${pillMap[fKey]}</span> ${countHtml}`;
     }
   });
 
-  // Đồng bộ lại các thành phần động theo ngôn ngữ mới
+  // 7. Re-sync dynamic components in the newly selected language
   applyThemeMode(currentThemeMode, false);
+  applyStoreSettingsUI();
   updateUserHeaderUI();
+  renderDynamicBrandFilter();
   if (typeof allProducts !== 'undefined' && allProducts && allProducts.length > 0) {
     renderProductsGrid();
     renderPreOrderQuickRow();
+    syncStaticShowcaseProducts();
     updateFilterCounts();
+  } else if (typeof syncStaticShowcaseProducts === 'function') {
+    syncStaticShowcaseProducts();
+  }
+  if (document.getElementById('quickViewModal')?.classList.contains('active') && activeQuickViewState && activeQuickViewState.productId) {
+    openQuickView(activeQuickViewState.productId);
   }
   renderCartDrawer();
 
-  const currFilterEl = document.getElementById('currentFilterLabel');
-  if (currFilterEl && (typeof currentFilter === 'undefined' || currentFilter === 'all')) {
-    currFilterEl.textContent = dict.filter_all || 'Tất cả mô hình';
-  }
-
-  if (showFeedback) {
+  if (showFeedback && typeof showToast === 'function') {
     showToast(
-      currentSiteLang === 'en'
+      isEn
         ? 'Language switched to English (EN) 🌐'
         : 'Đã chuyển ngôn ngữ sang Tiếng Việt (VN) 🇻🇳',
       'info'
@@ -8854,9 +10079,39 @@ function applySiteLanguage(lang, showFeedback = false) {
   }
 }
 
+function setSiteLanguage(lang, showFeedback = true) {
+  applySiteLanguage(lang, showFeedback);
+}
+window.setSiteLanguage = setSiteLanguage;
+
 function toggleSiteLanguage() {
   applySiteLanguage(currentSiteLang === 'vi' ? 'en' : 'vi', true);
 }
+window.toggleSiteLanguage = toggleSiteLanguage;
+
+function checkUrlHashProduct() {
+  try {
+    let pId = null;
+    const hash = window.location.hash;
+    if (hash && hash.startsWith('#product-')) {
+      pId = parseInt(hash.replace('#product-', ''), 10);
+    } else {
+      const params = new URLSearchParams(window.location.search);
+      const pParam = params.get('product');
+      if (pParam) pId = parseInt(pParam, 10);
+    }
+    if (pId) {
+      setTimeout(() => {
+        openQuickView(pId);
+        const cardEl = document.querySelector(`.product-card[data-id="${pId}"]`);
+        if (cardEl) {
+          cardEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }, 400);
+    }
+  } catch (_) {}
+}
+window.checkUrlHashProduct = checkUrlHashProduct;
 
 // =====================================================================
 // 18. KHỞI CHẠY TẤT CẢ KHI TẢI XONG DOM
@@ -8876,6 +10131,7 @@ document.addEventListener('DOMContentLoaded', () => {
   init3DParallaxTilt();
   loadProducts().then(() => {
     renderCompareFloatingBar();
+    checkUrlHashProduct();
   });
   setupFilterPills();
   setupCountdown();
@@ -8887,8 +10143,27 @@ document.addEventListener('DOMContentLoaded', () => {
   initGoogleIdentityServices();
   initCustomerRealtimeOrderWatcher();
   initLiveCollectorActivityPopup();
+  initCuteBotGreetings();
 
   document.addEventListener('keydown', (event) => {
+    const lb = document.getElementById('productGalleryLightbox');
+    if (lb && lb.classList.contains('active')) {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        closeStorefrontGalleryLightbox();
+        return;
+      }
+      if (event.key === 'ArrowLeft') {
+        event.preventDefault();
+        stepStorefrontGalleryLightbox(-1);
+        return;
+      }
+      if (event.key === 'ArrowRight') {
+        event.preventDefault();
+        stepStorefrontGalleryLightbox(1);
+        return;
+      }
+    }
     if (event.key !== 'Escape') return;
     const activeModal = Array.from(document.querySelectorAll('.modal-overlay.active')).pop();
     if (activeModal) closeModal(activeModal.id);
@@ -8904,5 +10179,662 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 });
+
+// =====================================================================
+// 19. HYBRID AI SUPPORT CHATBOX CLIENT v5 (INCREMENTAL SYNC + LIVE DATA)
+// - Khử 100% lỗi gửi lặp / hiển thị lặp tin nhắn (renderedChatMsgIds + isSendingChatMsg mutex)
+// - Incremental Sync (sinceId) + Page Visibility Pause: tiết kiệm >95% băng thông mạng
+// - Đồng bộ 100% giá giảm trực tiếp, tồn kho Box/Card & QuickView trên thẻ xe Mini-Card
+// =====================================================================
+let chatPollTimer = null;
+let isChatOpen = false;
+let isSendingChatMsg = false;
+let lastSyncedChatMsgId = 0;
+const renderedChatMsgIds = new Set();
+
+function getChatSessionId() {
+  let sid = localStorage.getItem('minigt_chat_session');
+  if (!sid) {
+    sid = 'mgt_chat_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6);
+    localStorage.setItem('minigt_chat_session', sid);
+  }
+  return sid;
+}
+
+// Lắng nghe tín hiệu Real-time khi Admin trả lời ở Tab Quản trị để hiển thị tức thì cho khách
+window.addEventListener('minigt:realtime', (ev) => {
+  const detail = ev && ev.detail;
+  if (!detail) return;
+  if (detail.type === 'CHAT_ADMIN_REPLIED' || detail.type === 'CHAT_STATUS_CHANGED') {
+    if (isChatOpen) {
+      pollChatMessages();
+    } else {
+      const dot = document.getElementById('aiChatPulseDot');
+      if (dot) dot.style.display = 'block';
+    }
+  }
+});
+
+// Tạm dừng polling khi tab trình duyệt ẩn và đồng bộ ngay lập tức khi khách quay lại tab
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden && isChatOpen && !isSendingChatMsg) {
+    pollChatMessages();
+  }
+});
+
+function initCuteBotGreetings() {
+  const greetEl = document.getElementById('aiLauncherGreeting');
+  if (!greetEl) return;
+  const greetings = [
+    'Hỏi Bé Bot 1:64 nè! ✨',
+    'Tra cứu giá Box / Card 📦',
+    'Tư vấn xe F1 & LBWK 🏎️',
+    'Săn mã giảm giá hot 🎟️',
+    'Hỗ trợ Săn Xe 24/7 💕'
+  ];
+  let gIdx = 0;
+  setInterval(() => {
+    if (isChatOpen) return;
+    gIdx = (gIdx + 1) % greetings.length;
+    greetEl.style.opacity = '0';
+    setTimeout(() => {
+      if (!isChatOpen) {
+        greetEl.textContent = greetings[gIdx];
+        greetEl.style.opacity = '1';
+      }
+    }, 220);
+  }, 5500);
+}
+
+function openQuickViewBySku(skuCode) {
+  if (!skuCode) return;
+  const cleanSku = String(skuCode).replace(/^[#\[|\]]+/g, '').trim().toUpperCase();
+  const list = (allProducts && allProducts.length) ? allProducts : (typeof FALLBACK_PRODUCTS !== 'undefined' ? FALLBACK_PRODUCTS : []);
+  const matched = list.find(p => String(p.Sku || p.sku || '').toUpperCase() === cleanSku);
+  if (matched) {
+    openQuickView(matched.ProductId || matched.id);
+  } else {
+    scrollToSection(null, 'catalog');
+    const searchInput = document.getElementById('searchInput');
+    if (searchInput) {
+      searchInput.value = cleanSku;
+      searchInput.dispatchEvent(new Event('input'));
+    }
+  }
+}
+window.openQuickViewBySku = openQuickViewBySku;
+
+function toggleAiChat() {
+  const win = document.getElementById('aiChatWindow');
+  const launcher = document.getElementById('aiChatLauncher');
+  const dot = document.getElementById('aiChatPulseDot');
+  const zaloBtn = document.getElementById('zaloSideAppBtn');
+  if (!win || !launcher) return;
+
+  isChatOpen = !isChatOpen;
+  if (isChatOpen) {
+    win.classList.add('active');
+    launcher.classList.add('active');
+    if (zaloBtn) zaloBtn.classList.add('active');
+    if (dot) dot.style.display = 'none';
+
+    loadChatHistory();
+    if (chatPollTimer) clearInterval(chatPollTimer);
+    chatPollTimer = setInterval(pollChatMessages, 3500);
+    setTimeout(() => {
+      const input = document.getElementById('aiChatInput');
+      if (input) input.focus();
+    }, 200);
+  } else {
+    win.classList.remove('active');
+    launcher.classList.remove('active');
+    if (zaloBtn) zaloBtn.classList.remove('active');
+    if (chatPollTimer) {
+      clearInterval(chatPollTimer);
+      chatPollTimer = null;
+    }
+  }
+}
+window.toggleAiChat = toggleAiChat;
+
+function formatChatText(str) {
+  if (!str) return '';
+  let escaped = escapeHtml(str);
+  // Định dạng in đậm **nội dung**
+  escaped = escaped.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+  // Biến mã SKU dạng [MGT00550], [MG1132], #PR640325, #KH0098 thành nút bấm mở xem nhanh xe
+  escaped = escaped.replace(/\[((?:MGT|MG|PR|KH)[A-Z0-9\-]+)\]/g, '<button type="button" class="chat-sku-link" onclick="openQuickViewBySku(\'$1\')" title="Bấm để xem chi tiết mẫu xe $1">🔍 #$1</button>');
+  escaped = escaped.replace(/#((?:MGT|MG|PR|KH)[A-Z0-9\-]+)/g, '<button type="button" class="chat-sku-link" onclick="openQuickViewBySku(\'$1\')" title="Bấm để xem chi tiết mẫu xe $1">🔍 #$1</button>');
+  // Định dạng xuống dòng
+  escaped = escaped.replace(/\n/g, '<br>');
+  return escaped;
+}
+
+function renderChatMessageBubble(senderType, senderName, text, timeStr, msgMeta = null) {
+  const isUser = senderType === 'user';
+  const isAdmin = senderType === 'admin';
+
+  const rowClass = isUser ? 'user-msg' : (isAdmin ? 'admin-msg' : 'bot-msg');
+  const tagClass = isUser ? 'user' : (isAdmin ? 'admin' : 'bot');
+  const tagIcon = isUser ? 'fa-user' : (isAdmin ? 'fa-user-shield' : 'fa-wand-magic-sparkles');
+  const defaultName = isUser ? 'Bạn' : (isAdmin ? 'Admin Showroom' : 'Bé Bot AI Săn Xe');
+
+  const div = document.createElement('div');
+  div.className = `chat-bubble-row ${rowClass}`;
+  if (msgMeta && msgMeta.id) {
+    div.dataset.msgId = String(msgMeta.id);
+  }
+
+  let quoteHtml = '';
+  if (isAdmin && msgMeta && msgMeta.reply_to_preview) {
+    quoteHtml = `
+      <div class="chat-reply-quote">
+        <span class="quote-label"><i class="fa-solid fa-reply"></i> Phản hồi câu hỏi của bạn:</span>
+        <span class="quote-text">«${escapeHtml(msgMeta.reply_to_preview)}»</span>
+      </div>
+    `;
+  }
+
+  let escBadgeHtml = '';
+  if (isUser && msgMeta && msgMeta.needs_admin_reply) {
+    const resolved = Boolean(msgMeta.escalation_resolved);
+    escBadgeHtml = `
+      <span class="chat-user-esc-tag ${resolved ? 'resolved' : ''}" data-esc-badge="1">
+        <i class="fa-solid ${resolved ? 'fa-circle-check' : 'fa-paper-plane'}"></i>
+        ${resolved ? 'Admin đã phản hồi câu hỏi này' : 'Đã báo lên Admin chờ giải đáp'}
+      </span>
+    `;
+  }
+
+  div.innerHTML = `
+    <span class="chat-sender-tag ${tagClass}"><i class="fa-solid ${tagIcon}"></i> ${escapeHtml(senderName || defaultName)}</span>
+    <div class="chat-bubble">${quoteHtml}${formatChatText(text)}</div>
+    ${escBadgeHtml}
+    <span class="chat-bubble-time">${escapeHtml(timeStr || 'Vừa xong')}</span>
+  `;
+  return div;
+}
+
+function syncUserEscalationBadgeInDom(msgObj) {
+  if (!msgObj || !msgObj.id || msgObj.sender_type !== 'user') return;
+  const box = document.getElementById('aiChatMessages');
+  if (!box) return;
+  const row = box.querySelector(`.chat-bubble-row[data-msg-id="${msgObj.id}"]`);
+  if (!row) return;
+
+  let badge = row.querySelector('[data-esc-badge="1"]');
+  if (msgObj.needs_admin_reply) {
+    const resolved = Boolean(msgObj.escalation_resolved);
+    if (!badge) {
+      badge = document.createElement('span');
+      badge.dataset.escBadge = '1';
+      const timeEl = row.querySelector('.chat-bubble-time');
+      if (timeEl) row.insertBefore(badge, timeEl);
+      else row.appendChild(badge);
+    }
+    badge.className = `chat-user-esc-tag ${resolved ? 'resolved' : ''}`;
+    badge.innerHTML = `<i class="fa-solid ${resolved ? 'fa-circle-check' : 'fa-paper-plane'}"></i> ${resolved ? 'Admin đã phản hồi câu hỏi này' : 'Đã báo lên Admin chờ giải đáp'}`;
+  }
+}
+
+function scrollChatToBottom() {
+  const box = document.getElementById('aiChatMessages');
+  if (box) {
+    box.scrollTop = box.scrollHeight;
+  }
+}
+
+function syncResolvedEscalationIdsInDom(resolvedIds) {
+  if (!Array.isArray(resolvedIds) || resolvedIds.length === 0) return;
+  const box = document.getElementById('aiChatMessages');
+  if (!box) return;
+  resolvedIds.forEach(rid => {
+    const row = box.querySelector(`.chat-bubble-row[data-msg-id="${rid}"]`);
+    if (!row) return;
+    const badge = row.querySelector('[data-esc-badge="1"]');
+    if (badge && !badge.classList.contains('resolved')) {
+      badge.className = 'chat-user-esc-tag resolved';
+      badge.innerHTML = '<i class="fa-solid fa-circle-check"></i> Admin đã phản hồi câu hỏi này';
+    }
+  });
+}
+
+function insertChatBubbleOrdered(box, mid, bubbleEl) {
+  if (!mid) {
+    box.appendChild(bubbleEl);
+    return;
+  }
+  const existingRows = box.querySelectorAll('.chat-bubble-row[data-msg-id]');
+  for (let i = 0; i < existingRows.length; i++) {
+    const rowId = Number(existingRows[i].dataset.msgId || 0);
+    if (rowId > mid) {
+      box.insertBefore(bubbleEl, existingRows[i]);
+      return;
+    }
+  }
+  box.appendChild(bubbleEl);
+}
+
+async function loadChatHistory() {
+  if (isSendingChatMsg) return;
+  const sessionId = getChatSessionId();
+  try {
+    const res = await api.get('/api/chat/messages', { sessionId, sinceId: 0 });
+    if (res && res.data && !isSendingChatMsg) {
+      const { conversation, messages, resolvedIds } = res.data;
+      const box = document.getElementById('aiChatMessages');
+      if (!box) return;
+
+      if (conversation) {
+        updateChatStatusUI(conversation.status, conversation.pending_admin_count);
+      }
+
+      if (Array.isArray(messages) && messages.length > 0) {
+        box.innerHTML = '';
+        renderedChatMsgIds.clear();
+        lastSyncedChatMsgId = 0;
+        messages.forEach(m => {
+          const mid = Number(m.id || 0);
+          if (mid && renderedChatMsgIds.has(mid)) return;
+          if (mid) {
+            renderedChatMsgIds.add(mid);
+            if (mid > lastSyncedChatMsgId) lastSyncedChatMsgId = mid;
+          }
+          const time = m.created_at ? new Date(m.created_at).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : 'Vừa xong';
+          box.appendChild(renderChatMessageBubble(m.sender_type, m.sender_name, m.message, time, m));
+        });
+        syncResolvedEscalationIdsInDom(resolvedIds);
+        scrollChatToBottom();
+      }
+    }
+  } catch (err) {
+    console.warn('[CHAT] Lỗi tải lịch sử chat:', err.message);
+  }
+}
+
+async function pollChatMessages() {
+  if (!isChatOpen || isSendingChatMsg || document.hidden) return;
+  const sessionId = getChatSessionId();
+  try {
+    const res = await api.get('/api/chat/messages', {
+      sessionId,
+      sinceId: lastSyncedChatMsgId
+    });
+    if (res && res.data && !isSendingChatMsg) {
+      const d = res.data;
+      syncResolvedEscalationIdsInDom(d.resolvedIds);
+
+      if (d.unchanged) {
+        if (d.status) {
+          updateChatStatusUI(d.status, d.pendingAdminCount);
+        }
+        return;
+      }
+
+      if (d.conversation) {
+        updateChatStatusUI(d.conversation.status, d.conversation.pending_admin_count);
+      }
+
+      const messages = d.messages;
+      if (Array.isArray(messages) && messages.length > 0) {
+        const box = document.getElementById('aiChatMessages');
+        if (!box) return;
+
+        let appended = false;
+        messages.forEach(m => {
+          const mid = Number(m.id || 0);
+          if (!mid) return;
+          if (mid > lastSyncedChatMsgId) lastSyncedChatMsgId = mid;
+          if (renderedChatMsgIds.has(mid) || box.querySelector(`.chat-bubble-row[data-msg-id="${mid}"]`)) {
+            renderedChatMsgIds.add(mid);
+            syncUserEscalationBadgeInDom(m);
+            return;
+          }
+          renderedChatMsgIds.add(mid);
+          const time = m.created_at ? new Date(m.created_at).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : 'Vừa xong';
+          const bubbleEl = renderChatMessageBubble(m.sender_type, m.sender_name, m.message, time, m);
+          insertChatBubbleOrdered(box, mid, bubbleEl);
+          appended = true;
+        });
+
+        if (appended) {
+          scrollChatToBottom();
+        }
+      }
+    }
+  } catch (_) {}
+}
+
+function updateChatStatusUI(status, pendingCount = 0) {
+  const textEl = document.getElementById('aiChatStatusText');
+  const bannerEl = document.getElementById('aiChatEscalatedBanner');
+  const bannerTextEl = document.getElementById('aiChatBannerText');
+  const btnEsc = document.getElementById('btnEscalateHuman');
+  if (!textEl) return;
+
+  const pCnt = Number(pendingCount || 0);
+
+  if (status === 'waiting_admin' || pCnt > 0) {
+    textEl.innerHTML = `<span class="ai-chat-status-dot" style="background:#f59e0b;box-shadow:0 0 8px rgba(245,158,11,0.6);"></span> Bé Bot trực tuyến • ${pCnt > 0 ? pCnt + ' câu chờ Admin' : 'Đã báo Admin'}`;
+    textEl.style.color = '#d97706';
+    if (bannerEl) bannerEl.classList.add('show');
+    if (bannerTextEl) {
+      bannerTextEl.innerHTML = pCnt > 1
+        ? `Đang có <strong>${pCnt} câu hỏi</strong> chờ <strong>Admin Thịnh &amp; Nam</strong> trả lời • Bạn vẫn hỏi <strong>Bé Bot AI</strong> tiếp ở dưới được nhé!`
+        : `Đã gửi câu hỏi khó lên <strong>Admin Thịnh &amp; Nam</strong> • Bạn vẫn hỏi <strong>Bé Bot AI</strong> tiếp ở dưới thoải mái nhé!`;
+    }
+    if (btnEsc) btnEsc.style.display = 'none';
+  } else if (status === 'admin_joined') {
+    textEl.innerHTML = '<span class="ai-chat-status-dot" style="background:#059669;box-shadow:0 0 8px rgba(16,185,129,0.6);"></span> Admin &amp; Bé Bot đang hỗ trợ bạn';
+    textEl.style.color = '#059669';
+    if (bannerEl) bannerEl.classList.remove('show');
+    if (btnEsc) btnEsc.style.display = 'none';
+  } else {
+    textEl.innerHTML = '<span class="ai-chat-status-dot"></span> Thông minh • Trực tuyến 24/7';
+    textEl.style.color = '#059669';
+    if (bannerEl) bannerEl.classList.remove('show');
+    if (btnEsc) btnEsc.style.display = 'none';
+  }
+}
+
+async function handleSendChatMessage(e) {
+  if (e && e.preventDefault) e.preventDefault();
+  if (isSendingChatMsg) return; // Chặn tuyệt đối gửi đúp khi nhấn Enter / Click liên tiếp
+
+  const input = document.getElementById('aiChatInput');
+  const box = document.getElementById('aiChatMessages');
+  const sendBtn = document.getElementById('aiChatSendBtn');
+  if (!input || !box) return;
+
+  const text = input.value.trim();
+  if (!text) return;
+
+  isSendingChatMsg = true;
+  input.value = '';
+  if (sendBtn) sendBtn.disabled = true;
+
+  const sessionId = getChatSessionId();
+  const currentUser = (api && api.getCurrentUser) ? api.getCurrentUser() : null;
+  const customerName = currentUser ? (currentUser.fullName || currentUser.FullName || 'Khách hàng') : (localStorage.getItem('minigt_customer_name') || 'Khách hàng');
+  const customerEmail = currentUser ? (currentUser.email || currentUser.Email || '') : '';
+  const customerPhone = currentUser ? (currentUser.phone || currentUser.Phone || '') : (localStorage.getItem('minigt_customer_phone') || '');
+
+  // 1. Hiển thị ngay bong bóng người dùng (gắn cờ tạm để sau khi API trả về sẽ gán ID thật chống trùng lặp 100%)
+  const optimisticUserRow = renderChatMessageBubble('user', customerName, text, 'Vừa xong');
+  optimisticUserRow.dataset.tempMsg = '1';
+  box.appendChild(optimisticUserRow);
+  scrollChatToBottom();
+
+  // 2. Hiển thị trạng thái đang soạn tin (Typing Indicator)
+  const existingTyping = document.getElementById('aiTypingIndicator');
+  if (existingTyping) existingTyping.remove();
+
+  const typingEl = document.createElement('div');
+  typingEl.className = 'ai-typing-indicator';
+  typingEl.id = 'aiTypingIndicator';
+  typingEl.innerHTML = `
+    <span class="ai-typing-dot"></span>
+    <span class="ai-typing-dot"></span>
+    <span class="ai-typing-dot"></span>
+  `;
+  box.appendChild(typingEl);
+  scrollChatToBottom();
+
+  try {
+    const res = await api.post('/api/chat/message', {
+      sessionId,
+      message: text,
+      customerName,
+      customerEmail,
+      customerPhone
+    });
+
+    const indicator = document.getElementById('aiTypingIndicator');
+    if (indicator) indicator.remove();
+
+    if (res && res.data) {
+      const savedUser = res.data.userMessage;
+      const savedBot = res.data.botMessage;
+
+      // Đồng bộ ID thật cho tin nhắn khách vừa gửi để pollChatMessages() không bao giờ chèn lặp lần 2!
+      if (savedUser && savedUser.id) {
+        const uid = Number(savedUser.id);
+        if (res.data.deduplicated && renderedChatMsgIds.has(uid)) {
+          optimisticUserRow.remove();
+        } else {
+          optimisticUserRow.dataset.msgId = String(uid);
+          delete optimisticUserRow.dataset.tempMsg;
+          renderedChatMsgIds.add(uid);
+          syncUserEscalationBadgeInDom(savedUser);
+        }
+        if (lastSyncedChatMsgId === 0 || uid === lastSyncedChatMsgId + 1) {
+          lastSyncedChatMsgId = uid;
+        }
+      }
+
+      if (savedBot && savedBot.id) {
+        const bid = Number(savedBot.id);
+        if (!renderedChatMsgIds.has(bid) && !box.querySelector(`.chat-bubble-row[data-msg-id="${bid}"]`)) {
+          renderedChatMsgIds.add(bid);
+          box.appendChild(renderChatMessageBubble('bot', 'Bé Bot AI Săn Xe', savedBot.message, 'Vừa xong', savedBot));
+
+          try {
+            // Mini Card Showcase đồng bộ 100% giá giảm trực tiếp & tồn kho
+            if (Array.isArray(res.data.matchedProducts) && res.data.matchedProducts.length > 0) {
+              const cardsEl = renderChatProductCards(res.data.matchedProducts);
+              if (cardsEl) box.appendChild(cardsEl);
+            }
+
+            // Gợi ý câu hỏi động dưới tin nhắn
+            if (Array.isArray(res.data.suggestions) && res.data.suggestions.length > 0) {
+              const suggEl = renderChatSuggestions(res.data.suggestions);
+              if (suggEl) box.appendChild(suggEl);
+              updateTopQuickChips(res.data.suggestions);
+            }
+          } catch (uiRenderErr) {
+            console.warn('[CHAT UI] Render mini-card warning:', uiRenderErr);
+          }
+        }
+        if (bid === lastSyncedChatMsgId + 1) {
+          lastSyncedChatMsgId = bid;
+        }
+      }
+
+      if (res.data.status) {
+        updateChatStatusUI(res.data.status, res.data.pendingAdminCount);
+      }
+
+      // Phát tín hiệu Real-time sang Tab Admin nếu có mở song song
+      if (api && typeof api.emitRealtimeSync === 'function') {
+        api.emitRealtimeSync(res.data.isEscalated ? 'CHAT_ESCALATED' : 'CHAT_NEW_MESSAGE', {
+          conversationId: res.data.conversationId,
+          customerName,
+          question: text,
+          isEscalated: Boolean(res.data.isEscalated)
+        });
+      }
+
+      scrollChatToBottom();
+    }
+  } catch (err) {
+    const indicator = document.getElementById('aiTypingIndicator');
+    if (indicator) indicator.remove();
+    box.appendChild(renderChatMessageBubble('bot', 'Bé Bot AI Săn Xe', 'Dạ kết nối máy chủ tạm gián đoạn, anh/chị vui lòng thử gửi lại hoặc nhắn Zalo trực tiếp: **0981.903.400** nhé!', 'Vừa xong'));
+    scrollChatToBottom();
+  } finally {
+    isSendingChatMsg = false;
+    if (sendBtn) sendBtn.disabled = false;
+    input.focus();
+  }
+}
+window.handleSendChatMessage = handleSendChatMessage;
+
+function renderChatProductCards(skuList) {
+  if (!Array.isArray(skuList) || skuList.length === 0) return null;
+  const list = (allProducts && allProducts.length) ? allProducts : (typeof FALLBACK_PRODUCTS !== 'undefined' ? FALLBACK_PRODUCTS : []);
+  const matchedProds = skuList.map(sku => {
+    const cleanSku = String(sku).replace(/^[#\[|\]]+/g, '').trim().toUpperCase();
+    return list.find(p => String(p.Sku || p.sku || '').toUpperCase() === cleanSku);
+  }).filter(Boolean);
+
+  if (matchedProds.length === 0) return null;
+
+  const wrap = document.createElement('div');
+  wrap.className = 'ai-chat-product-cards-wrap';
+
+  matchedProds.slice(0, 3).forEach(p => {
+    const card = document.createElement('div');
+    card.className = 'ai-chat-mini-card';
+    const pId = p.ProductId || p.id;
+    const pricing = (typeof getProductBoxCardPricing === 'function')
+      ? getProductBoxCardPricing(p)
+      : {
+          packagingType: p.PackagingType || 'both',
+          hasDiscount: Number(p.DiscountPercent || 0) > 0,
+          discountPercent: Number(p.DiscountPercent || 0),
+          finalPriceBox: Number(p.PriceBox || p.Price || 0),
+          finalPriceCard: Number(p.PriceCard || p.Price || 0),
+          isBoxAvailable: true,
+          isCardAvailable: true
+        };
+    const isPre = String(p.Status || p.status || '').toLowerCase() === 'pre_order';
+    const isSoldOut = String(p.Status || p.status || '').toLowerCase() === 'sold_out' || (!isPre && !pricing.isBoxAvailable && !pricing.isCardAvailable);
+    const badgeText = isSoldOut
+      ? 'Hết hàng'
+      : (pricing.hasDiscount ? `Sale -${pricing.discountPercent}%` : (isPre ? 'Pre-Order' : 'Có sẵn'));
+    const badgeClass = isSoldOut ? 'sold-out' : (isPre ? 'pre-order' : 'in-stock');
+    const img = p.ImageUrl || p.imageUrl || p.thumbnailimage || p.image || 'image/logo_minigt.png';
+    const pName = p.Name || p.name || 'MINI GT 1:64';
+    const pSku = p.Sku || p.sku || 'MGT';
+    const fmt = (typeof formatVND === 'function')
+      ? formatVND
+      : (n => new Intl.NumberFormat('vi-VN').format(Math.round(Number(n) || 0)) + 'đ');
+
+    const priceHtml = [];
+    if (pricing.packagingType !== 'card_only') {
+      priceHtml.push(`<span>Box: <strong>${fmt(pricing.finalPriceBox)}</strong></span>`);
+    }
+    if (pricing.packagingType !== 'box_only' && pricing.finalPriceCard > 0) {
+      priceHtml.push(`<span>Card: <strong>${fmt(pricing.finalPriceCard)}</strong></span>`);
+    }
+
+    card.innerHTML = `
+      <div class="ai-mini-card-thumb" onclick="openQuickView(${pId})" style="cursor:pointer;" title="Bấm xem ảnh xe">
+        <img src="${escapeHtml(img)}" alt="${escapeHtml(pName)}" loading="lazy" decoding="async" onerror="this.onerror=null;this.src='image/logo_minigt.png'">
+        <span class="ai-mini-card-badge ${badgeClass}">${badgeText}</span>
+      </div>
+      <div class="ai-mini-card-info">
+        <div class="ai-mini-card-sku">#${escapeHtml(pSku)} • 1:64</div>
+        <div class="ai-mini-card-name" title="${escapeHtml(pName)}" onclick="openQuickView(${pId})" style="cursor:pointer;">${escapeHtml(pName)}</div>
+        <div class="ai-mini-card-prices">
+          ${priceHtml.join('')}
+        </div>
+        <div class="ai-mini-card-actions">
+          <button type="button" class="btn-card-quickview" onclick="openQuickView(${pId})" title="Xem chi tiết & ảnh sắc nét">
+            <i class="fa-solid fa-eye"></i> Xem xe
+          </button>
+          ${!isSoldOut ? `
+            ${pricing.isBoxAvailable ? `
+              <button type="button" class="btn-card-addcart" onclick="aiChatQuickAddToCart(${pId}, 'box')" title="Thêm bản Box vào giỏ hàng">
+                <i class="fa-solid fa-cart-plus"></i> +Box
+              </button>
+            ` : ''}
+            ${pricing.isCardAvailable ? `
+              <button type="button" class="btn-card-addcart card-style" onclick="aiChatQuickAddToCart(${pId}, 'card')" title="Thêm bản Card vào giỏ hàng">
+                <i class="fa-solid fa-layer-group"></i> +Card
+              </button>
+            ` : ''}
+          ` : '<span class="ai-mini-soldout-label">Tạm hết</span>'}
+        </div>
+      </div>
+    `;
+    wrap.appendChild(card);
+  });
+
+  return wrap;
+}
+
+function renderChatSuggestions(suggestions) {
+  if (!Array.isArray(suggestions) || suggestions.length === 0) return null;
+  const container = document.createElement('div');
+  container.className = 'ai-chat-inline-suggestions';
+  suggestions.slice(0, 4).forEach(s => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'ai-inline-sugg-pill';
+    btn.textContent = s;
+    btn.onclick = () => sendQuickChatMessage(s);
+    container.appendChild(btn);
+  });
+  return container;
+}
+
+function updateTopQuickChips(suggestions) {
+  const chipsWrap = document.getElementById('aiChatQuickChips');
+  if (!chipsWrap || !Array.isArray(suggestions) || suggestions.length === 0) return;
+  chipsWrap.innerHTML = suggestions.slice(0, 6).map(s => `
+    <button type="button" class="quick-chip-btn" onclick="sendQuickChatMessage('${escapeHtml(s)}')">
+      ${escapeHtml(s)}
+    </button>
+  `).join('');
+}
+
+function aiChatQuickAddToCart(productId, packType = 'box') {
+  const success = addToCart(productId, 1, packType);
+  if (success !== false) {
+    const box = document.getElementById('aiChatMessages');
+    if (box) {
+      const notif = document.createElement('div');
+      notif.className = 'ai-chat-action-confirmed';
+      notif.innerHTML = `<i class="fa-solid fa-circle-check"></i> Đã thêm bản <strong>${packType === 'card' ? 'Vỉ (Card)' : 'Hộp (Box)'}</strong> vào giỏ hàng! Anh/chị có thể bấm <strong>Giỏ hàng</strong> trên thanh menu để thanh toán bất cứ lúc nào ạ. 💕`;
+      box.appendChild(notif);
+      scrollChatToBottom();
+    }
+  }
+}
+window.aiChatQuickAddToCart = aiChatQuickAddToCart;
+
+function resumeBotChat() {
+  sendQuickChatMessage('Quay lại chat với Bé Bot');
+}
+window.resumeBotChat = resumeBotChat;
+
+function sendQuickChatMessage(text) {
+  if (isSendingChatMsg) return;
+  const input = document.getElementById('aiChatInput');
+  if (input) {
+    input.value = text;
+    handleSendChatMessage();
+  }
+}
+window.sendQuickChatMessage = sendQuickChatMessage;
+
+async function escalateToHumanSupport() {
+  if (isSendingChatMsg) return;
+  const sessionId = getChatSessionId();
+  const box = document.getElementById('aiChatMessages');
+  try {
+    const res = await api.post('/api/chat/escalate', { sessionId });
+    if (res && res.data) {
+      if (res.data.message && box) {
+        const mid = Number(res.data.message.id || 0);
+        if (!mid || !renderedChatMsgIds.has(mid)) {
+          if (mid) renderedChatMsgIds.add(mid);
+          box.appendChild(renderChatMessageBubble('bot', 'Bé Bot AI Săn Xe', res.data.message.message, 'Vừa xong', res.data.message));
+          scrollChatToBottom();
+        }
+      }
+      updateChatStatusUI('waiting_admin', res.data.pendingAdminCount || 1);
+      if (api && typeof api.emitRealtimeSync === 'function') {
+        api.emitRealtimeSync('CHAT_ESCALATED', { sessionId, isEscalated: true });
+      }
+      showToast('Đã gửi yêu cầu kết nối tới Quản trị viên Showroom!', 'success');
+    }
+  } catch (err) {
+    showToast('Lỗi kết nối Quản trị viên, vui lòng gọi Hotline 0981.903.400!', 'error');
+  }
+}
+window.escalateToHumanSupport = escalateToHumanSupport;
+
 
 

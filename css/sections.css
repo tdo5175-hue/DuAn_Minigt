@@ -337,14 +337,26 @@
 .hero-slide-backdrop-overlay {
   position: absolute;
   inset: 0;
-  background: linear-gradient(90deg, rgba(255, 255, 255, 0.96) 0%, rgba(255, 255, 255, 0.88) 46%, rgba(255, 255, 255, 0.28) 100%);
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.65) 0%,
+    rgba(255, 255, 255, 0.45) 40%,
+    rgba(255, 255, 255, 0.15) 75%,
+    rgba(255, 255, 255, 0.04) 100%
+  );
   pointer-events: none;
   z-index: 1;
   border-radius: 0;
 }
 
 .dark-mode .hero-slide-backdrop-overlay {
-  background: linear-gradient(90deg, rgba(15, 23, 42, 0.96) 0%, rgba(15, 23, 42, 0.88) 46%, rgba(15, 23, 42, 0.35) 100%);
+  background: linear-gradient(
+    90deg,
+    rgba(15, 23, 42, 0.82) 0%,
+    rgba(15, 23, 42, 0.58) 40%,
+    rgba(15, 23, 42, 0.20) 75%,
+    rgba(15, 23, 42, 0.06) 100%
+  );
 }
 
 .hero-lbwk-grid {
@@ -373,6 +385,9 @@
   border-radius: 999px;
   margin-bottom: 14px;
   letter-spacing: 0.03em;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
 }
 
 .hero-f1-badge {
@@ -390,15 +405,18 @@
   margin-bottom: 12px;
   text-transform: uppercase;
   font-family: var(--font-heading);
+  text-shadow: 0 1px 2px rgba(255, 255, 255, 0.95), 0 2px 10px rgba(255, 255, 255, 0.7);
 }
 
 .hero-lbwk-desc,
 .hero-f1-desc {
   font-size: 14.5px;
-  color: #475569;
+  color: #0f172a;
   line-height: 1.65;
   margin-bottom: 16px;
   max-width: 540px;
+  font-weight: 500;
+  text-shadow: 0 1px 2px rgba(255, 255, 255, 0.9);
 }
 
 .hero-pack-preview-pills {
@@ -409,6 +427,9 @@
 }
 
 .hero-pack-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   background: #f8fafc;
   border: 1px solid #cbd5e1;
   color: #334155;
@@ -416,6 +437,11 @@
   font-weight: 700;
   padding: 6px 12px;
   border-radius: 8px;
+}
+
+.hero-pack-pill i {
+  font-size: 13px;
+  color: #3b82f6;
 }
 
 .hero-pack-pill strong {
@@ -426,6 +452,10 @@
   background: #eff6ff;
   border-color: #bfdbfe;
   color: #1e40af;
+}
+
+.hero-pack-pill.card-ver i {
+  color: #2563eb;
 }
 
 .hero-pack-pill.card-ver strong {
@@ -523,9 +553,9 @@
 /* --- SLIDE 4: AO RACING REXY • ROXY • SKELETON WITH image/roxy_rexy_minigt.webp BACKGROUND --- */
 .hero-slide-ao {
   position: relative;
-  min-height: 550px;
+  min-height: 520px;
   border-radius: 0;
-  padding: 2.75rem 5rem;
+  padding: 2.25rem 4rem;
   background-color: #ffffff;
   background-size: cover;
   background-position: center;
@@ -540,25 +570,41 @@
 .hero-ao-backdrop-overlay {
   position: absolute;
   inset: 0;
-  background: linear-gradient(95deg, rgba(255, 255, 255, 0.96) 0%, rgba(255, 255, 255, 0.91) 48%, rgba(255, 255, 255, 0.78) 100%);
-  backdrop-filter: blur(2px);
-  -webkit-backdrop-filter: blur(2px);
+  background: linear-gradient(
+    95deg,
+    rgba(255, 255, 255, 0.65) 0%,
+    rgba(255, 255, 255, 0.44) 38%,
+    rgba(255, 255, 255, 0.15) 70%,
+    rgba(255, 255, 255, 0.04) 100%
+  );
+  backdrop-filter: blur(0.5px);
+  -webkit-backdrop-filter: blur(0.5px);
   z-index: 1;
+  pointer-events: none;
 }
 
 .hero-ao-grid {
   position: relative;
   z-index: 2;
-  grid-template-columns: 0.76fr 1.44fr;
-  gap: 1.85rem;
+  display: grid;
+  grid-template-columns: 0.68fr 1.32fr;
+  gap: 1.5rem;
   align-items: center;
+  width: 100%;
+  max-width: 1400px;
+  margin: 0 auto;
+  min-width: 0;
+}
+
+.hero-ao-content {
+  min-width: 0;
 }
 
 .hero-ao-badge {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  background: #ecfdf5;
+  background: rgba(236, 253, 245, 0.95);
   color: #047857;
   border: 1px solid #a7f3d0;
   font-size: 11.5px;
@@ -566,6 +612,9 @@
   padding: 5px 14px;
   border-radius: 999px;
   margin-bottom: 14px;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
 }
 
 .hero-ao-title {
@@ -575,35 +624,46 @@
   line-height: 1.2;
   margin-bottom: 12px;
   text-transform: uppercase;
+  text-shadow: 0 1px 2px rgba(255, 255, 255, 0.95), 0 2px 10px rgba(255, 255, 255, 0.7);
 }
 
 .hero-ao-desc {
   font-size: 14px;
-  color: #334155;
+  color: #0f172a;
   line-height: 1.65;
   margin-bottom: 20px;
+  font-weight: 500;
+  text-shadow: 0 1px 2px rgba(255, 255, 255, 0.9);
 }
 
 /* Dual Showcase: roxy-rexy-ske-3 on the left, roxy-rexy & 3 cards stack on the right */
 .hero-ao-showcase-split {
   display: grid;
-  grid-template-columns: 245px 1fr;
-  gap: 14px;
+  grid-template-columns: 190px 1fr;
+  gap: 12px;
   align-items: stretch;
+  width: 100%;
+  min-width: 0;
 }
 
 .hero-ao-poster-art {
   position: relative;
-  border-radius: 14px;
+  border-radius: 12px;
   overflow: hidden;
   border: 2px solid #ffffff;
-  box-shadow: 0 10px 28px rgba(15, 23, 42, 0.14);
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12);
   cursor: pointer;
   background: #ffffff;
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 330px;
+  min-height: 290px;
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.3s ease;
+}
+
+.hero-ao-poster-art:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 14px 30px rgba(15, 23, 42, 0.18);
 }
 
 .hero-ao-poster-img {
@@ -621,15 +681,15 @@
 
 .hero-ao-poster-tag {
   position: absolute;
-  bottom: 10px;
-  left: 10px;
+  bottom: 8px;
+  left: 8px;
   background: rgba(15, 23, 42, 0.9);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
   color: #ffffff;
-  font-size: 10.5px;
+  font-size: 10px;
   font-weight: 800;
-  padding: 4px 10px;
+  padding: 3.5px 9px;
   border-radius: 999px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
   display: inline-flex;
@@ -645,19 +705,28 @@
 .hero-ao-stack {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
+  width: 100%;
   min-width: 0;
+  justify-content: space-between;
 }
 
 .hero-ao-main-art {
   position: relative;
-  border-radius: 14px;
+  border-radius: 12px;
   overflow: hidden;
   border: 2px solid #ffffff;
-  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.12);
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.1);
   cursor: pointer;
   background: #ffffff;
-  height: 165px;
+  height: 125px;
+  width: 100%;
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.3s ease;
+}
+
+.hero-ao-main-art:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 24px rgba(15, 23, 42, 0.15);
 }
 
 .hero-ao-main-art img {
@@ -675,13 +744,13 @@
 
 .hero-ao-art-tag {
   position: absolute;
-  bottom: 10px;
-  right: 12px;
+  bottom: 8px;
+  right: 10px;
   background: rgba(255, 255, 255, 0.94);
   color: #0f172a;
-  font-size: 11px;
+  font-size: 10.5px;
   font-weight: 800;
-  padding: 4px 10px;
+  padding: 3.5px 9px;
   border-radius: 999px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
   display: inline-flex;
@@ -821,12 +890,24 @@ body.dark-mode .hero-ao-desc strong {
 
 [data-theme="dark"] .hero-slide-backdrop-overlay,
 body.dark-mode .hero-slide-backdrop-overlay {
-  background: linear-gradient(90deg, rgba(7, 11, 20, 0.92) 0%, rgba(7, 11, 20, 0.75) 55%, rgba(7, 11, 20, 0.35) 100%) !important;
+  background: linear-gradient(
+    90deg,
+    rgba(7, 11, 20, 0.82) 0%,
+    rgba(7, 11, 20, 0.58) 42%,
+    rgba(7, 11, 20, 0.20) 75%,
+    rgba(7, 11, 20, 0.06) 100%
+  ) !important;
 }
 
 [data-theme="dark"] .hero-ao-backdrop-overlay,
 body.dark-mode .hero-ao-backdrop-overlay {
-  background: linear-gradient(90deg, rgba(7, 11, 20, 0.94) 0%, rgba(7, 11, 20, 0.78) 55%, rgba(7, 11, 20, 0.4) 100%) !important;
+  background: linear-gradient(
+    95deg,
+    rgba(7, 11, 20, 0.82) 0%,
+    rgba(7, 11, 20, 0.58) 38%,
+    rgba(7, 11, 20, 0.20) 70%,
+    rgba(7, 11, 20, 0.06) 100%
+  ) !important;
 }
 
 [data-theme="dark"] .hero-pack-pill,
@@ -2208,8 +2289,9 @@ body.dark-mode .hero-dot.active {
 /* Live Collector Activity Popup */
 .live-collector-popup {
   position: fixed;
-  bottom: 86px;
-  left: 24px;
+  bottom: 80px;
+  right: 24px;
+  left: auto;
   background: #ffffff;
   border: 1px solid #e2e8f0;
   border-left: 4px solid #e10600;
@@ -2637,16 +2719,18 @@ body.dark-mode .hero-dot.active {
 /* --- Slide 4: Trio Showcase Styling (Rexy, Roxy, Skeleton - Larger, clearer, better aligned) --- */
 .hero-trio-showcase {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 10px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
   align-items: stretch;
+  width: 100%;
+  min-width: 0;
 }
 
 .hero-trio-card {
   background: rgba(255, 255, 255, 0.98);
   border: 1.5px solid #e2e8f0;
-  border-radius: 12px;
-  padding: 10px 10px 12px;
+  border-radius: 11px;
+  padding: 6px 6px 8px;
   text-align: center;
   cursor: pointer;
   transition: all 0.28s cubic-bezier(0.16, 1, 0.3, 1);
@@ -2654,27 +2738,29 @@ body.dark-mode .hero-dot.active {
   flex-direction: column;
   justify-content: space-between;
   box-shadow: 0 4px 14px rgba(15, 23, 42, 0.06);
-  min-height: 168px;
+  min-height: 154px;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .hero-trio-card:hover {
-  transform: translateY(-5px);
+  transform: translateY(-3px);
   border-color: #059669;
-  box-shadow: 0 14px 28px rgba(15, 23, 42, 0.16);
+  box-shadow: 0 10px 22px rgba(15, 23, 42, 0.14);
   background: #ffffff;
 }
 
 .trio-img-wrap {
   width: 100%;
-  height: 84px;
+  height: 70px;
   background: #ffffff;
-  border-radius: 8px;
+  border-radius: 7px;
   border: 1px solid #f1f5f9;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 4px;
-  margin-bottom: 6px;
+  padding: 3px;
+  margin-bottom: 3px;
   overflow: hidden;
 }
 
@@ -2692,18 +2778,22 @@ body.dark-mode .hero-dot.active {
 .hero-trio-meta {
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 2px;
+  min-width: 0;
+  width: 100%;
 }
 
 .trio-badge {
-  font-size: 10px;
+  font-size: 9.5px;
   font-weight: 800;
-  padding: 2.5px 8px;
-  border-radius: 5px;
+  padding: 1.5px 6px;
+  border-radius: 4px;
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  margin: 0 auto 2px;
+  justify-content: center;
+  gap: 3px;
+  margin: 0 auto 1px;
+  white-space: nowrap;
 }
 
 .trio-rexy {
@@ -2722,31 +2812,35 @@ body.dark-mode .hero-dot.active {
 }
 
 .trio-title {
-  font-size: 12px;
+  font-size: 11px;
   color: #0f172a;
   font-weight: 800;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   line-height: 1.25;
+  display: block;
+  max-width: 100%;
 }
 
 .trio-edition {
-  font-size: 10px;
+  font-size: 9px;
   font-weight: 600;
   color: #64748b;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  display: block;
+  max-width: 100%;
 }
 
 .trio-price-row {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 4px;
+  gap: 3px;
   margin-top: 3px;
-  font-size: 10.5px;
+  font-size: 9.5px;
   font-weight: 800;
   flex-wrap: wrap;
 }
@@ -2756,6 +2850,7 @@ body.dark-mode .hero-dot.active {
   background: #f1f5f9;
   padding: 1.5px 5px;
   border-radius: 4px;
+  white-space: nowrap;
 }
 
 .trio-price.highlight {
@@ -2768,6 +2863,7 @@ body.dark-mode .hero-dot.active {
   background: #eff6ff;
   padding: 1.5px 5px;
   border-radius: 4px;
+  white-space: nowrap;
 }
 
 /* =====================================================================
@@ -3406,3 +3502,396 @@ body.dark-mode .hero-dot.active {
 }
 
 
+
+
+/* =========================================================================
+   DARK MODE OVERHAUL FOR ALL SHOWCASE SECTIONS (LBWK, GT3, TRIO, CHASE, HUB, WORKFLOW, NEWSLETTER)
+   ========================================================================= */
+
+/* 1. Hero Trio Cards & Hotspot Tooltips in Dark Mode */
+[data-theme="dark"] .hero-trio-card,
+body.dark-mode .hero-trio-card {
+  background: rgba(15, 23, 42, 0.92) !important;
+  border-color: rgba(255, 255, 255, 0.16) !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5) !important;
+}
+
+[data-theme="dark"] .hero-trio-card .trio-img-wrap,
+body.dark-mode .hero-trio-card .trio-img-wrap {
+  background: #0d1527 !important;
+  border-color: #334155 !important;
+}
+
+[data-theme="dark"] .hero-trio-card .trio-title,
+body.dark-mode .hero-trio-card .trio-title {
+  color: #f8fafc !important;
+}
+
+[data-theme="dark"] .hero-trio-card .trio-edition,
+body.dark-mode .hero-trio-card .trio-edition {
+  color: #94a3b8 !important;
+}
+
+[data-theme="dark"] .hero-trio-card .trio-price,
+body.dark-mode .hero-trio-card .trio-price {
+  color: #fbbf24 !important;
+}
+
+[data-theme="dark"] .hero-trio-card .trio-price-card,
+body.dark-mode .hero-trio-card .trio-price-card {
+  background: #1e293b !important;
+  color: #cbd5e1 !important;
+}
+
+[data-theme="dark"] .hotspot-tooltip,
+body.dark-mode .hotspot-tooltip {
+  background: rgba(15, 23, 42, 0.96) !important;
+  border-color: rgba(255, 255, 255, 0.18) !important;
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.65) !important;
+}
+
+[data-theme="dark"] .hotspot-tooltip .hs-title,
+body.dark-mode .hotspot-tooltip .hs-title {
+  color: #ffffff !important;
+}
+
+[data-theme="dark"] .hotspot-tooltip .hs-price,
+body.dark-mode .hotspot-tooltip .hs-price {
+  color: #fbbf24 !important;
+}
+
+/* 2. Liberty Walk (LB★WORKS) Showcase Section in Dark Mode */
+[data-theme="dark"] .lbwk-showcase-section,
+body.dark-mode .lbwk-showcase-section {
+  background: linear-gradient(180deg, #0b1120 0%, #0f172a 50%, #090d16 100%) !important;
+  color: #f8fafc !important;
+  border-top-color: #1e293b !important;
+  border-bottom-color: #1e293b !important;
+}
+
+[data-theme="dark"] .lbwk-badge-top,
+body.dark-mode .lbwk-badge-top {
+  background: rgba(245, 158, 11, 0.14) !important;
+  border-color: rgba(245, 158, 11, 0.35) !important;
+  color: #fbbf24 !important;
+}
+
+[data-theme="dark"] .lbwk-main-title,
+body.dark-mode .lbwk-main-title {
+  color: #ffffff !important;
+}
+
+[data-theme="dark"] .lbwk-sub-desc,
+body.dark-mode .lbwk-sub-desc {
+  color: #cbd5e1 !important;
+}
+
+[data-theme="dark"] .lbwk-hero-feature,
+body.dark-mode .lbwk-hero-feature,
+[data-theme="dark"] .lbwk-mini-spotlight,
+body.dark-mode .lbwk-mini-spotlight {
+  background: #111a2e !important;
+  border-color: #263554 !important;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45) !important;
+}
+
+[data-theme="dark"] .lbwk-hero-feature:hover,
+body.dark-mode .lbwk-hero-feature:hover,
+[data-theme="dark"] .lbwk-mini-spotlight:hover,
+body.dark-mode .lbwk-mini-spotlight:hover {
+  border-color: #f59e0b !important;
+}
+
+[data-theme="dark"] .lbwk-tag-dark,
+body.dark-mode .lbwk-tag-dark {
+  background: #1e293b !important;
+  color: #f8fafc !important;
+  border-color: #334155 !important;
+}
+
+[data-theme="dark"] .lbwk-feature-title,
+body.dark-mode .lbwk-feature-title,
+[data-theme="dark"] .lbwk-mini-title,
+body.dark-mode .lbwk-mini-title {
+  color: #ffffff !important;
+}
+
+[data-theme="dark"] .lbwk-feature-desc,
+body.dark-mode .lbwk-feature-desc,
+[data-theme="dark"] .lbwk-mini-sub,
+body.dark-mode .lbwk-mini-sub {
+  color: #94a3b8 !important;
+}
+
+/* Studio-lit image stage for LBWK cars */
+[data-theme="dark"] .lbwk-feature-img-box,
+body.dark-mode .lbwk-feature-img-box,
+[data-theme="dark"] .lbwk-mini-spotlight img,
+body.dark-mode .lbwk-mini-spotlight img {
+  background: #0d1527 !important;
+  border-color: #263554 !important;
+}
+
+[data-theme="dark"] .lbwk-spec-chip,
+body.dark-mode .lbwk-spec-chip {
+  background: #1e293b !important;
+  border-color: #334155 !important;
+  color: #e2e8f0 !important;
+}
+
+[data-theme="dark"] .lbwk-price-action-row,
+body.dark-mode .lbwk-price-action-row {
+  border-top-color: #1e293b !important;
+}
+
+[data-theme="dark"] .lbwk-price-caption,
+body.dark-mode .lbwk-price-caption {
+  color: #94a3b8 !important;
+}
+
+[data-theme="dark"] .lbwk-price-val,
+body.dark-mode .lbwk-price-val,
+[data-theme="dark"] .lbwk-mini-price,
+body.dark-mode .lbwk-mini-price {
+  color: #fbbf24 !important;
+}
+
+/* 3. GT3 Paddock & 3 AO Racing Dino Cards (Rexy, Roxy, Skeleton) in Dark Mode */
+[data-theme="dark"] .gt3-paddock-section,
+body.dark-mode .gt3-paddock-section {
+  background: #090d16 !important;
+  color: #f8fafc !important;
+  border-bottom-color: #1e293b !important;
+}
+
+[data-theme="dark"] .gt3-dino-card,
+body.dark-mode .gt3-dino-card {
+  background: #111a2e !important;
+  border-color: #263554 !important;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5) !important;
+}
+
+[data-theme="dark"] .gt3-dino-card.rexy-theme:hover,
+body.dark-mode .gt3-dino-card.rexy-theme:hover {
+  border-color: #22c55e !important;
+}
+
+[data-theme="dark"] .gt3-dino-card.roxy-theme:hover,
+body.dark-mode .gt3-dino-card.roxy-theme:hover {
+  border-color: #ec4899 !important;
+}
+
+[data-theme="dark"] .gt3-dino-card.skeleton-theme:hover,
+body.dark-mode .gt3-dino-card.skeleton-theme:hover {
+  border-color: #f59e0b !important;
+}
+
+/* Studio-lit stage so Skeleton #77 (matte black car) and Rexy/Roxy stand out vividly */
+[data-theme="dark"] .gt3-dino-img-wrap,
+body.dark-mode .gt3-dino-img-wrap {
+  background: #0d1527 !important;
+  border-color: #263554 !important;
+}
+
+[data-theme="dark"] .gt3-dino-card h3,
+body.dark-mode .gt3-dino-card h3 {
+  color: #ffffff !important;
+}
+
+[data-theme="dark"] .gt3-dino-card p,
+body.dark-mode .gt3-dino-card p {
+  color: #94a3b8 !important;
+}
+
+[data-theme="dark"] .gt3-card-bottom-row,
+body.dark-mode .gt3-card-bottom-row {
+  border-top-color: #1e293b !important;
+}
+
+[data-theme="dark"] .gt3-price-group strong,
+body.dark-mode .gt3-price-group strong {
+  color: #f8fafc !important;
+}
+
+[data-theme="dark"] .gt3-price-group strong.price-sale,
+body.dark-mode .gt3-price-group strong.price-sale {
+  color: #f43f5e !important;
+}
+
+[data-theme="dark"] .gt3-price-group span,
+body.dark-mode .gt3-price-group span {
+  color: #94a3b8 !important;
+}
+
+/* 4. Secret Chase 1/24 Feature Section in Dark Mode */
+[data-theme="dark"] .secret-chase-section,
+body.dark-mode .secret-chase-section {
+  background: #0b1120 !important;
+}
+
+[data-theme="dark"] .chase-feature-card,
+body.dark-mode .chase-feature-card {
+  background: linear-gradient(135deg, #111a2e 0%, #0f172a 60%, #172036 100%) !important;
+  border-color: rgba(245, 158, 11, 0.35) !important;
+  box-shadow: 0 18px 45px rgba(0, 0, 0, 0.55) !important;
+}
+
+[data-theme="dark"] .chase-badge-tag,
+body.dark-mode .chase-badge-tag {
+  background: rgba(245, 158, 11, 0.15) !important;
+  border-color: rgba(245, 158, 11, 0.4) !important;
+  color: #fbbf24 !important;
+}
+
+[data-theme="dark"] .chase-feature-title,
+body.dark-mode .chase-feature-title {
+  color: #ffffff !important;
+}
+
+[data-theme="dark"] .chase-feature-desc,
+body.dark-mode .chase-feature-desc {
+  color: #cbd5e1 !important;
+}
+
+[data-theme="dark"] .chase-feature-desc strong,
+body.dark-mode .chase-feature-desc strong {
+  color: #fbbf24 !important;
+}
+
+[data-theme="dark"] .chase-benefit-item,
+body.dark-mode .chase-benefit-item {
+  background: #162238 !important;
+  border-color: #263554 !important;
+}
+
+[data-theme="dark"] .chase-benefit-text h4,
+body.dark-mode .chase-benefit-text h4 {
+  color: #f8fafc !important;
+}
+
+[data-theme="dark"] .chase-benefit-text p,
+body.dark-mode .chase-benefit-text p {
+  color: #94a3b8 !important;
+}
+
+[data-theme="dark"] .btn-chase-gold,
+body.dark-mode .btn-chase-gold {
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%) !important;
+  color: #0f172a !important;
+  font-weight: 800 !important;
+  box-shadow: 0 8px 20px rgba(245, 158, 11, 0.35) !important;
+}
+
+[data-theme="dark"] .chase-car-frame,
+body.dark-mode .chase-car-frame {
+  background: #0f172a !important;
+  border-color: #334155 !important;
+}
+
+[data-theme="dark"] .chase-car-img-wrap,
+body.dark-mode .chase-car-img-wrap {
+  background: #0d1527 !important;
+  border-radius: 12px;
+  padding: 12px;
+}
+
+[data-theme="dark"] .chase-car-name,
+body.dark-mode .chase-car-name {
+  color: #ffffff !important;
+}
+
+/* 5. Collector Hub, Workflow & Guarantees, Newsletter in Dark Mode */
+[data-theme="dark"] .collector-hub-section,
+body.dark-mode .collector-hub-section {
+  background: #090d16 !important;
+}
+
+[data-theme="dark"] .collector-tool-card,
+body.dark-mode .collector-tool-card {
+  background: #111a2e !important;
+  border-color: #263554 !important;
+}
+
+[data-theme="dark"] .wave-item-row,
+body.dark-mode .wave-item-row {
+  background: #162238 !important;
+  border-color: #263554 !important;
+}
+
+[data-theme="dark"] .section-workflow-guarantee,
+body.dark-mode .section-workflow-guarantee {
+  background: #0b1120 !important;
+  border-top-color: #1e293b !important;
+  border-bottom-color: #1e293b !important;
+}
+
+[data-theme="dark"] .merged-col-card,
+body.dark-mode .merged-col-card {
+  background: #111a2e !important;
+  border-color: #263554 !important;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.45) !important;
+}
+
+[data-theme="dark"] .merged-card-header,
+body.dark-mode .merged-card-header {
+  border-bottom-color: #1e293b !important;
+}
+
+[data-theme="dark"] .merged-card-title,
+body.dark-mode .merged-card-title {
+  color: #ffffff !important;
+}
+
+[data-theme="dark"] .merged-card-sub,
+body.dark-mode .merged-card-sub {
+  color: #94a3b8 !important;
+}
+
+[data-theme="dark"] .compact-step-item,
+body.dark-mode .compact-step-item,
+[data-theme="dark"] .compact-guarantee-item,
+body.dark-mode .compact-guarantee-item {
+  background: #162238 !important;
+  border-color: #263554 !important;
+}
+
+[data-theme="dark"] .compact-step-item:hover,
+body.dark-mode .compact-step-item:hover,
+[data-theme="dark"] .compact-guarantee-item:hover,
+body.dark-mode .compact-guarantee-item:hover {
+  background: #1e293b !important;
+  border-color: #ef4444 !important;
+}
+
+[data-theme="dark"] .compact-step-content h4,
+body.dark-mode .compact-step-content h4,
+[data-theme="dark"] .compact-guarantee-content h4,
+body.dark-mode .compact-guarantee-content h4 {
+  color: #f8fafc !important;
+}
+
+[data-theme="dark"] .compact-step-content p,
+body.dark-mode .compact-step-content p,
+[data-theme="dark"] .compact-guarantee-content p,
+body.dark-mode .compact-guarantee-content p {
+  color: #cbd5e1 !important;
+}
+
+[data-theme="dark"] .newsletter-card,
+body.dark-mode .newsletter-card {
+  background: linear-gradient(135deg, #111a2e 0%, #0f172a 100%) !important;
+  border: 1px solid #263554 !important;
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.5) !important;
+}
+
+[data-theme="dark"] .newsletter-input,
+body.dark-mode .newsletter-input {
+  background: #0b1120 !important;
+  border-color: #334155 !important;
+  color: #f8fafc !important;
+}
+
+[data-theme="dark"] .newsletter-input::placeholder,
+body.dark-mode .newsletter-input::placeholder {
+  color: #94a3b8 !important;
+}

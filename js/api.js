@@ -80,7 +80,7 @@
 
   const isAdminContext = (endpoint = '') => {
     const path = (global.location && global.location.pathname) ? global.location.pathname.toLowerCase() : '';
-    if (endpoint && endpoint.startsWith('/api/admin')) return true;
+    if (endpoint && (endpoint.startsWith('/api/admin') || endpoint.includes('/chat/admin'))) return true;
     return path.includes('/admin');
   };
 
@@ -521,7 +521,7 @@
       PreOrderDeadline: '2026-10-30', Stock: 15,
       ImageUrl: 'image/lambo-sterrato-set.png',
       Description: 'Bộ 4 xe Lamborghini Huracán Sterrato địa hình kèm hộp trưng bày Collector Box cao cấp chính hãng TSM-Model.',
-      Status: 'pre_order', IsFeatured: 1, IsNew: 1, soldCount: 38
+      Status: 'pre_order', IsFeatured: 1, IsNew: 1, soldCount: 0
     },
     {
       id: 2, ProductId: 2, Sku: 'MGT01413', CarNumber: '1413',
@@ -533,7 +533,7 @@
       PreOrderDeadline: '2026-10-30', Stock: 25,
       ImageUrl: 'image/aston-amr24-stroll.png',
       Description: 'Mô hình xe đua F1 Aston Martin AMR24 #18 chặng Las Vegas GP 2024, sơn xanh Racing Green ánh kim tuyệt đẹp.',
-      Status: 'pre_order', IsFeatured: 1, IsNew: 1, soldCount: 34
+      Status: 'pre_order', IsFeatured: 1, IsNew: 1, soldCount: 0
     },
     {
       id: 3, ProductId: 3, Sku: 'MGT01396', CarNumber: '1396',
@@ -545,7 +545,7 @@
       PreOrderDeadline: '2026-10-30', Stock: 18,
       ImageUrl: 'image/aston-amr24-alonso.png',
       Description: 'Phiên bản xe đua F1 của huyền thoại Fernando Alonso #14 tại chặng đua đêm Las Vegas 2024.',
-      Status: 'pre_order', IsFeatured: 1, IsNew: 1, soldCount: 29
+      Status: 'pre_order', IsFeatured: 1, IsNew: 1, soldCount: 0
     },
     {
       id: 4, ProductId: 4, Sku: 'MGT00550', CarNumber: '550',
@@ -557,7 +557,7 @@
       PreOrderDeadline: null, Stock: 14,
       ImageUrl: 'image/f1_redbull.jpg',
       Description: 'Chiếc xe vô địch thế giới F1 Red Bull RB18 #1 của Max Verstappen với chi tiết khí động học tỉ lệ 1:64 sắc nét.',
-      Status: 'in_stock', IsFeatured: 1, IsNew: 1, soldCount: 52
+      Status: 'in_stock', IsFeatured: 1, IsNew: 1, soldCount: 0
     },
     {
       id: 5, ProductId: 5, Sku: 'MGT01055', CarNumber: '1055',
@@ -569,7 +569,7 @@
       PreOrderDeadline: null, Stock: 22,
       ImageUrl: 'image/mgt01055.webp',
       Description: 'Siêu phẩm độ thân rộng Liberty Walk Lamborghini Huracán GT màu tím xanh Gravity Racing cực kỳ nổi bật.',
-      Status: 'in_stock', IsFeatured: 1, IsNew: 1, soldCount: 46
+      Status: 'in_stock', IsFeatured: 1, IsNew: 1, soldCount: 0
     },
     {
       id: 6, ProductId: 6, Sku: 'MGT01143', CarNumber: '1143',
@@ -581,7 +581,7 @@
       PreOrderDeadline: '2026-10-30', Stock: 20,
       ImageUrl: 'image/ske.webp',
       Description: 'Phiên bản giới hạn Halloween Petit Le Mans với đồ họa bộ xương khủng long Rexy trên nền đen mờ.',
-      Status: 'pre_order', IsFeatured: 1, IsNew: 1, soldCount: 42
+      Status: 'pre_order', IsFeatured: 1, IsNew: 1, soldCount: 0
     },
     {
       id: 7, ProductId: 7, Sku: 'MGT01093', CarNumber: '1093',
@@ -593,7 +593,7 @@
       PreOrderDeadline: null, Stock: 12,
       ImageUrl: 'image/Roxy.webp',
       Description: 'Mẫu Porsche 911 GT3 R khủng long hồng Roxy #77 siêu hot của đội đua AO Racing tại giải IMSA.',
-      Status: 'in_stock', IsFeatured: 1, IsNew: 1, soldCount: 38
+      Status: 'in_stock', IsFeatured: 1, IsNew: 1, soldCount: 0
     },
     {
       id: 8, ProductId: 8, Sku: 'MGT00782', CarNumber: '782',
@@ -605,7 +605,7 @@
       PreOrderDeadline: null, Stock: 8,
       ImageUrl: 'image/rexy.jpg',
       Description: 'Huyền thoại khủng long xanh Rexy #80 AO Racing được săn đón nhất trong giới sưu tầm MINI GT 1:64.',
-      Status: 'in_stock', IsFeatured: 1, IsNew: 0, soldCount: 65
+      Status: 'in_stock', IsFeatured: 1, IsNew: 0, soldCount: 0
     },
     {
       id: 9, ProductId: 9, Sku: 'MGT01129', CarNumber: '1129',
@@ -617,7 +617,7 @@
       PreOrderDeadline: null, Stock: 19,
       ImageUrl: 'image/Minigt_Lambo_GT3.jpg',
       Description: 'Mẫu xe đua Lamborghini Huracán GT3 EVO2 tham chiến giải đua sức bền 24 Giờ Daytona 2024.',
-      Status: 'in_stock', IsFeatured: 0, IsNew: 1, soldCount: 22
+      Status: 'in_stock', IsFeatured: 0, IsNew: 1, soldCount: 0
     },
     {
       id: 10, ProductId: 10, Sku: 'MGT00465', CarNumber: '465',
@@ -629,7 +629,7 @@
       PreOrderDeadline: null, Stock: 16,
       ImageUrl: 'image/Minigt_s15chop_lbwk.jpg',
       Description: 'Biểu tượng JDM Nissan Silvia S15 độ bodykit Super Silhouette hầm hố từ nhà độ Liberty Walk Nhật Bản.',
-      Status: 'in_stock', IsFeatured: 1, IsNew: 0, soldCount: 58
+      Status: 'in_stock', IsFeatured: 1, IsNew: 0, soldCount: 0
     },
     {
       id: 11, ProductId: 11, Sku: 'MGT00618', CarNumber: '618',
@@ -641,7 +641,7 @@
       PreOrderDeadline: null, Stock: 9,
       ImageUrl: 'image/Minigt_S15_LBWK.jpg',
       Description: 'Phiên bản kỷ niệm màn trình diễn drift của chiếc S15 #23 tại lễ hội tốc độ Goodwood Vương Quốc Anh.',
-      Status: 'in_stock', IsFeatured: 1, IsNew: 0, soldCount: 44
+      Status: 'in_stock', IsFeatured: 1, IsNew: 0, soldCount: 0
     },
     {
       id: 12, ProductId: 12, Sku: 'PR640325', CarNumber: '325',
@@ -653,7 +653,7 @@
       PreOrderDeadline: null, Stock: 11,
       ImageUrl: 'image/Poprace_Supra_Secret.webp',
       Description: 'Phiên bản mạ Chrome bạc đặc biệt của Top Secret Supra GT300, mở được nắp ca-pô chiêm ngưỡng khối động cơ 2JZ.',
-      Status: 'in_stock', IsFeatured: 1, IsNew: 1, soldCount: 40
+      Status: 'in_stock', IsFeatured: 1, IsNew: 1, soldCount: 0
     },
     {
       id: 13, ProductId: 13, Sku: 'PR640118', CarNumber: '118',
@@ -665,7 +665,7 @@
       PreOrderDeadline: null, Stock: 14,
       ImageUrl: 'image/Poprace_Skyline.webp',
       Description: 'Huyền thoại Hakosuka độ Drift động cơ V8 của Pop Race với sơn đỏ Metallic và bánh lốp cao su thật.',
-      Status: 'in_stock', IsFeatured: 0, IsNew: 1, soldCount: 26
+      Status: 'in_stock', IsFeatured: 0, IsNew: 1, soldCount: 0
     },
     {
       id: 14, ProductId: 14, Sku: 'TH640012', CarNumber: 'KH12',
@@ -677,7 +677,7 @@
       PreOrderDeadline: null, Stock: 10,
       ImageUrl: 'image/Toyota_Yaris_TrendsHobby.webp',
       Description: 'Mô hình xe đua địa hình WRC Toyota Yaris kèm đế trưng bày và hộp chống bụi Acrylic sang trọng.',
-      Status: 'in_stock', IsFeatured: 0, IsNew: 1, soldCount: 31
+      Status: 'in_stock', IsFeatured: 0, IsNew: 1, soldCount: 0
     },
     {
       id: 15, ProductId: 15, Sku: 'MGTS0019', CarNumber: 'S019',
@@ -689,7 +689,7 @@
       PreOrderDeadline: null, Stock: 6,
       ImageUrl: 'image/roxy-rexy-2.webp',
       Description: 'Bộ đôi khủng long đường đua Rexy #80 (Xanh) và Roxy #77 (Hồng) đóng gói Combo 2 xe ưu đãi.',
-      Status: 'in_stock', IsFeatured: 1, IsNew: 1, soldCount: 35
+      Status: 'in_stock', IsFeatured: 1, IsNew: 1, soldCount: 0
     },
     {
       id: 16, ProductId: 16, Sku: 'MGT00642', CarNumber: '642',
@@ -701,7 +701,7 @@
       PreOrderDeadline: null, Stock: 7,
       ImageUrl: 'image/f1-redbull-live.webp',
       Description: 'Hộp sa bàn Pit Stop Red Bull Racing gồm 2 xe F1 RB18 và dàn nhân vật kỹ thuật viên thay lốp.',
-      Status: 'in_stock', IsFeatured: 1, IsNew: 0, soldCount: 27
+      Status: 'in_stock', IsFeatured: 1, IsNew: 0, soldCount: 0
     },
     {
       id: 17, ProductId: 17, Sku: 'MGT01055-LW', CarNumber: '1055C',
@@ -713,7 +713,7 @@
       PreOrderDeadline: null, Stock: 12,
       ImageUrl: 'image/minig_lambo_lbwk.webp',
       Description: 'Phiên bản đóng gói Vỉ nhựa cứng Blister Card cao cấp kèm ảnh bìa nghệ thuật Liberty Walk chống cấn góc 100%.',
-      Status: 'in_stock', IsFeatured: 0, IsNew: 1, soldCount: 33
+      Status: 'in_stock', IsFeatured: 0, IsNew: 1, soldCount: 0
     },
     {
       id: 18, ProductId: 18, Sku: 'MGT00688', CarNumber: '688',
@@ -725,9 +725,55 @@
       PreOrderDeadline: null, Stock: 10,
       ImageUrl: 'image/Minigt_Lambo_LBWK.jpg',
       Description: 'Siêu bò Lamborghini Aventador độ thân rộng LB★WORKS màu đen nhám kết hợp cánh gió GT cỡ lớn.',
-      Status: 'in_stock', IsFeatured: 1, IsNew: 0, soldCount: 30
+      Status: 'in_stock', IsFeatured: 1, IsNew: 0, soldCount: 0
     }
   ];
+
+  const resolveImageUrlForClient = (rawUrl) => {
+    let url = String(rawUrl || '').trim();
+    if (!url || url === 'null' || url === 'undefined') return '';
+
+    // Khớp tất cả dạng /api/images/:id, api/images/:id, /images/:id, images/:id hoặc url tuyệt đối chứa /images/:id
+    const apiMatch = url.match(/^(?:https?:\/\/[^\/]+(?::\d+)?)?\/?(?:api\/)?images\/(\d+)(?:\?.*)?$/i);
+    if (apiMatch) {
+      const imgId = apiMatch[1];
+      const host = (API_BASE && !localServerOffline)
+        ? API_BASE.replace(/\/+$/, '')
+        : CLOUD_BACKEND_URL.replace(/\/+$/, '');
+      return `${host}/api/images/${imgId}`;
+    }
+
+    if (url.startsWith('/') && API_BASE && !localServerOffline && (url.startsWith('/api/') || url.startsWith('/images/'))) {
+      return `${API_BASE.replace(/\/+$/, '')}${url}`;
+    }
+
+    return url;
+  };
+
+  const computeOfflineSoldStatsMap = () => {
+    const map = {};
+    try {
+      const orders = typeof getSharedOrders === 'function' ? getSharedOrders() : [];
+      for (const o of orders) {
+        const st = String(o.status || o.Status || '').toUpperCase();
+        const pst = String(o.paymentStatus || o.PaymentStatus || '').toUpperCase();
+        if (st === 'CANCELLED' || pst === 'REFUNDED') continue;
+        const items = Array.isArray(o.items) ? o.items : [];
+        for (const it of items) {
+          const pid = Number(it.productId || it.ProductId || 0);
+          if (!pid) continue;
+          const qty = Math.max(0, parseInt(it.quantity ?? it.Quantity ?? 0, 10) || 0);
+          if (!qty) continue;
+          if (!map[pid]) map[pid] = { soldCount: 0, soldBox: 0, soldCard: 0 };
+          map[pid].soldCount += qty;
+          const pack = String(it.packagingOption || it.PackagingOption || it.packType || 'box').toLowerCase();
+          if (pack.includes('card')) map[pid].soldCard += qty;
+          else map[pid].soldBox += qty;
+        }
+      }
+    } catch (_) {}
+    return map;
+  };
 
   // Hàm chuẩn hóa sản phẩm: tính toán trực tiếp giá sau giảm từ % giảm giá cho cả Box và Card
   const normalizeProductObject = (raw) => {
@@ -797,14 +843,42 @@
     const hasBox = packagingType !== 'card_only' && (isPreOrder || stockBox > 0);
     const hasCard = packagingType !== 'box_only' && (isPreOrder || stockCard > 0);
 
-    let image = raw.image || raw.imageUrl || raw.ImageUrl || 'image/hero-banner.jpg';
-    if (image && (image.startsWith('/api/images/') || image.startsWith('/images/'))) {
-      if (API_BASE && !localServerOffline) {
-        image = `${API_BASE.replace(/\/+$/, '')}${image}`;
-      } else {
-        image = `${CLOUD_BACKEND_URL}${image}`;
+    let rawImgInput = raw.image || raw.imageUrl || raw.ImageUrl || '';
+    let rawImagesArr = [];
+    if (Array.isArray(raw.images)) rawImagesArr = raw.images;
+    else if (Array.isArray(raw.Images)) rawImagesArr = raw.Images;
+    else if (typeof raw.images === 'string' && raw.images.trim()) {
+      try {
+        const parsed = JSON.parse(raw.images);
+        if (Array.isArray(parsed)) rawImagesArr = parsed;
+      } catch (_) {
+        rawImagesArr = [raw.images];
       }
     }
+
+    const cleanedImages = rawImagesArr
+      .map(u => resolveImageUrlForClient(u))
+      .filter(Boolean);
+
+    let image = resolveImageUrlForClient(rawImgInput) || cleanedImages[0] || 'image/hero-banner.jpg';
+    let images;
+    if (!cleanedImages.length) {
+      images = [image];
+    } else if (cleanedImages[0] === image) {
+      images = cleanedImages;
+    } else {
+      const rest = cleanedImages.filter((u, idx) => !(idx === 0 && u === image));
+      images = [image, ...rest];
+    }
+    image = images[0] || image;
+
+    const rawSoldVal = raw.soldCount ?? raw.SoldCount ?? raw.unitsSold ?? raw.UnitsSold;
+    const soldCount = rawSoldVal !== undefined && rawSoldVal !== null
+      ? Math.max(0, parseInt(rawSoldVal, 10) || 0)
+      : 0;
+    const soldBox = Math.max(0, parseInt(raw.soldBox ?? raw.SoldBox ?? 0, 10) || 0);
+    const soldCard = Math.max(0, parseInt(raw.soldCard ?? raw.SoldCard ?? 0, 10) || 0);
+
     let depositPercent = Math.max(0, Math.min(100, Number(raw.depositPercent ?? raw.DepositPercent ?? 0)));
     let depositAmount = Number(raw.depositAmount ?? raw.DepositAmount ?? 0);
     if (status === 'pre_order') {
@@ -830,7 +904,7 @@
     const isNew = Boolean(raw.isNew ?? raw.IsNew);
     const carNumber = raw.carNumber || raw.CarNumber || sku.replace(/\D/g, '').replace(/^0+/, '') || '64';
 
-    return {
+    const normalized = {
       id,
       ProductId: id,
       sku,
@@ -839,6 +913,8 @@
       CarNumber: carNumber,
       name,
       Name: name,
+      slug: raw.slug || raw.Slug || '',
+      Slug: raw.slug || raw.Slug || '',
       categoryId: catInfo.id,
       CategoryId: catInfo.id,
       CategorySlug: catInfo.slug,
@@ -893,14 +969,29 @@
       image,
       imageUrl: image,
       ImageUrl: image,
+      images,
+      Images: images,
       description,
       Description: description,
       isFeatured,
       IsFeatured: isFeatured ? 1 : 0,
       isNew,
       IsNew: isNew ? 1 : 0,
-      soldCount: Number(raw.soldCount || 25)
+      soldCount,
+      SoldCount: soldCount,
+      soldBox,
+      SoldBox: soldBox,
+      soldCard,
+      SoldCard: soldCard
     };
+
+    if (Array.isArray(raw.reviews)) normalized.reviews = raw.reviews;
+    if (raw.ratingAvg !== undefined) normalized.ratingAvg = Number(raw.ratingAvg || 0);
+    if (raw.reviewCount !== undefined) normalized.reviewCount = Number(raw.reviewCount || 0);
+    if (Array.isArray(raw.related)) {
+      normalized.related = raw.related.map(r => (r && r.id && r.images) ? r : normalizeProductObject(r));
+    }
+    return normalized;
   };
 
   const getSharedProducts = () => {
@@ -1354,12 +1445,33 @@
     return idx >= 0 ? list[idx] : normalized;
   };
 
+  const seenRealtimeEventIds = new Set();
+  const maxSeenEventIds = 250;
+
+  const dispatchUniqueRealtimeEvent = (eventData) => {
+    if (!eventData || typeof eventData !== 'object') return;
+    const evtId = eventData.id || `${eventData.type}_${eventData.timestamp || Date.now()}_${JSON.stringify(eventData.payload || '').slice(0, 40)}`;
+    if (seenRealtimeEventIds.has(evtId)) {
+      return; // Ngăn chặn triệt để trùng lặp sự kiện giữa BroadcastChannel và Storage Event
+    }
+    seenRealtimeEventIds.add(evtId);
+    if (seenRealtimeEventIds.size > maxSeenEventIds) {
+      const first = seenRealtimeEventIds.values().next().value;
+      if (first) seenRealtimeEventIds.delete(first);
+    }
+    if (global.dispatchEvent) {
+      global.dispatchEvent(new CustomEvent('minigt:realtime', { detail: eventData }));
+    }
+  };
+
   const emitRealtimeSync = (type, payload) => {
     const eventData = {
+      id: `evt_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
       type,
       payload,
       timestamp: Date.now()
     };
+    seenRealtimeEventIds.add(eventData.id);
     try {
       if (syncChannel) {
         syncChannel.postMessage(eventData);
@@ -1373,11 +1485,11 @@
     }
   };
 
-  // Lắng nghe sự kiện từ Tab bên kia (Admin <-> Khách hàng)
+  // Lắng nghe sự kiện từ Tab bên kia (Admin <-> Khách hàng) kèm cơ chế Dedup chống lặp
   if (syncChannel) {
     syncChannel.onmessage = (ev) => {
-      if (ev && ev.data && global.dispatchEvent) {
-        global.dispatchEvent(new CustomEvent('minigt:realtime', { detail: ev.data }));
+      if (ev && ev.data) {
+        dispatchUniqueRealtimeEvent(ev.data);
       }
     };
   }
@@ -1386,7 +1498,7 @@
       if (ev.key === REALTIME_EVENT_KEY && ev.newValue) {
         try {
           const data = JSON.parse(ev.newValue);
-          global.dispatchEvent(new CustomEvent('minigt:realtime', { detail: data }));
+          dispatchUniqueRealtimeEvent(data);
         } catch (e) {}
       }
     });
@@ -1890,13 +2002,55 @@
     }
 
     // 1. DANH SÁCH SẢN PHẨM KHÁCH HÀNG & ADMIN (GET /api/products, GET /api/admin/products, POST/PUT/DELETE)
+    const applyRealOfflineSoldStats = (items) => {
+      const soldMap = computeOfflineSoldStatsMap();
+      return items.map(p => {
+        const s = soldMap[Number(p.id || p.ProductId)] || { soldCount: 0, soldBox: 0, soldCard: 0 };
+        return Object.assign({}, p, {
+          soldCount: s.soldCount,
+          SoldCount: s.soldCount,
+          soldBox: s.soldBox,
+          SoldBox: s.soldBox,
+          soldCard: s.soldCard,
+          SoldCard: s.soldCard
+        });
+      });
+    };
+
     if (method === 'GET' && path === '/api/products') {
-      const list = getSharedProducts();
+      let list = applyRealOfflineSoldStats(getSharedProducts());
+      if (params.sort === 'best_selling') {
+        list.sort((a, b) => (b.soldCount || 0) - (a.soldCount || 0));
+      }
       return { success: true, data: list };
     }
 
+    const publicProdDetailMatch = path.match(/^\/api\/products\/([^\/]+)$/);
+    if (method === 'GET' && publicProdDetailMatch && publicProdDetailMatch[1] !== 'categories') {
+      const key = decodeURIComponent(publicProdDetailMatch[1]).trim();
+      const list = applyRealOfflineSoldStats(getSharedProducts());
+      const found = list.find(p =>
+        String(p.id) === key ||
+        (p.slug && p.slug.toLowerCase() === key.toLowerCase()) ||
+        (p.sku && p.sku.toLowerCase() === key.toLowerCase())
+      );
+      if (found) {
+        const related = list.filter(p => p.categoryId === found.categoryId && p.id !== found.id).slice(0, 4);
+        return {
+          success: true,
+          data: Object.assign({}, found, {
+            reviews: Array.isArray(found.reviews) ? found.reviews : [],
+            ratingAvg: found.ratingAvg || 0,
+            reviewCount: Array.isArray(found.reviews) ? found.reviews.length : 0,
+            related
+          })
+        };
+      }
+      return { success: false, message: 'Không tìm thấy sản phẩm yêu cầu' };
+    }
+
     if (method === 'GET' && path === '/api/admin/products') {
-      let list = getSharedProducts();
+      let list = applyRealOfflineSoldStats(getSharedProducts());
       const q = String(params.search || '').trim().toLowerCase();
       const cat = String(params.category || 'all').toLowerCase();
       const st = String(params.status || 'all').toLowerCase();
@@ -1950,7 +2104,7 @@
     const adminProdDetailMatch = path.match(/^\/api\/admin\/products\/(\d+)$/);
     if (method === 'GET' && adminProdDetailMatch) {
       const pid = Number(adminProdDetailMatch[1]);
-      const found = getSharedProducts().find(p => Number(p.id) === pid);
+      const found = applyRealOfflineSoldStats(getSharedProducts()).find(p => Number(p.id) === pid);
       if (found) return { success: true, data: found };
       return { success: false, message: 'Không tìm thấy sản phẩm' };
     }
@@ -1971,10 +2125,15 @@
     if (method === 'POST' && path === '/api/admin/products') {
       const all = getSharedProducts();
       const nextId = all.reduce((max, p) => Math.max(max, Number(p.id) || 0), 0) + 1;
+      const incomingImgs = Array.isArray(body.images) ? body.images.filter(Boolean) : [];
+      const primaryImg = incomingImgs[0] || body.imageUrl || body.image || 'image/hero-banner.jpg';
       const created = normalizeProductObject(Object.assign({}, body, {
         id: nextId,
         ProductId: nextId,
-        image: body.imageUrl || body.image || 'image/hero-banner.jpg'
+        image: primaryImg,
+        imageUrl: primaryImg,
+        images: incomingImgs.length ? incomingImgs : [primaryImg],
+        soldCount: 0
       }));
       all.unshift(created);
       saveSharedProducts(all);
@@ -1986,11 +2145,21 @@
       const pid = Number(adminProdDetailMatch[1]);
       const all = getSharedProducts();
       const idx = all.findIndex(p => Number(p.id || p.ProductId) === pid);
+      const hasIncomingImgs = Array.isArray(body.images);
+      const incomingImgs = hasIncomingImgs ? body.images.filter(Boolean) : null;
       if (idx >= 0) {
+        const primaryImg = (incomingImgs && incomingImgs[0]) || body.imageUrl || body.image || all[idx].image || all[idx].imageUrl;
+        const finalImgs = incomingImgs && incomingImgs.length
+          ? incomingImgs
+          : (Array.isArray(all[idx].images) && all[idx].images.length
+              ? [primaryImg, ...all[idx].images.slice(1)]
+              : [primaryImg]);
         const updated = normalizeProductObject(Object.assign({}, all[idx], body, {
           id: pid,
           ProductId: pid,
-          image: body.imageUrl || body.image || all[idx].image || all[idx].imageUrl
+          image: primaryImg,
+          imageUrl: primaryImg,
+          images: finalImgs
         }));
         all[idx] = updated;
         saveSharedProducts(all);
@@ -1998,10 +2167,13 @@
         return { success: true, message: 'Đã cập nhật mô hình thành công!', data: updated };
       }
       // Nếu sản phẩm chưa có trong danh sách local, upsert thêm mới luôn
+      const primaryImg = (incomingImgs && incomingImgs[0]) || body.imageUrl || body.image || 'image/hero-banner.jpg';
       const upserted = normalizeProductObject(Object.assign({}, body, {
         id: pid,
         ProductId: pid,
-        image: body.imageUrl || body.image || 'image/hero-banner.jpg'
+        image: primaryImg,
+        imageUrl: primaryImg,
+        images: incomingImgs && incomingImgs.length ? incomingImgs : [primaryImg]
       }));
       all.unshift(upserted);
       saveSharedProducts(all);
@@ -2397,18 +2569,22 @@
             cancelledOrders: allOrders.filter(o => o.status === 'CANCELLED').length
           },
           recentOrders: allOrders.slice(0, 10),
-          bestSellers: allProds.slice().sort((a, b) => (b.soldCount || 0) - (a.soldCount || 0)).slice(0, 5).map(p => ({
-            id: p.id,
-            name: p.name,
-            sku: p.sku,
-            price: p.price,
-            unitsSold: p.soldCount || 25,
-            soldCount: p.soldCount || 25,
-            revenue: (p.soldCount || 25) * p.price,
-            stock: p.stock,
-            image: p.image,
-            imageUrl: p.image
-          }))
+          bestSellers: applyRealOfflineSoldStats(allProds)
+            .filter(p => (p.soldCount || 0) > 0)
+            .sort((a, b) => (b.soldCount || 0) - (a.soldCount || 0))
+            .slice(0, 5)
+            .map(p => ({
+              id: p.id,
+              name: p.name,
+              sku: p.sku,
+              price: p.price,
+              unitsSold: p.soldCount || 0,
+              soldCount: p.soldCount || 0,
+              revenue: (p.soldCount || 0) * p.price,
+              stock: p.stock,
+              image: p.image,
+              imageUrl: p.image
+            }))
         }
       };
     }
@@ -3009,10 +3185,18 @@
       }
     }
 
-    // Nếu lấy danh sách sản phẩm từ backend, chuẩn hóa luôn Giá Box / Giá Card & % Giảm giá
+    // Nếu lấy danh sách hoặc chi tiết sản phẩm từ backend, chuẩn hóa Giá Box / Giá Card, % Giảm giá, Ảnh Gallery & Đã bán thật
     if (method === 'GET' && endpoint.includes('/products') && data && Array.isArray(data.data)) {
       data.data = data.data.map(normalizeProductObject);
-    } else if (endpoint.includes('/products/') && data && data.data && typeof data.data === 'object') {
+    } else if (
+      !endpoint.includes('/reviews') &&
+      (endpoint.includes('/products/') || endpoint === '/api/admin/products' || endpoint === '/admin/products') &&
+      data &&
+      data.data &&
+      typeof data.data === 'object' &&
+      !Array.isArray(data.data) &&
+      (data.data.sku !== undefined || data.data.Sku !== undefined || data.data.name !== undefined || data.data.Name !== undefined)
+    ) {
       data.data = normalizeProductObject(data.data);
     }
 
@@ -3041,6 +3225,8 @@
 
   const api = {
     BASE_URL: API_BASE,
+    CLOUD_BACKEND_URL,
+    resolveImageUrl: resolveImageUrlForClient,
     ApiError,
     isLocalEnvironment,   // <-- Thêm dòng này để hết lỗi TypeError ở admin.js:134
     isDirectNodeServer,   // <-- Thêm dòng này

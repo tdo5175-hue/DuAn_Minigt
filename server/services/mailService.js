@@ -12,8 +12,8 @@ const mailTransporter = nodemailer.createTransport({
   port: 465,
   secure: true,
   auth: {
-    user: (process.env.EMAIL_USER || 'tdo5175@gmail.com').trim(),
-    pass: (process.env.EMAIL_PASS || 'lyengcphlvqxyoff').replace(/\s+/g, '')
+    user: (process.env.EMAIL_USER || '').trim(),
+    pass: (process.env.EMAIL_PASS || '').replace(/\s+/g, '')
   },
   tls: {
     rejectUnauthorized: false

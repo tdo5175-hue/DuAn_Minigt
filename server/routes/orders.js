@@ -8,6 +8,7 @@ const db = require('../config/db');
 const { optionalAuth, authenticate } = require('../middleware/auth');
 const orderService = require('../services/orderService');
 const mailService = require('../services/mailService');
+const aiChatService = require('../services/aiChatService');
 const { ok, badRequest, notFound } = require('../utils/http');
 const v = require('../utils/validate');
 
@@ -15,15 +16,16 @@ const v = require('../utils/validate');
 // KHỞI TẠO CỔNG THANH TOÁN PAYOS VIETQR TỰ ĐỘNG
 // =====================================================================
 const payos = new PayOS(
-  process.env.PAYOS_CLIENT_ID || '96b6746e-5462-4f53-85d2-62216cc92e4f',
-  process.env.PAYOS_API_KEY || '37a2ffc6-853b-4139-92eb-25718efcae49',
-  process.env.PAYOS_CHECKSUM_KEY || '56fa83c9aeac3c3d17cbd9859431df7758317b3a36e56f51ad80ec6af1e96bb0'
+  process.env.PAYOS_CLIENT_ID || '',
+  process.env.PAYOS_API_KEY || '',
+  process.env.PAYOS_CHECKSUM_KEY || ''
 );
 
 // POST /api/orders — Tạo đơn hàng / đơn cọc
 router.post('/', optionalAuth, async (req, res, next) => {
   try {
     const order = await orderService.createOrder(req.body, req.user);
+    aiChatService.invalidateStoreCache();
     return res.status(201).json({
       success: true,
       message: `Tạo đơn hàng ${order.orderCode} thành công`,
@@ -228,6 +230,7 @@ router.put('/:code/cancel', optionalAuth, async (req, res, next) => {
       actorId: req.user ? req.user.userId : null,
       isAdmin: false
     });
+    aiChatService.invalidateStoreCache();
     return ok(res, updated, { message: 'Đã hủy đơn hàng và hoàn tồn kho' });
   } catch (err) { next(err); }
 });

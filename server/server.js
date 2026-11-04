@@ -15,6 +15,7 @@ const newsletterRoutes = require('./routes/newsletter');
 const settingsRoutes = require('./routes/settings');
 const adminRoutes = require('./routes/admin');
 const couponRoutes = require('./routes/coupons');
+const chatRoutes = require('./routes/chat');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -23,9 +24,13 @@ const PORT = process.env.PORT || 5000;
 // 1. CẤU HÌNH CORS TỰ ĐỘNG CHO VERCEL & MỌI THIẾT BỊ (KHÔNG BỊ CHẶN)
 // =================================================================
 app.use((req, res, next) => {
-  const origin = req.headers.origin || '*';
-  res.setHeader('Access-Control-Allow-Origin', origin);
-  res.setHeader('Access-Control-Allow-Credentials', 'true');
+  const origin = req.headers.origin;
+  if (origin) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+  } else {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+  }
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
 
@@ -67,9 +72,11 @@ app.use(['/api/newsletter', '/newsletter'], newsletterRoutes);
 app.use(['/api/settings', '/settings'], settingsRoutes);
 app.use(['/api/admin', '/admin'], adminRoutes);
 app.use(['/api/coupons', '/coupons'], couponRoutes);
+app.use(['/api/chat', '/chat'], chatRoutes);
 
 app.get(['/api/categories', '/categories'], async (req, res, next) => {
   try {
+    res.setHeader('Cache-Control', 'public, max-age=60, stale-while-revalidate=120');
     const productService = require('./services/productService');
     const categories = await productService.listCategories();
     return res.status(200).json({ success: true, data: categories });
@@ -157,6 +164,7 @@ async function startServer() {
           ALTER TABLE orders DROP CONSTRAINT IF EXISTS ck_orders_payment;
           ALTER TABLE orders ADD CONSTRAINT ck_orders_payment 
             CHECK (paymentmethod = ANY (ARRAY['COD'::text, 'BANK_TRANSFER'::text, 'DEPOSIT'::text, 'VIETQR_PAYOS'::text, 'PAYOS'::text]));
+          ALTER TABLE productimages ALTER COLUMN imageurl TYPE TEXT;
         EXCEPTION WHEN OTHERS THEN
           NULL;
         END $$;

@@ -12,6 +12,7 @@ const v = require('../utils/validators');
 // 1. LẤY DANH SÁCH TẤT CẢ SẢN PHẨM
 router.get('/', async (req, res, next) => {
   try {
+    res.setHeader('Cache-Control', 'public, max-age=30, stale-while-revalidate=60');
     const { category, brand, status, search, tag, sort, minPrice, maxPrice, inStockOnly } = req.query;
 
     let queryStr = productService.BASE_SELECT + ' WHERE p.IsActive = TRUE';
@@ -112,6 +113,7 @@ router.get('/', async (req, res, next) => {
 // 2. LẤY DANH MỤC SẢN PHẨM
 router.get('/categories', async (req, res, next) => {
   try {
+    res.setHeader('Cache-Control', 'public, max-age=60, stale-while-revalidate=120');
     const categories = await productService.listCategories();
     return ok(res, categories, 'Lấy danh mục thành công');
   } catch (error) {
@@ -128,26 +130,6 @@ router.get('/:idOrSlug', async (req, res, next) => {
     if (!product) {
       throw notFound('Không tìm thấy sản phẩm yêu cầu');
     }
-
-    const reviewsRes = await db.query(
-      `SELECT r.ReviewId, r.Rating, r.Comment, r.CreatedAt, u.FullName, u.AvatarUrl
-       FROM ProductReviews r
-       JOIN Users u ON u.UserId = r.UserId
-       WHERE r.ProductId = @id
-       ORDER BY r.CreatedAt DESC`,
-      { id: product.id }
-    );
-
-    product.reviews = reviewsRes.recordset.map(r => ({
-      id: r.ReviewId,
-      rating: r.Rating,
-      comment: r.Comment,
-      createdAt: r.CreatedAt,
-      user: {
-        fullName: r.FullName,
-        avatarUrl: r.AvatarUrl
-      }
-    }));
 
     return ok(res, product, 'Chi tiết sản phẩm');
   } catch (error) {
