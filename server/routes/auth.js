@@ -363,6 +363,7 @@ router.post('/login', async (req, res, next) => {
 
 // GET /api/auth/google/config
 router.get('/google/config', (req, res) => {
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
   return res.status(200).json({
     success: true,
     clientId: process.env.GOOGLE_CLIENT_ID || '670662206600-el2nstl8uokismch5grjt9f2g6m9rfdr.apps.googleusercontent.com'

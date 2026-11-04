@@ -28,6 +28,7 @@ app.use((req, res, next) => {
   if (origin) {
     res.setHeader('Access-Control-Allow-Origin', origin);
     res.setHeader('Access-Control-Allow-Credentials', 'true');
+    res.setHeader('Vary', 'Origin');
   } else {
     res.setHeader('Access-Control-Allow-Origin', '*');
   }
@@ -76,7 +77,7 @@ app.use(['/api/chat', '/chat'], chatRoutes);
 
 app.get(['/api/categories', '/categories'], async (req, res, next) => {
   try {
-    res.setHeader('Cache-Control', 'public, max-age=60, stale-while-revalidate=120');
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
     const productService = require('./services/productService');
     const categories = await productService.listCategories();
     return res.status(200).json({ success: true, data: categories });

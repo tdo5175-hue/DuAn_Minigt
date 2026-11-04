@@ -61,6 +61,9 @@
   const CLOUD_BACKEND_URL = 'https://projectnhom2.vercel.app';
   const API_BASE = getApiBase();
   let localServerOffline = false;
+  try {
+    localServerOffline = typeof sessionStorage !== 'undefined' && sessionStorage.getItem('minigt_local_offline') === 'true';
+  } catch (_) {}
   const SHARED_ORDERS_KEY = 'minigt_shared_orders_v3';
   const SHARED_PRODUCTS_KEY = 'minigt_products_catalog_v5_canonical';
   const SHARED_CATEGORIES_KEY = 'minigt_shared_categories_v2';
@@ -1786,7 +1789,7 @@
     if (method === 'GET' && path === '/api/auth/google/config') {
       return {
         success: true,
-        clientId: '1088463836173-fake-placeholder.apps.googleusercontent.com'
+        clientId: '670662206600-el2nstl8uokismch5grjt9f2g6m9rfdr.apps.googleusercontent.com'
       };
     }
 
@@ -3110,17 +3113,22 @@
   async function request(endpoint, options = {}) {
     const method = (options.method || 'GET').toUpperCase();
     const rawBody = options.body;
-    const isAuthEndpoint = endpoint.includes('/api/auth/');
+    const isPasswordAuthEndpoint = (endpoint === '/api/auth/login' || endpoint === '/api/auth/register');
 
     // Chỉ dùng offline fallback tức thời nếu người dùng chủ động ép offline (minigt_offline_force)
-    // Và KHÔNG áp dụng cho xác thực auth để tránh lệch mật khẩu với Supabase
-    if (!isAuthEndpoint && (isLocalEnvironment() && localStorage.getItem('minigt_offline_force') === 'true')) {
+    // Và KHÔNG áp dụng cho xác thực login/register để tránh lệch mật khẩu với Supabase
+    if (!isPasswordAuthEndpoint && (isLocalEnvironment() && localStorage.getItem('minigt_offline_force') === 'true')) {
       const fallbackResult = handleOfflineFallback(endpoint, { method, body: rawBody });
       if (fallbackResult) return fallbackResult;
     }
 
     const isHttp = endpoint.startsWith('http');
-    let primaryUrl = isHttp ? endpoint : (API_BASE + endpoint);
+    // Khi đang chạy Live Server local nhưng server 5000 chưa bật: gọi thẳng lên Cloud Vercel để tránh spam lỗi ERR_CONNECTION_REFUSED
+    const shouldUseCloudFirst = isLocalEnvironment() && localServerOffline && !isHttp && API_BASE && API_BASE !== CLOUD_BACKEND_URL;
+    let primaryUrl = isHttp
+      ? endpoint
+      : (shouldUseCloudFirst ? (CLOUD_BACKEND_URL + endpoint) : (API_BASE + endpoint));
+
     const headers = Object.assign({
       'Accept': 'application/json'
     }, options.headers || {});
@@ -3143,19 +3151,20 @@
     let response;
     try {
       response = await fetch(primaryUrl, config);
-      if (isLocalEnvironment()) {
+      if (response && response.ok && !shouldUseCloudFirst && isLocalEnvironment()) {
         localServerOffline = false;
         try { sessionStorage.removeItem('minigt_local_offline'); } catch (_) {}
       }
     } catch (netErr) {
       // Nếu gọi port 5000 thất bại (server local chưa chạy), tự động chuyển tiếp lên Cloud Backend Vercel
-      if (isLocalEnvironment() && !isHttp && API_BASE && API_BASE !== CLOUD_BACKEND_URL) {
+      if (isLocalEnvironment() && !isHttp && API_BASE && API_BASE !== CLOUD_BACKEND_URL && !shouldUseCloudFirst) {
+        localServerOffline = true;
+        try { sessionStorage.setItem('minigt_local_offline', 'true'); } catch (_) {}
         try {
           const cloudUrl = CLOUD_BACKEND_URL + endpoint;
           response = await fetch(cloudUrl, config);
           if (response && (response.ok || response.status < 500)) {
             // Kết nối Cloud Backend thành công
-            localServerOffline = false;
           }
         } catch (cloudErr) {
           // Cả port 5000 và Cloud Backend đều không kết nối được
@@ -3164,7 +3173,7 @@
       }
 
       if (!response) {
-        if (isLocalEnvironment() && !isAuthEndpoint) {
+        if (isLocalEnvironment() && !isPasswordAuthEndpoint) {
           localServerOffline = true;
           try { sessionStorage.setItem('minigt_local_offline', 'true'); } catch (_) {}
           const fallbackResult = handleOfflineFallback(endpoint, {
@@ -3318,6 +3327,26 @@
       return request(url, { method: 'DELETE' });
     }
   };
+
+  // Khi ở môi trường local nhưng server 5000 đang offline:
+  // Thăm dò nhẹ định kỳ để tự động kết nối lại cổng 5000 ngay khi người dùng khởi động server
+  if (isLocalEnvironment() && typeof window !== 'undefined') {
+    const probeLocalServerHealth = async () => {
+      if (!localServerOffline) return;
+      try {
+        const pingHost = (window.location && window.location.hostname && window.location.hostname !== '0.0.0.0' && window.location.protocol !== 'file:')
+          ? window.location.hostname
+          : '127.0.0.1';
+        const pingRes = await fetch(`http://${pingHost}:5000/api/health`, { cache: 'no-store' });
+        if (pingRes.ok) {
+          localServerOffline = false;
+          try { sessionStorage.removeItem('minigt_local_offline'); } catch (_) {}
+          emitRealtimeSync('SERVER_RECONNECTED', { time: Date.now() });
+        }
+      } catch (_) {}
+    };
+    setInterval(probeLocalServerHealth, 15000);
+  }
 
   global.api = api;
 })(typeof window !== 'undefined' ? window : this);
