@@ -90,12 +90,85 @@ function ensureChatSchema() {
           ) sub
           WHERE c.id = sub.cid;
         `);
+        // Tối ưu hóa chỉ mục (Indexes) B-Tree để truy vấn siêu tốc O(log N) dù có hàng triệu tin nhắn
+        await db.query(`
+          CREATE INDEX IF NOT EXISTS idx_chat_conv_session ON chat_conversations(session_id);
+          CREATE INDEX IF NOT EXISTS idx_chat_conv_status ON chat_conversations(status, updated_at);
+          CREATE INDEX IF NOT EXISTS idx_chat_msg_conv_id ON chat_messages(conversation_id, id);
+        `);
+        // Kích hoạt dọn dẹp ngầm tự động để không bao giờ bị quá tải hoặc phình to bộ nhớ CSDL
+        autoPruneOldAnonymousChats();
       } catch (err) {
         console.warn('[CHAT SCHEMA INIT]:', err.message);
       }
     })();
   }
   return schemaReadyPromise;
+}
+
+// =====================================================================
+// CƠ CHẾ DỌN DẸP TỰ ĐỘNG CHỐNG QUÁ TẢI DỮ LIỆU (ZERO-BLOAT AUTO PRUNE)
+// =====================================================================
+let lastPruneAt = 0;
+const PRUNE_THROTTLE_MS = 12 * 60 * 60 * 1000; // 12 tiếng chạy ngầm 1 lần
+
+async function autoPruneOldAnonymousChats() {
+  const now = Date.now();
+  if (now - lastPruneAt < PRUNE_THROTTLE_MS) return;
+  lastPruneAt = now;
+  try {
+    // 1. Dọn dẹp các phiên chat vãng lai cũ hơn 7 ngày:
+    // CHỈ XÓA: Khách không đăng nhập, không có SĐT, không có câu hỏi chờ Admin, không có admin can thiệp
+    const staleConvsRes = await db.query(`
+      SELECT c.id
+      FROM chat_conversations c
+      WHERE c.user_id IS NULL
+        AND COALESCE(c.customer_phone, '') = ''
+        AND COALESCE(c.pending_admin_count, 0) = 0
+        AND COALESCE(c.status, '') NOT IN ('waiting_admin', 'admin_joined')
+        AND c.updated_at < NOW() - INTERVAL '7 days'
+        AND NOT EXISTS (
+          SELECT 1 FROM chat_messages m
+          WHERE m.conversation_id = c.id
+            AND (COALESCE(m.needs_admin_reply, FALSE) = TRUE OR m.sender_type = 'admin' OR COALESCE(m.is_escalation, FALSE) = TRUE)
+        )
+      LIMIT 200;
+    `);
+
+    const staleIds = (staleConvsRes.recordset || []).map(r => r.id).filter(Boolean);
+    if (staleIds.length > 0) {
+      await db.query(`
+        DELETE FROM chat_messages WHERE conversation_id = ANY($1::int[]);
+        DELETE FROM chat_conversations WHERE id = ANY($1::int[]);
+      `, [staleIds]);
+      console.log(`[ZERO-BLOAT] Đã tự động dọn dẹp ${staleIds.length} phiên chat vãng lai cũ để giải phóng bộ nhớ CSDL.`);
+    }
+
+    // 2. Cắt tỉa các phiên chat vãng lai quá dài (giữ tối đa 40 tin mới nhất mỗi phiên vãng lai - Ring Buffer)
+    await db.query(`
+      DELETE FROM chat_messages
+      WHERE id IN (
+        SELECT m.id
+        FROM chat_messages m
+        JOIN chat_conversations c ON c.id = m.conversation_id
+        WHERE c.user_id IS NULL
+          AND COALESCE(m.needs_admin_reply, FALSE) = FALSE
+          AND COALESCE(m.is_escalation, FALSE) = FALSE
+          AND m.id < (
+            SELECT MIN(sub.id)
+            FROM (
+              SELECT m2.id
+              FROM chat_messages m2
+              WHERE m2.conversation_id = m.conversation_id
+              ORDER BY m2.id DESC
+              LIMIT 40
+            ) sub
+          )
+      );
+    `);
+  } catch (err) {
+    console.warn('[AUTO PRUNE CHAT]:', err.message);
+  }
 }
 
 // Bộ nhớ chống gửi đúp tức thời theo phiên (bắt cả 2 request song song cách nhau vài mili-giây)
