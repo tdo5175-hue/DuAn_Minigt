@@ -7249,6 +7249,10 @@ async function handleUpdateUserProfile(e) {
     if (updateRes && (updateRes.user || updateRes.data)) {
       const updatedData = updateRes.user || updateRes.data;
       currentUser = Object.assign({}, currentUser, updatedData);
+      if (newPassword) {
+        currentUser.hasPassword = true;
+        if (currentUser.authProvider === 'google') currentUser.authProvider = 'google+local';
+      }
       if (updateRes.token) {
         currentToken = updateRes.token;
         if (api && api.setAuthSession) api.setAuthSession(updateRes.token, currentUser);
@@ -10372,7 +10376,9 @@ document.addEventListener('DOMContentLoaded', () => {
     safeFetch('/api/auth/me', { headers: { 'Authorization': `Bearer ${currentToken}` } })
       .then(res => {
         if (res && res.success && res.data) {
-          currentUser = res.data;
+          currentUser = Object.assign({}, currentUser || {}, res.data, {
+            hasPassword: Boolean(res.data.hasPassword || (currentUser && currentUser.hasPassword))
+          });
           try { localStorage.setItem('minigt_user', JSON.stringify(currentUser)); } catch (_) {}
           updateUserHeaderUI();
         }

@@ -27,6 +27,7 @@ function normalizeUser(u) {
     UserId: Number(u.UserId ?? u.userid),
     FullName: u.FullName ?? u.fullname ?? '',
     Email: u.Email ?? u.email ?? '',
+    PasswordHash: u.PasswordHash ?? u.passwordhash ?? null,
     Role: String(u.Role ?? u.role ?? 'customer').toLowerCase(),
     IsActive:
       active === true ||
@@ -109,7 +110,7 @@ async function loadActiveUser(userId) {
 
   try {
     const result = await db.query(
-      `SELECT UserId, FullName, Email, Role, IsActive,
+      `SELECT UserId, FullName, Email, Role, IsActive, PasswordHash,
               AvatarUrl, Phone, Address, AuthProvider, CreatedAt
        FROM Users
        WHERE UserId = @id
