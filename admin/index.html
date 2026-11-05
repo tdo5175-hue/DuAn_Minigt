@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-  <link rel="stylesheet" href="css/admin.css">
+  <link rel="stylesheet" href="css/admin.css?v=20261105_03">
   <script>
     (function() {
       try {
@@ -1337,13 +1337,13 @@
               </button>
 
               <div class="admin-url-add-group">
-                <input type="text" id="prodImageUrlAddInput" class="form-control" placeholder="Dán đường dẫn ảnh (VD: image/rexy.jpg hoặc https://...)" data-i18n-placeholder="prod_modal_img_url_placeholder" onkeydown="if(event.key==='Enter'){event.preventDefault(); addProductImageFromUrlInput();}">
-                <button type="button" class="btn-admin btn-admin-primary" style="white-space:nowrap; padding:7px 12px; font-size:12px;" onclick="addProductImageFromUrlInput()">
+                <input type="text" id="prodImageUrlAddInput" class="form-control" placeholder="Dán đường dẫn ảnh (VD: image/rexy.jpg hoặc https://...)" data-i18n-placeholder="prod_modal_img_url_placeholder" onkeydown="if(event.key==='Enter'){event.preventDefault(); if(window.addProductImageFromUrlInput)window.addProductImageFromUrlInput();}">
+                <button type="button" class="btn-admin btn-admin-primary" style="white-space:nowrap; padding:7px 12px; font-size:12px;" onclick="if(window.addProductImageFromUrlInput)window.addProductImageFromUrlInput()">
                   <i class="fa-solid fa-plus"></i> <span data-i18n="prod_modal_add_url">Thêm URL</span>
                 </button>
               </div>
 
-              <select id="prodImagePresetSelect" class="form-control" style="max-width:195px; font-size:12px;" onchange="addProductImageFromPreset(this)">
+              <select id="prodImagePresetSelect" class="form-control" style="max-width:195px; font-size:12px;" onchange="if(window.addProductImageFromPreset)window.addProductImageFromPreset(this)">
                 <option value="" data-i18n="prod_modal_select_preset">-- + Thêm từ ảnh có sẵn --</option>
                 <option value="image/roxy_rexy_minigt.webp">Bộ 3 AO Racing (Rexy/Roxy)</option>
                 <option value="image/hero-banner.jpg">Banner chính</option>
@@ -1671,7 +1671,7 @@
               <input type="checkbox" id="adminRememberMe" checked style="width: 15px; height: 15px; accent-color: #e10600; cursor: pointer;">
               <span data-i18n="auth_remember_me">Duy trì phiên đăng nhập</span>
             </label>
-            <a href="javascript:void(0)" onclick="adminToast('Quên mật khẩu? Vui lòng liên hệ Trưởng nhóm Đỗ Quốc Thịnh (0988 164 164) để cấp lại.', 'info')" style="color: #2563eb; text-decoration: none; font-weight: 600;">
+            <a href="javascript:void(0)" onclick="(window.adminToast ? window.adminToast('Quên mật khẩu? Vui lòng liên hệ Trưởng nhóm Đỗ Quốc Thịnh (0988 164 164) để cấp lại.', 'info') : alert('Quên mật khẩu? Vui lòng liên hệ Trưởng nhóm Đỗ Quốc Thịnh (0988 164 164) để cấp lại.'))" style="color: #2563eb; text-decoration: none; font-weight: 600;">
               <i class="fa-solid fa-circle-question"></i> <span data-i18n="auth_forgot_password">Quên mật khẩu?</span>
             </a>
           </div>
@@ -1714,7 +1714,7 @@
   </div>
 
   <!-- Shared API Client & Admin Application Script -->
-  <script src="../js/api.js"></script>
-  <script src="js/admin.js"></script>
+  <script src="../js/api.js?v=20261105_03"></script>
+  <script src="js/admin.js?v=20261105_03"></script>
 </body>
 </html>

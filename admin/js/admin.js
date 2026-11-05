@@ -1030,6 +1030,7 @@
       setTimeout(() => toast.remove(), 260);
     }, 3800);
   }
+  window.adminToast = adminToast;
 
   // =====================================================================
   // 1b. HỆ THỐNG THÔNG BÁO ĐƠN HÀNG MỚI & ÂM THANH CHUÔNG BÁO (AUDIO CHIME)
@@ -3050,6 +3051,8 @@
     renderAdminProductGallery();
     adminToast('Đã thêm URL ảnh vào bộ sưu tập!', 'success');
   }
+  window.addProductImageFromPreset = addProductImageFromPreset;
+  window.addProductImageFromUrlInput = addProductImageFromUrlInput;
 
   function openProductImagePicker(event) {
     if (event) {
