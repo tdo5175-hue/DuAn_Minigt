@@ -3962,8 +3962,20 @@
       const actionsSecondary = [];
 
       // 1. Thao tác tiến trình xử lý đơn chính (Workflow Primary)
+      const isTransferOrDeposit = ['VIETQR_PAYOS', 'PAYOS', 'BANK_TRANSFER', 'DEPOSIT'].includes(String(o.paymentMethod || '').toUpperCase());
+      const isUnpaid = o.paymentStatus === 'UNPAID' || !o.paymentStatus;
+
       if (o.status === 'PENDING') {
-        actionsPrimary.push(`<button class="btn-admin btn-admin-primary" style="padding:4px 8px; font-size:11px;" onclick="changeOrderStatus(${o.id}, 'CONFIRMED')" title="Duyệt đơn hàng ngay"><i class="fa-solid fa-check"></i> ${t('btn_approve', 'Duyệt')}</button>`);
+        if (isTransferOrDeposit && isUnpaid) {
+          // BẢO VỆ CHỐNG THẤT THOÁT: Đơn chuyển khoản hoặc cọc chưa nhận được tiền thì phải xác nhận tiền trước khi duyệt!
+          if (o.paymentMethod === 'DEPOSIT' || (o.depositAmount && Number(o.depositAmount) > 0)) {
+            actionsPrimary.push(`<button class="btn-admin btn-admin-primary" style="padding:4px 8px; font-size:11px; background:#2563eb; border-color:#2563eb;" onclick="confirmPaymentAction(${o.id}, 'deposit')" title="Xác nhận nhận cọc MB Bank/PayOS và duyệt đơn"><i class="fa-solid fa-money-bill-transfer"></i> Nhận Cọc & Duyệt</button>`);
+          } else {
+            actionsPrimary.push(`<button class="btn-admin btn-admin-primary" style="padding:4px 8px; font-size:11px; background:#059669; border-color:#059669;" onclick="confirmPaymentAction(${o.id}, 'full')" title="Xác nhận nhận đủ tiền chuyển khoản 100% và duyệt đơn"><i class="fa-solid fa-circle-dollar-to-slot"></i> Nhận Tiền & Duyệt</button>`);
+          }
+        } else {
+          actionsPrimary.push(`<button class="btn-admin btn-admin-primary" style="padding:4px 8px; font-size:11px; ${o.paymentMethod === 'COD' ? 'background:#d97706; border-color:#d97706;' : ''}" onclick="changeOrderStatus(${o.id}, 'CONFIRMED')" title="Duyệt đơn hàng ngay"><i class="fa-solid fa-check"></i> ${o.paymentMethod === 'COD' ? 'Duyệt COD' : t('btn_approve', 'Duyệt')}</button>`);
+        }
       } else if (o.status === 'CONFIRMED') {
         actionsPrimary.push(`<button class="btn-admin btn-admin-primary" style="padding:4px 8px; font-size:11px; background:#7e22ce; border-color:#7e22ce;" onclick="changeOrderStatus(${o.id}, 'PREPARING')" title="Chuyển sang đóng gói"><i class="fa-solid fa-box"></i> ${t('btn_pack', 'Đóng gói')}</button>`);
       } else if (o.status === 'PREPARING') {
@@ -3982,16 +3994,12 @@
         actionsSecondary.push(`<button class="btn-admin btn-admin-outline" style="padding:3px 7px; font-size:11px; color:#ea580c; border-color:#fdba74;" onclick="openShipSpxModal(${o.id})" title="Quản lý mã vận đơn SPX Express"><i class="fa-solid fa-truck-fast"></i> ${o.trackingCode ? t('btn_edit_spx', 'Sửa SPX') : t('btn_assign_spx', 'Gán SPX')}</button>`);
       }
 
-      // Xác nhận tiền cọc hoặc thanh toán full
-      if (o.status !== 'CANCELLED' && o.paymentStatus !== 'PAID' && o.paymentMethod !== 'COD') {
+      // Xác nhận tiền cọc hoặc thanh toán full (cho các đơn đã duyệt mà khách chuyển thêm hoặc nhận đủ)
+      if (o.status !== 'CANCELLED' && o.status !== 'PENDING' && o.paymentStatus !== 'PAID' && o.paymentMethod !== 'COD') {
         if (o.paymentMethod === 'DEPOSIT') {
-          if (o.paymentStatus === 'UNPAID') {
-            actionsSecondary.push(`<button class="btn-admin btn-admin-outline" style="padding:3px 7px; font-size:11px; color:#2563eb; border-color:#93c5fd;" onclick="confirmPaymentAction(${o.id}, 'deposit')" title="Xác nhận đã nhận cọc"><i class="fa-solid fa-money-bill-transfer"></i> ${t('pay_partially_paid', 'Nhận Cọc')}</button>`);
-          } else if (o.paymentStatus === 'PARTIALLY_PAID') {
+          if (o.paymentStatus === 'PARTIALLY_PAID') {
             actionsSecondary.push(`<button class="btn-admin btn-admin-outline" style="padding:3px 7px; font-size:11px; color:#059669; border-color:#a7f3d0;" onclick="confirmPaymentAction(${o.id}, 'full')" title="Xác nhận nhận đủ tiền 100%"><i class="fa-solid fa-circle-dollar-to-slot"></i> ${t('pay_full_paid', 'Nhận Đủ')}</button>`);
           }
-        } else if (o.paymentMethod === 'BANK_TRANSFER' && o.paymentStatus === 'UNPAID') {
-          actionsSecondary.push(`<button class="btn-admin btn-admin-outline" style="padding:3px 7px; font-size:11px; color:#2563eb; border-color:#93c5fd;" onclick="confirmPaymentAction(${o.id}, 'full')" title="Xác nhận nhận đủ tiền 100%"><i class="fa-solid fa-circle-dollar-to-slot"></i> ${t('pay_full_paid', 'Nhận Full')}</button>`);
         }
       }
 
@@ -4576,22 +4584,17 @@
                 }
               </div>
 
-              ${!isDeliveredOrCompleted && order.paymentStatus !== 'PAID' ? `
+              ${!isDeliveredOrCompleted && order.paymentStatus !== 'PAID' && order.paymentMethod !== 'COD' ? `
                 <div style="display:flex; gap:8px; margin-top:10px; padding-top:8px; border-top:1px solid #e0f2fe; flex-wrap:wrap; align-items:center;">
                   <span style="font-size:11.5px; color:#64748b;">Sau khi check App thấy số dư:</span>
-                  ${isDeposit && order.paymentStatus === 'UNPAID' ? `
+                  ${(isDeposit || (order.depositAmount > 0)) && order.paymentStatus === 'UNPAID' ? `
                     <button type="button" class="btn-admin btn-admin-primary" style="font-size:11.5px; padding:4px 10px; background:#0284c7; border-color:#0284c7;" onclick="confirmPaymentAction(${order.id}, 'deposit')">
-                      <i class="fa-solid fa-check"></i> Đã nhận cọc (${formatVND(order.depositAmount || 100000)})
+                      <i class="fa-solid fa-check"></i> Xác nhận nhận cọc (${formatVND(order.depositAmount || 100000)})
                     </button>
                   ` : ''}
                   <button type="button" class="btn-admin btn-admin-primary" style="font-size:11.5px; padding:4px 10px; background:#059669; border-color:#059669;" onclick="confirmPaymentAction(${order.id}, 'full')">
-                    <i class="fa-solid fa-circle-dollar-to-slot"></i> Đã nhận đủ 100% (${formatVND(order.total)})
+                    <i class="fa-solid fa-circle-dollar-to-slot"></i> Xác nhận nhận đủ 100% (${formatVND(order.total)})
                   </button>
-                  ${order.status === 'PENDING' ? `
-                    <button type="button" class="btn-admin btn-admin-primary" style="font-size:11.5px; padding:4px 10px; background:#1d4ed8; border-color:#1d4ed8;" onclick="changeOrderStatus(${order.id}, 'CONFIRMED')">
-                      <i class="fa-solid fa-check-double"></i> Duyệt đơn hàng
-                    </button>
-                  ` : ''}
                 </div>
               ` : ''}
             </div>
@@ -4649,11 +4652,14 @@
               <div style="font-size:11px; color:#64748b; margin-top:2px;">Khi bấm "Xác nhận đã nhận hàng", đơn sẽ chuyển sang DELIVERED và tích lũy tiền vào cấp VIP cho khách.</div>
             </div>
             <div style="display:flex; gap:6px; flex-wrap:wrap;">
-              ${order.status === 'PENDING' ? `
-                <button type="button" class="btn-admin btn-admin-primary" style="background:#1d4ed8; border-color:#1d4ed8; font-size:11.5px; padding:5px 12px;" onclick="changeOrderStatus(${order.id}, 'CONFIRMED')">
-                  <i class="fa-solid fa-check"></i> Duyệt Đơn
-                </button>
-              ` : ''}
+              ${order.status === 'PENDING' ? (
+                (['VIETQR_PAYOS', 'PAYOS', 'BANK_TRANSFER', 'DEPOSIT'].includes(String(order.paymentMethod || '').toUpperCase()) && (order.paymentStatus === 'UNPAID' || !order.paymentStatus))
+                  ? ((order.paymentMethod === 'DEPOSIT' || (order.depositAmount > 0))
+                      ? `<button type="button" class="btn-admin btn-admin-primary" style="background:#2563eb; border-color:#2563eb; font-size:11.5px; padding:5px 12px;" onclick="confirmPaymentAction(${order.id}, 'deposit')" title="Xác nhận nhận cọc và duyệt đơn"><i class="fa-solid fa-money-bill-transfer"></i> Nhận Cọc & Duyệt</button>`
+                      : `<button type="button" class="btn-admin btn-admin-primary" style="background:#059669; border-color:#059669; font-size:11.5px; padding:5px 12px;" onclick="confirmPaymentAction(${order.id}, 'full')" title="Xác nhận nhận đủ tiền 100% và duyệt đơn"><i class="fa-solid fa-circle-dollar-to-slot"></i> Nhận Tiền & Duyệt</button>`
+                    )
+                  : `<button type="button" class="btn-admin btn-admin-primary" style="background:#1d4ed8; border-color:#1d4ed8; font-size:11.5px; padding:5px 12px;" onclick="changeOrderStatus(${order.id}, 'CONFIRMED')" title="Duyệt đơn hàng"><i class="fa-solid fa-check"></i> ${order.paymentMethod === 'COD' ? 'Duyệt Đơn COD' : 'Duyệt Đơn'}</button>`
+              ) : ''}
               ${order.status === 'CONFIRMED' ? `
                 <button type="button" class="btn-admin btn-admin-primary" style="background:#7e22ce; border-color:#7e22ce; font-size:11.5px; padding:5px 12px;" onclick="changeOrderStatus(${order.id}, 'PREPARING')">
                   <i class="fa-solid fa-box"></i> Đóng Gói

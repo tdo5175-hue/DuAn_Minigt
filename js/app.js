@@ -7668,13 +7668,26 @@ function buildUnifiedCustomerOrderCardHTML(ord) {
   const isPartiallyPaid = payStatus === 'PARTIALLY_PAID';
   const isApproved = Boolean(ord.isApproved) || ['CONFIRMED', 'PREPARING', 'SHIPPING', 'DELIVERED'].includes(ordStatus) || Boolean(trackingCode);
 
+  const isPayOS = payMethod === 'VIETQR_PAYOS' || payMethod === 'PAYOS';
+  const isBank = payMethod === 'BANK_TRANSFER' || payMethod === 'FULL_TRANSFER';
+  const isDeposit = payMethod === 'DEPOSIT';
+  const isCOD = payMethod === 'COD';
+  const isTransfer = isPayOS || isBank;
+
   const subtotal = Number(ord.Subtotal || ord.subtotal || 0);
   const shippingFee = Number(ord.ShippingFee || ord.shippingFee || 11000);
   const total = Number(ord.Total || ord.total || (subtotal + shippingFee));
   const depositAmount = Number(ord.DepositAmount || ord.depositAmount || ord.totalDeposit || 0);
-  const codToCollect = ord.codAmount != null
-    ? Number(ord.codAmount)
-    : (isPaid ? 0 : (payMethod === 'DEPOSIT' ? Math.max(0, total - depositAmount) : (payMethod === 'BANK_TRANSFER' ? 0 : total)));
+
+  let codToCollect = 0;
+  if (isCOD) {
+    codToCollect = isPaid ? 0 : total;
+  } else if (isDeposit) {
+    codToCollect = isPaid ? 0 : Math.max(0, total - depositAmount);
+  } else {
+    // VIETQR_PAYOS hoặc BANK_TRANSFER: Thanh toán full 100% trước, khi giao thu 0đ
+    codToCollect = 0;
+  }
 
   const paymentMemo = ord.paymentMemo || ord.PaymentMemo || `MINI GT ${orderCode}`;
   const bankAcc = storeSettings?.bank_account_no || '87654321082007';
@@ -7712,14 +7725,16 @@ function buildUnifiedCustomerOrderCardHTML(ord) {
   ];
 
   let payStatusBadge = '';
-  if (payMethod === 'COD') {
-    payStatusBadge = `<span style="font-size:11px; font-weight:700; padding:3px 9px; border-radius:9999px; background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe;"><i class="fa-solid fa-hand-holding-dollar" style="margin-right:3px;"></i> Thanh toán COD</span>`;
+  if (isCOD) {
+    payStatusBadge = `<span style="font-size:11px; font-weight:700; padding:3px 9px; border-radius:9999px; background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe;"><i class="fa-solid fa-hand-holding-dollar" style="margin-right:3px;"></i> ${isPaid ? 'Đã thu tiền COD' : 'Thanh toán COD khi nhận hàng'}</span>`;
   } else if (isPaid) {
     payStatusBadge = `<span style="font-size:11px; font-weight:700; padding:3px 9px; border-radius:9999px; background:#ecfdf5; color:#059669; border:1px solid #a7f3d0;"><i class="fa-solid fa-circle-check" style="margin-right:3px;"></i> Đã thanh toán 100%</span>`;
   } else if (isPartiallyPaid) {
     payStatusBadge = `<span style="font-size:11px; font-weight:700; padding:3px 9px; border-radius:9999px; background:#ecfdf5; color:#059669; border:1px solid #a7f3d0;"><i class="fa-solid fa-circle-check" style="margin-right:3px;"></i> Đã xác nhận cọc ${formatVND(depositAmount)}</span>`;
+  } else if (isPayOS) {
+    payStatusBadge = `<span style="font-size:11px; font-weight:700; padding:3px 9px; border-radius:9999px; background:#f0f9ff; color:#0284c7; border:1px solid #bae6fd;"><i class="fa-solid fa-bolt" style="margin-right:3px;"></i> Chờ thanh toán VietQR PayOS</span>`;
   } else {
-    payStatusBadge = `<span style="font-size:11px; font-weight:700; padding:3px 9px; border-radius:9999px; background:#fef3c7; color:#b45309; border:1px solid #fde68a;"><i class="fa-solid fa-clock" style="margin-right:3px;"></i> ${payMethod === 'DEPOSIT' ? 'Chờ duyệt cọc' : 'Chờ duyệt chuyển khoản'}</span>`;
+    payStatusBadge = `<span style="font-size:11px; font-weight:700; padding:3px 9px; border-radius:9999px; background:#fef3c7; color:#b45309; border:1px solid #fde68a;"><i class="fa-solid fa-clock" style="margin-right:3px;"></i> ${isDeposit ? 'Chờ duyệt cọc MB Bank' : 'Chờ duyệt chuyển khoản MB Bank'}</span>`;
   }
 
   let statusBadgeHTML = `<span style="font-size:11px; font-weight:800; padding:3px 10px; border-radius:9999px; background:#fef3c7; color:#b45309;">⏳ Chờ Admin duyệt đơn</span>`;
@@ -7748,7 +7763,8 @@ function buildUnifiedCustomerOrderCardHTML(ord) {
   const canEditShipping = ['PENDING', 'CONFIRMED', 'PREPARING'].includes(ordStatus) && !trackingCode;
   const canConfirmReceived = (ordStatus === 'SHIPPING' || Boolean(trackingCode)) && ordStatus !== 'DELIVERED' && ordStatus !== 'CANCELLED';
   const canCancel = ordStatus === 'PENDING' && !trackingCode;
-  const needsQrTransfer = !isPaid && !isPartiallyPaid && payMethod !== 'COD' && ordStatus !== 'CANCELLED';
+  // ĐƠN SHIP COD TUYỆT ĐỐI KHÔNG HIỆN MÃ QR VÀ NÚT QUÉT MÃ (VÌ THU TIỀN MẶT KHI NHẬN XE)
+  const needsQrTransfer = !isPaid && !isPartiallyPaid && !isCOD && ordStatus !== 'CANCELLED';
 
   return `
     <div class="customer-order-card" style="background:#ffffff; border:1.5px solid ${trackingCode ? '#fed7aa' : (isApproved ? '#bbf7d0' : '#e2e8f0')}; border-radius:14px; padding:16px; margin-bottom:16px; box-shadow:0 4px 14px rgba(15,23,42,0.04);">
@@ -7959,29 +7975,44 @@ function buildUnifiedCustomerOrderCardHTML(ord) {
           </div>
           <div style="font-size:12px; line-height:1.6;">
             <div style="display:flex; justify-content:space-between;"><span>Tổng đơn (gồm ship SPX ${formatVND(shippingFee)}):</span><strong>${formatVND(total)}</strong></div>
-            ${payMethod === 'DEPOSIT' ? `<div style="display:flex; justify-content:space-between; color:#2563eb;"><span>Tiền cọc giữ mẫu (30%):</span><strong>${formatVND(depositAmount)}</strong></div>` : ''}
-            <div style="display:flex; justify-content:space-between; font-weight:800; color:${codToCollect === 0 ? '#15803d' : '#dc2626'}; margin-top:2px; padding-top:4px; border-top:1px solid #f1f5f9;">
-              <span>Cần thanh toán khi nhận xe (COD):</span>
-              <span>${codToCollect === 0 ? '0đ (Đã trả đủ 100%)' : formatVND(codToCollect)}</span>
-            </div>
+            ${isDeposit ? `
+              <div style="display:flex; justify-content:space-between; color:#2563eb;">
+                <span>Tiền cọc giữ mẫu (30%):</span>
+                <strong>${formatVND(depositAmount)} <em style="font-size:11px; font-weight:normal;">(${isPartiallyPaid || isPaid ? 'Đã nhận cọc' : 'Chờ cọc'})</em></strong>
+              </div>
+              <div style="display:flex; justify-content:space-between; font-weight:800; color:${codToCollect === 0 ? '#15803d' : '#dc2626'}; margin-top:2px; padding-top:4px; border-top:1px solid #f1f5f9;">
+                <span>Cần thanh toán khi nhận xe (COD còn lại 70%):</span>
+                <span>${codToCollect === 0 ? '0đ (Đã tất toán 100%)' : formatVND(codToCollect)}</span>
+              </div>
+            ` : (isTransfer ? `
+              <div style="display:flex; justify-content:space-between; color:#0284c7;">
+                <span>Hình thức:</span>
+                <strong>Chuyển khoản VietQR PayOS (100%)</strong>
+              </div>
+              <div style="display:flex; justify-content:space-between; font-weight:800; color:${isPaid ? '#15803d' : '#d97706'}; margin-top:2px; padding-top:4px; border-top:1px solid #f1f5f9;">
+                <span>Trạng thái chuyển khoản:</span>
+                <span>${isPaid ? 'Đã thanh toán đủ 100% (Thu COD: 0đ)' : `Chờ chuyển khoản ${formatVND(total)} (Thu COD: 0đ)`}</span>
+              </div>
+            ` : `
+              <div style="display:flex; justify-content:space-between; color:#1d4ed8;">
+                <span>Hình thức:</span>
+                <strong>Thu tiền mặt khi nhận hàng (Ship COD SPX)</strong>
+              </div>
+              <div style="display:flex; justify-content:space-between; font-weight:800; color:${isPaid ? '#15803d' : '#dc2626'}; margin-top:2px; padding-top:4px; border-top:1px solid #f1f5f9;">
+                <span>Tiền mặt shipper SPX thu khi phát kiện:</span>
+                <span>${isPaid ? '0đ (Đã thanh toán cho SPX)' : formatVND(codToCollect)}</span>
+              </div>
+            `)}
           </div>
         </div>
       </div>
 
-      <!-- Khung VietQR thu gọn (bấm để mở) nếu đơn chưa thanh toán chuyển khoản/cọc -->
+      <!-- Khung VietQR PayOS / Chuyển khoản (bấm để mở) nếu đơn chuyển khoản/cọc chưa thanh toán -->
       ${needsQrTransfer ? `
-        <div id="qrPanel_${escapeHtml(orderCode)}" style="display:none; background:#fffbeb; border:1.5px solid #fde68a; border-radius:10px; padding:14px; margin-bottom:12px;">
-          <div style="display:grid; grid-template-columns:minmax(170px, 200px) 1fr; gap:16px; align-items:center;">
-            <div style="text-align:center;">
-              <img src="https://img.vietqr.io/image/MB-${encodeURIComponent(bankAcc)}-compact2.png?amount=${Math.round(payMethod === 'DEPOSIT' ? depositAmount : total)}&addInfo=${encodeURIComponent(paymentMemo)}&accountName=${encodeURIComponent(bankOwner)}" alt="VietQR" style="width:100%; max-width:200px; border-radius:10px; border:1.5px solid #e2e8f0; background:#fff; padding:4px; box-shadow:0 3px 10px rgba(0,0,0,0.06); display:block; margin:0 auto;">
-              <div style="font-size:11px; color:#92400e; margin-top:4px; font-weight:700;"><i class="fa-solid fa-qrcode"></i> Quét mã VietQR</div>
-            </div>
-            <div style="font-size:12.5px; color:#451a03; line-height:1.65;">
-              <div>Ngân hàng: <strong>${escapeHtml(bankName)}</strong> • Chủ TK: <strong>${escapeHtml(bankOwner)}</strong></div>
-              <div>STK: <strong style="color:#dc2626; font-family:monospace; font-size:13.5px;">${escapeHtml(bankAcc)}</strong> <button type="button" class="btn-copy-mini" onclick="copyToClipboard('${escapeHtml(bankAcc)}', 'Đã sao chép STK!')"><i class="fa-regular fa-copy"></i></button></div>
-              <div>Số tiền cần chuyển: <strong style="color:#dc2626; font-size:14px; font-weight:900;">${formatVND(payMethod === 'DEPOSIT' ? depositAmount : total)}</strong></div>
-              <div>Nội dung CK: <strong style="color:#1d4ed8; font-family:monospace; font-size:13.5px; background:#eff6ff; padding:2px 6px; border-radius:4px;">${escapeHtml(paymentMemo)}</strong> <button type="button" class="btn-copy-mini" style="background:#2563eb; color:#fff;" onclick="copyToClipboard('${escapeHtml(paymentMemo)}', 'Đã sao chép nội dung CK!')"><i class="fa-regular fa-copy"></i> Copy</button></div>
-            </div>
+        <div id="qrPanel_${escapeHtml(orderCode)}" style="display:none; background:#f0f9ff; border:1.5px solid #bae6fd; border-radius:12px; padding:14px; margin-bottom:12px;">
+          <div id="payosQrBox_${escapeHtml(orderCode)}" style="min-height:160px; display:flex; flex-direction:column; align-items:center; justify-content:center;">
+            <div class="pulse-spinner" style="border-color:#0284c7; border-top-color:transparent; margin-bottom:10px;"></div>
+            <div style="font-size:12.5px; font-weight:700; color:#0369a1;">Đang tải mã VietQR PayOS chính thức từ ngân hàng...</div>
           </div>
         </div>
       ` : ''}
@@ -8001,8 +8032,8 @@ function buildUnifiedCustomerOrderCardHTML(ord) {
             </button>
           ` : ''}
           ${needsQrTransfer ? `
-            <button type="button" class="btn btn-outline btn-sm" style="font-size:11.5px; padding:5px 10px; color:#b45309; border-color:#fde68a; background:#fffbeb;" onclick="toggleOrderQrPanel('${escapeHtml(orderCode)}')">
-              <i class="fa-solid fa-qrcode" style="margin-right:4px;"></i> Hiện mã QR thanh toán
+            <button type="button" class="btn btn-outline btn-sm" style="font-size:11.5px; padding:5px 10px; color:#0284c7; border-color:#bae6fd; background:#f0f9ff; font-weight:700;" onclick="toggleOrderQrPanel('${escapeHtml(orderCode)}')">
+              <i class="fa-solid fa-qrcode" style="margin-right:4px;"></i> ${isDeposit ? `Hiện mã QR Cọc (${formatVND(depositAmount)})` : `Hiện mã QR Chuyển Khoản (${formatVND(total)})`}
             </button>
           ` : ''}
         </div>
@@ -8024,10 +8055,105 @@ function buildUnifiedCustomerOrderCardHTML(ord) {
   `;
 }
 
+window._openCustomerQrPanels = window._openCustomerQrPanels || new Set();
+
 function toggleOrderQrPanel(orderCode) {
   const el = document.getElementById(`qrPanel_${orderCode}`);
   if (!el) return;
-  el.style.display = el.style.display === 'none' ? 'block' : 'none';
+  const isCurrentlyOpen = el.style.display !== 'none' && el.style.display !== '';
+  if (isCurrentlyOpen) {
+    el.style.display = 'none';
+    window._openCustomerQrPanels.delete(orderCode);
+  } else {
+    el.style.display = 'block';
+    window._openCustomerQrPanels.add(orderCode);
+    loadPayosQrForOrderPanel(orderCode);
+  }
+}
+
+async function loadPayosQrForOrderPanel(orderCode) {
+  const box = document.getElementById(`payosQrBox_${orderCode}`);
+  if (!box) return;
+  if (box.dataset.loaded === 'true') return;
+
+  try {
+    const res = await safeFetch(`/api/orders/${encodeURIComponent(orderCode)}/payos-link`, {
+      method: 'POST'
+    });
+
+    if (res && res.success && res.data) {
+      box.dataset.loaded = 'true';
+      const d = res.data;
+      const transferAmount = Number(d.amount || 0);
+      const memoCode = String(orderCode).startsWith('MGT') ? String(orderCode) : `MGT ${orderCode}`;
+      const qrImageSrc = (d.qrCode && (d.qrCode.startsWith('http') || d.qrCode.startsWith('data:image')))
+        ? d.qrCode
+        : `https://img.vietqr.io/image/${d.bin || '970422'}-${d.accountNumber}-compact2.png?amount=${Math.round(transferAmount)}&addInfo=${encodeURIComponent(memoCode)}&accountName=${encodeURIComponent(d.accountName || 'DO QUOC THINH')}`;
+
+      box.innerHTML = `
+        <div style="display:grid; grid-template-columns:minmax(180px, 210px) 1fr; gap:16px; align-items:center; width:100%;">
+          <div style="text-align:center;">
+            <img src="${qrImageSrc}" alt="VietQR PayOS" style="width:100%; max-width:210px; border-radius:10px; border:2px solid #0284c7; background:#fff; padding:5px; box-shadow:0 4px 14px rgba(2,132,199,0.15); display:block; margin:0 auto;">
+            <div style="font-size:11px; color:#0369a1; margin-top:5px; font-weight:700;"><i class="fa-solid fa-qrcode"></i> Quét mã PayOS VietQR tự động</div>
+          </div>
+          <div style="font-size:12.5px; color:#0f172a; line-height:1.65;">
+            <div>Ngân hàng: <strong>Ngân hàng Quân Đội (MB Bank)</strong> • Chủ TK: <strong>${escapeHtml(d.accountName || 'DO QUOC THINH')}</strong></div>
+            <div style="margin-top:2px;">
+              STK PayOS: <strong style="color:#0284c7; font-family:var(--font-mono, monospace); font-size:14px; font-weight:800;">${escapeHtml(d.accountNumber)}</strong>
+              <button type="button" class="btn-copy-mini" onclick="copyToClipboard('${escapeHtml(d.accountNumber)}', 'Đã sao chép STK PayOS!')"><i class="fa-regular fa-copy"></i> Copy</button>
+            </div>
+            <div style="margin-top:2px;">
+              Số tiền cần chuyển: <strong style="color:#dc2626; font-size:14.5px; font-weight:900;">${formatVND(transferAmount)}</strong>
+              <button type="button" class="btn-copy-mini" onclick="copyToClipboard('${transferAmount}', 'Đã sao chép số tiền!')"><i class="fa-regular fa-copy"></i></button>
+            </div>
+            <div style="margin-top:2px;">
+              Nội dung CK: <strong style="color:#0284c7; font-family:var(--font-mono, monospace); font-size:13.5px; background:#e0f2fe; padding:2px 8px; border-radius:4px;">${escapeHtml(memoCode)}</strong>
+              <button type="button" class="btn-copy-mini" style="background:#0284c7; color:#fff;" onclick="copyToClipboard('${escapeHtml(memoCode)}', 'Đã sao chép nội dung CK!')"><i class="fa-regular fa-copy"></i> Copy</button>
+            </div>
+            <div style="margin-top:10px; display:flex; gap:8px; flex-wrap:wrap;">
+              ${d.checkoutUrl ? `
+                <a href="${d.checkoutUrl}" target="_blank" class="btn btn-sm" style="background:#0284c7; color:#fff; border:none; padding:6px 12px; border-radius:6px; font-size:11.5px; font-weight:700; text-decoration:none; display:inline-flex; align-items:center; gap:4px;">
+                  <i class="fa-solid fa-arrow-up-right-from-square"></i> Cổng PayOS ↗
+                </a>
+              ` : ''}
+              <button type="button" class="btn btn-sm" style="background:#16a34a; color:#fff; border:none; padding:6px 12px; border-radius:6px; font-size:11.5px; font-weight:700; display:inline-flex; align-items:center; gap:4px;" onclick="triggerInstantPayOSCheck('${escapeHtml(orderCode)}')">
+                <i class="fa-solid fa-arrows-rotate"></i> Kiểm tra nhận tiền
+              </button>
+            </div>
+          </div>
+        </div>
+      `;
+    } else {
+      renderManualBankQrInBox(box, orderCode);
+    }
+  } catch (err) {
+    console.error('[loadPayosQrForOrderPanel error]', err);
+    renderManualBankQrInBox(box, orderCode);
+  }
+}
+
+function renderManualBankQrInBox(box, orderCode) {
+  const ord = findOrderInCustomerMemory(orderCode);
+  const total = Number(ord?.Total || ord?.total || 0);
+  const deposit = Number(ord?.DepositAmount || ord?.depositAmount || 0);
+  const payMethod = String(ord?.PaymentMethod || ord?.paymentMethod || '').toUpperCase();
+  const amt = (payMethod === 'DEPOSIT' && deposit > 0) ? deposit : total;
+  const memo = String(orderCode).startsWith('MGT') ? String(orderCode) : `MGT ${orderCode}`;
+
+  box.innerHTML = `
+    <div style="display:grid; grid-template-columns:minmax(180px, 210px) 1fr; gap:16px; align-items:center; width:100%;">
+      <div style="text-align:center;">
+        <img src="image/qr-mb-doquocthinh.png" alt="MB Bank QR" style="width:100%; max-width:210px; border-radius:10px; border:2px solid #dc2626; background:#fff; padding:5px; box-shadow:0 4px 14px rgba(220,38,38,0.12); display:block; margin:0 auto;">
+        <div style="font-size:11px; color:#b91c1c; margin-top:5px; font-weight:700;"><i class="fa-solid fa-qrcode"></i> Mã QR MB Bank Đỗ Quốc Thịnh</div>
+      </div>
+      <div style="font-size:12.5px; color:#0f172a; line-height:1.65;">
+        <div>Ngân hàng: <strong>Ngân hàng Quân Đội (MB Bank)</strong> • Chủ TK: <strong>DO QUOC THINH</strong></div>
+        <div style="margin-top:2px;">Số tiền cần chuyển: <strong style="color:#dc2626; font-size:14.5px; font-weight:900;">${formatVND(amt)}</strong></div>
+        <div style="margin-top:2px;">Nội dung CK: <strong style="color:#1d4ed8; font-family:monospace; font-size:13.5px; background:#eff6ff; padding:2px 8px; border-radius:4px;">${escapeHtml(memo)}</strong> <button type="button" class="btn-copy-mini" style="background:#2563eb; color:#fff;" onclick="copyToClipboard('${escapeHtml(memo)}', 'Đã chép nội dung!')"><i class="fa-regular fa-copy"></i> Copy</button></div>
+        <div style="margin-top:8px; font-size:11.5px; color:#64748b; font-style:italic;">Sau khi chuyển khoản, Admin sẽ kiểm tra và duyệt đơn ngay cho bạn.</div>
+      </div>
+    </div>
+  `;
 }
 
 function findOrderInCustomerMemory(orderCode) {
@@ -8704,7 +8830,19 @@ function initCustomerRealtimeOrderWatcher() {
       if (document.getElementById('myOrdersModal')?.classList.contains('active')) {
         const container = document.getElementById('myOrdersModalContent');
         if (container && document.activeElement?.id !== 'myOrdersSearchInput') {
-          renderMyOrdersCenterUI(container);
+          // Chỉ re-render khi dữ liệu trạng thái đơn thực sự có thay đổi (tránh giật lag và không bị đóng khung QR sau 3-4s)
+          const newSnapshot = orders.map(o => `${o.OrderCode || o.orderCode || o.code}:${o.Status || o.status}:${o.PaymentStatus || o.paymentStatus}:${o.TrackingCode || o.trackingCode}`).join('|');
+          if (newSnapshot !== window._lastMyOrdersRenderSnapshot) {
+            window._lastMyOrdersRenderSnapshot = newSnapshot;
+            renderMyOrdersCenterUI(container);
+            // Khôi phục lại các khung QR khách hàng đang mở xem
+            if (window._openCustomerQrPanels && window._openCustomerQrPanels.size > 0) {
+              window._openCustomerQrPanels.forEach(code => {
+                const p = document.getElementById(`qrPanel_${code}`);
+                if (p) p.style.display = 'block';
+              });
+            }
+          }
         }
       }
     } catch (_) {}

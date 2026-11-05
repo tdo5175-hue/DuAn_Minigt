@@ -431,18 +431,22 @@ async function transitionOrderStatus(orderIdOrCode, toStatus, { note, cancelReas
       }
     }
 
+    const payMethodUpper = String(order.PaymentMethod || '').toUpperCase();
+    const isTransferOrDeposit = ['VIETQR_PAYOS', 'PAYOS', 'BANK_TRANSFER', 'DEPOSIT'].includes(payMethodUpper);
+    const isUnpaid = String(order.PaymentStatus || '').toUpperCase() === 'UNPAID' || !order.PaymentStatus;
+
+    // CHỐNG THẤT THOÁT HÀNG HÓA & LỖ HỔNG DUYỆT ĐƠN:
+    // Đơn thanh toán Chuyển khoản hoặc Đặt cọc mà CHƯA nhận được tiền (UNPAID) thì TUYỆT ĐỐI không được chuyển sang Đã duyệt / Đóng gói / Giao hàng!
+    // Admin phải nhận tiền thật trong tài khoản ngân hàng và bấm "Xác nhận nhận tiền/cọc" thì đơn mới được duyệt!
+    if (isTransferOrDeposit && isUnpaid && ['CONFIRMED', 'PREPARING', 'SHIPPING', 'DELIVERED'].includes(target)) {
+      throw badRequest('Đơn hàng thanh toán Chuyển khoản hoặc Đặt cọc chưa nhận được tiền thanh toán! Vui lòng kiểm tra biến động số dư tài khoản ngân hàng và bấm "Xác nhận nhận tiền/cọc" trước khi duyệt đơn.');
+    }
+
     let newPayStatus = order.PaymentStatus;
-    if (target === 'DELIVERED' && order.PaymentMethod === 'COD') {
+    if (target === 'DELIVERED' && payMethodUpper === 'COD') {
       newPayStatus = 'PAID';
     } else if (target === 'CANCELLED' && (order.PaymentStatus === 'PAID' || order.PaymentStatus === 'PARTIALLY_PAID')) {
       newPayStatus = 'REFUND_PENDING';
-    } else if (['CONFIRMED', 'PREPARING', 'SHIPPING'].includes(target) && order.PaymentStatus === 'UNPAID') {
-      const isPre = Boolean(order.HasPreOrder ?? order.hasPreOrder ?? (order.DepositAmount && Number(order.DepositAmount) > 0));
-      if (order.PaymentMethod === 'DEPOSIT' || (isPre && (order.PaymentMethod === 'VIETQR_PAYOS' || order.PaymentMethod === 'PAYOS'))) {
-        newPayStatus = 'PARTIALLY_PAID';
-      } else if (order.PaymentMethod === 'BANK_TRANSFER' || order.PaymentMethod === 'VIETQR_PAYOS' || order.PaymentMethod === 'PAYOS') {
-        newPayStatus = 'PAID';
-      }
     }
 
     const newReserved = target === 'CANCELLED' ? false : true;
