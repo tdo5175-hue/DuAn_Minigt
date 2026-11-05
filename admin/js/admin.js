@@ -31,7 +31,6 @@
     addressType: 'ALL',
     spxStatus: 'ALL',
     search: '',
-    preStage: 'ALL',
     page: 1,
     limit: 10
   };
@@ -3481,8 +3480,8 @@
   // 6. TAB 3: QUẢN LÝ ĐƠN HÀNG (ADMIN ORDERS)
   // =====================================================================
   async function loadOrders(silent = false) {
-    startProgressBar();
     if (!silent) {
+      startProgressBar();
       const tbody = document.getElementById('ordersTbody');
       if (tbody && (!cachedOrders || cachedOrders.length === 0)) {
         renderTableSkeletons('ordersTbody', 8, 6);
@@ -3497,9 +3496,9 @@
         renderOrdersPagination(res.pagination);
       }
     } catch (err) {
-      adminToast('Không thể tải danh sách đơn hàng: ' + err.message, 'error');
+      if (!silent) adminToast('Không thể tải danh sách đơn hàng: ' + err.message, 'error');
     } finally {
-      finishProgressBar();
+      if (!silent) finishProgressBar();
     }
   }
 
@@ -4702,8 +4701,8 @@
           order: orderData
         });
       }
-      loadOrders();
-      loadDashboard();
+      loadOrders(true);
+      if (activeTab === 'dashboard') loadDashboard();
       if (document.getElementById('orderDetailModal')?.classList.contains('active')) {
         viewOrderDetail(orderId);
       }
@@ -4726,8 +4725,8 @@
           order: orderData
         });
       }
-      loadOrders();
-      loadDashboard();
+      loadOrders(true);
+      if (activeTab === 'dashboard') loadDashboard();
       if (document.getElementById('orderDetailModal')?.classList.contains('active')) {
         viewOrderDetail(orderId);
       }
@@ -4919,8 +4918,8 @@ Anh/chị phản hồi giúp shop để kiện xe được đóng gói gửi đi
         });
       }
       closeAdminModal('shipSpxModal');
-      loadOrders();
-      loadDashboard();
+      loadOrders(true);
+      if (activeTab === 'dashboard') loadDashboard();
       if (document.getElementById('orderDetailModal')?.classList.contains('active')) {
         viewOrderDetail(currentActionOrderId);
       }
@@ -4955,8 +4954,8 @@ Anh/chị phản hồi giúp shop để kiện xe được đóng gói gửi đi
         });
       }
       closeAdminModal('shipSpxModal');
-      loadOrders();
-      loadDashboard();
+      loadOrders(true);
+      if (activeTab === 'dashboard') loadDashboard();
       if (document.getElementById('orderDetailModal')?.classList.contains('active')) {
         viewOrderDetail(currentActionOrderId);
       }
@@ -5011,8 +5010,8 @@ Anh/chị phản hồi giúp shop để kiện xe được đóng gói gửi đi
       const res = await api.put(`/api/admin/orders/${currentActionOrderId}/cancel`, { cancelReason: reason });
       adminToast(res.message || 'Đã hủy đơn hàng thành công!', 'info');
       closeAdminModal('cancelOrderModal');
-      loadOrders();
-      loadDashboard();
+      loadOrders(true);
+      if (activeTab === 'dashboard') loadDashboard();
       if (document.getElementById('orderDetailModal')?.classList.contains('active')) {
         viewOrderDetail(currentActionOrderId);
       }
@@ -6022,16 +6021,16 @@ Anh/chị phản hồi giúp shop để kiện xe được đóng gói gửi đi
           adminToast(`🔔 ĐƠN HÀNG MỚI #${ord.code} từ ${ord.fullName || (ord.customer && ord.customer.fullName) || 'Khách hàng'} (${formatVND(ord.totalAmount || ord.total || 0)})!`, 'success', 'Có Đơn Hàng Mới!');
           addAdminNotification(ord, 'ORDER_CREATED');
         }
-        loadDashboard();
-        loadOrders();
+        if (activeTab === 'dashboard') loadDashboard();
+        loadOrders(true);
       } else if (detail.type === 'PAYOS_PAID' || detail.type === 'ORDER_PAID') {
         const p = detail.payload;
         if (p && p.code) {
           adminToast(`⚡ Đơn hàng #${p.code} đã thanh toán tự động qua VietQR PayOS (${formatVND(p.amount || p.total || 0)})!`, 'success', 'PayOS Khớp Lệnh Tự Động');
           addAdminNotification(p, 'PAYOS_PAID');
         }
-        loadDashboard();
-        loadOrders();
+        if (activeTab === 'dashboard') loadDashboard();
+        loadOrders(true);
       } else if (detail.type === 'CUSTOMER_REPORTED_TRANSFER' && detail.payload) {
         const p = detail.payload;
         adminToast(`💳 Khách vừa báo đã chuyển khoản cho đơn #${p.code || p.orderCode || ''} (${formatVND(p.amount || p.transferAmount || 0)})!`, 'info', 'Khách Đã Chuyển Khoản');
@@ -6042,11 +6041,11 @@ Anh/chị phản hồi giúp shop để kiện xe được đóng gói gửi đi
           totalAmount: p.amount || p.transferAmount || 0,
           paymentMethod: 'BANK_TRANSFER'
         }, 'CUSTOMER_REPORTED_TRANSFER');
-        loadDashboard();
-        loadOrders();
+        if (activeTab === 'dashboard') loadDashboard();
+        loadOrders(true);
       } else if (detail.type === 'ORDER_UPDATED') {
-        loadDashboard();
-        if (activeTab === 'orders') loadOrders();
+        if (activeTab === 'dashboard') loadDashboard();
+        if (activeTab === 'orders') loadOrders(true);
       } else if (detail.type === 'USER_REGISTERED' || detail.type === 'USER_UPDATED' || detail.type === 'users_updated') {
         loadDashboard();
         if (activeTab === 'users') loadUsers();
@@ -6098,11 +6097,19 @@ Anh/chị phản hồi giúp shop để kiện xe được đóng gói gửi đi
             res.data.forEach(o => { if (o && o.code) adminKnownOrderCodes.add(o.code); });
           }
 
+          const orderSnapshot = (res.data || []).map(o => `${o.id || o.OrderId}_${o.status || o.Status}_${o.paymentStatus || o.PaymentStatus}_${o.trackingCode || ''}`).join('|');
+          const countsSnapshot = JSON.stringify(res.counts || {});
+          const hasOrderDataChanged = (orderSnapshot !== window._lastAdminOrderSnapshot) || (countsSnapshot !== window._lastAdminCountsSnapshot);
+
           cachedOrders = res.data;
-          if (activeTab === 'orders') {
+          if (activeTab === 'orders' && hasOrderDataChanged) {
+            window._lastAdminOrderSnapshot = orderSnapshot;
+            window._lastAdminCountsSnapshot = countsSnapshot;
             renderOrdersTable(cachedOrders);
             updateOrderTabBadges(res.counts);
             renderOrdersPagination(res.pagination);
+          } else if (res.counts) {
+            updateOrderTabBadges(res.counts);
           }
           const sidebarPending = document.getElementById('sidebarPendingCount');
           if (sidebarPending && res.counts) {
@@ -6201,9 +6208,9 @@ Anh/chị phản hồi giúp shop để kiện xe được đóng gói gửi đi
           api.emitRealtimeSync('ORDERS_UPDATED', {});
           api.emitRealtimeSync('PRODUCTS_UPDATED', {});
         }
-        loadOrders();
-        loadProducts();
-        loadDashboard();
+        loadOrders(true);
+        if (activeTab === 'products') loadProducts();
+        if (activeTab === 'dashboard') loadDashboard();
         if (document.getElementById('orderDetailModal')?.classList.contains('active')) {
           viewOrderDetail(orderId);
         }
@@ -6227,9 +6234,9 @@ Anh/chị phản hồi giúp shop để kiện xe được đóng gói gửi đi
           api.emitRealtimeSync('PRODUCTS_UPDATED', {});
           api.emitRealtimeSync('ORDERS_UPDATED', {});
         }
-        loadProducts();
-        loadOrders();
-        loadDashboard();
+        if (activeTab === 'products') loadProducts();
+        loadOrders(true);
+        if (activeTab === 'dashboard') loadDashboard();
       } else {
         adminToast(res?.message || 'Không thể chuyển đổi trạng thái mô hình', 'error');
       }

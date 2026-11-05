@@ -1123,12 +1123,18 @@ router.get('/users', async (req, res, next) => {
 
     const result = await db.query(`
       SELECT u.UserId, u.FullName, u.Email, u.Role, u.AuthProvider, u.Phone, u.Address, u.IsActive, u.CreatedAt, u.LastLoginAt,
-             COALESCE(COUNT(o.OrderId), 0) AS "TotalOrders",
-             COALESCE(SUM(CASE WHEN UPPER(o.Status) = 'DELIVERED' THEN o.Total ELSE 0 END), 0) AS "TotalSpent"
+             COALESCE(ord.total_orders, 0) AS "TotalOrders",
+             COALESCE(ord.total_spent, 0) AS "TotalSpent"
       FROM Users u
-      LEFT JOIN Orders o ON o.UserId = u.UserId
+      LEFT JOIN LATERAL (
+        SELECT COUNT(o.OrderId) AS total_orders,
+               COALESCE(SUM(CASE WHEN UPPER(o.Status) = 'DELIVERED' THEN o.Total ELSE 0 END), 0) AS total_spent
+        FROM Orders o
+        WHERE o.UserId = u.UserId
+           OR (u.Email IS NOT NULL AND u.Email <> '' AND LOWER(o.Email) = LOWER(u.Email))
+           OR (u.Phone IS NOT NULL AND u.Phone <> '' AND REPLACE(REPLACE(REPLACE(o.Phone, ' ', ''), '-', ''), '.', '') = REPLACE(REPLACE(REPLACE(u.Phone, ' ', ''), '-', ''), '.', ''))
+      ) ord ON TRUE
       ${where}
-      GROUP BY u.UserId, u.FullName, u.Email, u.Role, u.AuthProvider, u.Phone, u.Address, u.IsActive, u.CreatedAt, u.LastLoginAt
       ORDER BY u.CreatedAt DESC
     `, params);
 
@@ -1241,6 +1247,8 @@ router.get('/users/:id/orders', async (req, res, next) => {
 
     const result = await orderService.listOrders({
       userId,
+      userEmail: user.Email || user.email,
+      phone: user.Phone || user.phone,
       pageSize: 100
     });
 
@@ -1259,6 +1267,12 @@ router.get('/users/:id/orders', async (req, res, next) => {
         totalOrders: orders.length,
         totalSpent,
         deliveredSpent
+      },
+      stats: {
+        totalOrders: orders.length,
+        totalSpent: deliveredSpent,
+        deliveredSpent,
+        allSpent: totalSpent
       },
       orders
     }, 'Lấy lịch sử đơn hàng của khách thành công');

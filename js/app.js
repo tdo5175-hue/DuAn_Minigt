@@ -4328,11 +4328,12 @@ function getCustomerDeliveredSpent() {
   let spent = 0;
   try {
     const allOrders = (api && api.getSharedOrders) ? api.getSharedOrders() : [];
+    const pool = (Array.isArray(myOrdersCache) && myOrdersCache.length > 0) ? myOrdersCache : allOrders;
     const uid = user.userId || user.id;
     const cleanPhone = (user.phone || '').replace(/\D/g, '');
     const userEmail = (user.email || '').trim().toLowerCase();
 
-    const myOrders = allOrders.filter(o => {
+    const myOrders = pool.filter(o => {
       const st = String(o.status || o.Status || '').toUpperCase();
       // CHỈ TÍNH KHI ĐƠN ĐÃ GIAO THÀNH CÔNG VÀ KHÁCH ĐÃ NHẬN ĐƯỢC HÀNG (DELIVERED)
       if (st !== 'DELIVERED') return false;
@@ -4350,9 +4351,11 @@ function getCustomerDeliveredSpent() {
     spent = myOrders.reduce((sum, o) => sum + Number(o.total || o.totalAmount || o.Total || 0), 0);
   } catch (_) {}
 
-  // Lấy chi tiêu thực tế từ các đơn đã giao thành công
+  // Lấy chi tiêu thực tế từ các đơn đã giao thành công được server xác nhận
   if (user.deliveredSpent && Number(user.deliveredSpent) > spent) {
     spent = Number(user.deliveredSpent);
+  } else if (user.totalSpent && Number(user.totalSpent) > spent) {
+    spent = Number(user.totalSpent);
   }
 
   return spent;
@@ -6549,8 +6552,10 @@ function updateUserHeaderUI() {
       try { localStorage.setItem('minigt_user', JSON.stringify(currentUser)); } catch (_) {}
     }
     const avatarSrc = currentUser.avatarUrl || DEFAULT_USER_AVATAR;
-    const tierName = currentUser.tier || 'Collector';
-    const pts = currentUser.points != null ? currentUser.points : 100;
+    const deliveredSpent = typeof getCustomerDeliveredSpent === 'function' ? getCustomerDeliveredSpent() : Number(currentUser.deliveredSpent || currentUser.totalSpent || 0);
+    const vip = typeof getCustomerVipInfo === 'function' ? getCustomerVipInfo(deliveredSpent) : { level: 1, label: 'VIP 1', tierName: 'Collector' };
+    const tierName = currentUser.role === 'admin' ? 'Founder / Admin' : `${vip.label} (${vip.tierName.split('(')[0].trim()})`;
+    const pts = currentUser.points != null ? currentUser.points : (100 + Math.floor(deliveredSpent / 10000));
     const shortName = currentUser.fullName ? currentUser.fullName.split(' ').slice(-1)[0] : 'Hội viên';
 
     if (container) {
@@ -6675,18 +6680,30 @@ function openUserProfileModal() {
   const body = document.getElementById('userProfileModalBody');
   if (!modal || !body) return;
 
-  let totalSpent = Number(currentUser.totalSpent || 0);
+  let totalSpent = Number(currentUser.deliveredSpent || currentUser.totalSpent || 0);
   let totalDeposit = Number(currentUser.totalDeposit || 0);
   let totalOrders = Number(currentUser.totalOrders || 0);
+  let pendingSpent = 0;
 
   if (Array.isArray(myOrdersCache) && myOrdersCache.length > 0) {
-    const validOrders = myOrdersCache.filter(o => String(o.Status || o.status || '').toUpperCase() !== 'CANCELLED');
-    const orderSum = validOrders.reduce((sum, o) => sum + Number(o.Total || o.total || 0), 0);
-    const depositSum = validOrders.reduce((sum, o) => sum + Number(o.DepositAmount || o.depositAmount || 0), 0);
-    totalSpent = Math.max(totalSpent, orderSum);
+    // 1. CHỈ CÁC ĐƠN ĐÃ GIAO THÀNH CÔNG VÀ KHÁCH ĐÃ NHẬN HÀNG (DELIVERED) MỚI TÍNH VÀO TÍCH LŨY VIP
+    const deliveredOrders = myOrdersCache.filter(o => String(o.Status || o.status || '').toUpperCase() === 'DELIVERED');
+    const deliveredSum = deliveredOrders.reduce((sum, o) => sum + Number(o.Total || o.total || 0), 0);
+    const depositSum = deliveredOrders.reduce((sum, o) => sum + Number(o.DepositAmount || o.depositAmount || 0), 0);
+
+    // Đơn đang xử lý hoặc đang chờ giao
+    const pendingOrders = myOrdersCache.filter(o => {
+      const st = String(o.Status || o.status || '').toUpperCase();
+      return st !== 'CANCELLED' && st !== 'DELIVERED';
+    });
+    pendingSpent = pendingOrders.reduce((sum, o) => sum + Number(o.Total || o.total || 0), 0);
+
+    totalSpent = Math.max(totalSpent, deliveredSum);
     totalDeposit = Math.max(totalDeposit, depositSum);
-    totalOrders = Math.max(totalOrders, validOrders.length);
+    totalOrders = Math.max(totalOrders, deliveredOrders.length);
+
     currentUser.totalSpent = totalSpent;
+    currentUser.deliveredSpent = totalSpent;
     currentUser.totalDeposit = totalDeposit;
     currentUser.totalOrders = totalOrders;
     try { localStorage.setItem('minigt_user', JSON.stringify(currentUser)); } catch (_) {}
@@ -6760,19 +6777,25 @@ function openUserProfileModal() {
         </div>
         <div class="user-pass-stat-box" style="text-align:center;">
           <div class="user-pass-stat-val" style="font-size:22px; font-weight:900; color:#4ade80;">${formatVND(totalSpent) || '0đ'}</div>
-          <div class="user-pass-stat-lbl" style="font-size:11px; color:#94a3b8; text-transform:uppercase; letter-spacing:0.5px; margin-top:2px;">Tổng cọc & chi tiêu</div>
+          <div class="user-pass-stat-lbl" style="font-size:11px; color:#94a3b8; text-transform:uppercase; letter-spacing:0.5px; margin-top:2px;">Tích lũy VIP (Đã nhận)</div>
         </div>
       </div>
 
       <!-- Thanh tiến độ VIP -->
       <div style="margin-top:12px; background:rgba(255,255,255,0.08); border-radius:10px; padding:8px 12px; border:1px solid rgba(255,255,255,0.08);">
         <div style="display:flex; justify-content:space-between; align-items:center; font-size:11.5px; margin-bottom:5px; color:#ffffff;">
-          <span>Phân hạng: <strong style="color:#fdba74;">${vip.label}</strong> (Chi tiêu: ${formatVND(totalSpent)})</span>
+          <span>Phân hạng: <strong style="color:#fdba74;">${vip.label}</strong> (Chi tiêu đã nhận: ${formatVND(totalSpent)})</span>
           <span style="font-size:11px; opacity:0.9;">${vip.nextTarget ? `Mục tiêu ${vip.nextLabel}: ${formatVND(vip.nextTarget)}` : '⭐ Cấp VIP tối đa'}</span>
         </div>
         <div style="background:rgba(255,255,255,0.2); height:6px; border-radius:3px; overflow:hidden;">
           <div style="background:linear-gradient(90deg, #10b981, #059669); height:100%; width:${vip.progressPercent}%; border-radius:3px; transition:width 0.5s ease;"></div>
         </div>
+        ${pendingSpent > 0 ? `
+          <div style="margin-top:8px; font-size:11.5px; color:#fde68a; background:rgba(217, 119, 6, 0.25); border:1px dashed #f59e0b; border-radius:8px; padding:6px 10px; display:flex; align-items:center; gap:6px;">
+            <i class="fa-solid fa-clock-rotate-left" style="color:#fbbf24;"></i>
+            <span>Đang có <strong>${formatVND(pendingSpent)}</strong> từ các đơn hàng chờ nhận. Điểm VIP sẽ tự động cộng ngay khi bạn hoặc Admin xác nhận đã nhận hàng!</span>
+          </div>
+        ` : ''}
       </div>
     </div>
 
@@ -10328,6 +10351,16 @@ document.addEventListener('DOMContentLoaded', () => {
   updateWishlistBadge();
   renderPreOrderQuickRow();
   updateUserHeaderUI();
+  if (currentToken) {
+    safeFetch('/api/auth/me', { headers: { 'Authorization': `Bearer ${currentToken}` } })
+      .then(res => {
+        if (res && res.success && res.data) {
+          currentUser = res.data;
+          try { localStorage.setItem('minigt_user', JSON.stringify(currentUser)); } catch (_) {}
+          updateUserHeaderUI();
+        }
+      }).catch(() => {});
+  }
   initGoogleIdentityServices();
   initCustomerRealtimeOrderWatcher();
   initLiveCollectorActivityPopup();

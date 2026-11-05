@@ -121,7 +121,7 @@ async function runTests() {
     const rAdminLogin = await request('/api/auth/login', {
       method: 'POST',
       body: {
-        email: 'admin@gmail.com',
+        email: 'quocthinh.admin@minigt.vn',
         password: 'Admin@2026!'
       }
     });

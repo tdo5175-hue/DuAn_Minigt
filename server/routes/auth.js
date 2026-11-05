@@ -96,16 +96,19 @@ function normalizeUserRow(u) {
   };
 }
 
-async function getUserOrderStats(userId, email) {
+async function getUserOrderStats(userId, email, phone = null) {
   try {
+    const cleanPhone = phone ? String(phone).replace(/[\s.\-()]/g, '') : '';
     const res = await db.query(`
       SELECT 
         COALESCE(SUM(CASE WHEN UPPER(Status) = 'DELIVERED' THEN Total ELSE 0 END), 0) AS "TotalSpent",
         COALESCE(SUM(CASE WHEN UPPER(Status) = 'DELIVERED' AND DepositAmount > 0 THEN DepositAmount ELSE 0 END), 0) AS "TotalDeposit",
         COUNT(CASE WHEN UPPER(Status) = 'DELIVERED' THEN 1 ELSE NULL END) AS "TotalOrders"
       FROM Orders
-      WHERE (UserId = @uid AND @uid > 0) OR (LOWER(Email) = LOWER(@email) AND @email IS NOT NULL AND @email <> '')
-    `, { uid: userId || 0, email: email || '' });
+      WHERE (UserId = @uid AND @uid > 0)
+         OR (Email IS NOT NULL AND LOWER(Email) = LOWER(@email) AND @email <> '')
+         OR (Phone IS NOT NULL AND REPLACE(REPLACE(REPLACE(Phone, ' ', ''), '-', ''), '.', '') = @cleanPhone AND @cleanPhone <> '')
+    `, { uid: userId || 0, email: email || '', cleanPhone: cleanPhone || '' });
     if (res.recordset && res.recordset.length > 0) {
       return res.recordset[0];
     }
@@ -139,6 +142,7 @@ function publicUser(raw, stats = {}) {
     Role: u.Role || 'customer',
     tier: u.Role === 'admin' ? 'Founder / Admin' : 'Collector VIP',
     totalSpent: spent,
+    deliveredSpent: spent,
     totalDeposit: dep,
     totalOrders: ordCount,
     points: pts,
@@ -279,7 +283,7 @@ router.post('/login', async (req, res, next) => {
 
       await db.query('UPDATE Users SET LastLoginAt = NOW() WHERE UserId = @id', { id: user.UserId });
       const token = signToken(user);
-      const stats = await getUserOrderStats(user.UserId, user.Email);
+      const stats = await getUserOrderStats(user.UserId, user.Email, user.Phone);
       const clean = publicUser(user, stats);
 
       return res.status(200).json({
@@ -348,7 +352,7 @@ router.post('/login', async (req, res, next) => {
     await db.query('UPDATE Users SET LastLoginAt = NOW() WHERE UserId = @id', { id: matchedUser.UserId });
 
     const token = signToken(matchedUser);
-    const stats = await getUserOrderStats(matchedUser.UserId, matchedUser.Email);
+    const stats = await getUserOrderStats(matchedUser.UserId, matchedUser.Email, matchedUser.Phone);
     const clean = publicUser(matchedUser, stats);
 
     return res.status(200).json({
@@ -423,7 +427,7 @@ router.post('/google', async (req, res, next) => {
     }
 
     const token = signToken(user);
-    const stats = await getUserOrderStats(user.UserId, user.Email);
+    const stats = await getUserOrderStats(user.UserId, user.Email, user.Phone);
     const clean = publicUser(user, stats);
     return res.status(200).json({
       success: true,
@@ -576,7 +580,7 @@ router.post('/login-otp', async (req, res, next) => {
     await deleteDbOtp(`login_${email}`);
 
     const token = signToken(user);
-    const stats = await getUserOrderStats(user.UserId, user.Email);
+    const stats = await getUserOrderStats(user.UserId, user.Email, user.Phone);
     const clean = publicUser(user, stats);
 
     return res.status(200).json({
@@ -795,7 +799,7 @@ router.post('/reset-password', async (req, res, next) => {
     if (cleanPhone) await deleteDbOtp(cleanPhone);
 
     const updatedRow = (updatedUserRes.recordset.length > 0) ? normalizeUserRow(updatedUserRes.recordset[0]) : u;
-    const stats = await getUserOrderStats(updatedRow.UserId, updatedRow.Email);
+    const stats = await getUserOrderStats(updatedRow.UserId, updatedRow.Email, updatedRow.Phone);
     const clean = publicUser(updatedRow, stats);
     const token = signToken(updatedRow);
 
@@ -896,7 +900,7 @@ router.put('/profile', async (req, res, next) => {
     }
 
     const token = signToken(updatedRow);
-    const stats = await getUserOrderStats(updatedRow.UserId, updatedRow.Email);
+    const stats = await getUserOrderStats(updatedRow.UserId, updatedRow.Email, updatedRow.Phone);
     const clean = publicUser(updatedRow, stats);
     return res.status(200).json({
       success: true,
@@ -912,7 +916,7 @@ router.put('/profile', async (req, res, next) => {
 
 // GET /api/auth/me
 router.get('/me', authenticate, requireActiveUser, async (req, res) => {
-  const stats = await getUserOrderStats(req.dbUser.UserId, req.dbUser.Email);
+  const stats = await getUserOrderStats(req.dbUser.UserId, req.dbUser.Email, req.dbUser.Phone);
   const clean = publicUser(req.dbUser, stats);
   return res.status(200).json({
     success: true,

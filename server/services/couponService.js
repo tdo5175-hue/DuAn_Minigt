@@ -355,7 +355,7 @@ async function deleteCoupon(couponId) {
  * XÁC THỰC VÀ ÁP DỤNG MÃ GIẢM GIÁ
  * Chỉ nhận mã do Admin tạo HOẶC mã đặc quyền VIP theo cấp bậc hội viên!
  */
-async function validateAndApplyCoupon(rawCode, subtotal = 0, user = null, customerContext = {}) {
+async function validateAndApplyCoupon(rawCode, subtotal = 0, user = null, context = {}) {
   const code = String(rawCode || '').trim().toUpperCase();
   if (!code) {
     return { valid: false, message: 'Vui lòng nhập mã ưu đãi!' };
@@ -364,6 +364,24 @@ async function validateAndApplyCoupon(rawCode, subtotal = 0, user = null, custom
   // 1. KIỂM TRA MÃ VIP ĐẶC QUYỀN
   if (VIP_TIER_COUPONS[code]) {
     let vipCfg = VIP_TIER_COUPONS[code];
+
+    // Tự động đối chiếu tài khoản nếu khách nhập SĐT hoặc Email lúc đặt hàng
+    if (!user && (context.email || context.phone)) {
+      try {
+        const uCleanPhone = context.phone ? String(context.phone).replace(/[\s.\-()]/g, '') : '';
+        const uCleanEmail = context.email ? String(context.email).trim().toLowerCase() : '';
+        const matchRes = await db.query(`
+          SELECT UserId, FullName, Email, Phone FROM Users
+          WHERE (Email IS NOT NULL AND LOWER(Email) = @uEmail AND @uEmail <> '')
+             OR (Phone IS NOT NULL AND REPLACE(REPLACE(REPLACE(Phone, ' ', ''), '-', ''), '.', '') = @uCleanPhone AND @uCleanPhone <> '')
+          LIMIT 1
+        `, { uEmail: uCleanEmail, uCleanPhone });
+        if (matchRes.recordset && matchRes.recordset.length > 0) {
+          user = matchRes.recordset[0];
+        }
+      } catch (_) {}
+    }
+
     if (!user) {
       return {
         valid: false,
@@ -371,26 +389,30 @@ async function validateAndApplyCoupon(rawCode, subtotal = 0, user = null, custom
       };
     }
 
-    // Tính cấp VIP hiện tại của người dùng dựa trên tổng tích lũy các đơn hàng hợp lệ
-    let spent = Math.max(0, Number(user.totalSpent || user.deliveredSpent || 0));
-    const uid = user.userId || user.id;
-    const uEmail = user.email ? String(user.email).trim().toLowerCase() : null;
+    // Tính cấp VIP hiện tại của người dùng dựa trên tổng tích lũy các đơn hàng ĐÃ NHẬN (DELIVERED)
+    let spent = Math.max(0, Number(user.deliveredSpent || user.totalSpent || 0));
+    const uid = user.userId || user.id || user.UserId;
+    const uEmail = user.email ? String(user.email).trim().toLowerCase() : (context.email ? String(context.email).trim().toLowerCase() : null);
+    const rawPhone = user.phone || user.Phone || context.phone || '';
+    const cleanPhone = rawPhone ? String(rawPhone).replace(/[\s.\-()]/g, '') : null;
 
-    if (uid || uEmail) {
+    if (uid || uEmail || cleanPhone) {
       try {
         const dbSpentRes = await db.query(`
           SELECT COALESCE(SUM(Total), 0) AS total_spent
           FROM Orders
-          WHERE ((UserId = @uid AND @uid > 0) OR (Email IS NOT NULL AND LOWER(Email) = @uEmail AND @uEmail <> ''))
-            AND Status <> 'CANCELLED'
-        `, { uid: uid ? parseInt(uid, 10) : 0, uEmail: uEmail || '' });
+          WHERE ((UserId = @uid AND @uid > 0)
+             OR (Email IS NOT NULL AND LOWER(Email) = @uEmail AND @uEmail <> '')
+             OR (Phone IS NOT NULL AND REPLACE(REPLACE(REPLACE(Phone, ' ', ''), '-', ''), '.', '') = @cleanPhone AND @cleanPhone <> ''))
+            AND UPPER(Status) = 'DELIVERED'
+        `, { uid: uid ? parseInt(uid, 10) : 0, uEmail: uEmail || '', cleanPhone: cleanPhone || '' });
         const dbSpent = Number(dbSpentRes.recordset[0]?.total_spent || 0);
-        if (dbSpent > spent) spent = dbSpent;
+        spent = Math.max(spent, dbSpent);
       } catch (_) {}
     }
 
     let userLevel = 1;
-    if (spent > 5000000) userLevel = 5;
+    if (spent >= 5000000) userLevel = 5;
     else if (spent >= 1000000) userLevel = 4;
     else if (spent >= 500000) userLevel = 3;
     else if (spent >= 200000) userLevel = 2;

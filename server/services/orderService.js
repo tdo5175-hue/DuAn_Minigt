@@ -681,7 +681,8 @@ async function listOrders({ status, paymentStatus, paymentMethod, q, userId, use
   const params = {};
 
   // Lọc theo trạng thái và giai đoạn Pre-Order
-  if (status === 'PRE_ORDER' || status === 'PREORDER' || preStage) {
+  const isPreOrder = status === 'PRE_ORDER' || status === 'PREORDER';
+  if (isPreOrder) {
     where.push('o.HasPreOrder = TRUE');
     if (preStage && preStage !== 'ALL') {
       const stage = String(preStage).toUpperCase();
