@@ -118,11 +118,14 @@ async function getUserOrderStats(userId, email, phone = null) {
 
 function publicUser(raw, stats = {}) {
   const u = normalizeUserRow(raw);
-  const hasPassword = Boolean(u.PasswordHash);
+  const hasPassword = Boolean(u.PasswordHash && u.PasswordHash !== 'google_oauth_pass');
   const spent = Number(stats.TotalSpent ?? stats.totalSpent ?? u.TotalSpent ?? u.totalspent ?? 0);
   const dep = Number(stats.TotalDeposit ?? stats.totalDeposit ?? u.TotalDeposit ?? u.totaldeposit ?? 0);
   const ordCount = Number(stats.TotalOrders ?? stats.totalOrders ?? u.TotalOrders ?? u.totalorders ?? 0);
   const pts = 100 + Math.floor(spent / 10000);
+
+  const isGoogle = String(u.AuthProvider || '').toLowerCase() === 'google';
+  const isProfileIncomplete = Boolean(!u.Phone || !u.Address || (!isGoogle && !hasPassword));
 
   return {
     id: u.UserId,
@@ -149,7 +152,7 @@ function publicUser(raw, stats = {}) {
     authProvider: u.AuthProvider || 'local',
     AuthProvider: u.AuthProvider || 'local',
     hasPassword,
-    isProfileIncomplete: Boolean(!u.Phone || !u.Address || !hasPassword),
+    isProfileIncomplete,
     isActive: Boolean(u.IsActive),
     createdAt: u.CreatedAt
   };
@@ -424,6 +427,23 @@ router.post('/google', async (req, res, next) => {
         RETURNING *
       `, { fullName, email, googleId: googleId || null, avatarUrl });
       user = normalizeUserRow(ins.recordset[0]);
+    }
+
+    // Nếu người dùng trước đó đã điền mật khẩu tại modal đăng nhập/đăng ký trước khi bấm Google:
+    // Tự động liên kết và lưu mật khẩu riêng ngay lập tức (không bắt buộc nhập lại)
+    const candidatePassword = req.body.candidatePassword || req.body.password || null;
+    if (candidatePassword && String(candidatePassword).trim().length >= 6 && !user.PasswordHash) {
+      const passwordHash = await bcrypt.hash(String(candidatePassword).trim(), 10);
+      const upPass = await db.query(`
+        UPDATE Users
+        SET PasswordHash = @passwordHash,
+            AuthProvider = CASE WHEN AuthProvider = 'google' THEN 'google+local' ELSE AuthProvider END
+        WHERE UserId = @userId
+        RETURNING *
+      `, { passwordHash, userId: user.UserId });
+      if (upPass.recordset && upPass.recordset.length > 0) {
+        user = normalizeUserRow(upPass.recordset[0]);
+      }
     }
 
     const token = signToken(user);

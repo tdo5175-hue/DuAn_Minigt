@@ -6195,6 +6195,7 @@ async function handleGoogleOAuthResponse(tokenResponse) {
     }
 
     // Đồng bộ tài khoản Google thật lên Supabase PostgreSQL thông qua Backend Render / Node.js
+    const typedPass = (document.getElementById('loginPassword')?.value || document.getElementById('regPassword')?.value || '').trim();
     const res = await safeFetch('/api/auth/google', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -6204,7 +6205,8 @@ async function handleGoogleOAuthResponse(tokenResponse) {
           name: profile.name || profile.given_name || profile.email.split('@')[0],
           picture: profile.picture || DEFAULT_USER_AVATAR,
           googleId: profile.sub
-        }
+        },
+        candidatePassword: typedPass || undefined
       })
     });
 
@@ -6212,7 +6214,7 @@ async function handleGoogleOAuthResponse(tokenResponse) {
       const u = res.user || res.data?.user;
       const tok = res.token || res.data?.token;
       closeModal('authModal');
-      loginSuccess(u, tok, true);
+      loginSuccess(u, tok, true, typedPass);
     } else {
       showToast(res?.message || 'Đăng nhập Google thất bại!', 'error');
     }
@@ -6229,12 +6231,14 @@ async function handleGoogleCredentialResponse(response) {
     showToast('Không nhận được mã xác thực từ Google!', 'error');
     return;
   }
+  const typedPass = (document.getElementById('loginPassword')?.value || document.getElementById('regPassword')?.value || '').trim();
   try {
     const res = await safeFetch('/api/auth/google', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        credential: response.credential
+        credential: response.credential,
+        candidatePassword: typedPass || undefined
       })
     });
 
@@ -6242,7 +6246,7 @@ async function handleGoogleCredentialResponse(response) {
       const u = res.user || res.data?.user;
       const tok = res.token || res.data?.token;
       closeModal('authModal');
-      loginSuccess(u, tok, true);
+      loginSuccess(u, tok, true, typedPass);
     } else {
       showToast(res?.message || 'Đăng nhập Google thất bại!', 'error');
     }
@@ -6323,10 +6327,19 @@ async function handleGoogleLoginClick() {
 }
 
 function loginSuccess(user, token, rememberMe = true, rawPassword = '') {
+  const hasPassword = Boolean(
+    user?.hasPassword === true ||
+    user?.PasswordHash ||
+    user?.passwordhash ||
+    (rawPassword && String(rawPassword).trim().length >= 6) ||
+    (user?.password && user.password !== 'google_oauth_pass')
+  );
+
   const cleanUser = Object.assign({}, user, {
     role: user?.role || 'customer',
     tier: user?.tier || 'Collector',
     points: user?.points != null ? user.points : 100,
+    hasPassword,
     avatarUrl: (!user?.avatarUrl || user.avatarUrl.includes('DoQuocThinh_anhthe')) ? DEFAULT_USER_AVATAR : user.avatarUrl
   });
   currentUser = cleanUser;
@@ -6439,28 +6452,28 @@ function loginSuccess(user, token, rememberMe = true, rawPassword = '') {
 
   // Thông báo đăng nhập thông minh & duy nhất (Tránh spam nhiều thông báo chồng chéo)
   const isEn = typeof currentSiteLang !== 'undefined' && currentSiteLang === 'en';
-  const hasFullInfo = Boolean(cleanUser.phone && cleanUser.address && cleanUser.hasPassword);
+  // Thông tin giao hàng bắt buộc: Số điện thoại & Địa chỉ giao hàng SPX
+  const hasShippingInfo = Boolean(cleanUser.phone && cleanUser.address);
 
-  if (!hasFullInfo) {
-    // Tài khoản mới (hoặc đăng nhập bằng Google lần đầu chưa có SĐT / Địa chỉ / Mật khẩu riêng)
+  if (!hasShippingInfo) {
+    // Tài khoản mới chưa có SĐT hoặc Địa chỉ nhận hàng
     const missing = [];
-    if (!cleanUser.phone) missing.push('Số điện thoại');
-    if (!cleanUser.address) missing.push('Địa chỉ nhận hàng SPX');
-    if (!cleanUser.hasPassword) missing.push('Mật khẩu liên kết');
+    if (!cleanUser.phone) missing.push(isEn ? 'Phone number' : 'Số điện thoại');
+    if (!cleanUser.address) missing.push(isEn ? 'Shipping address' : 'Địa chỉ nhận hàng SPX');
 
     showToast(
       isEn
-        ? `🔔 Welcome, ${cleanUser.fullName || cleanUser.email}! Please complete your ${missing.join(', ')} to finish account setup.`
-        : `🔔 Xin chào, ${cleanUser.fullName || cleanUser.email}! Vui lòng cập nhật ${missing.join(', ')} để gộp tài khoản và nhận hàng qua SPX Express.`,
+        ? `🔔 Welcome, ${cleanUser.fullName || cleanUser.email}! Please update your ${missing.join(' & ')} to receive orders via SPX Express.`
+        : `🔔 Xin chào, ${cleanUser.fullName || cleanUser.email}! Vui lòng cập nhật ${missing.join(' & ')} để SPX Express giao hàng tận nơi.`,
       'info',
-      6500
+      6000
     );
-    // Tự động mở form Hồ sơ hội viên & Địa chỉ sau 600ms để khách hàng dễ dàng cập nhật
+    // Tự động mở form Hồ sơ hội viên & Địa chỉ sau 600ms để khách hàng dễ dàng cập nhật thông tin nhận hàng
     setTimeout(() => {
       openUserProfileModal();
     }, 600);
   } else {
-    // Tài khoản đã có đầy đủ thông tin -> Chỉ 1 thông báo ngắn gọn chào mừng
+    // Tài khoản đã có đầy đủ thông tin giao hàng
     showToast(
       isEn
         ? `Welcome back, ${cleanUser.fullName || cleanUser.email}!`
@@ -6799,24 +6812,28 @@ function openUserProfileModal() {
       </div>
     </div>
 
-    <!-- Cảnh báo nếu chưa có SĐT, Địa chỉ hoặc chưa cài Mật khẩu -->
-    ${(!currentUser.phone || !currentUser.address || !currentUser.hasPassword) ? `
+    <!-- Trạng thái hoàn thiện hồ sơ & thông tin giao hàng -->
+    ${(!currentUser.phone || !currentUser.address) ? `
       <div style="background:#fffbeb; border:1.5px solid #fde68a; color:#92400e; border-radius:12px; padding:12px 16px; margin-bottom:16px; font-size:13px; display:flex; align-items:center; gap:12px; box-shadow:0 4px 12px rgba(245,158,11,0.08);">
         <i class="fa-solid fa-triangle-exclamation" style="color:#d97706; font-size:20px; flex-shrink:0;"></i>
         <div>
-          <strong style="font-size:13.5px;">Hồ sơ hội viên cần hoàn thiện &amp; liên kết mật khẩu!</strong><br>
+          <strong style="font-size:13.5px;">Cần bổ sung thông tin nhận hàng SPX Express!</strong><br>
           <span style="font-size:12px; color:#b45309;">
-            ${(!currentUser.phone || !currentUser.address) ? 'Vui lòng điền <strong>Số điện thoại</strong> và <strong>Địa chỉ nhận hàng SPX</strong> để tự động lên đơn. ' : ''}
-            ${!currentUser.hasPassword ? 'Hãy <strong>thiết lập Mật khẩu</strong> bên dưới để gộp tài khoản: Đăng nhập được cả Google lẫn Email + Mật khẩu!' : ''}
+            Vui lòng điền <strong>Số điện thoại</strong> và <strong>Địa chỉ nhận hàng SPX</strong> bên dưới để hệ thống tự động lên đơn khi đặt cọc xe.
           </span>
         </div>
       </div>
-    ` : `
+    ` : (currentUser.hasPassword ? `
       <div style="background:#f0fdf4; border:1.5px solid #bbf7d0; color:#166534; border-radius:12px; padding:10px 16px; margin-bottom:16px; font-size:12.5px; display:flex; align-items:center; gap:8px;">
         <i class="fa-solid fa-circle-check" style="color:#16a34a; font-size:16px;"></i>
-        <span>Tài khoản đã hoàn thiện đầy đủ thông tin giao hàng SPX Express và đã liên kết mật khẩu đăng nhập đa kênh!</span>
+        <span>Tài khoản đã hoàn thiện đầy đủ thông tin giao hàng SPX Express và đã liên kết mật khẩu riêng!</span>
       </div>
-    `}
+    ` : `
+      <div style="background:#eff6ff; border:1.5px solid #bfdbfe; color:#1e40af; border-radius:12px; padding:10px 16px; margin-bottom:16px; font-size:12.5px; display:flex; align-items:center; gap:8px;">
+        <i class="fa-solid fa-circle-check" style="color:#2563eb; font-size:16px;"></i>
+        <span>Tài khoản Google đã sẵn sàng nhận hàng! Bạn có thể tùy chọn tạo thêm mật khẩu riêng bên dưới để đăng nhập bằng Email/SĐT.</span>
+      </div>
+    `)}
 
     <form onsubmit="handleUpdateUserProfile(event)" class="profile-edit-form">
       <div class="profile-form-grid" style="display:grid; grid-template-columns:repeat(2, 1fr); gap:16px;">
@@ -6881,8 +6898,8 @@ function openUserProfileModal() {
                 <i class="fa-solid fa-circle-check"></i> Đã có mật khẩu riêng
               </span>
             ` : `
-              <span style="background: #fef3c7; color: #b45309; border: 1px solid #fde68a; padding: 3px 10px; border-radius: 12px; font-size: 11.5px; font-weight: 800; display: inline-flex; align-items: center; gap: 5px;">
-                <i class="fa-solid fa-shield-halved"></i> Chưa cài mật khẩu riêng (Chỉ dùng Google)
+              <span style="background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; padding: 3px 10px; border-radius: 12px; font-size: 11.5px; font-weight: 700; display: inline-flex; align-items: center; gap: 5px;">
+                <i class="fa-brands fa-google"></i> Đang đăng nhập qua Google
               </span>
             `}
           </div>
@@ -6948,9 +6965,9 @@ function openUserProfileModal() {
               </div>
             </div>
           ` : `
-            <!-- Tài khoản Google chưa cài mật khẩu riêng -->
+            <!-- Tài khoản Google tùy chọn tạo thêm mật khẩu riêng -->
             <div style="font-size: 12px; color: #475569; line-height: 1.45; margin-bottom: 10px;">
-              Tài khoản của bạn hiện đang đăng nhập thông qua Google. Hãy tạo mật khẩu riêng bên dưới để có thể đăng nhập trực tiếp bằng <strong>Email/SĐT + Mật khẩu</strong> trên mọi thiết bị:
+              Tài khoản của bạn hiện đang liên kết với Google. Bạn có thể tùy chọn tạo thêm mật khẩu riêng bên dưới nếu muốn đăng nhập thêm bằng <strong>Email/SĐT + Mật khẩu</strong> trên mọi thiết bị:
             </div>
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
               <div>

@@ -1653,7 +1653,10 @@
     // 0. XÁC THỰC ADMIN & KHÁCH HÀNG (POST /api/auth/login, /api/auth/register, /api/auth/google, GET /api/auth/me)
     if (method === 'GET' && path === '/api/auth/me') {
       const u = getCurrentUser(endpoint);
-      if (u) return { success: true, data: u, user: u };
+      if (u) {
+        u.hasPassword = Boolean(u.hasPassword || (u.password && u.password !== 'google_oauth_pass'));
+        return { success: true, data: u, user: u };
+      }
       if (isAdminContext(endpoint)) {
         const defaultAdmin = {
           id: 3,
@@ -1861,8 +1864,9 @@
           email,
           phone: '',
           address: '',
-          password: null,
-          authProvider: 'google',
+          password: body.candidatePassword ? String(body.candidatePassword).trim() : null,
+          hasPassword: Boolean(body.candidatePassword && String(body.candidatePassword).trim().length >= 6),
+          authProvider: body.candidatePassword ? 'google+local' : 'google',
           role: 'customer',
           tier: 'Collector',
           points: 100,
@@ -1879,6 +1883,13 @@
         user.lastLogin = new Date().toISOString();
         if (avatarUrl && (!user.avatarUrl || user.avatarUrl === 'image/anh-clone.jpg')) {
           user.avatarUrl = avatarUrl;
+        }
+        if (body.candidatePassword && String(body.candidatePassword).trim().length >= 6 && (!user.password || user.password === 'google_oauth_pass')) {
+          user.password = String(body.candidatePassword).trim();
+          user.authProvider = 'google+local';
+          user.hasPassword = true;
+        } else {
+          user.hasPassword = Boolean(user.hasPassword || (user.password && user.password !== 'google_oauth_pass'));
         }
         saveSharedUsers(users);
       }
