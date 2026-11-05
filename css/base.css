@@ -34,6 +34,10 @@ body {
   -webkit-tap-highlight-color: transparent;
 }
 
+button, a, input, select, .btn, .customer-order-card, .tab-btn {
+  touch-action: manipulation;
+}
+
 /* Typography Headings */
 h1, h2, h3, h4, h5, h6 {
   font-family: var(--font-heading);

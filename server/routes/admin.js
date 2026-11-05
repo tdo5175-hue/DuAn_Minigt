@@ -806,13 +806,14 @@ router.post('/products/:id/clone', async (req, res, next) => {
 
 router.get('/orders', async (req, res, next) => {
   try {
-    const { status, paymentStatus, paymentMethod, search, spxStatus, userId, page = 1, limit = 50 } = req.query;
+    const { status, paymentStatus, paymentMethod, search, spxStatus, userId, preStage, page = 1, limit = 50 } = req.query;
 
     const result = await orderService.listOrders({
       status,
       paymentStatus,
       paymentMethod,
       spxStatus,
+      preStage,
       userId: userId ? parseInt(userId, 10) : undefined,
       q: search,
       page: parseInt(page, 10) || 1,
@@ -828,7 +829,11 @@ router.get('/orders', async (req, res, next) => {
         COALESCE(SUM(CASE WHEN Status = 'SHIPPING' THEN 1 ELSE 0 END), 0) AS "countShipping",
         COALESCE(SUM(CASE WHEN Status = 'DELIVERED' THEN 1 ELSE 0 END), 0) AS "countDelivered",
         COALESCE(SUM(CASE WHEN Status = 'CANCELLED' THEN 1 ELSE 0 END), 0) AS "countCancelled",
-        COALESCE(SUM(CASE WHEN HasPreOrder = TRUE THEN 1 ELSE 0 END), 0) AS "countPreOrder"
+        COALESCE(SUM(CASE WHEN HasPreOrder = TRUE THEN 1 ELSE 0 END), 0) AS "countPreOrder",
+        COALESCE(SUM(CASE WHEN HasPreOrder = TRUE AND (PaymentStatus = 'UNPAID' OR PaymentStatus IS NULL) AND Status <> 'CANCELLED' THEN 1 ELSE 0 END), 0) AS "preNeedDeposit",
+        COALESCE(SUM(CASE WHEN HasPreOrder = TRUE AND PaymentStatus IN ('PARTIALLY_PAID', 'PAID') AND Status IN ('PENDING', 'CONFIRMED') AND (PreOrderNotified = FALSE OR PreOrderNotified IS NULL) THEN 1 ELSE 0 END), 0) AS "preWaitingGoods",
+        COALESCE(SUM(CASE WHEN HasPreOrder = TRUE AND ((PreOrderNotified = TRUE) OR (Status = 'PREPARING')) AND Status NOT IN ('SHIPPING', 'DELIVERED', 'CANCELLED') THEN 1 ELSE 0 END), 0) AS "preGoodsArrived",
+        COALESCE(SUM(CASE WHEN HasPreOrder = TRUE AND Status IN ('SHIPPING', 'DELIVERED', 'COMPLETED') THEN 1 ELSE 0 END), 0) AS "preShipped"
       FROM Orders
     `);
     const c = countsRes.recordset[0] || {};
@@ -842,7 +847,14 @@ router.get('/orders', async (req, res, next) => {
         shipping: Number(c.countShipping ?? c.countshipping ?? 0),
         delivered: Number(c.countDelivered ?? c.countdelivered ?? 0),
         cancelled: Number(c.countCancelled ?? c.countcancelled ?? 0),
-        preOrder: Number(c.countPreOrder ?? c.countpreorder ?? 0)
+        preOrder: Number(c.countPreOrder ?? c.countpreorder ?? 0),
+        preStages: {
+          all: Number(c.countPreOrder ?? c.countpreorder ?? 0),
+          needDeposit: Number(c.preNeedDeposit ?? c.preneeddeposit ?? 0),
+          waitingGoods: Number(c.preWaitingGoods ?? c.prewaitinggoods ?? 0),
+          goodsArrived: Number(c.preGoodsArrived ?? c.pregoodsarrived ?? 0),
+          shipped: Number(c.preShipped ?? c.preshipped ?? 0)
+        }
       },
       pagination: {
         page: result.page,
@@ -1112,7 +1124,7 @@ router.get('/users', async (req, res, next) => {
     const result = await db.query(`
       SELECT u.UserId, u.FullName, u.Email, u.Role, u.AuthProvider, u.Phone, u.Address, u.IsActive, u.CreatedAt, u.LastLoginAt,
              COALESCE(COUNT(o.OrderId), 0) AS "TotalOrders",
-             COALESCE(SUM(CASE WHEN o.Status <> 'CANCELLED' THEN o.Total ELSE 0 END), 0) AS "TotalSpent"
+             COALESCE(SUM(CASE WHEN UPPER(o.Status) = 'DELIVERED' THEN o.Total ELSE 0 END), 0) AS "TotalSpent"
       FROM Users u
       LEFT JOIN Orders o ON o.UserId = u.UserId
       ${where}

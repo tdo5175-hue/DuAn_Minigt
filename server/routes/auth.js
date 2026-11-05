@@ -100,9 +100,9 @@ async function getUserOrderStats(userId, email) {
   try {
     const res = await db.query(`
       SELECT 
-        COALESCE(SUM(CASE WHEN Status <> 'CANCELLED' THEN Total ELSE 0 END), 0) AS "TotalSpent",
-        COALESCE(SUM(CASE WHEN Status <> 'CANCELLED' AND DepositAmount > 0 THEN DepositAmount ELSE 0 END), 0) AS "TotalDeposit",
-        COUNT(CASE WHEN Status <> 'CANCELLED' THEN 1 ELSE NULL END) AS "TotalOrders"
+        COALESCE(SUM(CASE WHEN UPPER(Status) = 'DELIVERED' THEN Total ELSE 0 END), 0) AS "TotalSpent",
+        COALESCE(SUM(CASE WHEN UPPER(Status) = 'DELIVERED' AND DepositAmount > 0 THEN DepositAmount ELSE 0 END), 0) AS "TotalDeposit",
+        COUNT(CASE WHEN UPPER(Status) = 'DELIVERED' THEN 1 ELSE NULL END) AS "TotalOrders"
       FROM Orders
       WHERE (UserId = @uid AND @uid > 0) OR (LOWER(Email) = LOWER(@email) AND @email IS NOT NULL AND @email <> '')
     `, { uid: userId || 0, email: email || '' });

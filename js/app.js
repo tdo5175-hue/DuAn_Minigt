@@ -4329,24 +4329,30 @@ function getCustomerDeliveredSpent() {
   try {
     const allOrders = (api && api.getSharedOrders) ? api.getSharedOrders() : [];
     const uid = user.userId || user.id;
+    const cleanPhone = (user.phone || '').replace(/\D/g, '');
+    const userEmail = (user.email || '').trim().toLowerCase();
+
     const myOrders = allOrders.filter(o => {
       const st = String(o.status || o.Status || '').toUpperCase();
-      const pst = String(o.paymentStatus || o.PaymentStatus || '').toUpperCase();
-      if (st === 'CANCELLED') return false;
-      const isValid = (st === 'DELIVERED') || ['PAID', 'PARTIALLY_PAID'].includes(pst) || ['CONFIRMED', 'PREPARING', 'SHIPPING'].includes(st);
-      const matchUid = Boolean(uid && (o.userId || o.UserId) && Number(uid) === Number(o.userId || o.UserId));
-      const matchEmail = Boolean(user.email && (o.email || o.Email) && user.email.toLowerCase() === String(o.email || o.Email).toLowerCase());
-      return isValid && (matchUid || matchEmail);
+      // CHỈ TÍNH KHI ĐƠN ĐÃ GIAO THÀNH CÔNG VÀ KHÁCH ĐÃ NHẬN ĐƯỢC HÀNG (DELIVERED)
+      if (st !== 'DELIVERED') return false;
+
+      const oUid = o.userId || o.UserId || (o.customer && (o.customer.userId || o.customer.id));
+      const matchUid = Boolean(uid && oUid && Number(uid) === Number(oUid));
+      const oEmail = String(o.email || o.Email || (o.customer && o.customer.email) || '').trim().toLowerCase();
+      const matchEmail = Boolean(userEmail && oEmail && userEmail === oEmail);
+      const oPhone = String(o.phone || o.Phone || (o.customer && o.customer.phone) || '').replace(/\D/g, '');
+      const matchPhone = Boolean(cleanPhone && oPhone && cleanPhone === oPhone);
+
+      return matchUid || matchEmail || matchPhone;
     });
+
     spent = myOrders.reduce((sum, o) => sum + Number(o.total || o.totalAmount || o.Total || 0), 0);
   } catch (_) {}
 
-  // Lấy chi tiêu thực tế cao nhất giữa đơn hợp lệ và thuộc tính user
+  // Lấy chi tiêu thực tế từ các đơn đã giao thành công
   if (user.deliveredSpent && Number(user.deliveredSpent) > spent) {
     spent = Number(user.deliveredSpent);
-  }
-  if (user.totalSpent && Number(user.totalSpent) > spent) {
-    spent = Number(user.totalSpent);
   }
 
   return spent;
@@ -4799,16 +4805,14 @@ async function handleCheckoutSubmit(e) {
 
     if (json.success && createdOrder) {
       const code = createdOrder.code || createdOrder.orderCode || createdOrder.OrderCode;
-      if (api.addMyOrderCode) api.addMyOrderCode(code);
+      if (api && api.addMyOrderCode) api.addMyOrderCode(code);
+      if (typeof rememberCustomerOrderCode === 'function') rememberCustomerOrderCode(code);
+      if (typeof upsertSharedOrder === 'function') upsertSharedOrder(createdOrder);
       if (typeof launchCollectorConfetti === 'function') launchCollectorConfetti();
 
-      // Cập nhật điểm thưởng & đơn hàng cho tài khoản hội viên đang đăng nhập
+      // Cập nhật thông tin nhận hàng cho tài khoản hội viên (chỉ cập nhật thông tin cá nhân, KHÔNG cộng VIP trước khi nhận hàng)
       if (currentUser) {
         currentUser.totalOrders = (currentUser.totalOrders || 0) + 1;
-        const dep = createdOrder.depositAmount || 0;
-        const earnedPoints = Math.max(20, Math.floor(dep / 10000));
-        currentUser.points = (currentUser.points || 0) + earnedPoints;
-        currentUser.totalSpent = (currentUser.totalSpent || 0) + (createdOrder.totalAmount || dep);
 
         // Tự động đồng bộ số điện thoại và địa chỉ nhận hàng vào hồ sơ hội viên Supabase
         let profileChanged = false;
@@ -4848,8 +4852,6 @@ async function handleCheckoutSubmit(e) {
             const matchU = uList.find(u => u.email === currentUser.email || u.userId == currentUser.userId);
             if (matchU) {
               matchU.totalOrders = currentUser.totalOrders;
-              matchU.points = currentUser.points;
-              matchU.totalSpent = currentUser.totalSpent;
               api.saveSharedUsers(uList);
             }
           } catch (_) {}
@@ -7316,23 +7318,25 @@ async function fetchCustomerOrdersUnified() {
 
   let url = '/api/orders/my-orders';
 
-  if (!currentUser) {
-    // Khách vãng lai: chỉ gửi danh sách mã đơn được đặt trong phiên khách hiện tại
-    const savedCodes = getSavedCustomerOrderCodes();
-    const queryParams = new URLSearchParams();
-    if (savedCodes.length > 0) queryParams.set('codes', savedCodes.join(','));
-    if (queryParams.toString()) url += '?' + queryParams.toString();
-  }
+  // Luôn gửi kèm danh sách mã đơn trong bộ nhớ và SĐT để đối chiếu thống nhất
+  const savedCodes = getSavedCustomerOrderCodes();
+  const queryParams = new URLSearchParams();
+  if (savedCodes.length > 0) queryParams.set('codes', savedCodes.join(','));
+  const clientPhone = (currentUser && currentUser.phone) ? currentUser.phone : (localStorage.getItem('minigt_customer_phone') || localStorage.getItem('minigt_last_phone') || '');
+  if (clientPhone) queryParams.set('phone', clientPhone);
+  if (queryParams.toString()) url += '?' + queryParams.toString();
 
   const json = await safeFetch(url, { headers });
   let apiOrders = (json && json.success && Array.isArray(json.data)) ? json.data : [];
 
-  // Đồng bộ vào kho chia sẻ local để cả online/offline đều nhất quán
-  if (typeof upsertSharedOrder === 'function') {
+  // Đồng bộ hàng loạt vào kho chia sẻ local siêu tốc không lag
+  if (typeof upsertSharedOrdersBatch === 'function') {
+    upsertSharedOrdersBatch(apiOrders);
+  } else if (typeof upsertSharedOrder === 'function') {
     apiOrders.forEach(o => upsertSharedOrder(o));
   }
 
-  // Hợp nhất thêm đơn hàng từ kho bộ đệm sharedOrders NHƯNG CHỈ LỌC ĐÚNG ĐƠN CỦA TÀI KHOẢN HIỆN TẠI
+  // Hợp nhất thêm đơn hàng từ kho bộ đệm sharedOrders
   const sharedOrders = typeof getSharedOrdersList === 'function' ? getSharedOrdersList() : [];
   const byCode = new Map();
   apiOrders.forEach(o => {
@@ -7340,26 +7344,31 @@ async function fetchCustomerOrdersUnified() {
     if (c) byCode.set(c, o);
   });
 
-  const savedCodes = getSavedCustomerOrderCodes();
-
   sharedOrders.forEach(o => {
     const c = o.OrderCode || o.orderCode || o.code;
     if (!c || byCode.has(c)) return;
 
     if (currentUser) {
-      // Đã đăng nhập: CHỈ khớp đơn hàng có đúng userId hoặc email của tài khoản đang đăng nhập
+      // Đã đăng nhập: Khớp theo UserId, Email, SĐT hoặc mã đơn đã lưu
       const oUid = o.UserId || o.userId || (o.customer && (o.customer.userId || o.customer.id));
       const myUid = currentUser.userId || currentUser.id;
       const oEmail = String(o.Email || o.email || (o.customer && o.customer.email) || '').trim().toLowerCase();
       const myEmail = String(currentUser.email || '').trim().toLowerCase();
+      const oPhone = String(o.Phone || o.phone || (o.customer && o.customer.phone) || '').replace(/\D/g, '');
+      const myPhone = String(currentUser.phone || '').replace(/\D/g, '');
 
-      const matchUser = (oUid && myUid && Number(oUid) === Number(myUid)) || (oEmail && myEmail && oEmail === myEmail);
+      const matchUser = (oUid && myUid && Number(oUid) === Number(myUid))
+                     || (oEmail && myEmail && oEmail === myEmail)
+                     || (oPhone && myPhone && oPhone === myPhone)
+                     || (savedCodes.includes(c));
       if (matchUser) {
         byCode.set(c, o);
       }
     } else {
-      // Khách vãng lai: chỉ lấy các đơn có mã trùng khớp trong phiên khách
-      if (savedCodes.includes(c)) {
+      // Khách vãng lai: chỉ lấy các đơn có mã hoặc SĐT trùng khớp trong phiên khách
+      const oPhone = String(o.Phone || o.phone || (o.customer && o.customer.phone) || '').replace(/\D/g, '');
+      const cleanClientPhone = clientPhone.replace(/\D/g, '');
+      if (savedCodes.includes(c) || (cleanClientPhone && oPhone && cleanClientPhone === oPhone)) {
         byCode.set(c, o);
       }
     }
@@ -8073,7 +8082,18 @@ async function customerConfirmOrderReceived(orderCode) {
         emitRealtimeSync('ORDER_UPDATED', { orderCode, status: 'DELIVERED', order: json.data });
       }
       if (typeof launchCollectorConfetti === 'function') launchCollectorConfetti();
-      showToast(`🎉 Cảm ơn bạn đã xác nhận nhận hàng đơn #${orderCode}! Thư cảm ơn & cẩm nang bảo quản mô hình 1:64 đã được gửi tự động qua email của bạn!`, 'success', 6000);
+
+      // Cập nhật ngay VIP và điểm thưởng tích lũy tức thì (chỉ khi đơn đã DELIVERED)
+      const newDeliveredSpent = getCustomerDeliveredSpent();
+      if (currentUser) {
+        currentUser.deliveredSpent = newDeliveredSpent;
+        currentUser.totalSpent = newDeliveredSpent;
+        currentUser.points = 100 + Math.floor(newDeliveredSpent / 10000);
+        try { localStorage.setItem('minigt_user', JSON.stringify(currentUser)); } catch (_) {}
+        updateUserHeaderUI();
+      }
+
+      showToast(`🎉 Cảm ơn bạn đã xác nhận nhận hàng đơn #${orderCode}! Điểm tích lũy VIP đã được cộng ngay vào tài khoản! Thư cảm ơn & cẩm nang bảo quản mô hình 1:64 đã được gửi qua email.`, 'success', 6000);
       loadMyOrdersList(true);
     } else {
       showToast(json.message || 'Không thể xác nhận đã nhận hàng', 'error');

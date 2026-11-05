@@ -201,7 +201,7 @@ async function createOrder(payload, authUser = null) {
     let finalPaymentMethod = paymentMethod;
     if (hasPreOrder && finalPaymentMethod !== 'VIETQR_PAYOS') finalPaymentMethod = 'DEPOSIT';
 
-    // KIỂM TRA ĐIỀU KIỆN SHIP COD 100% PHÒNG CHỐNG BOM ĐƠN
+    // KIỂM TRA ĐIỀU KIỆN SHIP COD 100% PHÒNG CHỐNG BOM ĐƠN (CHỈ TÍNH ĐƠN ĐÃ GIAO THÀNH CÔNG DELIVERED)
     if (finalPaymentMethod === 'COD') {
       let isCodEligible = false;
       let totalAccumulated = 0;
@@ -213,7 +213,7 @@ async function createOrder(payload, authUser = null) {
           SELECT COALESCE(SUM(Total), 0) AS total_accumulated
           FROM Orders
           WHERE ((UserId = @uid AND @uid > 0) OR (Email IS NOT NULL AND LOWER(Email) = @uEmail AND @uEmail <> ''))
-            AND Status <> 'CANCELLED'
+            AND UPPER(Status) = 'DELIVERED'
         `, { uid: uid ? parseInt(uid, 10) : 0, uEmail: uEmail || '' });
         totalAccumulated = Number(userOrdersRes.recordset[0]?.total_accumulated || 0);
         if (totalAccumulated >= 1000000) {
@@ -228,7 +228,7 @@ async function createOrder(payload, authUser = null) {
           SELECT COALESCE(SUM(Total), 0) AS total_accumulated
           FROM Orders
           WHERE REPLACE(REPLACE(REPLACE(Phone, ' ', ''), '-', ''), '.', '') = @cleanPhone
-            AND Status <> 'CANCELLED'
+            AND UPPER(Status) = 'DELIVERED'
         `, { cleanPhone });
         const phoneAccumulated = Number(phoneOrdersRes.recordset[0]?.total_accumulated || 0);
         if (phoneAccumulated >= 1000000) {
@@ -245,6 +245,25 @@ async function createOrder(payload, authUser = null) {
     const depositAmount = (finalPaymentMethod === 'DEPOSIT' || (hasPreOrder && finalPaymentMethod === 'VIETQR_PAYOS'))
       ? Math.min(total, depositRequired || Math.round(total * 0.3))
       : (finalPaymentMethod === 'BANK_TRANSFER' ? total : 0);
+
+    // Tự động tìm kiếm và gắn UserId nếu khách hàng đã có tài khoản (theo email hoặc SĐT)
+    let finalUserId = authUser ? (authUser.userId || authUser.id) : null;
+    if (!finalUserId && (email || phone)) {
+      try {
+        const cleanP = phone ? String(phone).replace(/[\s.\-()]/g, '') : '';
+        const uLookup = await q(`
+          SELECT UserId FROM Users
+          WHERE (LOWER(Email) = LOWER(@em) AND @em <> '')
+             OR (REPLACE(REPLACE(REPLACE(Phone, ' ', ''), '-', ''), '.', '') = @ph AND @ph <> '')
+          LIMIT 1
+        `, { em: email ? String(email).trim().toLowerCase() : '', ph: cleanP });
+        if (uLookup.recordset && uLookup.recordset[0]?.UserId) {
+          finalUserId = Number(uLookup.recordset[0].UserId);
+        }
+      } catch (lookupErr) {
+        console.warn('[ORDER] User lookup auto-link error:', lookupErr.message);
+      }
+    }
 
     const orderCode = generateOrderCode();
     let oIns;
@@ -263,7 +282,7 @@ async function createOrder(payload, authUser = null) {
         RETURNING *
       `, {
         code: orderCode,
-        uid: authUser ? authUser.userId : null,
+        uid: finalUserId,
         name: fullName,
         phone: phone,
         email: email || null,
@@ -296,7 +315,7 @@ async function createOrder(payload, authUser = null) {
           RETURNING *
         `, {
           code: orderCode,
-          uid: authUser ? authUser.userId : null,
+          uid: finalUserId,
           name: fullName,
           phone: phone,
           email: email || null,
@@ -600,13 +619,13 @@ async function getOrderByCodeOrId(idOrCode) {
            COALESCE(u_spent.TotalSpent, phone_spent.TotalSpent, 0) AS "UserTotalSpent"
     FROM Orders o
     LEFT JOIN (
-      SELECT UserId, COALESCE(SUM(CASE WHEN Status <> 'CANCELLED' THEN Total ELSE 0 END), 0) AS TotalSpent
+      SELECT UserId, COALESCE(SUM(CASE WHEN UPPER(Status) = 'DELIVERED' THEN Total ELSE 0 END), 0) AS TotalSpent
       FROM Orders
       WHERE UserId IS NOT NULL
       GROUP BY UserId
     ) u_spent ON o.UserId = u_spent.UserId
     LEFT JOIN (
-      SELECT Phone, COALESCE(SUM(CASE WHEN Status <> 'CANCELLED' THEN Total ELSE 0 END), 0) AS TotalSpent
+      SELECT Phone, COALESCE(SUM(CASE WHEN UPPER(Status) = 'DELIVERED' THEN Total ELSE 0 END), 0) AS TotalSpent
       FROM Orders
       WHERE Phone IS NOT NULL AND Phone <> ''
       GROUP BY Phone
@@ -657,15 +676,30 @@ async function getOrderByCodeOrId(idOrCode) {
   return mapOrder(o, items, hRes.recordset);
 }
 
-async function listOrders({ status, paymentStatus, paymentMethod, q, userId, phone, spxStatus, page = 1, pageSize = 50 } = {}) {
+async function listOrders({ status, paymentStatus, paymentMethod, q, userId, userEmail, phone, codes, preStage, spxStatus, page = 1, pageSize = 50 } = {}) {
   const where = [];
   const params = {};
-  if (status === 'PRE_ORDER' || status === 'PREORDER') {
+
+  // Lọc theo trạng thái và giai đoạn Pre-Order
+  if (status === 'PRE_ORDER' || status === 'PREORDER' || preStage) {
     where.push('o.HasPreOrder = TRUE');
+    if (preStage && preStage !== 'ALL') {
+      const stage = String(preStage).toUpperCase();
+      if (stage === 'NEED_DEPOSIT') {
+        where.push("(o.PaymentStatus = 'UNPAID' OR o.PaymentStatus IS NULL) AND o.Status <> 'CANCELLED'");
+      } else if (stage === 'WAITING_GOODS') {
+        where.push("o.PaymentStatus IN ('PARTIALLY_PAID', 'PAID') AND o.Status IN ('PENDING', 'CONFIRMED') AND (o.PreOrderNotified = FALSE OR o.PreOrderNotified IS NULL)");
+      } else if (stage === 'GOODS_ARRIVED') {
+        where.push("((o.PreOrderNotified = TRUE) OR (o.Status = 'PREPARING')) AND o.Status NOT IN ('SHIPPING', 'DELIVERED', 'CANCELLED')");
+      } else if (stage === 'SHIPPED') {
+        where.push("o.Status IN ('SHIPPING', 'DELIVERED', 'COMPLETED')");
+      }
+    }
   } else if (status && status !== 'all' && status !== 'ALL') {
     where.push('o.Status = @status');
     params.status = String(status).toUpperCase();
   }
+
   if (paymentStatus && paymentStatus !== 'all' && paymentStatus !== 'ALL') {
     where.push('o.PaymentStatus = @payStatus');
     params.payStatus = String(paymentStatus).toUpperCase();
@@ -685,14 +719,49 @@ async function listOrders({ status, paymentStatus, paymentMethod, q, userId, pho
       where.push('(o.TrackingCode IS NOT NULL AND o.TrackingCode <> \'\')');
     }
   }
+
+  // Khớp đơn hàng thống nhất bảo đảm không bỏ sót đơn
   if (userId) {
-    where.push('o.UserId = @uid');
+    const uFilters = [];
+    uFilters.push('(o.UserId = @uid AND @uid > 0)');
     params.uid = Number(userId);
+
+    if (userEmail && String(userEmail).trim()) {
+      uFilters.push('(o.Email IS NOT NULL AND LOWER(o.Email) = @uEmail AND @uEmail <> \'\')');
+      params.uEmail = String(userEmail).trim().toLowerCase();
+    }
+    if (phone) {
+      const cleanPh = String(phone).replace(/[\s.\-()]/g, '');
+      if (cleanPh) {
+        uFilters.push('(o.Phone IS NOT NULL AND REPLACE(REPLACE(REPLACE(o.Phone, \' \', \'\'), \'-\', \'\'), \'.\', \'\') = @cleanPhone AND @cleanPhone <> \'\')');
+        params.cleanPhone = cleanPh;
+      }
+    }
+    if (Array.isArray(codes) && codes.length > 0) {
+      const safeCodes = codes.map(c => String(c).replace(/[^A-Za-z0-9_-]/g, '')).filter(Boolean);
+      if (safeCodes.length > 0) {
+        uFilters.push(`o.OrderCode IN (${safeCodes.map(c => `'${c}'`).join(',')})`);
+      }
+    }
+    where.push(`(${uFilters.join(' OR ')})`);
+  } else {
+    // Trường hợp tra cứu khách vãng lai
+    const guestFilters = [];
+    if (phone) {
+      guestFilters.push('o.Phone = @phone');
+      params.phone = v.cleanPhone(phone);
+    }
+    if (Array.isArray(codes) && codes.length > 0) {
+      const safeCodes = codes.map(c => String(c).replace(/[^A-Za-z0-9_-]/g, '')).filter(Boolean);
+      if (safeCodes.length > 0) {
+        guestFilters.push(`o.OrderCode IN (${safeCodes.map(c => `'${c}'`).join(',')})`);
+      }
+    }
+    if (guestFilters.length > 0) {
+      where.push(`(${guestFilters.join(' OR ')})`);
+    }
   }
-  if (phone) {
-    where.push('o.Phone = @phone');
-    params.phone = v.cleanPhone(phone);
-  }
+
   if (q && String(q).trim()) {
     where.push('(o.OrderCode ILIKE @q OR o.FullName ILIKE @q OR o.Phone ILIKE @q OR o.TrackingCode ILIKE @q)');
     params.q = `%${String(q).trim()}%`;
@@ -711,13 +780,13 @@ async function listOrders({ status, paymentStatus, paymentMethod, q, userId, pho
              COALESCE(u_spent.TotalSpent, phone_spent.TotalSpent, 0) AS "UserTotalSpent"
       FROM Orders o
       LEFT JOIN (
-        SELECT UserId, COALESCE(SUM(CASE WHEN Status <> 'CANCELLED' THEN Total ELSE 0 END), 0) AS TotalSpent
+        SELECT UserId, COALESCE(SUM(CASE WHEN UPPER(Status) = 'DELIVERED' THEN Total ELSE 0 END), 0) AS TotalSpent
         FROM Orders
         WHERE UserId IS NOT NULL
         GROUP BY UserId
       ) u_spent ON o.UserId = u_spent.UserId
       LEFT JOIN (
-        SELECT Phone, COALESCE(SUM(CASE WHEN Status <> 'CANCELLED' THEN Total ELSE 0 END), 0) AS TotalSpent
+        SELECT Phone, COALESCE(SUM(CASE WHEN UPPER(Status) = 'DELIVERED' THEN Total ELSE 0 END), 0) AS TotalSpent
         FROM Orders
         WHERE Phone IS NOT NULL AND Phone <> ''
         GROUP BY Phone
@@ -731,6 +800,14 @@ async function listOrders({ status, paymentStatus, paymentMethod, q, userId, pho
   const orders = dRes.recordset;
   if (!orders.length) {
     return { items: [], total: 0, page: p, pageSize: ps, totalPages: 1 };
+  }
+
+  // Tự động liên kết các đơn hàng cũ chưa gắn UserId vào tài khoản hội viên nếu phát hiện khớp
+  if (userId && Number(userId) > 0) {
+    const orphanOids = orders.filter(o => !o.UserId && !o.userid).map(o => o.OrderId || o.orderid);
+    if (orphanOids.length > 0) {
+      db.query(`UPDATE Orders SET UserId = @uid WHERE OrderId IN (${orphanOids.join(',')}) AND UserId IS NULL`, { uid: Number(userId) }).catch(() => {});
+    }
   }
 
   const ids = orders.map(o => o.OrderId || o.orderid).join(',');

@@ -25,12 +25,23 @@
   padding: 0;
 }
 
+html {
+  scroll-behavior: smooth;
+  -webkit-text-size-adjust: 100%;
+}
+
 body {
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
   background-color: var(--admin-body-bg);
   color: var(--admin-text-main);
   display: flex;
   min-height: 100vh;
+  -webkit-tap-highlight-color: transparent;
+  text-rendering: optimizeLegibility;
+}
+
+button, a, input, select, .order-tab-btn, .preorder-sub-btn, .nav-item, .btn-admin {
+  touch-action: manipulation;
 }
 
 /* Sidebar */

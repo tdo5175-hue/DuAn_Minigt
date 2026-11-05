@@ -64,27 +64,37 @@ router.get('/', optionalAuth, async (req, res, next) => {
 router.get('/my-orders', optionalAuth, async (req, res, next) => {
   try {
     const { phone, codes } = req.query;
+    const codeList = codes ? String(codes).split(',').map(c => c.trim().toUpperCase()).filter(Boolean) : [];
 
-    // 1. NẾU KHÁCH ĐÃ ĐĂNG NHẬP: CHỈ LẤY ĐƠN THUỘC VỀ ĐÚNG USER HIỆN TẠI
-    // Tuyệt đối không fallback sang đơn của người khác dù tài khoản mới chưa có đơn nào!
+    // 1. NẾU KHÁCH ĐÃ ĐĂNG NHẬP: Lấy toàn bộ đơn thuộc về tài khoản này (khớp theo UserId, Email, SĐT và các mã đơn đã lưu)
     if (req.user && req.user.userId) {
-      const r = await orderService.listOrders({ userId: req.user.userId, pageSize: 50 });
+      let uEmail = '';
+      let uPhone = phone || '';
+      try {
+        const uInfo = await db.query('SELECT Email, Phone FROM Users WHERE UserId = @id', { id: Number(req.user.userId) });
+        if (uInfo.recordset && uInfo.recordset[0]) {
+          uEmail = uInfo.recordset[0].Email || '';
+          if (!uPhone && uInfo.recordset[0].Phone) uPhone = uInfo.recordset[0].Phone;
+        }
+      } catch (_) {}
+
+      const r = await orderService.listOrders({
+        userId: req.user.userId,
+        userEmail: uEmail,
+        phone: uPhone,
+        codes: codeList,
+        pageSize: 100
+      });
       return ok(res, r.items || []);
     }
 
-    // 2. NẾU LÀ KHÁCH VÃNG LAI (CHƯA ĐĂNG NHẬP): Tra cứu đúng các mã đơn hoặc SĐT trong phiên hiện tại
-    if (codes) {
-      const codeList = String(codes).split(',').map(c => c.trim().toUpperCase()).filter(Boolean);
-      const results = [];
-      for (const c of codeList.slice(0, 20)) {
-        const o = await orderService.getOrderByCodeOrId(c);
-        if (o) results.push(o);
-      }
-      return ok(res, results);
-    }
-
-    if (phone && v.isVNPhone(phone)) {
-      const r = await orderService.listOrders({ phone, pageSize: 50 });
+    // 2. NẾU LÀ KHÁCH VÃNG LAI (CHƯA ĐĂNG NHẬP): Tra cứu theo các mã đơn hoặc SĐT trong phiên hiện tại
+    if (codeList.length > 0 || (phone && v.isVNPhone(phone))) {
+      const r = await orderService.listOrders({
+        phone: phone && v.isVNPhone(phone) ? phone : undefined,
+        codes: codeList,
+        pageSize: 100
+      });
       return ok(res, r.items || []);
     }
 

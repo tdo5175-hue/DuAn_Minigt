@@ -2332,7 +2332,7 @@
           <td><div style="display:flex; flex-wrap:wrap; gap:4px;">${tags.join(' ')}</div></td>
           <td style="text-align:right; white-space:nowrap;">
             ${(p.status === 'pre_order' || p.Status === 'pre_order') ? `
-              <button class="btn-admin btn-admin-outline" style="padding:4px 8px; font-size:11px; color:#d97706; border-color:#f59e0b; background:#fffbeb;" onclick="convertPreOrderProductToInStock(${p.id}, '${escapeHtml(p.name)}')" title="Báo hàng về kho: Đổi sang hàng thường có sẵn">
+              <button class="btn-admin btn-admin-outline" style="padding:4px 8px; font-size:11px; color:#d97706; border-color:#f59e0b; background:#fffbeb;" onclick="convertPreOrderProductToInStock(${p.id})" title="Báo hàng về kho: Đổi sang hàng thường có sẵn">
                 <i class="fa-solid fa-boxes-packing"></i> Hàng Về
               </button>
             ` : ''}
@@ -2636,9 +2636,14 @@
 
     const fi = document.getElementById('prodImageFileInput');
     if (fi) fi.value = '';
-    const imgEl = document.getElementById('prodImage');
-    if (imgEl) imgEl.value = 'image/hero-banner.jpg';
-    updateProductImagePreview('image/hero-banner.jpg');
+    const imgUrlInput = document.getElementById('prodImageUrlAddInput');
+    if (imgUrlInput) imgUrlInput.value = '';
+    const presetSelect = document.getElementById('prodImagePresetSelect');
+    if (presetSelect) presetSelect.value = '';
+
+    currentProductGallery = ['image/hero-banner.jpg'];
+    adminGalleryActiveIdx = 0;
+    renderAdminProductGallery();
     document.getElementById('productModal').classList.add('active');
   }
 
@@ -2748,13 +2753,35 @@
       if (stockCardInput) stockCardInput.value = sCard;
       handleStockInputs();
 
-      const imgVal = p.image || p.imageUrl || p.ImageUrl || '';
-      document.getElementById('prodImage').value = imgVal;
+      const fi = document.getElementById('prodImageFileInput');
+      if (fi) fi.value = '';
+      const imgUrlInput = document.getElementById('prodImageUrlAddInput');
+      if (imgUrlInput) imgUrlInput.value = '';
+      const presetSelect = document.getElementById('prodImagePresetSelect');
+      if (presetSelect) presetSelect.value = '';
+
+      // Nạp toàn bộ danh sách ảnh (Đa ảnh Gallery + Ảnh chính)
+      const gallery = [];
+      const addImg = (u) => {
+        if (!u || u === 'null' || u === 'undefined') return;
+        const s = String(typeof u === 'object' ? (u.url || u.ImageUrl || u.imageUrl || '') : u).trim();
+        if (s && !gallery.includes(s)) gallery.push(s);
+      };
+      const primary = p.image || p.imageUrl || p.ImageUrl;
+      if (primary) addImg(primary);
+      const extra = Array.isArray(p.images) ? p.images : (Array.isArray(p.Images) ? p.Images : []);
+      extra.forEach(addImg);
+      if (!gallery.length) {
+        gallery.push('image/hero-banner.jpg');
+      }
+      currentProductGallery = gallery;
+      adminGalleryActiveIdx = 0;
+      renderAdminProductGallery();
+
       document.getElementById('prodDesc').value = p.description || p.Description || '';
       document.getElementById('prodIsFeatured').checked = !!(p.isFeatured ?? p.IsFeatured);
       document.getElementById('prodIsNew').checked = !!(p.isNew ?? p.IsNew);
 
-      updateProductImagePreview(imgVal);
       document.getElementById('productModal').classList.add('active');
     } catch (err) {
       adminToast('Không thể tải chi tiết sản phẩm: ' + err.message, 'error');
@@ -2799,6 +2826,232 @@
   }
   window.resolveAdminImageUrl = resolveAdminImageUrl;
 
+  // =====================================================================
+  // MULTI-IMAGE GALLERY SYSTEM FOR PRODUCT MODAL
+  // =====================================================================
+  let currentProductGallery = [];
+  let adminGalleryActiveIdx = 0;
+  let adminLightboxIndex = 0;
+
+  function renderAdminProductGallery() {
+    const countBadge = document.getElementById('prodImagesCountBadge');
+    const removeBtn = document.getElementById('btnRemoveProdImage');
+    const hiddenInput = document.getElementById('prodImage');
+    const previewMount = document.getElementById('adminStorefrontGalleryPreview');
+    const listMount = document.getElementById('adminGalleryAllList');
+
+    const total = currentProductGallery.length;
+    if (adminGalleryActiveIdx >= total) {
+      adminGalleryActiveIdx = Math.max(0, total - 1);
+    }
+
+    if (countBadge) {
+      countBadge.textContent = `${total} ảnh`;
+      countBadge.style.background = total > 0 ? '#eff6ff' : '#f1f5f9';
+      countBadge.style.color = total > 0 ? '#2563eb' : '#64748b';
+    }
+    if (removeBtn) {
+      removeBtn.style.display = total > 0 ? 'inline-flex' : 'none';
+    }
+    if (hiddenInput) {
+      hiddenInput.value = currentProductGallery[0] || '';
+    }
+
+    // 1. Preview Layout (storefront-style)
+    if (previewMount) {
+      if (total === 0) {
+        previewMount.innerHTML = `
+          <div class="admin-preview-main-stage" onclick="openProductImagePicker(event)" title="Bấm để chọn ảnh từ máy tính">
+            <span class="admin-preview-stage-badge"><i class="fa-solid fa-camera"></i> Chưa có ảnh</span>
+            <div style="text-align:center; color:#94a3b8; font-size:12px;">
+              <i class="fa-solid fa-cloud-arrow-up" style="font-size:30px; margin-bottom:6px; display:block; color:#cbd5e1;"></i>
+              Chưa chọn ảnh cho mô hình<br>
+              <span style="font-size:11px; color:#2563eb; font-weight:700;">+ Bấm để tải ảnh lên</span>
+            </div>
+          </div>
+          <div class="admin-preview-subrow">
+            <div class="admin-preview-subslot empty" onclick="openProductImagePicker(event)" title="Thêm ảnh từ máy">
+              <i class="fa-solid fa-plus"></i>
+              <span>Thêm ảnh</span>
+            </div>
+          </div>
+        `;
+      } else {
+        const activeUrl = currentProductGallery[adminGalleryActiveIdx] || currentProductGallery[0];
+        const isPrimary = adminGalleryActiveIdx === 0;
+
+        const maxVisibleSlots = 4;
+        const visibleImgs = currentProductGallery.slice(0, maxVisibleSlots);
+        const remainingCount = total - (maxVisibleSlots - 1);
+
+        const subSlotsHtml = visibleImgs.map((imgUrl, idx) => {
+          const isActive = idx === adminGalleryActiveIdx;
+          const isFourthWithMore = (idx === maxVisibleSlots - 1 && total > maxVisibleSlots);
+
+          return `
+            <div class="admin-preview-subslot ${isActive ? 'active' : ''}" onclick="${isFourthWithMore ? 'openAdminGalleryLightbox(3)' : `selectAdminPreviewImage(${idx})`}" title="${isFourthWithMore ? `Xem toàn bộ ${total} ảnh` : `Ảnh #${idx + 1}`}">
+              <span class="admin-preview-subslot-idx">#${idx + 1}</span>
+              <img src="${resolveAdminImageUrl(imgUrl)}" onerror="this.onerror=null; this.src='../image/hero-banner.jpg';" alt="Ảnh ${idx + 1}">
+              ${isFourthWithMore ? `
+                <div class="admin-preview-more-overlay">
+                  +${remainingCount}
+                  <span>Xem hết</span>
+                </div>
+              ` : ''}
+            </div>
+          `;
+        }).join('');
+
+        previewMount.innerHTML = `
+          <div class="admin-preview-main-stage" onclick="openAdminGalleryLightbox(${adminGalleryActiveIdx})" title="Bấm để xem phóng to chi tiết">
+            <span class="admin-preview-stage-badge">
+              <i class="fa-solid fa-camera"></i> ${isPrimary ? 'Ảnh chính (Bìa)' : `Ảnh #${adminGalleryActiveIdx + 1} / ${total}`}
+            </span>
+            <img src="${resolveAdminImageUrl(activeUrl)}" onerror="this.onerror=null; this.src='../image/hero-banner.jpg';" alt="Xem trước mô hình">
+          </div>
+          <div class="admin-preview-subrow">
+            ${subSlotsHtml}
+            <div class="admin-preview-subslot empty" onclick="openProductImagePicker(event)" title="Thêm ảnh từ máy tính">
+              <i class="fa-solid fa-plus"></i>
+              <span>Thêm</span>
+            </div>
+          </div>
+        `;
+      }
+    }
+
+    // 2. Manager List (Danh sách chi tiết 1..N)
+    if (listMount) {
+      if (total === 0) {
+        listMount.innerHTML = `
+          <div style="text-align:center; padding:2rem 1rem; color:#94a3b8; font-size:12px;">
+            <i class="fa-regular fa-images" style="font-size:26px; margin-bottom:6px; display:block; color:#cbd5e1;"></i>
+            Chưa có hình ảnh nào trong bộ sưu tập.<br>
+            Hãy chọn ảnh từ máy tính hoặc dán URL ở trên.
+          </div>
+        `;
+      } else {
+        listMount.innerHTML = currentProductGallery.map((imgUrl, idx) => {
+          const isPrimary = idx === 0;
+          let labelText = isPrimary ? 'Ảnh đại diện chính (Ảnh 1)' : `Ảnh chi tiết #${idx + 1}`;
+          let displayUrl = imgUrl;
+          if (imgUrl.startsWith('data:')) {
+            displayUrl = 'Ảnh máy tính (Dữ liệu cục bộ)';
+          } else if (imgUrl.startsWith('/api/images/')) {
+            displayUrl = `Ảnh máy chủ: ${imgUrl}`;
+          }
+
+          return `
+            <div class="admin-gallery-item-row ${isPrimary ? 'is-primary' : ''}">
+              <img src="${resolveAdminImageUrl(imgUrl)}" onerror="this.onerror=null; this.src='../image/hero-banner.jpg';" alt="" onclick="openAdminGalleryLightbox(${idx})" title="Bấm để phóng to">
+              <div class="admin-gallery-item-meta">
+                <div style="display:flex; align-items:center; gap:6px; font-weight:700; font-size:12px; color:#0f172a;">
+                  ${isPrimary ? '<span style="background:#e10600; color:#fff; font-size:9.5px; padding:1px 5px; border-radius:4px; font-weight:800;">Ảnh 1</span>' : `<span style="background:#e2e8f0; color:#475569; font-size:9.5px; padding:1px 5px; border-radius:4px; font-weight:700;">Ảnh #${idx + 1}</span>`}
+                  <span style="font-size:11.5px; color:#334155;">${labelText}</span>
+                </div>
+                <div style="font-size:10.5px; color:#64748b; font-family:monospace; margin-top:2px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:260px;" title="${escapeHtml(imgUrl)}">
+                  ${escapeHtml(displayUrl)}
+                </div>
+              </div>
+              <div class="admin-gallery-item-actions">
+                ${!isPrimary ? `
+                  <button type="button" class="admin-img-act-btn" onclick="makeGalleryImagePrimary(${idx})" title="Đặt làm Ảnh 1 (Ảnh chính ngoài shop)">
+                    <i class="fa-solid fa-star" style="color:#f59e0b;"></i>
+                  </button>
+                ` : ''}
+                <button type="button" class="admin-img-act-btn" ${idx === 0 ? 'disabled' : ''} onclick="moveGalleryImage(${idx}, -1)" title="Chuyển lên trước">
+                  <i class="fa-solid fa-arrow-up"></i>
+                </button>
+                <button type="button" class="admin-img-act-btn" ${idx === total - 1 ? 'disabled' : ''} onclick="moveGalleryImage(${idx}, 1)" title="Chuyển xuống sau">
+                  <i class="fa-solid fa-arrow-down"></i>
+                </button>
+                <button type="button" class="admin-img-act-btn danger" onclick="removeGalleryImage(${idx})" title="Xóa ảnh này khỏi bộ sưu tập">
+                  <i class="fa-solid fa-trash-can"></i>
+                </button>
+              </div>
+            </div>
+          `;
+        }).join('');
+      }
+    }
+  }
+
+  function selectAdminPreviewImage(idx) {
+    adminGalleryActiveIdx = Math.max(0, Math.min(currentProductGallery.length - 1, idx));
+    renderAdminProductGallery();
+  }
+
+  function makeGalleryImagePrimary(idx) {
+    if (idx <= 0 || idx >= currentProductGallery.length) return;
+    const [target] = currentProductGallery.splice(idx, 1);
+    currentProductGallery.unshift(target);
+    adminGalleryActiveIdx = 0;
+    renderAdminProductGallery();
+    adminToast('Đã chuyển thành Ảnh 1 (Ảnh chính đại diện ngoài trang chủ)!', 'success');
+  }
+
+  function moveGalleryImage(idx, delta) {
+    const targetIdx = idx + delta;
+    if (targetIdx < 0 || targetIdx >= currentProductGallery.length) return;
+    const temp = currentProductGallery[idx];
+    currentProductGallery[idx] = currentProductGallery[targetIdx];
+    currentProductGallery[targetIdx] = temp;
+    if (adminGalleryActiveIdx === idx) {
+      adminGalleryActiveIdx = targetIdx;
+    } else if (adminGalleryActiveIdx === targetIdx) {
+      adminGalleryActiveIdx = idx;
+    }
+    renderAdminProductGallery();
+  }
+
+  function removeGalleryImage(idx) {
+    if (idx < 0 || idx >= currentProductGallery.length) return;
+    currentProductGallery.splice(idx, 1);
+    if (adminGalleryActiveIdx >= currentProductGallery.length) {
+      adminGalleryActiveIdx = Math.max(0, currentProductGallery.length - 1);
+    }
+    renderAdminProductGallery();
+    adminToast('Đã gỡ ảnh khỏi bộ sưu tập', 'info');
+  }
+
+  function addProductImageFromPreset(selectEl) {
+    if (!selectEl) return;
+    const val = selectEl.value;
+    if (!val) return;
+    if (currentProductGallery.includes(val)) {
+      adminToast('Ảnh này đã có trong bộ sưu tập!', 'info');
+      selectEl.value = '';
+      return;
+    }
+    currentProductGallery.push(val);
+    adminGalleryActiveIdx = currentProductGallery.length - 1;
+    selectEl.value = '';
+    renderAdminProductGallery();
+    adminToast('Đã thêm ảnh có sẵn vào bộ sưu tập!', 'success');
+  }
+
+  function addProductImageFromUrlInput() {
+    const input = document.getElementById('prodImageUrlAddInput');
+    if (!input) return;
+    let url = input.value.trim();
+    if (!url) {
+      adminToast('Vui lòng nhập hoặc dán đường dẫn ảnh!', 'warning');
+      input.focus();
+      return;
+    }
+    url = url.replace(/^["']|["']$/g, '').trim();
+    if (currentProductGallery.includes(url)) {
+      adminToast('Đường dẫn ảnh này đã có trong bộ sưu tập!', 'info');
+      input.value = '';
+      return;
+    }
+    currentProductGallery.push(url);
+    adminGalleryActiveIdx = currentProductGallery.length - 1;
+    input.value = '';
+    renderAdminProductGallery();
+    adminToast('Đã thêm URL ảnh vào bộ sưu tập!', 'success');
+  }
+
   function openProductImagePicker(event) {
     if (event) {
       if (typeof event.stopPropagation === 'function') event.stopPropagation();
@@ -2806,36 +3059,21 @@
     }
     const fi = document.getElementById('prodImageFileInput');
     if (fi) {
-      fi.value = ''; // Luôn xóa cache để cho phép chọn lại cùng file
+      fi.value = '';
       fi.click();
     }
   }
-  window.openProductImagePicker = openProductImagePicker;
 
   function updateProductImagePreview(url) {
-    const img = document.getElementById('prodImagePreview');
-    const text = document.getElementById('prodImagePreviewText');
-    const removeBtn = document.getElementById('btnRemoveProdImage');
-    if (!img) return;
     if (url) {
-      const finalUrl = resolveAdminImageUrl(url);
-      img.src = finalUrl;
-      img.style.display = 'block';
-      let displayText = url;
-      if (url.startsWith('data:')) {
-        displayText = 'Ảnh máy tính (Dữ liệu ảnh trực tiếp)';
-      } else if (url.startsWith('/api/images/')) {
-        displayText = `Ảnh hệ thống máy chủ (${url})`;
-      } else if (url.length > 60) {
-        displayText = url.slice(0, 57) + '...';
+      if (!currentProductGallery.includes(url)) {
+        currentProductGallery.unshift(url);
       }
-      if (text) text.textContent = displayText;
-      if (removeBtn) removeBtn.style.display = 'inline-flex';
     } else {
-      img.style.display = 'none';
-      if (text) text.textContent = 'Chưa chọn hình ảnh mô hình xe';
-      if (removeBtn) removeBtn.style.display = 'none';
+      currentProductGallery = [];
     }
+    adminGalleryActiveIdx = 0;
+    renderAdminProductGallery();
   }
 
   function compressImageClientSide(file, maxWidth = 1200, maxHeight = 1200, quality = 0.85) {
@@ -2879,89 +3117,86 @@
 
   async function handleProductImageFileUpload(input) {
     if (!input || !input.files || input.files.length === 0) return;
-    const file = input.files[0];
+    const files = Array.from(input.files);
 
-    // Đảm bảo modal vẫn mở trong suốt quá trình upload
     const productModal = document.getElementById('productModal');
     if (productModal && !productModal.classList.contains('active')) {
       productModal.classList.add('active');
     }
 
-    if (!file.type.startsWith('image/')) {
-      adminToast('Vui lòng chỉ chọn tệp hình ảnh (JPG, PNG, WEBP, GIF)!', 'error');
-      input.value = '';
-      return;
-    }
-
-    if (file.size > 10 * 1024 * 1024) {
-      adminToast('Dung lượng ảnh vượt quá 10MB. Vui lòng chọn ảnh nhỏ hơn!', 'error');
-      input.value = '';
-      return;
-    }
-
-    const previewText = document.getElementById('prodImagePreviewText');
-    const uploadBtn = document.getElementById('btnPickProductImage') ||
-                      document.querySelector('#productModal button[title*="Mở thư mục"]') ||
-                      document.querySelector('button[onclick*="prodImageFileInput"]');
+    const banner = document.getElementById('prodUploadStatusBanner');
+    const uploadBtn = document.getElementById('btnPickProductImage');
     const originalBtnHtml = uploadBtn ? uploadBtn.innerHTML : '';
     if (uploadBtn) {
       uploadBtn.disabled = true;
-      uploadBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Đang nén ảnh...';
+      uploadBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Đang tải ảnh...';
     }
 
-    if (previewText) previewText.textContent = `Đang xử lý & nén ảnh: ${file.name}...`;
-
-    try {
-      // 1. Nén ảnh chất lượng cao trực tiếp tại trình duyệt
-      const dataUrl = await compressImageClientSide(file);
-      // Hiển thị ngay ảnh preview tức thì bằng DataURI
-      updateProductImagePreview(dataUrl);
-
-      // Điền dataUrl vào input làm dự phòng tức thời
-      const imgInput = document.getElementById('prodImage');
-      if (imgInput) imgInput.value = dataUrl;
-
-      if (previewText) previewText.textContent = `Đang tải ảnh lên hệ thống...`;
-      if (uploadBtn) uploadBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Đang lưu...';
-
-      // 2. Gửi lên máy chủ để lưu vào Supabase
-      const res = await api.post('/api/admin/upload-product-image', {
-        filename: file.name,
-        data: dataUrl
-      });
-
-      if (productModal && !productModal.classList.contains('active')) {
-        productModal.classList.add('active');
+    let successCount = 0;
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      if (!file.type.startsWith('image/')) {
+        adminToast(`Tệp "${file.name}" không phải là ảnh hợp lệ!`, 'warning');
+        continue;
+      }
+      if (file.size > 12 * 1024 * 1024) {
+        adminToast(`Dung lượng ảnh "${file.name}" vượt quá 12MB!`, 'warning');
+        continue;
       }
 
-      if (res && res.success && res.data && res.data.url) {
-        const finalUrl = res.data.url;
-        if (imgInput) imgInput.value = finalUrl;
-        updateProductImagePreview(dataUrl); // Giữ dataUrl trên preview để load tức thì không cần chờ mạng
-        adminToast(`Đã tải ảnh "${file.name}" lên hệ thống thành công!`, 'success');
-      } else {
-        if (imgInput) imgInput.value = dataUrl;
-        updateProductImagePreview(dataUrl);
-        adminToast(`Đã nạp ảnh "${file.name}" từ máy thành công!`, 'success');
+      if (banner) {
+        banner.style.display = 'flex';
+        banner.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Đang xử lý & nén ảnh (${i + 1}/${files.length}): <strong>${escapeHtml(file.name)}</strong>...`;
       }
-    } catch (err) {
-      console.warn('[IMAGE UPLOAD] Server upload error, using local fallback:', err);
+
       try {
-        const fallbackUrl = await compressImageClientSide(file);
-        const imgInput = document.getElementById('prodImage');
-        if (imgInput) imgInput.value = fallbackUrl;
-        updateProductImagePreview(fallbackUrl);
-      } catch (_) {}
-      adminToast(`Đã nạp ảnh "${file.name}" từ máy thành công!`, 'info');
-      if (productModal && !productModal.classList.contains('active')) {
-        productModal.classList.add('active');
+        const dataUrl = await compressImageClientSide(file);
+        let finalUrl = dataUrl;
+        try {
+          const res = await api.post('/api/admin/upload-product-image', {
+            filename: file.name,
+            data: dataUrl
+          });
+          if (res && res.success && res.data && res.data.url) {
+            finalUrl = res.data.url;
+          }
+        } catch (serverErr) {
+          console.warn('[IMAGE UPLOAD] Server upload error, using local fallback:', serverErr);
+        }
+
+        if (!currentProductGallery.includes(finalUrl)) {
+          currentProductGallery.push(finalUrl);
+        }
+        successCount++;
+        adminGalleryActiveIdx = currentProductGallery.length - 1;
+        renderAdminProductGallery();
+      } catch (err) {
+        console.error('[IMAGE UPLOAD ERROR]', err);
+        adminToast(`Lỗi xử lý ảnh "${file.name}": ${err.message}`, 'error');
       }
-    } finally {
-      if (uploadBtn) {
-        uploadBtn.disabled = false;
-        uploadBtn.innerHTML = originalBtnHtml;
+    }
+
+    if (banner) {
+      if (successCount > 0) {
+        banner.innerHTML = `<i class="fa-solid fa-circle-check" style="color:#16a34a;"></i> Đã tải thành công <strong>${successCount}</strong> ảnh vào bộ sưu tập!`;
+        setTimeout(() => { banner.style.display = 'none'; }, 2500);
+      } else {
+        banner.style.display = 'none';
       }
-      if (input) input.value = '';
+    }
+
+    if (uploadBtn) {
+      uploadBtn.disabled = false;
+      uploadBtn.innerHTML = originalBtnHtml;
+    }
+    input.value = '';
+
+    if (productModal && !productModal.classList.contains('active')) {
+      productModal.classList.add('active');
+    }
+
+    if (successCount > 0) {
+      adminToast(`Đã thêm ${successCount} ảnh vào bộ sưu tập mô hình thành công!`, 'success');
     }
   }
 
@@ -2970,8 +3205,80 @@
     const fileInput = document.getElementById('prodImageFileInput');
     if (input) input.value = '';
     if (fileInput) fileInput.value = '';
-    updateProductImagePreview('');
+    currentProductGallery = [];
+    adminGalleryActiveIdx = 0;
+    renderAdminProductGallery();
+    adminToast('Đã xóa toàn bộ ảnh trong bộ sưu tập mô hình.', 'info');
   }
+
+  // Admin Lightbox Viewer logic
+  function openAdminGalleryLightbox(startIndex = 0) {
+    const imgs = currentProductGallery.length ? currentProductGallery : ['image/hero-banner.jpg'];
+    adminLightboxIndex = Math.max(0, Math.min(imgs.length - 1, Number(startIndex) || 0));
+    const overlay = document.getElementById('adminGalleryLightbox');
+    if (overlay) overlay.classList.add('active');
+    renderAdminGalleryLightbox();
+  }
+
+  function closeAdminGalleryLightbox() {
+    const overlay = document.getElementById('adminGalleryLightbox');
+    if (overlay) overlay.classList.remove('active');
+  }
+
+  function stepAdminGalleryLightbox(delta) {
+    const imgs = currentProductGallery.length ? currentProductGallery : ['image/hero-banner.jpg'];
+    if (!imgs.length) return;
+    adminLightboxIndex = ((adminLightboxIndex + delta) % imgs.length + imgs.length) % imgs.length;
+    renderAdminGalleryLightbox();
+  }
+
+  function selectAdminLightboxThumb(idx) {
+    const imgs = currentProductGallery.length ? currentProductGallery : ['image/hero-banner.jpg'];
+    adminLightboxIndex = Math.max(0, Math.min(imgs.length - 1, Number(idx) || 0));
+    renderAdminGalleryLightbox();
+  }
+
+  function renderAdminGalleryLightbox() {
+    const imgs = currentProductGallery.length ? currentProductGallery : ['image/hero-banner.jpg'];
+    const idx = Math.max(0, Math.min(imgs.length - 1, adminLightboxIndex || 0));
+    const currentUrl = imgs[idx];
+
+    const mainImg = document.getElementById('adminLightboxMainImg');
+    const counter = document.getElementById('adminLightboxCounter');
+    const thumbsMount = document.getElementById('adminLightboxThumbs');
+
+    if (mainImg) {
+      mainImg.src = resolveAdminImageUrl(currentUrl);
+      mainImg.onerror = () => { mainImg.src = '../image/hero-banner.jpg'; };
+    }
+    if (counter) {
+      counter.textContent = `Ảnh ${idx + 1} / ${imgs.length}`;
+    }
+    if (thumbsMount) {
+      thumbsMount.innerHTML = imgs.map((u, i) => `
+        <div class="admin-lightbox-thumb ${i === idx ? 'active' : ''}" onclick="selectAdminLightboxThumb(${i})" title="Ảnh ${i + 1}">
+          <img src="${resolveAdminImageUrl(u)}" onerror="this.onerror=null; this.src='../image/hero-banner.jpg';" alt="">
+        </div>
+      `).join('');
+    }
+  }
+
+  // Keyboard navigation for Admin Lightbox
+  document.addEventListener('keydown', (e) => {
+    const lb = document.getElementById('adminGalleryLightbox');
+    if (lb && lb.classList.contains('active')) {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        closeAdminGalleryLightbox();
+      } else if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        stepAdminGalleryLightbox(-1);
+      } else if (e.key === 'ArrowRight') {
+        e.preventDefault();
+        stepAdminGalleryLightbox(1);
+      }
+    }
+  });
 
   async function saveProduct(e) {
     if (e && e.preventDefault) e.preventDefault();
@@ -3060,7 +3367,12 @@
       const depositAmount = isPreOrder ? (parseFloat(document.getElementById('prodDepositAmount')?.value) || Math.round((mainPrice * (depositPercent / 100)) / 1000) * 1000) : 0;
       const expectedDelivery = isPreOrder ? (document.getElementById('prodExpectedDelivery')?.value || 'Tháng 11/2026 (Có thể trễ hơn dự kiến)') : null;
 
-      const imageVal = document.getElementById('prodImage').value.trim() || 'image/hero-banner.jpg';
+      const primaryImage = (currentProductGallery && currentProductGallery[0]) ||
+                           document.getElementById('prodImage').value.trim() ||
+                           'image/hero-banner.jpg';
+      const allImages = currentProductGallery && currentProductGallery.length
+        ? currentProductGallery
+        : [primaryImage];
 
       const payload = {
         sku: skuVal,
@@ -3086,8 +3398,9 @@
         stock: computedStock,
         stockBox,
         stockCard,
-        imageUrl: imageVal,
-        image: imageVal,
+        imageUrl: primaryImage,
+        image: primaryImage,
+        images: allImages,
         description: document.getElementById('prodDesc').value.trim(),
         isFeatured: document.getElementById('prodIsFeatured').checked,
         isNew: document.getElementById('prodIsNew').checked
@@ -3107,6 +3420,11 @@
         }
         adminToast('Thêm mô hình xe mới thành công!', 'success');
       }
+
+      if (api && typeof api.emitRealtimeSync === 'function') {
+        api.emitRealtimeSync('PRODUCTS_UPDATED', res?.data || payload);
+      }
+
       closeAdminModal('productModal');
       await loadProducts();
       await loadDashboard();
@@ -3162,9 +3480,14 @@
   // =====================================================================
   // 6. TAB 3: QUẢN LÝ ĐƠN HÀNG (ADMIN ORDERS)
   // =====================================================================
-  async function loadOrders() {
+  async function loadOrders(silent = false) {
     startProgressBar();
-    renderTableSkeletons('ordersTbody', 8, 6);
+    if (!silent) {
+      const tbody = document.getElementById('ordersTbody');
+      if (tbody && (!cachedOrders || cachedOrders.length === 0)) {
+        renderTableSkeletons('ordersTbody', 8, 6);
+      }
+    }
     try {
       const res = await api.get('/api/admin/orders', orderFilter);
       if (res.success && res.data) {
@@ -3202,7 +3525,7 @@
       }
     }
 
-    loadOrders();
+    loadOrders(true);
   }
 
   function setPreOrderSubStage(stage) {
@@ -3213,7 +3536,7 @@
       btn.classList.toggle('active', btn.dataset.prestage === stage);
     });
 
-    loadOrders();
+    loadOrders(true);
   }
 
   const handleOrderSearchDebounced = debounce((val) => {
@@ -4315,6 +4638,39 @@
             </div>
           </div>
         </div>
+
+        <!-- Thanh thao tác tiến trình & Xác nhận giao nhận hàng 1-Click -->
+        ${!isDeliveredOrCompleted && order.status !== 'CANCELLED' ? `
+          <div style="background:#f8fafc; border:1.5px solid #cbd5e1; border-radius:8px; padding:12px 14px; margin-bottom:14px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+            <div style="font-size:12px; color:#475569;">
+              <strong style="color:#0f172a;"><i class="fa-solid fa-arrows-spin"></i> Thao tác trạng thái đơn hàng:</strong>
+              <div style="font-size:11px; color:#64748b; margin-top:2px;">Khi bấm "Xác nhận đã nhận hàng", đơn sẽ chuyển sang DELIVERED và tích lũy tiền vào cấp VIP cho khách.</div>
+            </div>
+            <div style="display:flex; gap:6px; flex-wrap:wrap;">
+              ${order.status === 'PENDING' ? `
+                <button type="button" class="btn-admin btn-admin-primary" style="background:#1d4ed8; border-color:#1d4ed8; font-size:11.5px; padding:5px 12px;" onclick="changeOrderStatus(${order.id}, 'CONFIRMED')">
+                  <i class="fa-solid fa-check"></i> Duyệt Đơn
+                </button>
+              ` : ''}
+              ${order.status === 'CONFIRMED' ? `
+                <button type="button" class="btn-admin btn-admin-primary" style="background:#7e22ce; border-color:#7e22ce; font-size:11.5px; padding:5px 12px;" onclick="changeOrderStatus(${order.id}, 'PREPARING')">
+                  <i class="fa-solid fa-box"></i> Đóng Gói
+                </button>
+              ` : ''}
+              ${order.status === 'PREPARING' ? `
+                <button type="button" class="btn-admin btn-admin-primary" style="background:#ea580c; border-color:#ea580c; font-size:11.5px; padding:5px 12px;" onclick="openShipSpxModal(${order.id})">
+                  <i class="fa-solid fa-truck-fast"></i> Gán Mã SPX
+                </button>
+              ` : ''}
+              <button type="button" class="btn-admin btn-admin-primary" style="background:#059669; border-color:#059669; font-size:11.5px; padding:5px 14px; font-weight:800;" onclick="changeOrderStatus(${order.id}, 'DELIVERED')">
+                <i class="fa-solid fa-circle-check"></i> Xác Nhận Đã Nhận Hàng (Hoàn Tất)
+              </button>
+              <button type="button" class="btn-admin btn-admin-outline" style="color:#dc2626; border-color:#fca5a5; font-size:11.5px; padding:5px 10px;" onclick="openCancelOrderModal(${order.id})">
+                <i class="fa-solid fa-ban"></i> Hủy Đơn
+              </button>
+            </div>
+          </div>
+        ` : ''}
 
         <!-- Lịch sử trạng thái -->
         <div style="border-top:1px solid #e2e8f0; padding-top:12px; margin-top:12px;">
@@ -5804,6 +6160,18 @@ Anh/chị phản hồi giúp shop để kiện xe được đóng gói gửi đi
   window.updateProductImagePreview = updateProductImagePreview;
   window.handleProductImageFileUpload = handleProductImageFileUpload;
   window.clearProductImage = clearProductImage;
+  window.addProductImageFromPreset = addProductImageFromPreset;
+  window.addProductImageFromUrlInput = addProductImageFromUrlInput;
+  window.openProductImagePicker = openProductImagePicker;
+  window.renderAdminProductGallery = renderAdminProductGallery;
+  window.selectAdminPreviewImage = selectAdminPreviewImage;
+  window.makeGalleryImagePrimary = makeGalleryImagePrimary;
+  window.moveGalleryImage = moveGalleryImage;
+  window.removeGalleryImage = removeGalleryImage;
+  window.openAdminGalleryLightbox = openAdminGalleryLightbox;
+  window.closeAdminGalleryLightbox = closeAdminGalleryLightbox;
+  window.stepAdminGalleryLightbox = stepAdminGalleryLightbox;
+  window.selectAdminLightboxThumb = selectAdminLightboxThumb;
   window.handleBrandChange = handleBrandChange;
   window.setProductDiscountMode = setProductDiscountMode;
   window.handleProductPriceInput = handleProductPriceInput;
@@ -5848,7 +6216,9 @@ Anh/chị phản hồi giúp shop để kiện xe được đóng gói gửi đi
   }
 
   async function convertPreOrderProductToInStock(productId, productName) {
-    if (!confirm(`Xác nhận: Lô mô hình "${productName || 'mô hình này'}" đã cập bến kho Biên Hòa?\n\n- Trạng thái sản phẩm sẽ đổi từ "Pre-Order" sang "Có sẵn tại kho" (hàng thường).\n- Khách hàng trên trang chủ có thể mua hàng ngay.\n- Tất cả đơn hàng đặt cọc trước chứa mẫu xe này sẽ được tự động cập nhật là "Hàng đã về kho" để chuẩn bị đóng gói.`)) return;
+    const p = (cachedProducts || []).find(item => Number(item.id || item.ProductId) === Number(productId));
+    const name = productName || p?.name || p?.Name || 'mô hình này';
+    if (!confirm(`Xác nhận: Lô mô hình "${name}" đã cập bến kho Biên Hòa?\n\n- Trạng thái sản phẩm sẽ đổi từ "Pre-Order" sang "Có sẵn tại kho" (hàng thường).\n- Khách hàng trên trang chủ có thể mua hàng ngay.\n- Tất cả đơn hàng đặt cọc trước chứa mẫu xe này sẽ được tự động cập nhật là "Hàng đã về kho" để chuẩn bị đóng gói.`)) return;
     try {
       const res = await api.put(`/api/admin/products/${productId}/convert-to-instock`, {});
       if (res && res.success) {

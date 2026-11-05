@@ -1466,6 +1466,47 @@
     return idx >= 0 ? list[idx] : normalized;
   };
 
+  const upsertSharedOrdersBatch = (orders) => {
+    if (!Array.isArray(orders) || orders.length === 0) return [];
+    try {
+      const list = getSharedOrders();
+      const map = new Map();
+      list.forEach(o => {
+        const k = o.code || o.orderCode || o.OrderCode || o.id;
+        if (k) map.set(String(k), o);
+      });
+
+      orders.forEach(ord => {
+        if (!ord) return;
+        const normalized = normalizeOrderObject(ord);
+        const k = normalized.code || normalized.id;
+        if (!k) return;
+        const keyStr = String(k);
+        if (map.has(keyStr)) {
+          const existing = map.get(keyStr);
+          const mergedItems = (normalized.items && normalized.items.length > 0)
+            ? normalized.items
+            : (existing.items || []);
+          map.set(keyStr, Object.assign({}, existing, normalized, { items: mergedItems }));
+        } else {
+          map.set(keyStr, normalized);
+        }
+      });
+
+      const mergedList = Array.from(map.values()).sort((a, b) => {
+        const da = new Date(a.createdAt || a.CreatedAt || 0).getTime();
+        const db = new Date(b.createdAt || b.CreatedAt || 0).getTime();
+        return db - da;
+      });
+
+      saveSharedOrders(mergedList);
+      return mergedList;
+    } catch (e) {
+      console.warn('Lỗi upsertSharedOrdersBatch:', e);
+      return orders;
+    }
+  };
+
   const seenRealtimeEventIds = new Set();
   const maxSeenEventIds = 250;
 
@@ -3283,6 +3324,7 @@
     clearAuthSession,
     getSharedOrders,
     upsertSharedOrder,
+    upsertSharedOrdersBatch,
     getSharedProducts,
     saveSharedProducts,
     getSharedUsers,
@@ -3349,4 +3391,5 @@
   }
 
   global.api = api;
+  global.upsertSharedOrdersBatch = upsertSharedOrdersBatch;
 })(typeof window !== 'undefined' ? window : this);
