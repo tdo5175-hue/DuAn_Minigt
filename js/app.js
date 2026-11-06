@@ -1485,16 +1485,17 @@ function createProductCardHTML(p, idx = 0) {
   const pId = p.ProductId || p.id;
   const pName = p.Name || p.name || 'Mini GT 1:64';
   const pSku = p.Sku || p.sku || 'MGT0000';
+  const pricing = getProductBoxCardPricing(p);
+  const activePack = getSelectedPackForProduct(p);
   const galleryImages = getProductGalleryImages(p);
-  const pImg = galleryImages[0];
+  const cardImgInitial = (activePack === 'card' && (p.cardImageUrl || p.CardImageUrl)) ? (p.cardImageUrl || p.CardImageUrl) : galleryImages[0];
+  const pImg = resolveStorefrontImageUrl(cardImgInitial);
   const soldCount = getProductRealSoldCount(p);
   const statusVal = String(p.Status || p.status || 'in_stock').toLowerCase();
   const isPreOrder = statusVal === 'pre_order';
   const stockCount = typeof p.Stock === 'number' ? p.Stock : (typeof p.stock === 'number' ? p.stock : 10);
   const isOutOfStock = stockCount <= 0 || statusVal === 'sold_out' || statusVal === 'out_of_stock' || Boolean(p.isOutOfStock);
 
-  const pricing = getProductBoxCardPricing(p);
-  const activePack = getSelectedPackForProduct(p);
   const currentFinalPrice = activePack === 'card' ? pricing.finalPriceCard : pricing.finalPriceBox;
   const currentBasePrice = activePack === 'card' ? pricing.priceCard : pricing.priceBox;
   const expDelivery = p.ExpectedDelivery || p.expectedDelivery || (isPreOrder ? 'Tháng 11/2026' : null);
@@ -1700,7 +1701,8 @@ function selectCardPackaging(productId, packType, event) {
 
   // Cập nhật nhanh DOM trên tất cả card của sản phẩm này (kể cả trên catalog grid và chuyên trang GT3 Dino)
   const cardImgUrl = prod.cardImageUrl || prod.CardImageUrl;
-  const boxImgUrl = prod.ImageUrl || prod.imageUrl || prod.image || prod.Image;
+  const gallery = getProductGalleryImages(prod);
+  const boxImgUrl = (gallery && gallery.length > 0) ? gallery[0] : (prod.ImageUrl || prod.imageUrl || prod.image || prod.Image);
   const targetImg = (normalizedPack === 'card' && cardImgUrl) ? cardImgUrl : boxImgUrl;
 
   document.querySelectorAll(`.product-card[data-id="${productId}"], .gt3-dino-card[data-id="${productId}"]`).forEach(cardEl => {
@@ -1713,7 +1715,7 @@ function selectCardPackaging(productId, packType, event) {
 
     // Tự động chuyển đổi ảnh card tương ứng (Ảnh Vỉ Card vs Ảnh Hộp Box)
     if (targetImg) {
-      const imgEl = cardEl.querySelector('.card-img-wrap img, .product-image img, .gt3-card-img-wrap img, img.product-img');
+      const imgEl = cardEl.querySelector('img.card-image, .card-image-box img, .card-img-wrap img, .product-image img, .gt3-card-img-wrap img, img.product-img, img.gt3-card-image');
       if (imgEl) {
         imgEl.src = resolveStorefrontImageUrl(targetImg);
       }
@@ -2490,7 +2492,10 @@ function addToCart(productId, quantity = 1, explicitPackType = null) {
   const depPct = isPreOrder ? Number(prod.DepositPercent || prod.depositPercent || 30) : 0;
   const pDeposit = isPreOrder ? (Math.round((unitFinalPrice * (depPct / 100)) / 1000) * 1000) : 0;
   const expDelivery = isPreOrder ? (prod.ExpectedDelivery || prod.expectedDelivery || null) : null;
-  const primaryImg = getProductGalleryImages(prod)[0];
+  const cardImg = (prod.cardImageUrl || prod.CardImageUrl);
+  const galleryImgs = getProductGalleryImages(prod);
+  const primaryImg = galleryImgs[0];
+  const cartItemImg = (chosenPack === 'card' && cardImg) ? resolveStorefrontImageUrl(cardImg) : primaryImg;
 
   if (existing) {
     existing.quantity += quantity;
@@ -2507,7 +2512,7 @@ function addToCart(productId, quantity = 1, explicitPackType = null) {
     existing.depositPercent = depPct;
     existing.isPreOrder = isPreOrder;
     existing.expectedDelivery = expDelivery;
-    existing.imageUrl = primaryImg;
+    existing.imageUrl = cartItemImg;
   } else {
     cart.push({
       productId: prod.ProductId || prod.id || prod.productid,
@@ -2525,7 +2530,7 @@ function addToCart(productId, quantity = 1, explicitPackType = null) {
       depositAmount: pDeposit,
       depositPercent: depPct,
       expectedDelivery: expDelivery,
-      imageUrl: primaryImg,
+      imageUrl: cartItemImg,
       isPreOrder: isPreOrder,
       quantity: quantity,
       selected: true
@@ -2576,6 +2581,10 @@ function switchCartItemPackaging(productId, currentPack, newPack) {
   const newUnitOrig = targetPack === 'card' ? pricing.priceCard : pricing.priceBox;
   const newDeposit = Math.round(newUnitFinal * (storeSettings.deposit_rate || 0.3));
 
+  const cardImg = prod ? (prod.cardImageUrl || prod.CardImageUrl) : null;
+  const gallery = prod ? getProductGalleryImages(prod) : [];
+  const targetImg = (targetPack === 'card' && cardImg) ? resolveStorefrontImageUrl(cardImg) : (gallery[0] || item.imageUrl);
+
   // Kiểm tra nếu đã có dòng cùng sản phẩm + targetPack thì gộp số lượng
   const duplicateIdx = cart.findIndex((i, k) => k !== idx && i.productId == productId && (i.packType || 'box') === targetPack);
   if (duplicateIdx !== -1) {
@@ -2583,6 +2592,7 @@ function switchCartItemPackaging(productId, currentPack, newPack) {
     cart[duplicateIdx].price = newUnitFinal;
     cart[duplicateIdx].originalPrice = newUnitOrig;
     cart[duplicateIdx].depositAmount = newDeposit;
+    if (targetImg) cart[duplicateIdx].imageUrl = targetImg;
     cart.splice(idx, 1);
   } else {
     item.packType = targetPack;
@@ -2594,6 +2604,7 @@ function switchCartItemPackaging(productId, currentPack, newPack) {
     item.finalPriceBox = pricing.finalPriceBox;
     item.finalPriceCard = pricing.finalPriceCard;
     item.depositAmount = newDeposit;
+    if (targetImg) item.imageUrl = targetImg;
   }
 
   selectedCardPackaging[productId] = targetPack;
@@ -2819,8 +2830,16 @@ function renderCartDrawer() {
     const boxDisabled = pricing.packagingType === 'card_only' || (!isPreOrder && (pricing.stockBox ?? 0) <= 0);
     const cardDisabled = pricing.packagingType === 'box_only' || (!isPreOrder && (pricing.stockCard ?? 0) <= 0);
 
-    // Xác định ảnh hợp lệ có fallback onerror
-    let itemImg = resolveStorefrontImageUrl(it.imageUrl || (prod ? (prod.ImageUrl || prod.image) : 'image/hero-banner.jpg'));
+    // Xác định ảnh hợp lệ có fallback onerror (ưu tiên ảnh Card nếu chọn bản Card)
+    let itemImg = it.imageUrl;
+    const cardImg = prod ? (prod.cardImageUrl || prod.CardImageUrl) : null;
+    if (pack === 'card' && cardImg) {
+      itemImg = resolveStorefrontImageUrl(cardImg);
+    } else if (!itemImg) {
+      itemImg = resolveStorefrontImageUrl(prod ? (prod.ImageUrl || prod.image) : 'image/hero-banner.jpg');
+    } else {
+      itemImg = resolveStorefrontImageUrl(itemImg);
+    }
     if (itemImg.includes('amr24.webp')) itemImg = 'image/aston-amr24-alonso.png';
     else if (itemImg.includes('f1.webp')) itemImg = 'image/aston-amr24-stroll.png';
     else if (itemImg.includes('huracan.webp')) itemImg = 'image/lambo-sterrato-set.png';
@@ -3236,12 +3255,24 @@ function openQuickView(productId) {
   const soldBox = Math.max(0, parseInt(prod.soldBox ?? prod.SoldBox ?? 0, 10) || 0);
   const soldCard = Math.max(0, parseInt(prod.soldCard ?? prod.SoldCard ?? 0, 10) || 0);
 
+  const pricing = getProductBoxCardPricing(prod);
+  const activePack = getSelectedPackForProduct(prod);
+  const rawCardImg = prod.cardImageUrl || prod.CardImageUrl;
+  let initialActiveIndex = 0;
+  if (activePack === 'card' && rawCardImg) {
+    const resolvedCard = resolveStorefrontImageUrl(rawCardImg);
+    const cardIdx = galleryImages.indexOf(resolvedCard);
+    if (cardIdx !== -1) {
+      initialActiveIndex = cardIdx;
+    }
+  }
+
   activeQuickViewState = {
     productId: pId,
     images: galleryImages,
-    activeIndex: 0,
+    activeIndex: initialActiveIndex,
     title: pName,
-    lightboxIndex: 0
+    lightboxIndex: initialActiveIndex
   };
 
   const pSku = prod.Sku || prod.sku || 'MGT';
@@ -3259,8 +3290,6 @@ function openQuickView(productId) {
   const isSoldOut = String(prod.Status || prod.status || '').toLowerCase() === 'sold_out' || (!isPreOrder && pStock <= 0);
   const isWish = isInWishlist(pId);
 
-  const pricing = getProductBoxCardPricing(prod);
-  const activePack = getSelectedPackForProduct(prod);
   const currentFinal = activePack === 'card' ? pricing.finalPriceCard : pricing.finalPriceBox;
   const currentOrig = activePack === 'card' ? pricing.priceCard : pricing.priceBox;
   const diffPrice = Math.max(40000, pricing.finalPriceCard - pricing.finalPriceBox);
@@ -3310,7 +3339,7 @@ function openQuickView(productId) {
       <!-- CỘT TRÁI: MULTI-IMAGE GALLERY (ẢNH 1 Ở TRÊN + ẢNH 2, 3, 4 KẾ NHAU Ở DƯỚI + +N TRÊN ẢNH 4) -->
       <div class="qv-gallery-col">
         <div id="qvGalleryMount_${pId}">
-          ${buildQuickViewGalleryHTML(pId, pName, galleryImages, 0, pricing, isSoldOut, isEn)}
+          ${buildQuickViewGalleryHTML(pId, pName, galleryImages, initialActiveIndex, pricing, isSoldOut, isEn)}
         </div>
         <div class="qv-guarantee-strip">
           <div class="qv-guarantee-chip">
@@ -4294,9 +4323,19 @@ function renderCheckoutStep1() {
     const boxDisabled = pricing.packagingType === 'card_only' || (!isPreOrder && (pricing.stockBox ?? 0) <= 0);
     const cardDisabled = pricing.packagingType === 'box_only' || (!isPreOrder && (pricing.stockCard ?? 0) <= 0);
 
+    let itemImg = it.imageUrl;
+    const cardImg = prod ? (prod.cardImageUrl || prod.CardImageUrl) : null;
+    if (pack === 'card' && cardImg) {
+      itemImg = resolveStorefrontImageUrl(cardImg);
+    } else if (!itemImg) {
+      itemImg = resolveStorefrontImageUrl(prod ? (prod.ImageUrl || prod.image) : 'image/hero-banner.jpg');
+    } else {
+      itemImg = resolveStorefrontImageUrl(itemImg);
+    }
+
     return `
       <div style="display:flex; align-items:center; gap:12px; padding:12px 0; border-bottom:1px solid #f1f5f9;">
-        <img src="${escapeHtml(resolveStorefrontImageUrl(it.imageUrl || 'image/hero-banner.jpg'))}" alt="${escapeHtml(it.name)}" style="width:58px; height:58px; object-fit:contain; border-radius:8px; background:#f8fafc; border:1.5px solid #e2e8f0; padding:2px; flex-shrink:0;" onerror="this.onerror=null; this.src='image/hero-banner.jpg';">
+        <img src="${escapeHtml(itemImg)}" alt="${escapeHtml(it.name)}" style="width:58px; height:58px; object-fit:contain; border-radius:8px; background:#f8fafc; border:1.5px solid #e2e8f0; padding:2px; flex-shrink:0;" onerror="this.onerror=null; this.src='image/hero-banner.jpg';">
         <div style="flex:1; min-width:0;">
           <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap; margin-bottom:3px;">
             <span class="pack-badge ${pack === 'card' ? 'pack-card' : 'pack-box'}">${pack === 'card' ? '<i class="fa-solid fa-shield-halved"></i> VỈ CARD BLISTER' : '<i class="fa-solid fa-cube"></i> HỘP GIẤY BOX'}</span>

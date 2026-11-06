@@ -2642,9 +2642,9 @@
     if (cardEl) cardEl.value = '';
 
     const stockBoxEl = document.getElementById('prodStockBox');
-    if (stockBoxEl) stockBoxEl.value = '';
+    if (stockBoxEl) stockBoxEl.value = '10';
     const stockCardEl = document.getElementById('prodStockCard');
-    if (stockCardEl) stockCardEl.value = '';
+    if (stockCardEl) stockCardEl.value = '10';
 
     const editionEl = document.getElementById('prodEdition');
     if (editionEl) editionEl.value = '';
@@ -3434,8 +3434,31 @@
         brandVal = document.getElementById('prodBrandCustom')?.value.trim() || 'MINI GT';
       }
 
-      const stockBox = parseInt(document.getElementById('prodStockBox')?.value, 10) || 0;
-      const stockCard = parseInt(document.getElementById('prodStockCard')?.value, 10) || 0;
+      let stockBox = parseInt(document.getElementById('prodStockBox')?.value, 10);
+      let stockCard = parseInt(document.getElementById('prodStockCard')?.value, 10);
+      if (isNaN(stockBox)) stockBox = 0;
+      if (isNaN(stockCard)) stockCard = 0;
+
+      if (packagingType === 'both') {
+        if (stockBox > 0 && stockCard <= 0) {
+          stockCard = stockBox;
+          const scEl = document.getElementById('prodStockCard');
+          if (scEl) scEl.value = String(stockCard);
+        } else if (stockCard > 0 && stockBox <= 0) {
+          stockBox = stockCard;
+          const sbEl = document.getElementById('prodStockBox');
+          if (sbEl) sbEl.value = String(stockBox);
+        } else if (stockBox <= 0 && stockCard <= 0) {
+          stockBox = 10;
+          stockCard = 10;
+        }
+      } else if (packagingType === 'box_only') {
+        if (stockBox <= 0) stockBox = 10;
+        stockCard = 0;
+      } else if (packagingType === 'card_only') {
+        if (stockCard <= 0) stockCard = 10;
+        stockBox = 0;
+      }
       const computedStock = packagingType === 'box_only' ? stockBox : (packagingType === 'card_only' ? stockCard : (stockBox + stockCard));
 
       const statusVal = document.getElementById('prodStatus').value;
@@ -3490,7 +3513,7 @@
         if (res && res.success === false) {
           throw new Error(res.message || 'Lỗi cập nhật mô hình');
         }
-        adminToast('Cập nhật mô hình xe (Box/Card & Giảm %) thành công!', 'success');
+        adminToast('Cập nhật thông tin mô hình xe & ảnh Card thành công!', 'success');
       } else {
         res = await api.post('/api/admin/products', payload);
         if (res && res.success === false) {

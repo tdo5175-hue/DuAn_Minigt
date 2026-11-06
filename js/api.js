@@ -893,6 +893,12 @@
     }
     image = images[0] || image;
 
+    const rawCardImgInput = raw.cardImageUrl ?? raw.CardImageUrl ?? raw.cardimageurl ?? null;
+    const cardImageUrl = rawCardImgInput ? resolveImageUrlForClient(rawCardImgInput) : null;
+    if (cardImageUrl && !images.includes(cardImageUrl)) {
+      images.push(cardImageUrl);
+    }
+
     const rawSoldVal = raw.soldCount ?? raw.SoldCount ?? raw.unitsSold ?? raw.UnitsSold;
     const soldCount = rawSoldVal !== undefined && rawSoldVal !== null
       ? Math.max(0, parseInt(rawSoldVal, 10) || 0)
@@ -990,6 +996,8 @@
       image,
       imageUrl: image,
       ImageUrl: image,
+      cardImageUrl,
+      CardImageUrl: cardImageUrl,
       images,
       Images: images,
       description,
