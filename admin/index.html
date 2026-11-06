@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-  <link rel="stylesheet" href="css/admin.css?v=20261105_05">
+  <link rel="stylesheet" href="css/admin.css?v=20261106_01">
   <script>
     (function() {
       try {
@@ -18,6 +18,8 @@
         const savedLang = localStorage.getItem('minigt_lang') || 'vi';
         document.documentElement.setAttribute('lang', savedLang);
       } catch (_) {}
+      window.addProductImageFromPreset = window.addProductImageFromPreset || function(){};
+      window.addProductImageFromUrlInput = window.addProductImageFromUrlInput || function(){};
     })();
   </script>
 </head>
@@ -432,52 +434,75 @@
             </div>
           </div>
 
-          <!-- Order Search & Filters -->
-          <div class="admin-filters-bar" style="background:#f8fafc; padding:10px 12px; border-radius:8px; border:1px solid #e2e8f0; margin-bottom:1rem; display:flex; flex-wrap:wrap; gap:8px; align-items:center;">
-            <div style="flex:1; min-width:220px;">
-              <input type="text" id="orderSearchInput" class="form-control" placeholder="Tìm theo mã đơn (MGT-...), Tên, SĐT khách..." data-i18n-placeholder="orders_search_placeholder" oninput="handleOrderSearchDebounced(this.value)">
+          <!-- Order Search & Smart Filters Toolbar (Bố cục 2 tầng khoa học, chống trôi đơn) -->
+          <div class="admin-filters-bar" style="background:#f8fafc; padding:12px; border-radius:10px; border:1px solid #e2e8f0; margin-bottom:1rem; display:flex; flex-direction:column; gap:10px;">
+            <!-- Tầng 1: Tìm kiếm nhanh + Lọc thời gian + Sắp xếp thông minh chống trôi đơn -->
+            <div style="display:flex; flex-wrap:wrap; gap:8px; align-items:center;">
+              <div style="flex:1; min-width:240px; position:relative;">
+                <input type="text" id="orderSearchInput" class="form-control" placeholder="Tìm theo mã đơn (MGT-...), Tên, SĐT, mã SPX..." data-i18n-placeholder="orders_search_placeholder" oninput="handleOrderSearchDebounced(this.value)">
+              </div>
+              <select id="orderDateRangeFilter" class="form-control" style="max-width:175px; font-weight:600; color:#1e293b;" onchange="handleOrderFilterChange()">
+                <option value="ALL">📅 Tất cả thời gian</option>
+                <option value="today">📅 Hôm nay</option>
+                <option value="yesterday">📅 Hôm qua</option>
+                <option value="last_7_days">📅 7 ngày gần đây</option>
+                <option value="last_30_days">📅 30 ngày gần đây</option>
+              </select>
+              <select id="orderSortFilter" class="form-control" style="max-width:205px; font-weight:700; color:#0f172a; border-color:#93c5fd; background:#f0f9ff;" onchange="handleOrderFilterChange()">
+                <option value="newest">⚡ Mới nhất (Mặc định)</option>
+                <option value="oldest">⚠️ Cũ nhất trước (Chống trôi đơn)</option>
+                <option value="pending_longest">⏳ Chờ duyệt lâu nhất (>24h)</option>
+                <option value="total_desc">💰 Giá trị: Cao ➔ Thấp</option>
+                <option value="total_asc">📉 Giá trị: Thấp ➔ Cao</option>
+              </select>
+              <button type="button" class="btn-admin btn-admin-outline" style="padding:6px 12px; font-size:12px;" onclick="loadOrders()" title="Tải lại danh sách đơn hàng">
+                <i class="fa-solid fa-rotate-right"></i> Làm mới
+              </button>
             </div>
-            <select id="orderPayStatusFilter" class="form-control" style="max-width:180px;" onchange="handleOrderFilterChange()">
-              <option value="ALL" data-i18n="filter_pay_all">-- Tất cả thanh toán --</option>
-              <option value="UNPAID" data-i18n="filter_pay_unpaid">Chưa thanh toán / Check MB</option>
-              <option value="PARTIALLY_PAID" data-i18n="filter_pay_partial">Đã nhận tiền cọc</option>
-              <option value="PAID" data-i18n="filter_pay_paid">Đã thanh toán đủ</option>
-              <option value="REFUND_PENDING" data-i18n="filter_pay_refund_pending">Chờ hoàn tiền</option>
-              <option value="REFUNDED" data-i18n="filter_pay_refunded">Đã hoàn tiền</option>
-            </select>
-            <select id="orderPayMethodFilter" class="form-control" style="max-width:190px;" onchange="handleOrderFilterChange()">
-              <option value="ALL" data-i18n="filter_method_all">-- Tất cả phương thức --</option>
-              <option value="VIETQR_PAYOS" data-i18n="filter_method_payos">⚡ Thanh toán PayOS tự động</option>
-              <option value="COD" data-i18n="filter_method_cod">Ship COD</option>
-              <option value="DEPOSIT" data-i18n="filter_method_deposit">Đặt cọc MB Bank</option>
-              <option value="BANK_TRANSFER" data-i18n="filter_method_bank">Chuyển khoản Full</option>
-            </select>
-            <button type="button" class="btn-admin" style="background:#eff6ff; color:#0284c7; border:1px solid #bae6fd; font-weight:700; font-size:12px; padding:6px 12px; display:inline-flex; align-items:center; gap:5px;" onclick="filterPayosOrders()" title="Lọc nhanh các đơn thanh toán PayOS tự động" data-i18n-title="filter_payos_tooltip">
-              <i class="fa-solid fa-bolt"></i> <span data-i18n="btn_payos_orders">Đơn PayOS Tự Động</span>
-            </button>
-            <select id="orderAddressTypeFilter" class="form-control" style="max-width:175px;" onchange="handleOrderFilterChange()">
-              <option value="ALL" data-i18n="filter_addr_all">-- Tất cả loại địa chỉ --</option>
-              <option value="NEW" data-i18n="filter_addr_new">Địa chỉ MỚI (Đã sáp nhập)</option>
-              <option value="OLD" data-i18n="filter_addr_old">Địa chỉ CŨ (Cần đối chiếu ĐVHC)</option>
-            </select>
-            <select id="orderSpxFilter" class="form-control" style="max-width:165px;" onchange="handleOrderFilterChange()">
-              <option value="ALL" data-i18n="filter_spx_all">-- Trạng thái SPX --</option>
-              <option value="UNASSIGNED" data-i18n="filter_spx_unassigned">Chưa gán SPX</option>
-              <option value="ASSIGNED" data-i18n="filter_spx_assigned">Đã có mã SPX</option>
-            </select>
+
+            <!-- Tầng 2: Các bộ lọc nghiệp vụ (Thanh toán, Phương thức, Địa chỉ, SPX) -->
+            <div style="display:flex; flex-wrap:wrap; gap:8px; align-items:center;">
+              <select id="orderPayStatusFilter" class="form-control" style="max-width:175px; font-size:12px;" onchange="handleOrderFilterChange()">
+                <option value="ALL" data-i18n="filter_pay_all">-- Tất cả thanh toán --</option>
+                <option value="UNPAID" data-i18n="filter_pay_unpaid">Chưa thanh toán / Chờ CK</option>
+                <option value="PARTIALLY_PAID" data-i18n="filter_pay_partial">Đã nhận cọc (30%)</option>
+                <option value="PAID" data-i18n="filter_pay_paid">Đã thanh toán đủ 100%</option>
+                <option value="REFUND_PENDING" data-i18n="filter_pay_refund_pending">Chờ hoàn tiền</option>
+                <option value="REFUNDED" data-i18n="filter_pay_refunded">Đã hoàn tiền</option>
+              </select>
+              <select id="orderPayMethodFilter" class="form-control" style="max-width:175px; font-size:12px;" onchange="handleOrderFilterChange()">
+                <option value="ALL" data-i18n="filter_method_all">-- Tất cả phương thức --</option>
+                <option value="VIETQR_PAYOS" data-i18n="filter_method_payos">⚡ PayOS VietQR tự động</option>
+                <option value="COD" data-i18n="filter_method_cod">Ship COD (Khi nhận hàng)</option>
+                <option value="DEPOSIT" data-i18n="filter_method_deposit">Đặt cọc MB Bank</option>
+                <option value="BANK_TRANSFER" data-i18n="filter_method_bank">Chuyển khoản Full</option>
+              </select>
+              <button type="button" class="btn-admin" style="background:#eff6ff; color:#0284c7; border:1px solid #bae6fd; font-weight:700; font-size:12px; padding:6px 10px; display:inline-flex; align-items:center; gap:5px;" onclick="filterPayosOrders()" title="Lọc nhanh các đơn thanh toán PayOS tự động" data-i18n-title="filter_payos_tooltip">
+                <i class="fa-solid fa-bolt"></i> <span data-i18n="btn_payos_orders">Đơn PayOS</span>
+              </button>
+              <select id="orderAddressTypeFilter" class="form-control" style="max-width:160px; font-size:12px;" onchange="handleOrderFilterChange()">
+                <option value="ALL" data-i18n="filter_addr_all">-- Tất cả địa chỉ --</option>
+                <option value="NEW" data-i18n="filter_addr_new">Địa chỉ MỚI (Chuẩn)</option>
+                <option value="OLD" data-i18n="filter_addr_old">Địa chỉ CŨ (Cần đối soát)</option>
+              </select>
+              <select id="orderSpxFilter" class="form-control" style="max-width:150px; font-size:12px;" onchange="handleOrderFilterChange()">
+                <option value="ALL" data-i18n="filter_spx_all">-- Trạng thái SPX --</option>
+                <option value="UNASSIGNED" data-i18n="filter_spx_unassigned">Chưa gán SPX</option>
+                <option value="ASSIGNED" data-i18n="filter_spx_assigned">Đã gán mã SPX</option>
+              </select>
+            </div>
           </div>
 
-          <div class="table-responsive">
-            <table class="admin-table admin-orders-table">
+          <div class="table-responsive" style="overflow-x:auto;">
+            <table class="admin-table admin-orders-table" style="width:100%; border-collapse:collapse;">
               <thead>
                 <tr>
-                  <th style="min-width:145px; white-space:nowrap;" data-i18n="col_order_code_time">Mã Đơn &amp; Thời Gian</th>
-                  <th style="min-width:180px;" data-i18n="col_customer_phone">Khách Hàng &amp; SĐT</th>
-                  <th style="min-width:240px;" data-i18n="col_model_pack">Mô Hình &amp; Quy Cách</th>
-                  <th style="min-width:140px; white-space:nowrap;" data-i18n="col_total_deposit">Tổng Tiền / Cọc</th>
-                  <th style="min-width:135px;" data-i18n="col_payment_status">Thanh Toán</th>
-                  <th style="min-width:165px;" data-i18n="col_status_spx">Trạng Thái &amp; SPX</th>
-                  <th style="min-width:210px; text-align:right;" data-i18n="col_action_processing">Thao Tác Xử Lý</th>
+                  <th style="width:16%; min-width:135px;" data-i18n="col_order_code_time">Mã Đơn &amp; Thời Gian</th>
+                  <th style="width:20%; min-width:165px;" data-i18n="col_customer_phone">Khách Hàng &amp; Nhận Hàng</th>
+                  <th style="width:22%; min-width:190px;" data-i18n="col_model_pack">Mô Hình Xe Đặt</th>
+                  <th style="width:16%; min-width:145px;" data-i18n="col_total_deposit">Tài Chính &amp; Thanh Toán</th>
+                  <th style="width:13%; min-width:125px;" data-i18n="col_status_spx">Tiến Trình &amp; SPX</th>
+                  <th style="width:13%; min-width:120px; text-align:right; position:sticky; right:0; background:#f8fafc; z-index:2; box-shadow:-3px 0 6px rgba(0,0,0,0.04);" data-i18n="col_action_processing">Thao Tác</th>
                 </tr>
               </thead>
               <tbody id="ordersTbody"></tbody>
@@ -1714,7 +1739,7 @@
   </div>
 
   <!-- Shared API Client & Admin Application Script -->
-  <script src="../js/api.js?v=20261105_06"></script>
-  <script src="js/admin.js?v=20261105_06"></script>
+  <script src="../js/api.js?v=20261106_01"></script>
+  <script src="js/admin.js?v=20261106_01"></script>
 </body>
 </html>

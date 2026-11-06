@@ -2025,7 +2025,7 @@ button, a, input, select, .order-tab-btn, .preorder-sub-btn, .nav-item, .btn-adm
    STICKY ACTION COLUMN CHO BẢNG ĐƠN HÀNG (KHÔNG BỊ CHE KHUẤT TRẠNG THÁI)
    ===================================================================== */
 .admin-orders-table {
-  min-width: 1240px;
+  min-width: 980px;
   width: 100%;
   border-collapse: separate;
   border-spacing: 0;
@@ -2033,40 +2033,33 @@ button, a, input, select, .order-tab-btn, .preorder-sub-btn, .nav-item, .btn-adm
 
 .admin-orders-table th:nth-child(1),
 .admin-orders-table td:nth-child(1) {
-  min-width: 145px;
+  min-width: 135px;
 }
 
 .admin-orders-table th:nth-child(2),
 .admin-orders-table td:nth-child(2) {
-  min-width: 180px;
+  min-width: 165px;
 }
 
 .admin-orders-table th:nth-child(3),
 .admin-orders-table td:nth-child(3) {
-  min-width: 240px;
+  min-width: 180px;
 }
 
 .admin-orders-table th:nth-child(4),
 .admin-orders-table td:nth-child(4) {
-  min-width: 140px;
-  white-space: nowrap;
+  min-width: 145px;
 }
 
 .admin-orders-table th:nth-child(5),
 .admin-orders-table td:nth-child(5) {
-  min-width: 135px;
+  min-width: 130px;
 }
 
 .admin-orders-table th:nth-child(6),
 .admin-orders-table td:nth-child(6) {
-  min-width: 165px;
-  width: 165px;
-}
-
-.admin-orders-table th:nth-child(7),
-.admin-orders-table td:nth-child(7) {
-  min-width: 210px;
-  width: 210px;
+  min-width: 125px;
+  width: 125px;
 }
 
 .admin-orders-table th:last-child,

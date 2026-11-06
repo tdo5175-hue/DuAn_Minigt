@@ -30,6 +30,8 @@
     paymentMethod: 'ALL',
     addressType: 'ALL',
     spxStatus: 'ALL',
+    sortBy: 'newest',
+    dateRange: 'ALL',
     search: '',
     page: 1,
     limit: 10
@@ -97,7 +99,7 @@
     "kpi_customers_desc": "Thành viên & Khách mua",
     "kpi_subscribers": "Đăng Ký Nhận Tin",
     "kpi_subscribers_desc": "Email quan tâm đợt xe mới",
-    "btn_quick_add_product": "+ Thêm Mô Hình Mới",
+    "btn_quick_add_product": "Thêm Mô Hình Mới",
     "btn_sync_orders": "Đồng Bộ Đơn",
     "recent_orders_title": "Đơn Hàng Gần Đây Cần Xử Lý",
     "recent_orders_subtitle": "Theo dõi nhanh các đơn mới đặt cọc, cần đóng gói và lên vận đơn SPX",
@@ -357,7 +359,7 @@
     "col_coupon_usage": "Lượt Dùng",
     "col_coupon_expiry": "Hạn Sử Dụng",
     "col_subscribed_at": "Ngày Đăng Ký",
-    "prod_btn_add": "+ Thêm Mô Hình Mới",
+    "prod_btn_add": "Thêm Mô Hình Mới",
     "prod_search_placeholder": "Tìm theo tên xe, mã SKU (VD: MGT01413)...",
     "filter_all_categories": "Tất cả danh mục",
     "filter_all_statuses": "Tất cả trạng thái",
@@ -405,7 +407,7 @@
     "coupons_vip_badge": "Hệ Thống Voucher",
     "coupons_title": "Quản Lý Mã Giảm Giá & Voucher VIP",
     "coupons_subtitle": "Tạo mã khuyến mãi kích cầu mua sắm và chăm sóc hội viên",
-    "coupons_btn_add": "+ Tạo Mã Giảm Giá Mới",
+    "coupons_btn_add": "Tạo Mã Giảm Giá Mới",
     "subscribers_search_placeholder": "Tìm theo email người đăng ký...",
     "settings_btn_save": "Lưu Cấu Hình Cửa Hàng",
     "settings_sec_store": "1. Thông Tin Cửa Hàng & Vận Hành",
@@ -499,7 +501,7 @@
     "kpi_customers_desc": "Registered collectors & buyers",
     "kpi_subscribers": "Newsletter CRM",
     "kpi_subscribers_desc": "Interested collector leads",
-    "btn_quick_add_product": "+ Add New Model",
+    "btn_quick_add_product": "Add New Model",
     "btn_sync_orders": "Live Sync",
     "recent_orders_title": "Recent Orders Requiring Attention",
     "recent_orders_subtitle": "Review deposits, confirm packaging & generate SPX waybills",
@@ -759,7 +761,7 @@
     "col_coupon_usage": "Usage",
     "col_coupon_expiry": "Expiry Date",
     "col_subscribed_at": "Subscribed Date",
-    "prod_btn_add": "+ Add New Model",
+    "prod_btn_add": "Add New Model",
     "prod_search_placeholder": "Search by model name, SKU (e.g. MGT01413)...",
     "filter_all_categories": "All Categories",
     "filter_all_statuses": "All Statuses",
@@ -807,7 +809,7 @@
     "coupons_vip_badge": "Voucher Engine",
     "coupons_title": "VIP Coupons & Voucher Codes",
     "coupons_subtitle": "Create promotional discount codes and VIP collector rewards",
-    "coupons_btn_add": "+ Create New Coupon",
+    "coupons_btn_add": "Create New Coupon",
     "subscribers_search_placeholder": "Search subscriber email...",
     "settings_btn_save": "Save Store Settings",
     "settings_sec_store": "1. Store Operations & Contact",
@@ -1383,7 +1385,6 @@
         api.clearAuthSession();
         currentAdminUser = null;
         showLoginModal(false);
-        console.warn('[ADMIN AUTH] Phiên quản trị hết hạn hoặc không hợp lệ (401), yêu cầu đăng nhập.');
         return;
       }
 
@@ -1404,7 +1405,7 @@
       api.clearAuthSession();
       currentAdminUser = null;
       showLoginModal(false);
-      console.warn('[ADMIN AUTH]', err);
+      console.log('[ADMIN AUTH]', err?.message || err);
     }
   }
 
@@ -3482,7 +3483,12 @@
   // =====================================================================
   // 6. TAB 3: QUẢN LÝ ĐƠN HÀNG (ADMIN ORDERS)
   // =====================================================================
+  let _isLoadingOrders = false;
+
   async function loadOrders(silent = false) {
+    if (_isLoadingOrders) return;
+    _isLoadingOrders = true;
+
     if (!silent) {
       startProgressBar();
       const tbody = document.getElementById('ordersTbody');
@@ -3494,6 +3500,13 @@
       const res = await api.get('/api/admin/orders', orderFilter);
       if (res.success && res.data) {
         cachedOrders = res.data;
+
+        // Đồng bộ snapshot ngay để poller ngầm không re-render lại gây chớp nháy
+        const orderSnapshot = (res.data || []).map(o => `${o.id || o.OrderId}_${o.status || o.Status}_${o.paymentStatus || o.paymentStatus}_${o.trackingCode || ''}`).join('|');
+        const countsSnapshot = JSON.stringify(res.counts || {});
+        window._lastAdminOrderSnapshot = orderSnapshot;
+        window._lastAdminCountsSnapshot = countsSnapshot;
+
         renderOrdersTable(cachedOrders);
         updateOrderTabBadges(res.counts);
         renderOrdersPagination(res.pagination);
@@ -3501,6 +3514,7 @@
     } catch (err) {
       if (!silent) adminToast('Không thể tải danh sách đơn hàng: ' + err.message, 'error');
     } finally {
+      _isLoadingOrders = false;
       if (!silent) finishProgressBar();
     }
   }
@@ -3552,6 +3566,8 @@
     orderFilter.paymentMethod = document.getElementById('orderPayMethodFilter')?.value || 'ALL';
     orderFilter.addressType = document.getElementById('orderAddressTypeFilter')?.value || 'ALL';
     orderFilter.spxStatus = document.getElementById('orderSpxFilter')?.value || 'ALL';
+    orderFilter.dateRange = document.getElementById('orderDateRangeFilter')?.value || 'ALL';
+    orderFilter.sortBy = document.getElementById('orderSortFilter')?.value || 'newest';
     orderFilter.page = 1;
     loadOrders();
   }
@@ -3945,7 +3961,7 @@
         const countInGroup = groupCounts[currentGroup] || 1;
         rowsHtml.push(`
           <tr class="order-date-divider-row">
-            <td colspan="7">
+            <td colspan="6">
               <div class="order-date-divider-content">
                 <span class="date-badge">
                   <i class="fa-regular fa-calendar-check"></i> <strong>${currentGroup}</strong>
@@ -4030,9 +4046,13 @@
       const isPreOrder = Boolean(o.hasPreOrder || o.HasPreOrder);
       const preOrderExpected = o.preOrderExpected || o.PreOrderExpected || '';
 
+      const createdTime = new Date(o.createdAt || o.created_at || Date.now()).getTime();
+      const hoursPending = (Date.now() - createdTime) / (1000 * 60 * 60);
+      const isUrgentPending = o.status === 'PENDING' && hoursPending >= 24;
+
       rowsHtml.push(`
         <tr>
-          <!-- 1. Mã đơn & Thời gian (nowrap + copy button) -->
+          <!-- 1. Mã đơn & Thời gian (Chống trôi đơn với cảnh báo >24h) -->
           <td style="white-space:nowrap;">
             <div class="col-order-code">
               <span>#${escapeHtml(o.code)}</span>
@@ -4043,6 +4063,13 @@
             <div style="font-size:11px; color:#64748b; margin-top:2px;">
               <i class="fa-regular fa-clock" style="font-size:10px;"></i> ${formatOrderDateTime(o.createdAt || o.created_at)}
             </div>
+            ${isUrgentPending ? `
+              <div style="margin-top:3px;">
+                <span style="font-size:10px; font-weight:800; color:#b91c1c; background:#fee2e2; border:1px solid #fca5a5; padding:1px 6px; border-radius:4px; display:inline-flex; align-items:center; gap:3px;" title="Đơn đã đặt hơn 24 giờ chưa được duyệt - Cần ưu tiên xử lý gấp để tránh trôi đơn!">
+                  <i class="fa-solid fa-triangle-exclamation"></i> Chờ duyệt >${Math.floor(hoursPending)}h
+                </span>
+              </div>
+            ` : ''}
             ${isPreOrder ? `
               <div style="margin-top:3px;">
                 <span style="font-size:10px; font-weight:800; color:#7c3aed; background:#f5f3ff; border:1px solid #ddd6fe; padding:1px 6px; border-radius:4px; display:inline-flex; align-items:center; gap:3px;">
@@ -4052,7 +4079,7 @@
             ` : ''}
           </td>
 
-          <!-- 2. Khách hàng & SĐT (bảo mật số điện thoại bằng eye toggle & huy hiệu địa chỉ Mới/Cũ) -->
+          <!-- 2. Khách hàng & Địa chỉ nhận hàng -->
           <td>
             <div style="font-weight:700; color:#0f172a; font-size:12.5px; display:flex; align-items:center; gap:5px; flex-wrap:wrap;">
               <span>${escapeHtml(custName)}</span>
@@ -4085,16 +4112,16 @@
             </div>
           </td>
 
-          <!-- 3. Mô hình & Quy cách (Box / Card) -->
+          <!-- 3. Mô hình xe & Quy cách (Box / Card) -->
           <td>
             <div class="order-product-list-preview">
               ${renderOrderItemsPreview(o.items)}
             </div>
           </td>
 
-          <!-- 4. Tổng tiền & Cọc -->
-          <td style="white-space:nowrap;">
-            <strong style="color:#0f172a; font-size:13px;">${formatVND(orderTotal)}</strong>
+          <!-- 4. Tài chính & Thanh toán (Gộp gọn gàng, rõ ràng, không chiếm ngang) -->
+          <td>
+            <div style="font-size:13.5px; font-weight:800; color:#0f172a;">${formatVND(orderTotal)}</div>
             ${o.depositAmount > 0
               ? `<div style="font-size:11px; color:#2563eb; font-weight:700; margin-top:2px;">
                    <i class="fa-solid fa-hand-holding-dollar"></i> Cọc: ${formatVND(o.depositAmount)}
@@ -4102,21 +4129,16 @@
                  <div style="font-size:10.5px; color:#64748b; margin-top:1px;">
                    COD còn: <strong>${formatVND(Math.max(0, orderTotal - o.depositAmount))}</strong>
                  </div>`
-              : `<div style="font-size:10.5px; color:#059669; font-weight:700; margin-top:2px;">
+              : `<div style="font-size:10.5px; color:#64748b; margin-top:1px;">
                    ${o.paymentMethod === 'COD' ? 'Thu COD 100%' : 'Thanh toán Full'}
                  </div>`
             }
-          </td>
-
-          <!-- 5. Thanh toán -->
-          <td>
-            <div style="font-size:11.5px; font-weight:700; color:#334155; margin-bottom:3px;">
-              ${o.paymentMethod === 'DEPOSIT' ? '⚡ Cọc MB Bank' : (o.paymentMethod === 'COD' ? '📦 Ship COD' : '💳 Chuyển khoản')}
+            <div style="margin-top:4px;">
+              ${renderPaymentBadge(o.paymentStatus, o.paymentMethod)}
             </div>
-            ${renderPaymentBadge(o.paymentStatus, o.paymentMethod)}
           </td>
 
-          <!-- 6. Trạng thái đơn & SPX (Tối ưu giao diện hiển thị rõ ràng, không bị che mất) -->
+          <!-- 5. Tiến trình xử lý & Vận đơn SPX Express -->
           <td>
             <div style="margin-bottom:5px;">
               ${renderOrderBadge(o.status)}
@@ -4136,14 +4158,14 @@
             `}
           </td>
 
-          <!-- 7. Thao tác xử lý (Ma trận nút được cấu trúc ngăn nắp, sticky bên phải không tràn màn hình) -->
-          <td style="text-align:right;">
+          <!-- 6. Thao tác xử lý (Sticky bên phải không bị che mất hay phải kéo ngang) -->
+          <td style="text-align:right; position:sticky; right:0; background:#ffffff; z-index:1; box-shadow:-3px 0 6px rgba(0,0,0,0.04); padding:8px 10px;">
             <div class="order-action-matrix">
               <div class="action-row primary-actions">
                 ${actionsPrimary.join('')}
               </div>
               ${actionsSecondary.length ? `
-                <div class="action-row secondary-actions" style="margin-top:3px;">
+                <div class="action-row secondary-actions" style="margin-top:4px;">
                   ${actionsSecondary.join('')}
                 </div>
               ` : ''}
@@ -6019,6 +6041,15 @@ Anh/chị phản hồi giúp shop để kiện xe được đóng gói gửi đi
       cachedOrders.forEach(o => { if (o && o.code) adminKnownOrderCodes.add(o.code); });
     }
 
+    let _realtimeOrdersDebounceTimer = null;
+    function scheduleRealtimeOrdersReload() {
+      if (_realtimeOrdersDebounceTimer) clearTimeout(_realtimeOrdersDebounceTimer);
+      _realtimeOrdersDebounceTimer = setTimeout(() => {
+        if (activeTab === 'dashboard') loadDashboard();
+        if (activeTab === 'orders') loadOrders(true);
+      }, 350);
+    }
+
     // Lắng nghe tín hiệu Real-time ngay lập tức khi Khách hàng vừa đặt đơn hoặc cập nhật đơn
     window.addEventListener('minigt:realtime', (ev) => {
       const detail = ev && ev.detail;
@@ -6030,16 +6061,14 @@ Anh/chị phản hồi giúp shop để kiện xe được đóng gói gửi đi
           adminToast(`🔔 ĐƠN HÀNG MỚI #${ord.code} từ ${ord.fullName || (ord.customer && ord.customer.fullName) || 'Khách hàng'} (${formatVND(ord.totalAmount || ord.total || 0)})!`, 'success', 'Có Đơn Hàng Mới!');
           addAdminNotification(ord, 'ORDER_CREATED');
         }
-        if (activeTab === 'dashboard') loadDashboard();
-        loadOrders(true);
+        scheduleRealtimeOrdersReload();
       } else if (detail.type === 'PAYOS_PAID' || detail.type === 'ORDER_PAID') {
         const p = detail.payload;
         if (p && p.code) {
           adminToast(`⚡ Đơn hàng #${p.code} đã thanh toán tự động qua VietQR PayOS (${formatVND(p.amount || p.total || 0)})!`, 'success', 'PayOS Khớp Lệnh Tự Động');
           addAdminNotification(p, 'PAYOS_PAID');
         }
-        if (activeTab === 'dashboard') loadDashboard();
-        loadOrders(true);
+        scheduleRealtimeOrdersReload();
       } else if (detail.type === 'CUSTOMER_REPORTED_TRANSFER' && detail.payload) {
         const p = detail.payload;
         adminToast(`💳 Khách vừa báo đã chuyển khoản cho đơn #${p.code || p.orderCode || ''} (${formatVND(p.amount || p.transferAmount || 0)})!`, 'info', 'Khách Đã Chuyển Khoản');
@@ -6050,11 +6079,9 @@ Anh/chị phản hồi giúp shop để kiện xe được đóng gói gửi đi
           totalAmount: p.amount || p.transferAmount || 0,
           paymentMethod: 'BANK_TRANSFER'
         }, 'CUSTOMER_REPORTED_TRANSFER');
-        if (activeTab === 'dashboard') loadDashboard();
-        loadOrders(true);
-      } else if (detail.type === 'ORDER_UPDATED') {
-        if (activeTab === 'dashboard') loadDashboard();
-        if (activeTab === 'orders') loadOrders(true);
+        scheduleRealtimeOrdersReload();
+      } else if (detail.type === 'ORDER_UPDATED' || detail.type === 'ORDERS_UPDATED') {
+        scheduleRealtimeOrdersReload();
       } else if (detail.type === 'USER_REGISTERED' || detail.type === 'USER_UPDATED' || detail.type === 'users_updated') {
         loadDashboard();
         if (activeTab === 'users') loadUsers();
@@ -6087,7 +6114,8 @@ Anh/chị phản hồi giúp shop để kiện xe được đóng gói gửi đi
     // Tự động đồng bộ ngầm mỗi 6 giây để không bỏ sót bất kỳ đơn hàng nào (chống lặp thông báo)
     if (adminSyncInterval) clearInterval(adminSyncInterval);
     adminSyncInterval = setInterval(async () => {
-      if (!currentAdminUser) return;
+      if (!currentAdminUser || (typeof document !== 'undefined' && document.hidden)) return;
+      if (document.activeElement?.id === 'orderSearchInput') return;
       refreshAdminChatBadgeQuietly();
       try {
         const res = await api.get('/api/admin/orders', orderFilter);

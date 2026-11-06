@@ -806,7 +806,7 @@ router.post('/products/:id/clone', async (req, res, next) => {
 
 router.get('/orders', async (req, res, next) => {
   try {
-    const { status, paymentStatus, paymentMethod, search, spxStatus, userId, preStage, page = 1, limit = 50 } = req.query;
+    const { status, paymentStatus, paymentMethod, search, spxStatus, userId, preStage, sortBy, dateRange, page = 1, limit = 50 } = req.query;
 
     const result = await orderService.listOrders({
       status,
@@ -814,6 +814,8 @@ router.get('/orders', async (req, res, next) => {
       paymentMethod,
       spxStatus,
       preStage,
+      sortBy,
+      dateRange,
       userId: userId ? parseInt(userId, 10) : undefined,
       q: search,
       page: parseInt(page, 10) || 1,

@@ -5110,6 +5110,26 @@ function renderCheckoutStep4(rawOrder) {
         </div>
       `)}
 
+      <!-- Khối Trợ Lý AI Hỗ Trợ Đơn Hàng Tức Thì -->
+      <div style="background:linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%); border:1.5px solid #86efac; border-radius:12px; padding:12px 14px; margin-bottom:14px; text-align:left;">
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+          <div style="display:flex; align-items:center; gap:10px;">
+            <div style="width:36px; height:36px; border-radius:50%; background:#16a34a; color:#fff; display:flex; align-items:center; justify-content:center; font-size:16px; flex-shrink:0;">
+              <i class="fa-solid fa-wand-magic-sparkles"></i>
+            </div>
+            <div>
+              <div style="font-weight:800; color:#15803d; font-size:13px;">Bé Bot AI Săn Xe đang sẵn sàng hỗ trợ đơn #${escapeHtml(orderCode)}!</div>
+              <div style="font-size:11.5px; color:#166534; line-height:1.4;">
+                Dự kiến giao SPX Express: <strong>Miền Nam (1-2 ngày)</strong> • <strong>Miền Trung (2-3 ngày)</strong> • <strong>Miền Bắc (3-4 ngày)</strong>
+              </div>
+            </div>
+          </div>
+          <button type="button" class="btn btn-sm" style="background:#16a34a; color:#fff; border:none; padding:7px 14px; border-radius:8px; font-weight:800; font-size:12px; display:inline-flex; align-items:center; gap:5px; box-shadow:0 3px 8px rgba(22,163,74,0.25); cursor:pointer;" onclick="openAiChatForOrderSupport('${escapeHtml(orderCode)}')">
+            <i class="fa-solid fa-comments"></i> Hỏi Bé Bot về đơn này
+          </button>
+        </div>
+      </div>
+
       <div class="stepper-actions" style="display:flex; justify-content:center; gap:10px; flex-wrap:wrap;">
         <button type="button" class="btn btn-outline" onclick="printCustomerOrderInvoice('${escapeHtml(orderCode)}')">
           <i class="fa-solid fa-print" style="margin-right:4px;"></i> In Phiếu Đơn / Cọc
@@ -8036,6 +8056,9 @@ function buildUnifiedCustomerOrderCardHTML(ord) {
               <i class="fa-solid fa-qrcode" style="margin-right:4px;"></i> ${isDeposit ? `Hiện mã QR Cọc (${formatVND(depositAmount)})` : `Hiện mã QR Chuyển Khoản (${formatVND(total)})`}
             </button>
           ` : ''}
+          <button type="button" class="btn btn-outline btn-sm" style="font-size:11.5px; padding:5px 10px; color:#15803d; border-color:#86efac; background:#f0fdf4; font-weight:700;" onclick="openAiChatForOrderSupport('${escapeHtml(orderCode)}')">
+            <i class="fa-solid fa-wand-magic-sparkles" style="margin-right:4px;"></i> Hỏi AI về đơn này
+          </button>
         </div>
 
         <div style="display:flex; gap:6px; flex-wrap:wrap;">
@@ -10827,6 +10850,23 @@ function toggleAiChat() {
   }
 }
 window.toggleAiChat = toggleAiChat;
+
+function openAiChatForOrderSupport(orderCode) {
+  const win = document.getElementById('aiChatWindow');
+  if (!win || !win.classList.contains('active')) {
+    toggleAiChat();
+  }
+  const input = document.getElementById('aiChatInput');
+  if (input) {
+    input.value = `Kiểm tra đơn hàng #${orderCode} và tiến trình giao SPX`;
+    setTimeout(() => {
+      if (typeof handleSendChatMessage === 'function') {
+        handleSendChatMessage();
+      }
+    }, 280);
+  }
+}
+window.openAiChatForOrderSupport = openAiChatForOrderSupport;
 
 function extractSkusFromChatText(text) {
   if (!text) return [];

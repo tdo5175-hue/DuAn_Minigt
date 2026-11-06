@@ -680,7 +680,7 @@ async function getOrderByCodeOrId(idOrCode) {
   return mapOrder(o, items, hRes.recordset);
 }
 
-async function listOrders({ status, paymentStatus, paymentMethod, q, userId, userEmail, phone, codes, preStage, spxStatus, page = 1, pageSize = 50 } = {}) {
+async function listOrders({ status, paymentStatus, paymentMethod, q, userId, userEmail, phone, codes, preStage, spxStatus, sortBy = 'newest', dateRange = 'ALL', page = 1, pageSize = 50 } = {}) {
   const where = [];
   const params = {};
 
@@ -767,11 +767,36 @@ async function listOrders({ status, paymentStatus, paymentMethod, q, userId, use
     }
   }
 
+  if (dateRange && dateRange !== 'ALL' && dateRange !== 'all') {
+    const dr = String(dateRange).toLowerCase();
+    if (dr === 'today') {
+      where.push("o.CreatedAt >= CURRENT_DATE");
+    } else if (dr === 'yesterday') {
+      where.push("o.CreatedAt >= (CURRENT_DATE - INTERVAL '1 day') AND o.CreatedAt < CURRENT_DATE");
+    } else if (dr === 'last_7_days' || dr === '7days') {
+      where.push("o.CreatedAt >= (CURRENT_DATE - INTERVAL '7 days')");
+    } else if (dr === 'last_30_days' || dr === '30days') {
+      where.push("o.CreatedAt >= (CURRENT_DATE - INTERVAL '30 days')");
+    }
+  }
+
   if (q && String(q).trim()) {
     where.push('(o.OrderCode ILIKE @q OR o.FullName ILIKE @q OR o.Phone ILIKE @q OR o.TrackingCode ILIKE @q)');
     params.q = `%${String(q).trim()}%`;
   }
   const whereClause = where.length ? `WHERE ${where.join(' AND ')}` : '';
+
+  let orderByClause = 'o.CreatedAt DESC';
+  const sb = String(sortBy || 'newest').toLowerCase();
+  if (sb === 'oldest') {
+    orderByClause = 'o.CreatedAt ASC';
+  } else if (sb === 'pending_longest') {
+    orderByClause = "CASE WHEN UPPER(o.Status) = 'PENDING' THEN 0 ELSE 1 END, o.CreatedAt ASC";
+  } else if (sb === 'total_desc') {
+    orderByClause = 'o.Total DESC, o.CreatedAt DESC';
+  } else if (sb === 'total_asc') {
+    orderByClause = 'o.Total ASC, o.CreatedAt DESC';
+  }
 
   const p = Math.max(1, parseInt(page, 10) || 1);
   const ps = Math.min(100, Math.max(1, parseInt(pageSize, 10) || 50));
@@ -797,7 +822,7 @@ async function listOrders({ status, paymentStatus, paymentMethod, q, userId, use
         GROUP BY Phone
       ) phone_spent ON o.Phone = phone_spent.Phone
       ${whereClause}
-      ORDER BY o.CreatedAt DESC
+      ORDER BY ${orderByClause}
       LIMIT @ps OFFSET @offset
     `, params)
   ]);

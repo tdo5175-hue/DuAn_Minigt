@@ -719,7 +719,7 @@ const P = {
   warrantyInfo: ['chinh sach bao hanh', 'chinh sach doi tra', 'bao hanh the nao', 'bao hanh sao', 'doi tra sao', 'doi tra the nao', 'co duoc kiem tra hang', 'dong kiem'],
   accountHelp: ['dang ky tai khoan', 'tao tai khoan', 'quen mat khau', 'dang nhap', 'lay lai mat khau', 'hoi vien', 'tich diem'],
   preorderPolicy: ['chinh sach coc', 'quy trinh coc', 'cach coc', 'cach dat coc', 'dat coc the nao', 'dat coc nhu the nao', 'coc nhu the nao', 'pre order la gi', 'chinh sach pre order', 'coc bao nhieu phan tram'],
-  shipping: ['ship', 'van chuyen', 'giao hang', 'giao xe', 'gui xe', 'gui hang', 'nhan xe', 'phi giao', 'freeship', 'free ship', 'mien phi ship', 'bao lau nhan', 'bao lau toi', 'may ngay', 'spx', 'dong goi', 'phi ship', 'ship tinh', 'ship cod'],
+  shipping: ['ship', 'van chuyen', 'giao hang', 'giao xe', 'gui xe', 'gui hang', 'nhan xe', 'phi giao', 'freeship', 'free ship', 'mien phi ship', 'bao lau nhan', 'bao lau toi', 'may ngay', 'spx', 'dong goi', 'phi ship', 'ship tinh', 'ship cod', 'ha noi', 'mien bac', 'mien trung', 'mien nam', 'sai gon', 'tphcm', 'ngay giao', 'khi nao toi', 'khi nao giao', 'bao lau thi co', 'bao lau thi den', 'bao lau toi noi', 'thoi gian giao'],
   payment: ['thanh toan', 'chuyen khoan', 'qr', 'vietqr', 'cod', 'nhan hang tra tien', 'tien mat', 'tra gop', 'momo', 'payos', 'ngan hang', 'tra tien', 'so tai khoan'],
   address: ['dia chi', 'o dau', 'cho nao', 'showroom', 'cua hang', 'den xem', 'ghe shop', 'ghe xem', 'ban do', 'duong nao', 'chi duong', 'map', 'bien hoa'],
   hours: ['gio mo cua', 'may gio', 'mo cua', 'dong cua', 'gio lam viec', 'chu nhat co mo', 'mo den may gio'],
@@ -735,7 +735,7 @@ const ESC = {
   receipt: ['nhan', 'nhan duoc', 'vua nhan', 'giao toi', 'da mua', 'mua roi', 'dat roi', 've toi', 'vua ve', 'mo ra', 'khui', 'mo hop', 'cua toi', 'cua minh', 'cua em', 'shop gui', 'gui sai'],
   refund: ['khieu nai', 'tra hang', 'hoan tien', 'hoan coc', 'tra coc', 'lay lai coc', 'huy don', 'huy coc', 'doi hang', 'giao nham', 'sai hang', 'thieu hang', 'giao thieu', 'mat hang'],
   orderIssue: ['ma van don', 'don cua toi', 'don hang cua toi', 'don hang cua minh', 'don cua minh', 'don cua em', 'don hang cua em', 'kien hang cua em', 'gop chung', 'gop don', 'gui chung kien', 'sua don', 'doi dia chi', 'doi so dien thoai', 'chua nhan duoc', 'chua giao', 'giao tre', 'giao cham', 'chua thay don', 'da chuyen khoan', 'chuyen khoan roi', 'thanh toan roi ma', 'loi thanh toan', 'khong nhan duoc otp', 'tru tien roi', 'hen gio giao'],
-  human: ['gap admin', 'gap chu shop', 'gap quan ly', 'noi chuyen voi nguoi', 'nguoi that', 'nhan vien tu van', 'tu van vien', 'nho admin', 'admin oi', 'anh thinh oi', 'anh nam oi', 'goi lai cho', 'goi cho minh', 'goi cho toi', 'cho gap admin', 'chuyen cho admin', 'ket noi admin'],
+  human: ['gap admin', 'gap chu shop', 'gap quan ly', 'noi chuyen voi nguoi', 'nguoi that', 'nhan vien tu van', 'tu van vien', 'nho admin', 'admin oi', 'anh thinh oi', 'anh nam oi', 'goi lai cho', 'goi cho minh', 'goi cho toi', 'cho gap admin', 'chuyen cho admin', 'ket noi admin', 'lien he admin', 'lien he shop', 'can ho tro', 'admin xu ly', 'can gap admin', 'lien quan den admin'],
   wholesale: ['mua si', 'gia si', 'lay si', 'nhap si', 'dai ly', 'cong tac vien', 'ctv', 'chiet khau si', 'bot gia', 'fix gia', 'mac ca', 'tra gia'],
   negative: ['lua dao', 'te qua', 'that vong', 'buc minh', 'qua te', 'kem chat luong', 'lam an kieu gi', 'boc phot'],
   customMod: ['do den', 'do mam', 'son lai', 'custom mau', 'dat lam rieng', 'in 3d', 'nhan sua xe', 'thay truc banh']
@@ -1750,9 +1750,26 @@ function formatSingleOrderSummary(o) {
   const st = statusMap[String(o.Status || o.status || '').toUpperCase()] || (o.Status || o.status);
   const pst = payMap[String(o.PaymentStatus || o.paymentstatus || '').toUpperCase()] || (o.PaymentStatus || o.paymentstatus);
   const total = Number(o.Total ?? o.total ?? 0);
+  const deposit = Number(o.DepositAmount || o.depositamount || 0);
+  const payMethod = String(o.PaymentMethod || o.paymentmethod || '').toUpperCase();
+  const isDeposit = payMethod === 'DEPOSIT' || deposit > 0;
+  let depositInfo = '';
+  if (isDeposit && deposit > 0) {
+    depositInfo = `\n  🛡️ Tiền cọc: **${formatVnd(deposit)}** · Cần thanh toán COD khi nhận xe: **${formatVnd(Math.max(0, total - deposit))}**`;
+  }
+
   const tCode = o.TrackingCode || o.trackingcode;
   const tCarrier = o.TrackingCarrier || o.trackingcarrier || 'SPX Express';
-  return `• **#${code}** — ${st} · ${pst} · Tổng: **${formatVnd(total)}**${tCode ? `\n  🚚 Vận đơn (${tCarrier}): **${tCode}**` : ''}`;
+
+  return `• **#${code}**\n` +
+         `  Tiến trình: **${st}** · ${pst}\n` +
+         `  Tổng đơn (gồm ship SPX 11k): **${formatVnd(total)}**${depositInfo}\n` +
+         `${tCode ? `  🚚 Mã SPX Express: **${tCode}** (tra cứu trực tiếp tại spx.vn/vi)\n` : ''}` +
+         `  ⏱️ **Thời gian giao hàng SPX Express dự kiến (từ Kho Biên Hòa):**\n` +
+         `  - **Miền Nam** (TP.HCM, Đồng Nai, Tây Nam Bộ...): **1 – 2 ngày**\n` +
+         `  - **Miền Trung** (Đà Nẵng, Huế, Nha Trang...): **2 – 3 ngày**\n` +
+         `  - **Miền Bắc** (Hà Nội, Hải Phòng...): **3 – 4 ngày**\n` +
+         `  *(Chưa tính thời gian shop kiểm tra xe nguyên seal & đóng gói 4 lớp xốp nổ khoảng 1 ngày)*`;
 }
 
 function answerOrderLookup(lookup) {
@@ -1761,24 +1778,24 @@ function answerOrderLookup(lookup) {
     return reply(
       `Dạ em vừa tra trực tiếp trên CSDL nhưng chưa tìm thấy đơn hàng nào khớp với ${label} ạ 🥺\n` +
       '• Anh/chị kiểm tra lại mã đơn (VD: _MGT-2026..._) hoặc bấm mục **"Tra cứu đơn hàng"** trên thanh menu đầu trang nhé.\n' +
-      '• Nếu cần Admin kiểm tra thủ công ngay, anh/chị nhắn _"nhờ admin kiểm tra đơn"_ để em chuyển Quản trị viên hỗ trợ liền ạ!',
-      ['Gặp Admin hỗ trợ đơn hàng', 'Xe nào đang có sẵn?']
+      '• Nếu cần Admin hỗ trợ trực tiếp ngay, anh/chị chỉ cần nhắn _"gặp admin"_ hoặc gọi/Zalo **0981.903.400** để Quản trị viên tiếp quản liền ạ!',
+      ['Gặp Admin hỗ trợ đơn hàng', 'Bao lâu nhận được xe?']
     );
   }
   if (lookup.mode === 'phone') {
     return reply(
       `📦 **Tìm thấy ${lookup.orders.length} đơn hàng gần nhất của SĐT ${lookup.query}:**\n\n` +
       lookup.orders.map(formatSingleOrderSummary).join('\n\n') +
-      '\n\n_(Để bảo mật quyền riêng tư, Bé Bot ẩn địa chỉ chi tiết trên khung chat. Nếu cần đổi thông tin nhận hàng, anh/chị nhắn để em kết nối Admin ngay nhé!)_',
-      ['Gặp Admin Showroom', 'Xem thêm xe mới']
+      '\n\n💡 _(Nếu cần sửa địa chỉ nhận xe hay hỗ trợ gấp, anh/chị nhắn "gặp admin" để em kết nối Admin ngay nhé!)_',
+      ['Bao lâu nhận được xe?', 'Gặp Admin Showroom']
     );
   }
   const o = lookup.orders[0];
   return reply(
     `📦 **Kết quả tra cứu đơn hàng #${o.OrderCode || o.ordercode}:**\n\n` +
     formatSingleOrderSummary(o) +
-    '\n\nNếu anh/chị cần thay đổi thông tin nhận hàng hoặc hỗ trợ riêng về đơn này, cứ nhắn để em kết nối Admin ngay nhé ạ!',
-    ['Gặp Admin Showroom', 'Xem thêm xe mới']
+    '\n\n💡 *Nếu anh/chị cần thay đổi thông tin nhận hàng hoặc có yêu cầu riêng, cứ nhắn "gặp admin" hoặc gọi/Zalo **0981.903.400** để Admin xử lý trực tiếp nhé ạ!*',
+    ['Thời gian nhận xe?', 'Quy chuẩn đóng gói SPX', 'Gặp Admin hỗ trợ trực tiếp']
   );
 }
 
@@ -1872,12 +1889,18 @@ const KNOWLEDGE = {
     ['Có những mẫu Pre-Order nào?', 'Xe nào đang có sẵn?']
   ),
   shipping: () => reply(
-    `🚚 **Chính sách Giao hàng & Đóng gói bảo vệ hộp xe (Đồng bộ hệ thống):**\n\n` +
-    `• Đơn vị vận chuyển: **SPX Express** giao tận tay toàn quốc (Biên Hòa/HCM nhận sau **1–2 ngày**, tỉnh khác **2–4 ngày**).\n` +
-    `• Quy chuẩn đóng gói: Hộp carton cứng + **xốp nổ chống sốc 4 lớp** bảo vệ nguyên vẹn góc hộp giấy & vỉ Card sưu tầm.\n` +
-    `• Phí ship ưu đãi đồng giá chỉ **${formatVnd(SHOP.shippingFee)}** — đặc biệt **FREESHIP 0đ** cho mọi đơn từ **${formatVnd(SHOP.freeShipThreshold)}**!\n` +
-    `• Khách ở Biên Hòa có thể chọn **Nhận trực tiếp tại Showroom (0đ phí ship)**: **${SHOP.address}** ạ.`,
-    ['Shop có mã giảm giá không?', 'Xe nào đang có sẵn?']
+    `🚚 **Thời gian Giao hàng SPX Express & Quy cách Đóng gói (từ Kho Biên Hòa, Đồng Nai):**\n\n` +
+    `📍 **Thời gian giao hàng dự kiến theo từng khu vực:**\n` +
+    `• 🏁 **Miền Nam** (TP.HCM, Đồng Nai, Bình Dương, Tây Nam Bộ...): **1 – 2 ngày**\n` +
+    `• ⚡ **Miền Trung** (Đà Nẵng, Huế, Quảng Nam, Nha Trang, Bình Định...): **2 – 3 ngày**\n` +
+    `• 🚀 **Miền Bắc** (Hà Nội, Hải Phòng, Quảng Ninh, các tỉnh phía Bắc...): **3 – 4 ngày**\n` +
+    `*(Lưu ý: Thời gian trên là hành trình vận chuyển của bưu tá SPX Express, chưa bao gồm thời gian Shop kiểm tra mô hình xe nguyên seal và đóng gói bảo vệ khoảng 1 ngày hoặc trong ngày nếu đặt sớm)*\n\n` +
+    `📦 **Phí ship & Quy chuẩn đóng gói bảo vệ collector:**\n` +
+    `• **Phí ship đồng giá toàn quốc:** chỉ **${formatVnd(SHOP.shippingFee)}** — đặc biệt **FREESHIP 0đ** cho đơn từ **${formatVnd(SHOP.freeShipThreshold)}**!\n` +
+    `• **Bảo vệ tối đa:** Bọc xốp nổ chống sốc 4 lớp + Hộp carton cứng + Dán băng keo niêm phong "Hàng dễ vỡ / Mô hình sưu tầm", bảo vệ nguyên vẹn góc hộp giấy & vỉ card sưu tầm 100%.\n\n` +
+    `📞 **Cần hỗ trợ đơn hàng hoặc gặp Admin trực tiếp?**\n` +
+    `• Anh/chị chỉ cần nhắn tin có chữ **"gặp admin"** hoặc gọi/Zalo **${SHOP.hotline}** (Đỗ Quốc Thịnh) để Quản trị viên tiếp quản và hỗ trợ tức thì ạ!`,
+    ['Đơn hàng của tôi bao lâu tới?', 'Shop có mã giảm giá không?', 'Gặp Admin hỗ trợ trực tiếp']
   ),
   payment: () => reply(
     `💳 **Các hình thức thanh toán tại ${SHOP.name}:**\n\n` +
