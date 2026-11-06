@@ -308,7 +308,8 @@
     "th_items_count": "Số Lượng",
     "items_unit": "mẫu",
     "topbar_notifications": "Thông Báo Đơn Hàng",
-    "topbar_notif_mark_read": "Đánh dấu đã đọc",
+    "topbar_notif_clear_all": "Xóa hết",
+    "topbar_notif_mark_read": "Đã xem",
     "topbar_notif_empty": "Không có thông báo mới",
     "topbar_notif_view_orders": "Xem Tất Cả Đơn Hàng ➔",
     "dash_kpi_net_revenue": "Doanh Thu Thực Thu",
@@ -710,7 +711,8 @@
     "th_items_count": "Quantity",
     "items_unit": "items",
     "topbar_notifications": "Order Notifications",
-    "topbar_notif_mark_read": "Mark all as read",
+    "topbar_notif_clear_all": "Clear all",
+    "topbar_notif_mark_read": "Mark all read",
     "topbar_notif_empty": "No new notifications",
     "topbar_notif_view_orders": "View All Orders ➔",
     "dash_kpi_net_revenue": "Net Revenue",
@@ -1040,6 +1042,8 @@
   let adminOrderSoundEnabled = localStorage.getItem('minigt_admin_order_sound') !== 'false';
   let audioCtx = null;
   let adminNotifications = [];
+  const adminKnownOrderCodes = new Set();
+  const adminSessionStartTime = Date.now();
 
   function playOrderChimeSound() {
     if (!adminOrderSoundEnabled) return;
@@ -1118,6 +1122,11 @@
       const saved = sessionStorage.getItem('minigt_admin_notifications');
       if (saved) {
         adminNotifications = JSON.parse(saved);
+        if (Array.isArray(adminNotifications)) {
+          adminNotifications = adminNotifications.filter(n => n && n.code);
+        } else {
+          adminNotifications = [];
+        }
       }
     } catch (e) {
       adminNotifications = [];
@@ -1131,21 +1140,36 @@
     } catch (e) {}
   }
 
+  function clearAllAdminNotifs(event) {
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+    adminNotifications = [];
+    saveAdminNotifications();
+    renderAdminNotifications();
+    adminToast('Đã xóa toàn bộ lịch sử thông báo đơn hàng', 'info');
+  }
+  window.clearAllAdminNotifs = clearAllAdminNotifs;
+
   function addAdminNotification(ord, type = 'ORDER_CREATED') {
     if (!ord || !ord.code) return;
     const exists = adminNotifications.some(n => n.code === ord.code && n.type === type);
     if (exists) return;
 
+    // Sử dụng thời gian thật khi khách tạo đơn hàng, không lấy Date.now() cho đơn cũ
+    const realOrderTime = ord.createdAt || ord.CreatedAt || ord.time || new Date().toISOString();
+
     const notif = {
       id: 'notif_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
       code: ord.code,
-      orderId: ord.id || null,
+      orderId: ord.id || ord.OrderId || null,
       customerName: ord.fullName || (ord.customer && ord.customer.fullName) || 'Khách hàng',
       phone: ord.phone || (ord.customer && ord.customer.phone) || '',
-      total: ord.totalAmount ?? ord.total ?? 0,
-      paymentMethod: ord.paymentMethod || 'COD',
+      total: ord.totalAmount ?? ord.total ?? ord.Total ?? 0,
+      paymentMethod: ord.paymentMethod || ord.PaymentMethod || 'COD',
       type: type,
-      time: new Date().toISOString(),
+      time: realOrderTime,
       read: false
     };
 
@@ -3500,6 +3524,7 @@
       const res = await api.get('/api/admin/orders', orderFilter);
       if (res.success && res.data) {
         cachedOrders = res.data;
+        (res.data || []).forEach(o => { if (o && o.code) adminKnownOrderCodes.add(o.code); });
 
         // Đồng bộ snapshot ngay để poller ngầm không re-render lại gây chớp nháy
         const orderSnapshot = (res.data || []).map(o => `${o.id || o.OrderId}_${o.status || o.Status}_${o.paymentStatus || o.paymentStatus}_${o.trackingCode || ''}`).join('|');
@@ -6035,8 +6060,7 @@ Anh/chị phản hồi giúp shop để kiện xe được đóng gói gửi đi
       }
     });
 
-    // Set lưu trữ các mã đơn đã biết để chống spam thông báo lặp lại
-    const adminKnownOrderCodes = new Set();
+    // Đồng bộ mã đơn đã biết vào Set toàn cục để chống spam thông báo lặp lại
     if (Array.isArray(cachedOrders)) {
       cachedOrders.forEach(o => { if (o && o.code) adminKnownOrderCodes.add(o.code); });
     }
@@ -6120,14 +6144,18 @@ Anh/chị phản hồi giúp shop để kiện xe được đóng gói gửi đi
       try {
         const res = await api.get('/api/admin/orders', orderFilter);
         if (res.success && Array.isArray(res.data)) {
-          // Chỉ thông báo cho các đơn hàng MỚI TINH chưa từng có trong tập adminKnownOrderCodes
+          // Chỉ thông báo cho các đơn hàng MỚI TINH thực sự vừa được tạo (dưới 5 phút)
           if (adminKnownOrderCodes.size > 0) {
             res.data.forEach(newest => {
               if (newest && newest.code && !adminKnownOrderCodes.has(newest.code)) {
                 adminKnownOrderCodes.add(newest.code);
-                adminToast(`🔔 Nhận đơn hàng mới #${newest.code} - ${newest.fullName || (newest.customer && newest.customer.fullName) || 'Khách hàng'}!`, 'success', 'Có Đơn Hàng Mới!');
-                addAdminNotification(newest, 'ORDER_CREATED');
-                loadDashboard();
+                const orderTimeMs = newest.createdAt ? new Date(newest.createdAt).getTime() : (newest.CreatedAt ? new Date(newest.CreatedAt).getTime() : 0);
+                const isFresh = orderTimeMs > 0 && (Date.now() - orderTimeMs < 5 * 60 * 1000);
+                if (isFresh) {
+                  adminToast(`🔔 Đơn hàng mới #${newest.code} - ${newest.fullName || (newest.customer && newest.customer.fullName) || 'Khách hàng'} (${formatVND(newest.totalAmount || newest.total || 0)})!`, 'success', 'Có Đơn Hàng Mới!');
+                  addAdminNotification(newest, 'ORDER_CREATED');
+                  loadDashboard();
+                }
               }
             });
           } else {

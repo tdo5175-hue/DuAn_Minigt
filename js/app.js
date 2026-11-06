@@ -282,7 +282,7 @@ let storeSettings = {
   free_shipping_threshold: 1000000,
   deposit_rate: 0.3,
   low_stock_threshold: 5,
-  preorder_deadline: "Tháng 11/2026",
+  preorder_deadline: "Tháng 12/2026",
   bank_id: "MB",
   bank_name: "Ngân hàng Quân Đội (MB Bank)",
   bank_account_no: "87654321082007",
@@ -353,13 +353,14 @@ function applyStoreSettingsUI() {
 
   // 6. Cập nhật hạn chốt cọc đợt này & đồng hồ đếm ngược
   if (storeSettings.preorder_deadline) {
-    const stripSub = document.querySelector('#preorder-strip .preorder-strip-text p');
-    if (stripSub) {
+    const deadlineDisplay = document.getElementById('preorderDeadlineDisplay');
+    const dlStr = String(storeSettings.preorder_deadline).trim();
+    if (deadlineDisplay) {
       if (isEn) {
-        const engDl = String(storeSettings.preorder_deadline).replace('Tháng ', 'Nov ');
-        stripSub.innerHTML = `<span data-i18n="countdown_sub">Limited diecast pre-order wave open now:</span> <strong>Estimated Delivery: ${escapeHtml(engDl)}</strong>`;
+        const engDl = dlStr.replace('Tháng 12/', 'Dec ').replace('Tháng 11/', 'Nov ').replace('Tháng 10/', 'Oct ').replace('Tháng ', 'Batch ');
+        deadlineDisplay.textContent = `Estimated Delivery: ${engDl}`;
       } else {
-        stripSub.innerHTML = `<span data-i18n="countdown_sub">Đợt mở đặt trước xe mô hình giới hạn:</span> <strong>Dự kiến giao ${escapeHtml(storeSettings.preorder_deadline)}</strong>`;
+        deadlineDisplay.textContent = `Dự kiến giao ${dlStr}`;
       }
     }
     if (typeof setupCountdown === 'function') {
@@ -2217,9 +2218,15 @@ function initHeroSlider() {
 // =====================================================================
 // 8. ĐỒNG HỒ ĐẾM NGƯỢC PRE-ORDER (COUNTDOWN TIMER)
 // =====================================================================
+let countdownTimerId = null;
+
 function setupCountdown() {
+  if (countdownTimerId) {
+    clearInterval(countdownTimerId);
+    countdownTimerId = null;
+  }
   let targetDate;
-  const rawDl = (storeSettings && storeSettings.preorder_deadline) ? String(storeSettings.preorder_deadline).trim() : '2026-11-30';
+  const rawDl = (storeSettings && storeSettings.preorder_deadline) ? String(storeSettings.preorder_deadline).trim() : 'Tháng 12/2026';
   if (/^\d{4}-\d{2}-\d{2}$/.test(rawDl)) {
     targetDate = new Date(`${rawDl}T23:59:59`).getTime();
   } else if (rawDl.includes('/')) {
@@ -2228,12 +2235,12 @@ function setupCountdown() {
       const month = parseInt(parts[1], 10);
       const year = parseInt(parts[2], 10);
       const lastDay = new Date(year, month, 0).getDate();
-      targetDate = new Date(`${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}T23:59:59`).getTime();
+      targetDate = new Date(year, month - 1, lastDay, 23, 59, 59).getTime();
     } else {
-      targetDate = new Date('2026-11-30T23:59:59').getTime();
+      targetDate = new Date(2026, 11, 31, 23, 59, 59).getTime();
     }
   } else {
-    targetDate = new Date('2026-11-30T23:59:59').getTime();
+    targetDate = new Date(2026, 11, 31, 23, 59, 59).getTime();
   }
 
   function update() {
@@ -2271,7 +2278,7 @@ function setupCountdown() {
   }
 
   update();
-  setInterval(update, 1000);
+  countdownTimerId = setInterval(update, 1000);
 }
 
 // =====================================================================
@@ -9158,6 +9165,22 @@ function scrollToSection(eventOrId, possibleId) {
 
 function filterAndScroll(event, filterKey) {
   if (event && event.preventDefault) event.preventDefault();
+
+  // Reset trang về 1 để tránh lỗi rỗng danh sách khi đang ở trang sau
+  catalogCurrentPage = 1;
+
+  // Reset bộ lọc hãng về 'all' và xóa ô tìm kiếm để thấy đầy đủ sản phẩm của mục
+  currentBrandFilter = 'all';
+  const selB = document.getElementById('catalogBrandFilter');
+  if (selB) selB.value = 'all';
+
+  currentSort = 'default';
+  const selS = document.getElementById('catalogSortSelect');
+  if (selS) selS.value = 'default';
+
+  const searchInput = document.getElementById('catalogSearchInput') || document.getElementById('mainSearchInput');
+  if (searchInput) searchInput.value = '';
+
   currentFilter = filterKey;
   startSiteProgressBar();
 
@@ -9170,12 +9193,24 @@ function filterAndScroll(event, filterKey) {
     }
   });
 
+  if (typeof updateFilterCounts === 'function') updateFilterCounts();
   renderProductsGrid();
 
   const catalog = document.getElementById('catalog');
   if (catalog) {
     catalog.scrollIntoView({ behavior: 'smooth' });
   }
+
+  // Thêm hiệu ứng nhấp nháy highlight nhẹ để khách nhận biết ngay các xe Pre-Order
+  if (filterKey === 'pre_order') {
+    setTimeout(() => {
+      document.querySelectorAll('.product-card').forEach(card => {
+        card.classList.add('card-highlight-pulse');
+        setTimeout(() => card.classList.remove('card-highlight-pulse'), 1600);
+      });
+    }, 450);
+  }
+
   if (typeof playHoverBeep === 'function') playHoverBeep(520, 0.04);
   setTimeout(() => finishSiteProgressBar(), 180);
 }
@@ -9930,7 +9965,8 @@ const I18N_TRANSLATIONS = {
     s4BtnGt3: 'Explore GT3 Paddock',
     // Countdown Box
     countdown_title: 'TSM-MODEL & POP RACE GLOBAL PRE-ORDER SYSTEM',
-    countdown_sub: 'Limited diecast pre-order wave open now: <strong>Estimated Delivery Nov 2026</strong>',
+    countdown_sub_prefix: 'Limited diecast pre-order wave open now:',
+    countdown_sub: 'Limited diecast pre-order wave open now: <strong>Estimated Delivery Dec 2026</strong>',
     cd_days: 'DAYS',
     cd_hours: 'HOURS',
     cd_mins: 'MINS',
@@ -10184,7 +10220,8 @@ const I18N_TRANSLATIONS = {
     s4BtnGt3: 'Khám phá GT3 Paddock',
     // Countdown Box
     countdown_title: 'HỆ THỐNG ĐẶT TRƯỚC TOÀN CẦU TSM-MODEL &amp; POP RACE',
-    countdown_sub: 'Đợt mở đặt trước xe mô hình giới hạn: <strong>Dự kiến giao Tháng 11/2026</strong>',
+    countdown_sub_prefix: 'Đợt mở đặt trước xe mô hình giới hạn:',
+    countdown_sub: 'Đợt mở đặt trước xe mô hình giới hạn: <strong>Dự kiến giao Tháng 12/2026</strong>',
     cd_days: 'NGÀY',
     cd_hours: 'GIỜ',
     cd_mins: 'PHÚT',

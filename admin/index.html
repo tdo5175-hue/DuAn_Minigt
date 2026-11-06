@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-  <link rel="stylesheet" href="css/admin.css?v=20261106_01">
+  <link rel="stylesheet" href="css/admin.css?v=20261106_02">
   <script>
     (function() {
       try {
@@ -164,6 +164,7 @@
                 <button type="button" class="btn-sound-toggle" id="btnAdminSoundToggle" onclick="toggleAdminOrderSound(event)" title="Bật/Tắt âm thanh chuông báo">
                   <i class="fa-solid fa-volume-high" id="soundToggleIcon"></i>
                 </button>
+                <button type="button" class="btn-clear-notif" onclick="clearAllAdminNotifs(event)" title="Xóa toàn bộ thông báo cũ" data-i18n="topbar_notif_clear_all">Xóa hết</button>
                 <button type="button" class="btn-clear-notif" onclick="markAllAdminNotifsRead(event)" data-i18n="topbar_notif_mark_read">Đã xem</button>
               </div>
             </div>
@@ -1739,7 +1740,7 @@
   </div>
 
   <!-- Shared API Client & Admin Application Script -->
-  <script src="../js/api.js?v=20261106_01"></script>
-  <script src="js/admin.js?v=20261106_01"></script>
+  <script src="../js/api.js?v=20261106_02"></script>
+  <script src="js/admin.js?v=20261106_02"></script>
 </body>
 </html>

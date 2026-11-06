@@ -20,7 +20,7 @@ const DEFAULT_SETTINGS = {
   free_shipping_threshold: 1000000,
   deposit_rate: 0.3,
   low_stock_threshold: 5,
-  preorder_deadline: 'Tháng 11/2026',
+  preorder_deadline: 'Tháng 12/2026',
   bank_id: 'MB',
   bank_name: 'Ngân hàng Quân Đội (MB Bank)',
   bank_account_no: '87654321082007',

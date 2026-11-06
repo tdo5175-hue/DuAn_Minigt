@@ -34,8 +34,8 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 
   <!-- Modular CSS Bundle -->
-  <link rel="stylesheet" href="css/style.css?v=20261106_01">
-  <link rel="stylesheet" href="css/chat.css?v=20261106_01">
+  <link rel="stylesheet" href="css/style.css?v=20261106_02">
+  <link rel="stylesheet" href="css/chat.css?v=20261106_02">
 </head>
 <body>
 
@@ -465,34 +465,37 @@
           </div>
           <div class="preorder-strip-text">
             <h4 data-i18n="countdown_title">HỆ THỐNG ĐẶT TRƯỚC TOÀN CẦU TSM-MODEL &amp; POP RACE</h4>
-            <p data-i18n="countdown_sub">Đợt mở đặt trước xe mô hình giới hạn: <strong>Dự kiến giao Tháng 11/2026</strong></p>
+            <p class="preorder-sub-dynamic">
+              <span data-i18n="countdown_sub_prefix">Đợt mở đặt trước xe mô hình giới hạn:</span>
+              <strong id="preorderDeadlineDisplay">Dự kiến giao Tháng 12/2026</strong>
+            </p>
           </div>
         </div>
 
         <!-- 4 Countdown Boxes -->
         <div class="countdown-clock" id="countdown-clock">
           <div class="countdown-box">
-            <div class="countdown-val" id="daysVal">24</div>
+            <div class="countdown-val" id="daysVal">55</div>
             <div class="countdown-label" data-i18n="cd_days">NGÀY</div>
           </div>
           <span class="countdown-separator">:</span>
           <div class="countdown-box">
-            <div class="countdown-val" id="hoursVal">18</div>
+            <div class="countdown-val" id="hoursVal">14</div>
             <div class="countdown-label" data-i18n="cd_hours">GIỜ</div>
           </div>
           <span class="countdown-separator">:</span>
           <div class="countdown-box">
-            <div class="countdown-val" id="minsVal">45</div>
+            <div class="countdown-val" id="minsVal">30</div>
             <div class="countdown-label" data-i18n="cd_mins">PHÚT</div>
           </div>
           <span class="countdown-separator">:</span>
           <div class="countdown-box">
-            <div class="countdown-val" id="secsVal">20</div>
+            <div class="countdown-val" id="secsVal">00</div>
             <div class="countdown-label" data-i18n="cd_secs">GIÂY</div>
           </div>
         </div>
 
-        <button class="btn-countdown-cta" onclick="filterAndScroll(event, 'pre_order')">
+        <button type="button" class="btn-countdown-cta" onclick="filterAndScroll(event, 'pre_order')" title="Xem danh sách xe mô hình mở đặt cọc đợt này">
           <i class="fa-solid fa-cart-shopping"></i> <span data-i18n="countdown_btn">Đặt cọc giữ mẫu ngay</span>
         </button>
       </div>
@@ -2365,7 +2368,7 @@
   <div class="toast-container" id="toastContainer" aria-live="polite"></div>
 
   <!-- Unified API Client & Application Script -->
-  <script src="js/api.js?v=20261106_01"></script>
-  <script src="js/app.js?v=20261106_01"></script>
+  <script src="js/api.js?v=20261106_02"></script>
+  <script src="js/app.js?v=20261106_02"></script>
 </body>
 </html>

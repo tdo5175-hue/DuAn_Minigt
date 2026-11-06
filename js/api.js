@@ -2746,7 +2746,7 @@
         bank_name: 'Ngân hàng Quân Đội (MB Bank)',
         bank_account_no: '87654321082007',
         bank_account_name: 'DO QUOC THINH',
-        preorder_deadline: 'Tháng 11/2026',
+        preorder_deadline: 'Tháng 12/2026',
         announcement: '🔥 CHÀO MỪNG ĐẾN VỚI SĂN XE BIÊN HÒA - ĐẠI LÝ CHÍNH HÃNG MINI GT VIỆT NAM!'
       };
       try {
