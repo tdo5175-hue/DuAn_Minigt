@@ -483,19 +483,22 @@ router.post('/products', async (req, res, next) => {
       : null;
     const preOrderDeadline = req.body.preOrderDeadline ? String(req.body.preOrderDeadline).slice(0, 10) : null;
 
+    const rawCardImg = req.body.cardImageUrl || req.body.cardImage || null;
+    const cardImageUrl = rawCardImg ? ((await persistImageIfBase64(rawCardImg, `${sku}_card`)) || rawCardImg) : null;
+
     const insertRes = await db.query(`
       INSERT INTO Products (
         Sku, CarNumber, Name, Slug, CategoryId, Brand, Scale,
         PackagingType, PriceBox, PriceCard, DiscountPercent,
         Price, OldPrice, DepositAmount, DepositPercent, ExpectedDelivery, EditionNote,
-        PreOrderDeadline, StockBox, StockCard, Stock, ImageUrl, Description, Status,
+        PreOrderDeadline, StockBox, StockCard, Stock, ImageUrl, CardImageUrl, Description, Status,
         IsFeatured, IsNew, IsActive, CreatedAt, UpdatedAt
       )
       VALUES (
         @sku, @carNumber, @name, @slug, @categoryId, @brand, @scale,
         @packagingType, @priceBox, @priceCard, @discountPercent,
         @price, @oldPrice, @depositAmount, @depositPercent, @expectedDelivery, @editionNote,
-        @preOrderDeadline, @stockBox, @stockCard, @stock, @imageUrl, @description, @status,
+        @preOrderDeadline, @stockBox, @stockCard, @stock, @imageUrl, @cardImageUrl, @description, @status,
         @isFeatured, @isNew, TRUE, NOW(), NOW()
       )
       RETURNING ProductId
@@ -503,7 +506,7 @@ router.post('/products', async (req, res, next) => {
       sku, carNumber, name, slug, categoryId, brand, scale,
       packagingType, priceBox, priceCard, discountPercent,
       price: mainPrice, oldPrice: mainOldPrice, depositAmount, depositPercent, expectedDelivery,
-      editionNote, preOrderDeadline, stockBox, stockCard, stock, imageUrl, description,
+      editionNote, preOrderDeadline, stockBox, stockCard, stock, imageUrl, cardImageUrl, description,
       status, isFeatured, isNew
     });
 
@@ -541,6 +544,7 @@ router.put('/products/:id', async (req, res, next) => {
     const exEditionNote = existing.EditionNote ?? existing.editionnote ?? null;
     const exStock = Number(existing.Stock ?? existing.stock ?? 0);
     const exImageUrl = existing.ImageUrl ?? existing.imageurl ?? 'image/hero-banner.jpg';
+    const exCardImageUrl = existing.CardImageUrl ?? existing.cardimageurl ?? null;
     const exDescription = existing.Description ?? existing.description ?? null;
     const exStatus = existing.Status ?? existing.status ?? 'in_stock';
     const exDepositPercent = existing.DepositPercent ?? existing.depositpercent ?? 30;
@@ -622,6 +626,17 @@ router.put('/products/:id', async (req, res, next) => {
 
     const gallery = await prepareProductGalleryInput(req.body, exImageUrl, sku || exSku || 'car');
     const imageUrl = gallery.imageUrl;
+
+    let cardImageUrl = exCardImageUrl;
+    if (req.body.cardImageUrl !== undefined) {
+      cardImageUrl = req.body.cardImageUrl
+        ? ((await persistImageIfBase64(req.body.cardImageUrl, `${sku || exSku}_card`)) || req.body.cardImageUrl)
+        : null;
+    } else if (req.body.cardImage !== undefined) {
+      cardImageUrl = req.body.cardImage
+        ? ((await persistImageIfBase64(req.body.cardImage, `${sku || exSku}_card`)) || req.body.cardImage)
+        : null;
+    }
     const description = req.body.description !== undefined
       ? (String(req.body.description).trim() || null)
       : exDescription;
@@ -681,6 +696,7 @@ router.put('/products/:id', async (req, res, next) => {
         StockCard = @stockCard,
         Stock = @stock,
         ImageUrl = @imageUrl,
+        CardImageUrl = @cardImageUrl,
         Description = @description,
         Status = @status,
         IsFeatured = @isFeatured,
@@ -693,7 +709,7 @@ router.put('/products/:id', async (req, res, next) => {
       price: mainPrice, oldPrice: mainOldPrice, depositAmount,
       depositPercent,
       expectedDelivery,
-      editionNote, preOrderDeadline, stockBox, stockCard, stock, imageUrl, description,
+      editionNote, preOrderDeadline, stockBox, stockCard, stock, imageUrl, cardImageUrl, description,
       status, isFeatured, isNew
     });
 

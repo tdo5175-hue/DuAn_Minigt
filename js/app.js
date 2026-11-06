@@ -1142,6 +1142,8 @@ function getProductGalleryImages(prod) {
 
   // Đảm bảo ảnh đầu tiên (Ảnh 1) luôn là ảnh hiển thị chính
   if (primaryRaw) addUnique(primaryRaw);
+  const cardImgRaw = prod.cardImageUrl || prod.CardImageUrl || '';
+  if (cardImgRaw) addUnique(cardImgRaw);
   rawArr.forEach(addUnique);
 
   if (list.length === 0) {
@@ -1697,6 +1699,10 @@ function selectCardPackaging(productId, packType, event) {
   const isPreOrder = String(prod.Status || prod.status || '').toLowerCase() === 'pre_order';
 
   // Cập nhật nhanh DOM trên tất cả card của sản phẩm này (kể cả trên catalog grid và chuyên trang GT3 Dino)
+  const cardImgUrl = prod.cardImageUrl || prod.CardImageUrl;
+  const boxImgUrl = prod.ImageUrl || prod.imageUrl || prod.image || prod.Image;
+  const targetImg = (normalizedPack === 'card' && cardImgUrl) ? cardImgUrl : boxImgUrl;
+
   document.querySelectorAll(`.product-card[data-id="${productId}"], .gt3-dino-card[data-id="${productId}"]`).forEach(cardEl => {
     cardEl.setAttribute('data-pack', normalizedPack);
     const btns = cardEl.querySelectorAll('.card-pack-btn');
@@ -1704,6 +1710,15 @@ function selectCardPackaging(productId, packType, event) {
       btns[0].classList.toggle('active', normalizedPack === 'box');
       btns[1].classList.toggle('active', normalizedPack === 'card');
     }
+
+    // Tự động chuyển đổi ảnh card tương ứng (Ảnh Vỉ Card vs Ảnh Hộp Box)
+    if (targetImg) {
+      const imgEl = cardEl.querySelector('.card-img-wrap img, .product-image img, .gt3-card-img-wrap img, img.product-img');
+      if (imgEl) {
+        imgEl.src = resolveStorefrontImageUrl(targetImg);
+      }
+    }
+
     const scalePill = cardEl.querySelector('.card-scale-pill');
     if (scalePill) scalePill.textContent = normalizedPack === 'card' ? 'CARD BLISTER' : 'BOX SEAL';
 
@@ -2964,17 +2979,28 @@ function buildQuickViewGalleryHTML(pId, pName, galleryImages, activeIndex, prici
   const safeIdx = Math.max(0, Math.min(total - 1, Number(activeIndex) || 0));
   const mainSrc = imgs[safeIdx];
 
-  // Dãy các ảnh phụ nằm ngay dưới Ảnh 1: Ảnh 2, Ảnh 3, Ảnh 4, Ảnh 5... hiển thị sắc nét, không bị che mờ
+  const prod = (allProducts && allProducts.length ? allProducts : FALLBACK_PRODUCTS).find(p => (p.ProductId || p.id) == pId);
+  const rawCardImg = prod?.cardImageUrl || prod?.CardImageUrl || '';
+  const cardImgResolved = rawCardImg ? resolveStorefrontImageUrl(rawCardImg) : '';
+  const isViewingCard = cardImgResolved && mainSrc === cardImgResolved;
+
+  // Dãy các thumbnails nằm ngay dưới Ảnh chính: Hiển thị trọn vẹn từ Ảnh 1 đến N (kèm badge nhận diện Card)
   let subRowHtml = '';
   if (total >= 2) {
     const subItems = [];
-    for (let subIdx = 1; subIdx < total; subIdx++) {
+    for (let subIdx = 0; subIdx < total; subIdx++) {
       const subSrc = imgs[subIdx];
       const isActiveSub = safeIdx === subIdx;
-      const tooltip = isEn ? `View photo #${subIdx + 1}` : `Xem Ảnh ${subIdx + 1}`;
+      const isThisCard = (cardImgResolved && subSrc === cardImgResolved);
+      const isFirstThumb = (subIdx === 0);
+      const tooltip = isThisCard
+        ? (isEn ? 'View Blister Card photo' : 'Xem Ảnh Bản Vỉ Card')
+        : (isFirstThumb ? (isEn ? 'View Main photo (#1)' : 'Xem Ảnh chính (#1)') : (isEn ? `View photo #${subIdx + 1}` : `Xem Ảnh ${subIdx + 1}`));
 
       subItems.push(`
-        <div class="qv-gallery-subitem ${isActiveSub ? 'active' : ''}" onclick="setQuickViewMainImage(${subIdx}, event)" title="${escapeHtml(tooltip)}">
+        <div class="qv-gallery-subitem ${isActiveSub ? 'active' : ''} ${isThisCard ? 'is-card-sub' : ''}" onclick="setQuickViewMainImage(${subIdx}, event)" title="${escapeHtml(tooltip)}">
+          ${isThisCard ? '<span class="qv-thumb-card-tag" style="position:absolute; top:3px; right:3px; background:#ec4899; color:#fff; font-size:8px; padding:1px 4px; border-radius:3px; z-index:2; font-weight:800;" title="Ảnh Bản Card"><i class="fa-solid fa-shield-halved"></i> Card</span>' : ''}
+          ${isFirstThumb && total > 1 && !isThisCard ? '<span style="position:absolute; top:3px; left:3px; background:#0f172a; color:#fff; font-size:8px; padding:1px 4px; border-radius:3px; z-index:2; font-weight:700;">#1</span>' : ''}
           <img src="${escapeHtml(subSrc)}" alt="${escapeHtml(pName)} - ${subIdx + 1}" loading="lazy" onerror="this.onerror=null; this.src='image/hero-banner.jpg';">
         </div>
       `);
@@ -2988,7 +3014,7 @@ function buildQuickViewGalleryHTML(pId, pName, galleryImages, activeIndex, prici
         </div>
       `);
     }
-    subRowHtml = `<div class="qv-gallery-subrow ${total >= 6 ? 'is-scrollable' : ''}">${subItems.join('')}</div>`;
+    subRowHtml = `<div class="qv-gallery-subrow ${total >= 5 ? 'is-scrollable' : ''}">${subItems.join('')}</div>`;
   }
 
   return `
@@ -2996,6 +3022,11 @@ function buildQuickViewGalleryHTML(pId, pName, galleryImages, activeIndex, prici
       <div class="qv-main-badge-left">
         ${pricing && pricing.hasDiscount && !isSoldOut ? `<span style="background:#e11d48; color:#fff; font-size:11px; font-weight:800; padding:4px 10px; border-radius:7px; box-shadow:0 4px 10px rgba(225,29,72,0.3);">-${pricing.discountPercent}% ${isEn ? 'OFF' : 'TRỰC TIẾP'}</span>` : ''}
       </div>
+      ${isViewingCard ? `
+        <div class="qv-main-card-tag" style="position:absolute; top:12px; left:12px; background:linear-gradient(135deg, #ec4899, #db2777); color:#fff; font-size:11px; font-weight:800; padding:4px 10px; border-radius:8px; box-shadow:0 4px 12px rgba(219,39,119,0.35); z-index:4; display:flex; align-items:center; gap:5px;">
+          <i class="fa-solid fa-shield-halved"></i> ${isEn ? 'Blister Card Edition' : 'Ảnh Bản Vỉ Card'}
+        </div>
+      ` : ''}
       <div class="qv-main-counter-right">
         <i class="fa-regular fa-images"></i>
         <span>${safeIdx + 1} / ${total}</span>
@@ -3219,7 +3250,9 @@ function openQuickView(productId) {
   const pScale = prod.Scale || prod.scale || '1:64';
   const rawCatName = prod.CategoryName || prod.categoryName || (prod.category && prod.category.name) || '';
   const pCategoryName = (rawCatName && rawCatName !== 'undefined') ? rawCatName : (isEn ? '1:64 Diecast Collection' : 'Bộ sưu tập Diecast 1:64');
-  const pEdition = prod.EditionNote || prod.editionNote || (isEn ? 'Alloy Body • Rubber Tires • Factory Sealed' : 'Thân kim loại nguyên khối • Lốp cao su • Nguyên seal');
+  const rawEdition = String(prod.EditionNote || prod.editionNote || '').trim();
+  const isGenericEdition = !rawEdition || ['Box & Blister', 'Box & Card', 'Đầy đủ Hộp Box & Vỉ Card', 'Paper Box Only', 'Chỉ Bản Hộp Giấy (Box)'].includes(rawEdition);
+  const pEdition = isGenericEdition ? '' : rawEdition;
   const pDesc = prod.Description || prod.description || 'Mô hình diecast tỉ lệ 1:64 chính hãng bản quyền, thân kim loại nguyên khối, lốp cao su Real Riders.';
   const pStock = typeof prod.Stock === 'number' ? prod.Stock : (typeof prod.stock === 'number' ? prod.stock : 0);
   const isPreOrder = String(prod.Status || prod.status || '').toLowerCase() === 'pre_order';
@@ -3408,18 +3441,14 @@ function openQuickView(productId) {
           </button>
         </div>
 
-        <!-- Bảng thông số kỹ thuật đầy đủ cho Collector -->
+        <!-- Bảng thông số kỹ thuật tinh gọn, khoa học cho Collector -->
         <div class="qv-specs-grid">
           <div class="qv-spec-item">
-            <span class="qv-spec-label">${isEn ? 'Brand' : 'Thương hiệu'}</span>
-            <span class="qv-spec-val">${escapeHtml(pBrand)}</span>
+            <span class="qv-spec-label">${isEn ? 'Brand & Scale' : 'Thương hiệu & Tỉ lệ'}</span>
+            <span class="qv-spec-val">${escapeHtml(pBrand)} • ${escapeHtml(pScale)} Diecast</span>
           </div>
           <div class="qv-spec-item">
-            <span class="qv-spec-label">${isEn ? 'Scale & Material' : 'Tỉ lệ & Chất liệu'}</span>
-            <span class="qv-spec-val">${escapeHtml(pScale)} • Diecast Metal</span>
-          </div>
-          <div class="qv-spec-item">
-            <span class="qv-spec-label">${isEn ? 'Official SKU / Car #' : 'Mã SKU / Số hiệu'}</span>
+            <span class="qv-spec-label">${isEn ? 'Official SKU / Car #' : 'Mã SKU / Số hiệu xe'}</span>
             <span class="qv-spec-val">#${escapeHtml(pSku)} (No. ${escapeHtml(String(pCarNum))})</span>
           </div>
           <div class="qv-spec-item">
@@ -3427,17 +3456,15 @@ function openQuickView(productId) {
             <span class="qv-spec-val">${escapeHtml(pCategoryName)}</span>
           </div>
           <div class="qv-spec-item">
-            <span class="qv-spec-label">${isEn ? 'Packaging Options' : 'Quy cách phát hành'}</span>
-            <span class="qv-spec-val">${escapeHtml(packModeText)}</span>
+            <span class="qv-spec-label">${isEn ? 'Packaging & Stock' : 'Quy cách & Tồn kho'}</span>
+            <span class="qv-spec-val">${escapeHtml(packModeText)} ${isPreOrder ? (isEn ? '(Pre-Order)' : '(Đang mở cọc)') : `(Box: ${pricing.stockBox} | Card: ${pricing.stockCard})`}</span>
           </div>
-          <div class="qv-spec-item">
-            <span class="qv-spec-label">${isEn ? 'Warehouse Breakdown' : 'Tồn kho từng bản'}</span>
-            <span class="qv-spec-val">${isPreOrder ? (isEn ? 'Pre-Order Wave' : 'Nhận cọc theo đợt') : `Box: ${pricing.stockBox} • Card: ${pricing.stockCard}`}</span>
-          </div>
-          <div class="qv-spec-item" style="grid-column: 1 / -1;">
-            <span class="qv-spec-label">${isEn ? 'Special Edition Note' : 'Đặc điểm phiên bản'}</span>
-            <span class="qv-spec-val">${escapeHtml(pEdition)}</span>
-          </div>
+          ${pEdition ? `
+            <div class="qv-spec-item" style="grid-column: 1 / -1; background:rgba(225,6,0,0.04); border:1px solid rgba(225,6,0,0.18); border-radius:8px; padding:7px 12px; display:flex; justify-content:space-between; align-items:center;">
+              <span class="qv-spec-label" style="color:var(--color-primary); font-weight:700;"><i class="fa-solid fa-star"></i> ${isEn ? 'Special Edition Note' : 'Ghi chú phiên bản'}</span>
+              <span class="qv-spec-val" style="color:var(--color-primary); font-weight:800;">${escapeHtml(pEdition)}</span>
+            </div>
+          ` : ''}
         </div>
 
         <!-- Mô tả chi tiết sản phẩm -->
@@ -3627,6 +3654,24 @@ function selectQuickViewPack(productId, packType) {
   const actionBtn = document.getElementById(`qvActionBtn_${productId}`);
   if (actionBtn && !actionBtn.disabled) {
     actionBtn.innerHTML = `<i class="fa-solid fa-bag-shopping" style="margin-right:6px;"></i> ${isPreOrder ? (isEn ? 'Pre-Order' : 'Đặt cọc ngay') : (isEn ? 'Buy Now' : 'Mua ngay')} (${chosen === 'card' ? 'Card' : 'Box'} - ${formatVND(finalPrice)})`;
+  }
+
+  // Tự động chuyển ảnh lớn trong Gallery sang Ảnh Bản Card khi khách chọn bản Card
+  if (chosen === 'card') {
+    const rawCard = prod.cardImageUrl || prod.CardImageUrl;
+    if (rawCard && activeQuickViewState && Array.isArray(activeQuickViewState.images)) {
+      const resolvedCard = resolveStorefrontImageUrl(rawCard);
+      const cardIdx = activeQuickViewState.images.indexOf(resolvedCard);
+      if (cardIdx !== -1) {
+        activeQuickViewState.activeIndex = cardIdx;
+        refreshQuickViewGalleryDOM();
+      }
+    }
+  } else if (chosen === 'box') {
+    if (activeQuickViewState && Array.isArray(activeQuickViewState.images)) {
+      activeQuickViewState.activeIndex = 0;
+      refreshQuickViewGalleryDOM();
+    }
   }
 }
 window.selectQuickViewPack = selectQuickViewPack;

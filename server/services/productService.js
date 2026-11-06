@@ -9,8 +9,9 @@ async function ensureProductImagesSchema() {
   _productImagesSchemaReady = true;
   try {
     await db.query('ALTER TABLE ProductImages ALTER COLUMN ImageUrl TYPE TEXT;');
+    await db.query('ALTER TABLE Products ADD COLUMN IF NOT EXISTS CardImageUrl TEXT;');
   } catch (_) {
-    // Bỏ qua nếu đã là TEXT hoặc quyền đọc-only
+    // Bỏ qua nếu đã tồn tại hoặc quyền đọc-only
   }
 }
 
@@ -129,6 +130,7 @@ function mapProduct(row) {
 
   const editionNote = row.EditionNote ?? row.editionnote ?? '';
   const rawImageUrl = row.ImageUrl ?? row.imageurl ?? '';
+  const cardImageUrl = row.CardImageUrl ?? row.cardimageurl ?? null;
   const rawImagesJson = row.ImagesJson ?? row.imagesjson ?? row.images ?? row.Images ?? null;
   const images = normalizeImagesArray(rawImageUrl, rawImagesJson);
   const imageUrl = images[0] || rawImageUrl || '';
@@ -183,6 +185,7 @@ function mapProduct(row) {
     soldCard,
     image: imageUrl,
     imageUrl,
+    cardImageUrl,
     images,
     description,
     status,
@@ -231,6 +234,7 @@ function mapProduct(row) {
     SoldBox: soldBox,
     SoldCard: soldCard,
     ImageUrl: imageUrl,
+    CardImageUrl: cardImageUrl,
     Images: images,
     Description: description,
     Status: status,
@@ -250,7 +254,7 @@ const SELECT_PRODUCT = `
     p.ProductId, p.Sku, p.CarNumber, p.Name, p.Slug, p.Brand, p.Scale,
     p.PackagingType, p.PriceBox, p.PriceCard, p.DiscountPercent,
     p.Price, p.OldPrice, p.DepositAmount, p.DepositPercent, p.EditionNote,
-    p.PreOrderDeadline, p.StockBox, p.StockCard, p.Stock, p.ImageUrl, p.Description, p.Status,
+    p.PreOrderDeadline, p.StockBox, p.StockCard, p.Stock, p.ImageUrl, p.CardImageUrl, p.Description, p.Status,
     p.ReleaseDate, p.ExpectedDelivery,
     p.IsFeatured, p.IsNew, p.IsActive, p.CreatedAt, p.UpdatedAt,
     c.CategoryId, c.Name AS CategoryName, c.Slug AS CategorySlug,

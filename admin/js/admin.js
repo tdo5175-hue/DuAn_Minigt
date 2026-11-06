@@ -2013,7 +2013,7 @@
       if (cardInput) {
         cardInput.disabled = true;
         cardInput.required = false;
-        cardInput.value = boxInput?.value || '320000';
+        cardInput.value = boxInput?.value || '';
       }
       if (cardDiffPresetsWrap) cardDiffPresetsWrap.style.display = 'none';
       if (cardDirectPresetsWrap) cardDirectPresetsWrap.style.display = 'none';
@@ -2039,7 +2039,7 @@
       if (boxInput) {
         boxInput.disabled = true;
         boxInput.required = false;
-        boxInput.value = cardInput?.value || '380000';
+        boxInput.value = cardInput?.value || '';
       }
       if (boxPresetsWrap) boxPresetsWrap.style.display = 'none';
       if (boxDisabledNotice) boxDisabledNotice.style.display = 'block';
@@ -2075,18 +2075,19 @@
     let priceCard = parseFloat(cardInput?.value) || 0;
 
     if (packType === 'card_only') {
-      if (priceCard <= 0) priceCard = 380000;
-      priceBox = priceCard;
-      if (boxInput) boxInput.value = String(priceBox);
+      if (priceCard > 0) {
+        priceBox = priceCard;
+        if (boxInput) boxInput.value = String(priceBox);
+      }
     } else if (packType === 'box_only') {
-      if (priceBox <= 0) priceBox = 320000;
-      priceCard = priceBox;
-      if (cardInput) cardInput.value = String(priceCard);
-    } else {
-      if (priceBox <= 0) priceBox = 320000;
-      if (priceCard <= 0) {
+      if (priceBox > 0) {
         priceCard = priceBox;
         if (cardInput) cardInput.value = String(priceCard);
+      }
+    } else {
+      // Khi chọn both, nếu admin chỉ gõ giá Box thì Card có thể tự gợi ý bằng Box nếu Card đang trống
+      if (priceBox > 0 && priceCard <= 0 && cardInput && cardInput.value === '') {
+        // Giữ trống để admin tự nhập hoặc gợi ý
       }
     }
 
@@ -2636,14 +2637,17 @@
     const packEl = document.getElementById('prodPackagingType');
     if (packEl) packEl.value = 'both';
     const boxEl = document.getElementById('prodPriceBox');
-    if (boxEl) boxEl.value = '380000';
+    if (boxEl) boxEl.value = '';
     const cardEl = document.getElementById('prodPriceCard');
-    if (cardEl) cardEl.value = '440000';
+    if (cardEl) cardEl.value = '';
 
     const stockBoxEl = document.getElementById('prodStockBox');
-    if (stockBoxEl) stockBoxEl.value = '12';
+    if (stockBoxEl) stockBoxEl.value = '';
     const stockCardEl = document.getElementById('prodStockCard');
-    if (stockCardEl) stockCardEl.value = '8';
+    if (stockCardEl) stockCardEl.value = '';
+
+    const editionEl = document.getElementById('prodEdition');
+    if (editionEl) editionEl.value = '';
 
     setProductDiscountMode('none');
     handleProductPriceInput();
@@ -2666,7 +2670,8 @@
     const presetSelect = document.getElementById('prodImagePresetSelect');
     if (presetSelect) presetSelect.value = '';
 
-    currentProductGallery = ['image/hero-banner.jpg'];
+    currentProductGallery = [];
+    currentProductCardImage = '';
     adminGalleryActiveIdx = 0;
     renderAdminProductGallery();
     document.getElementById('productModal').classList.add('active');
@@ -2785,7 +2790,7 @@
       const presetSelect = document.getElementById('prodImagePresetSelect');
       if (presetSelect) presetSelect.value = '';
 
-      // Nạp toàn bộ danh sách ảnh (Đa ảnh Gallery + Ảnh chính)
+      // Nạp toàn bộ danh sách ảnh (Đa ảnh Gallery + Ảnh chính + Ảnh Card riêng nếu có)
       const gallery = [];
       const addImg = (u) => {
         if (!u || u === 'null' || u === 'undefined') return;
@@ -2796,6 +2801,13 @@
       if (primary) addImg(primary);
       const extra = Array.isArray(p.images) ? p.images : (Array.isArray(p.Images) ? p.Images : []);
       extra.forEach(addImg);
+
+      // Ảnh riêng bản Card (Vỉ Blister)
+      currentProductCardImage = p.cardImageUrl || p.CardImageUrl || '';
+      if (currentProductCardImage) {
+        addImg(currentProductCardImage);
+      }
+
       if (!gallery.length) {
         gallery.push('image/hero-banner.jpg');
       }
@@ -2855,6 +2867,7 @@
   // MULTI-IMAGE GALLERY SYSTEM FOR PRODUCT MODAL
   // =====================================================================
   let currentProductGallery = [];
+  let currentProductCardImage = '';
   let adminGalleryActiveIdx = 0;
   let adminLightboxIndex = 0;
 
@@ -2869,6 +2882,9 @@
     if (adminGalleryActiveIdx >= total) {
       adminGalleryActiveIdx = Math.max(0, total - 1);
     }
+
+    const packType = document.getElementById('prodPackagingType')?.value || 'both';
+    const canHaveCard = (packType !== 'box_only');
 
     if (countBadge) {
       countBadge.textContent = `${total} ảnh`;
@@ -2904,6 +2920,7 @@
       } else {
         const activeUrl = currentProductGallery[adminGalleryActiveIdx] || currentProductGallery[0];
         const isPrimary = adminGalleryActiveIdx === 0;
+        const isActiveCard = (canHaveCard && currentProductCardImage && activeUrl === currentProductCardImage);
 
         const maxVisibleSlots = 4;
         const visibleImgs = currentProductGallery.slice(0, maxVisibleSlots);
@@ -2911,11 +2928,13 @@
 
         const subSlotsHtml = visibleImgs.map((imgUrl, idx) => {
           const isActive = idx === adminGalleryActiveIdx;
+          const isSlotCard = (canHaveCard && currentProductCardImage && imgUrl === currentProductCardImage);
           const isFourthWithMore = (idx === maxVisibleSlots - 1 && total > maxVisibleSlots);
 
           return `
-            <div class="admin-preview-subslot ${isActive ? 'active' : ''}" onclick="${isFourthWithMore ? 'openAdminGalleryLightbox(3)' : `selectAdminPreviewImage(${idx})`}" title="${isFourthWithMore ? `Xem toàn bộ ${total} ảnh` : `Ảnh #${idx + 1}`}">
+            <div class="admin-preview-subslot ${isActive ? 'active' : ''}" onclick="${isFourthWithMore ? 'openAdminGalleryLightbox(3)' : `selectAdminPreviewImage(${idx})`}" title="${isFourthWithMore ? `Xem toàn bộ ${total} ảnh` : `Ảnh #${idx + 1}${isSlotCard ? ' (Ảnh Bản Card)' : ''}`}">
               <span class="admin-preview-subslot-idx">#${idx + 1}</span>
+              ${isSlotCard ? '<span style="position:absolute; top:3px; right:3px; background:#ec4899; color:#fff; font-size:8px; padding:1px 4px; border-radius:3px; z-index:2; font-weight:800;" title="Ảnh Bản Card"><i class="fa-solid fa-shield-halved"></i></span>' : ''}
               <img src="${resolveAdminImageUrl(imgUrl)}" onerror="this.onerror=null; this.src='../image/hero-banner.jpg';" alt="Ảnh ${idx + 1}">
               ${isFourthWithMore ? `
                 <div class="admin-preview-more-overlay">
@@ -2932,6 +2951,7 @@
             <span class="admin-preview-stage-badge">
               <i class="fa-solid fa-camera"></i> ${isPrimary ? 'Ảnh chính (Bìa)' : `Ảnh #${adminGalleryActiveIdx + 1} / ${total}`}
             </span>
+            ${isActiveCard ? '<span class="admin-preview-stage-badge" style="background:#ec4899; right:10px; left:auto;"><i class="fa-solid fa-shield-halved"></i> Ảnh Bản Card</span>' : ''}
             <img src="${resolveAdminImageUrl(activeUrl)}" onerror="this.onerror=null; this.src='../image/hero-banner.jpg';" alt="Xem trước mô hình">
           </div>
           <div class="admin-preview-subrow">
@@ -2958,6 +2978,7 @@
       } else {
         listMount.innerHTML = currentProductGallery.map((imgUrl, idx) => {
           const isPrimary = idx === 0;
+          const isCard = (canHaveCard && currentProductCardImage && imgUrl === currentProductCardImage);
           let labelText = isPrimary ? 'Ảnh đại diện chính (Ảnh 1)' : `Ảnh chi tiết #${idx + 1}`;
           let displayUrl = imgUrl;
           if (imgUrl.startsWith('data:')) {
@@ -2967,18 +2988,28 @@
           }
 
           return `
-            <div class="admin-gallery-item-row ${isPrimary ? 'is-primary' : ''}">
+            <div class="admin-gallery-item-row ${isPrimary ? 'is-primary' : ''} ${isCard ? 'is-card-img' : ''}">
               <img src="${resolveAdminImageUrl(imgUrl)}" onerror="this.onerror=null; this.src='../image/hero-banner.jpg';" alt="" onclick="openAdminGalleryLightbox(${idx})" title="Bấm để phóng to">
               <div class="admin-gallery-item-meta">
-                <div style="display:flex; align-items:center; gap:6px; font-weight:700; font-size:12px; color:#0f172a;">
+                <div style="display:flex; align-items:center; gap:6px; font-weight:700; font-size:12px; color:#0f172a; flex-wrap:wrap;">
                   ${isPrimary ? '<span style="background:#e10600; color:#fff; font-size:9.5px; padding:1px 5px; border-radius:4px; font-weight:800;">Ảnh 1</span>' : `<span style="background:#e2e8f0; color:#475569; font-size:9.5px; padding:1px 5px; border-radius:4px; font-weight:700;">Ảnh #${idx + 1}</span>`}
                   <span style="font-size:11.5px; color:#334155;">${labelText}</span>
+                  ${isCard ? '<span style="background:#ec4899; color:#fff; font-size:9.5px; padding:1px 6px; border-radius:4px; font-weight:800; display:inline-flex; align-items:center; gap:3px;"><i class="fa-solid fa-shield-halved"></i> Ảnh Card</span>' : ''}
                 </div>
                 <div style="font-size:10.5px; color:#64748b; font-family:monospace; margin-top:2px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:260px;" title="${escapeHtml(imgUrl)}">
                   ${escapeHtml(displayUrl)}
                 </div>
               </div>
               <div class="admin-gallery-item-actions">
+                ${canHaveCard ? (isCard ? `
+                  <button type="button" class="admin-img-act-btn active" style="background:#fdf2f8; color:#db2777; border-color:#fbcfe8;" onclick="unsetGalleryImageAsCard()" title="Hủy gán làm Ảnh Bản Card (Không bắt buộc)">
+                    <i class="fa-solid fa-shield-halved"></i>
+                  </button>
+                ` : `
+                  <button type="button" class="admin-img-act-btn" onclick="setGalleryImageAsCard(${idx})" title="Gán làm Ảnh đại diện Bản Card (Vỉ Blister)">
+                    <i class="fa-solid fa-shield-halved" style="color:#ec4899;"></i>
+                  </button>
+                `) : ''}
                 ${!isPrimary ? `
                   <button type="button" class="admin-img-act-btn" onclick="makeGalleryImagePrimary(${idx})" title="Đặt làm Ảnh 1 (Ảnh chính ngoài shop)">
                     <i class="fa-solid fa-star" style="color:#f59e0b;"></i>
@@ -3000,6 +3031,21 @@
       }
     }
   }
+
+  function setGalleryImageAsCard(idx) {
+    if (idx < 0 || idx >= currentProductGallery.length) return;
+    currentProductCardImage = currentProductGallery[idx];
+    renderAdminProductGallery();
+    adminToast('Đã chọn ảnh này làm Ảnh đại diện Bản Card (Vỉ Blister)!', 'success');
+  }
+  window.setGalleryImageAsCard = setGalleryImageAsCard;
+
+  function unsetGalleryImageAsCard() {
+    currentProductCardImage = '';
+    renderAdminProductGallery();
+    adminToast('Đã hủy gán ảnh Bản Card (Sản phẩm sẽ dùng ảnh chính).', 'info');
+  }
+  window.unsetGalleryImageAsCard = unsetGalleryImageAsCard;
 
   function selectAdminPreviewImage(idx) {
     adminGalleryActiveIdx = Math.max(0, Math.min(currentProductGallery.length - 1, idx));
@@ -3031,7 +3077,11 @@
 
   function removeGalleryImage(idx) {
     if (idx < 0 || idx >= currentProductGallery.length) return;
+    const removed = currentProductGallery[idx];
     currentProductGallery.splice(idx, 1);
+    if (removed && removed === currentProductCardImage) {
+      currentProductCardImage = '';
+    }
     if (adminGalleryActiveIdx >= currentProductGallery.length) {
       adminGalleryActiveIdx = Math.max(0, currentProductGallery.length - 1);
     }
@@ -3428,6 +3478,7 @@
         imageUrl: primaryImage,
         image: primaryImage,
         images: allImages,
+        cardImageUrl: (packagingType !== 'box_only' && currentProductCardImage) ? currentProductCardImage : null,
         description: document.getElementById('prodDesc').value.trim(),
         isFeatured: document.getElementById('prodIsFeatured').checked,
         isNew: document.getElementById('prodIsNew').checked

@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-  <link rel="stylesheet" href="css/admin.css?v=20261106_02">
+  <link rel="stylesheet" href="css/admin.css?v=20261106_03">
   <script>
     (function() {
       try {
@@ -1165,7 +1165,7 @@
 
               <div class="form-group" id="prodBoxPriceGroup" style="margin-bottom:0;">
                 <label class="form-label" id="lblPriceBox"><i class="fa-solid fa-box" style="margin-right:4px; color:#3b82f6;"></i> <span data-i18n="prod_modal_price_box">Giá gốc Bản BOX - Hộp giấy (VNĐ) *</span></label>
-                <input type="number" id="prodPriceBox" class="form-control" placeholder="320000" value="320000" oninput="handleProductPriceInput()" required>
+                <input type="number" id="prodPriceBox" class="form-control" placeholder="VD: 380000" value="" oninput="handleProductPriceInput()" required>
                 <div id="boxPresetsWrap" style="display:flex; gap:4px; flex-wrap:wrap; margin-top:5px;">
                   <span style="font-size:10.5px; color:#64748b;" data-i18n="prod_modal_preset">Mẫu:</span>
                   <button type="button" class="mini-preset-chip" onclick="setBoxPricePreset(320000)">320k</button>
@@ -1182,7 +1182,7 @@
 
               <div class="form-group" id="prodCardPriceGroup" style="margin-bottom:0;">
                 <label class="form-label" id="lblPriceCard"><i class="fa-solid fa-shield-halved" style="margin-right:4px; color:#ec4899;"></i> <span data-i18n="prod_modal_price_card">Giá gốc Bản CARD - Vỉ Blister (VNĐ) *</span></label>
-                <input type="number" id="prodPriceCard" class="form-control" placeholder="380000" value="380000" oninput="handleProductPriceInput()" required>
+                <input type="number" id="prodPriceCard" class="form-control" placeholder="VD: 440000" value="" oninput="handleProductPriceInput()" required>
                 <!-- Helper khi bán cả Box & Card: Chọn bằng giá Box hoặc cộng chênh lệch -->
                 <div id="cardDiffPresetsWrap" style="display:flex; gap:4px; flex-wrap:wrap; margin-top:5px; align-items:center;">
                   <span style="font-size:10.5px; color:#64748b; font-weight:600;" data-i18n="prod_modal_card_preset">Mẫu Card:</span>
@@ -1211,7 +1211,7 @@
             </div>
 
             <!-- Hidden compatibility inputs -->
-            <input type="hidden" id="prodPrice" value="320000">
+            <input type="hidden" id="prodPrice" value="">
             <input type="hidden" id="prodOldPrice" value="">
 
             <!-- Bảng tính trực tiếp giá sau giảm cho Box và Card -->
@@ -1223,12 +1223,16 @@
           <div class="form-grid">
             <div class="form-group" style="margin-bottom:0;">
               <label class="form-label" data-i18n="prod_modal_edition">Ghi chú phiên bản (Edition Note)</label>
-              <input type="text" id="prodEdition" class="form-control" placeholder="LHD Edition">
-              <div style="display:flex; gap:4px; flex-wrap:wrap; margin-top:4px;">
+              <input type="text" id="prodEdition" class="form-control" placeholder="VD: LB★WORKS (LBWK), Chase 1/24...">
+              <div style="display:flex; gap:4px; flex-wrap:wrap; margin-top:5px; align-items:center;">
                 <button type="button" class="mini-preset-chip" onclick="document.getElementById('prodEdition').value='LHD Edition'">LHD</button>
                 <button type="button" class="mini-preset-chip" onclick="document.getElementById('prodEdition').value='RHD Edition'">RHD</button>
-                <button type="button" class="mini-preset-chip" onclick="document.getElementById('prodEdition').value='Box & Blister'">Box &amp; Card</button>
-                <button type="button" class="mini-preset-chip" onclick="document.getElementById('prodEdition').value='Widebody Aero'">LBWK</button>
+                <button type="button" class="mini-preset-chip" onclick="document.getElementById('prodEdition').value='LB★WORKS (LBWK)'" title="Gán nhãn LBWK Edition">LBWK</button>
+                <button type="button" class="mini-preset-chip" onclick="document.getElementById('prodEdition').value='Chase 1/24 (Bản hiếm)'" title="Bản Chase siêu hiếm">Chase 1/24</button>
+                <button type="button" class="mini-preset-chip" onclick="document.getElementById('prodEdition').value='Special Edition'" title="Bản đặc biệt">Special</button>
+                <button type="button" class="mini-preset-chip" onclick="document.getElementById('prodEdition').value='Die-Cast Metal'" title="Thân kim loại nguyên khối">Diecast</button>
+                <button type="button" class="mini-preset-chip" onclick="document.getElementById('prodEdition').value='Nguyên Seal Nhà Máy'" title="Chưa bóc tem">Nguyên Seal</button>
+                <button type="button" class="mini-preset-chip" onclick="const customNote = prompt('Nhập nhãn ghi chú phiên bản mới:'); if(customNote && customNote.trim()){ document.getElementById('prodEdition').value = customNote.trim(); }" style="background:#eff6ff; color:#2563eb; font-weight:700; border-color:#bfdbfe;" title="Thêm ghi chú tùy chỉnh mới">+ Thêm nhãn...</button>
               </div>
             </div>
 
@@ -1314,26 +1318,26 @@
                 <i class="fa-solid fa-boxes-stacked" style="color:#2563eb; margin-right:4px;"></i> <span data-i18n="prod_modal_stock_title">Kiểm Kho Thực Tế (Số Lượng Box &amp; Card Còn Lại) *</span>
               </span>
               <span id="prodTotalStockBadge" style="font-size:11.5px; font-weight:800; color:#059669; background:#ecfdf5; border:1px solid #a7f3d0; padding:2px 8px; border-radius:99px;">
-                Tổng tồn: 20 chiếc
+                Tổng tồn: 0 chiếc
               </span>
             </div>
             <div class="form-grid" style="margin-bottom:0;">
               <div class="form-group" id="stockBoxGroup" style="margin-bottom:0;">
                 <label class="form-label" id="lblStockBox" style="font-size:12px;"><i class="fa-solid fa-box" style="margin-right:4px; color:#3b82f6;"></i> <span data-i18n="prod_modal_stock_box">Tồn kho thực tế Bản BOX (Hộp giấy)</span></label>
-                <input type="number" id="prodStockBox" class="form-control" value="12" min="0" oninput="handleStockInputs()" placeholder="12" required>
+                <input type="number" id="prodStockBox" class="form-control" value="" min="0" oninput="handleStockInputs()" placeholder="VD: 10" required>
                 <div id="stockBoxDisabledNotice" style="display:none; font-size:10.5px; color:#dc2626; margin-top:3px; text-decoration:line-through;">
                   <s>Bản Box: Không áp dụng (0)</s>
                 </div>
               </div>
               <div class="form-group" id="stockCardGroup" style="margin-bottom:0;">
                 <label class="form-label" id="lblStockCard" style="font-size:12px;"><i class="fa-solid fa-shield-halved" style="margin-right:4px; color:#ec4899;"></i> <span data-i18n="prod_modal_stock_card">Tồn kho thực tế Bản CARD (Vỉ Blister)</span></label>
-                <input type="number" id="prodStockCard" class="form-control" value="8" min="0" oninput="handleStockInputs()" placeholder="8" required>
+                <input type="number" id="prodStockCard" class="form-control" value="" min="0" oninput="handleStockInputs()" placeholder="VD: 5" required>
                 <div id="stockCardDisabledNotice" style="display:none; font-size:10.5px; color:#dc2626; margin-top:3px; text-decoration:line-through;">
                   <s>Bản Card: Không áp dụng (0)</s>
                 </div>
               </div>
             </div>
-            <input type="hidden" id="prodStock" value="20">
+            <input type="hidden" id="prodStock" value="0">
           </div>
 
           <div class="form-group form-full admin-multi-image-box" id="prodMultiImageSection">
@@ -1740,7 +1744,7 @@
   </div>
 
   <!-- Shared API Client & Admin Application Script -->
-  <script src="../js/api.js?v=20261106_02"></script>
-  <script src="js/admin.js?v=20261106_02"></script>
+  <script src="../js/api.js?v=20261106_03"></script>
+  <script src="js/admin.js?v=20261106_03"></script>
 </body>
 </html>

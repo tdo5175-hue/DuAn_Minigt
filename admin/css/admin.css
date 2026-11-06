@@ -6134,3 +6134,22 @@ button, a, input, select, .order-tab-btn, .preorder-sub-btn, .nav-item, .btn-adm
   background: #e10600 !important;
   color: #ffffff !important;
 }
+
+/* Card image highlight in admin product gallery */
+.admin-gallery-item-row.is-card-img {
+  border-color: #f472b6 !important;
+  background: #fdf2f8 !important;
+}
+.admin-gallery-item-row.is-card-img img {
+  border-color: #ec4899 !important;
+}
+[data-theme="dark"] .admin-gallery-item-row.is-card-img {
+  background: rgba(236, 72, 153, 0.12) !important;
+  border-color: rgba(244, 114, 182, 0.4) !important;
+}
+
+/* Bảo đảm nút Thêm mô hình không bị trùng lặp icon + */
+.btn-admin-primary i.fa-plus + i.fa-plus {
+  display: none !important;
+}
+

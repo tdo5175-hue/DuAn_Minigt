@@ -8510,3 +8510,16 @@ body.dark-mode .qv-extra-wrap {
     height: 56vh;
   }
 }
+
+/* Card badge & highlight in Storefront QuickView Gallery */
+.qv-gallery-subitem.is-card-sub {
+  border-color: #f472b6;
+}
+.qv-gallery-subitem.is-card-sub.active {
+  border-color: #ec4899 !important;
+  box-shadow: 0 0 0 3px rgba(236, 72, 153, 0.22) !important;
+}
+[data-theme="dark"] .qv-gallery-subitem.is-card-sub {
+  border-color: rgba(244, 114, 182, 0.45);
+}
+
