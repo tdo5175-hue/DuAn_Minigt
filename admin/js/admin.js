@@ -3719,7 +3719,7 @@
     }
   }
 
-  function renderPaymentBadge(paymentStatus, paymentMethod) {
+  function renderPaymentBadge(paymentStatus, paymentMethod, order = {}) {
     const isPayOS = paymentMethod === 'VIETQR_PAYOS' || paymentMethod === 'PAYOS';
     const isBankOrDeposit = paymentMethod === 'BANK_TRANSFER' || paymentMethod === 'DEPOSIT';
 
@@ -3765,7 +3765,18 @@
     }
 
     // Trường hợp UNPAID (VietQR PayOS, MB Bank, Đặt Cọc):
-    // Khách chưa chuyển khoản hoặc chuyển khoản thủ công mà web chưa cập nhật:
+    const hasTransferSignal = Boolean(order?.hasReportedTransfer);
+    if (hasTransferSignal) {
+      return `
+        <span class="status-badge" style="background:#eff6ff; color:#1d4ed8; border:1.5px solid #60a5fa; font-weight:800; font-size:11px; padding:3px 8px; border-radius:5px; display:inline-flex; align-items:center; gap:4px; box-shadow:0 1px 3px rgba(37,99,235,0.2);">
+          <i class="fa-solid fa-bell fa-shake" style="color:#2563eb;"></i> KHÁCH BÁO ĐÃ CK MB!
+        </span>
+        <div style="font-size:10px; color:#1d4ed8; margin-top:2px; font-weight:800; line-height:1.2;">
+          <i class="fa-solid fa-building-columns"></i> Check TK MB Bank • Duyệt ngay
+        </div>
+      `;
+    }
+
     return `
       <span class="status-badge" style="background:#fee2e2; color:#b91c1c; border:1.5px solid #f87171; font-weight:800; font-size:11px; padding:3px 8px; border-radius:5px; display:inline-flex; align-items:center; gap:4px; box-shadow:0 1px 2px rgba(239,68,68,0.12);">
         <i class="fa-solid fa-clock-rotate-left" style="color:#dc2626;"></i> CHƯA CHUYỂN KHOẢN
@@ -4172,6 +4183,15 @@
         actionsSecondary.push(`<button class="btn-admin btn-admin-outline" style="padding:3px 7px; font-size:11px; color:#dc2626; border-color:#fca5a5;" onclick="openCancelOrderModal(${o.id})" title="Hủy đơn hàng"><i class="fa-solid fa-ban"></i> ${t('btn_cancel', 'Hủy')}</button>`);
       }
 
+      // Khôi phục đơn bị hủy nếu khách thực tế đã chuyển khoản MB Bank
+      if (o.status === 'CANCELLED') {
+        const isTransferType = ['VIETQR_PAYOS', 'PAYOS', 'BANK_TRANSFER', 'DEPOSIT'].includes(String(o.paymentMethod || '').toUpperCase()) || Number(o.depositAmount || 0) > 0;
+        if (isTransferType) {
+          const kind = (o.paymentMethod === 'DEPOSIT' || Number(o.depositAmount || 0) > 0) ? 'deposit' : 'full';
+          actionsPrimary.unshift(`<button class="btn-admin btn-admin-primary" style="padding:4px 8px; font-size:11px; background:#059669; border-color:#059669; font-weight:800;" onclick="confirmPaymentAction(${o.id}, '${kind}')" title="Khôi phục đơn & Xác nhận đã nhận tiền vào MB Bank"><i class="fa-solid fa-rotate-left"></i> Khôi phục & Duyệt</button>`);
+        }
+      }
+
       const custName = (o.customer && o.customer.fullName) || o.fullName || 'Khách hàng';
       const custAddr = (o.customer && o.customer.address) || o.address || '';
       const custPhone = (o.customer && o.customer.phone) || o.phone || '';
@@ -4288,7 +4308,7 @@
               `;
             })()}
             <div style="margin-top:4px;">
-              ${renderPaymentBadge(o.paymentStatus, o.paymentMethod)}
+              ${renderPaymentBadge(o.paymentStatus, o.paymentMethod, o)}
             </div>
           </td>
 
@@ -4471,7 +4491,7 @@
           <div style="display:flex; align-items:center; gap:6px;">
             ${isDeliveredOrCompleted ? `<span style="font-size:11px; font-weight:800; background:#ecfdf5; color:#059669; border:1px solid #a7f3d0; padding:3px 8px; border-radius:4px;"><i class="fa-solid fa-lock"></i> ${t('order_detail_locked', 'ĐÃ KHÓA')}</span>` : ''}
             ${renderOrderBadge(order.status)}
-            ${renderPaymentBadge(order.paymentStatus, order.paymentMethod)}
+            ${renderPaymentBadge(order.paymentStatus, order.paymentMethod, order)}
           </div>
         </div>
 
@@ -4833,6 +4853,19 @@
             </div>
           </div>
         </div>
+
+        <!-- Thao tác khôi phục khi đơn bị hủy nhưng khách đã chuyển khoản thực tế -->
+        ${order.status === 'CANCELLED' ? `
+          <div style="background:#fef2f2; border:1.5px solid #fecaca; border-radius:8px; padding:12px 14px; margin-bottom:14px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+            <div style="font-size:12px; color:#991b1b;">
+              <strong style="color:#b91c1c;"><i class="fa-solid fa-triangle-exclamation"></i> Đơn hàng này đang ở trạng thái ĐÃ HỦY:</strong>
+              <div style="font-size:11px; color:#7f1d1d; margin-top:2px;">Nếu khách thực tế đã chuyển khoản vào MB Bank (hoặc chuyển khoản sau 5 phút), bấm nút bên cạnh để khôi phục đơn, trừ lại kho và xác nhận thanh toán.</div>
+            </div>
+            <button type="button" class="btn-admin btn-admin-primary" style="background:#059669; border-color:#059669; font-size:12px; padding:6px 14px; font-weight:800;" onclick="confirmPaymentAction(${order.id}, '${(order.paymentMethod === 'DEPOSIT' || Number(order.depositAmount || 0) > 0) ? 'deposit' : 'full'}')" title="Đơn đã nhận tiền thực tế trong MB Bank - Bấm để khôi phục và xác nhận thanh toán">
+              <i class="fa-solid fa-rotate-left"></i> Khôi Phục & Xác Nhận Đã Nhận Tiền
+            </button>
+          </div>
+        ` : ''}
 
         <!-- Thanh thao tác tiến trình & Xác nhận giao nhận hàng 1-Click -->
         ${!isDeliveredOrCompleted && order.status !== 'CANCELLED' ? `

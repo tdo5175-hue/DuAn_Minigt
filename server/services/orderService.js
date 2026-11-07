@@ -574,20 +574,43 @@ async function updatePaymentStatus(orderId, paymentStatus, { actorId = null, not
   const target = String(paymentStatus || '').toUpperCase();
   if (!allowed.includes(target)) throw badRequest('Trạng thái thanh toán không hợp lệ');
 
-  const cur = await db.query('SELECT OrderId, Status, PaymentStatus FROM Orders WHERE OrderId = @id', { id: Number(orderId) });
+  const cur = await db.query('SELECT OrderId, Status, PaymentStatus, StockReserved FROM Orders WHERE OrderId = @id', { id: Number(orderId) });
   if (!cur.recordset.length) throw notFound('Không tìm thấy đơn hàng');
 
   const row = cur.recordset[0];
   const currentStatus = String(row.Status || row.status || 'PENDING').toUpperCase();
-  const nextStatus = (currentStatus === 'PENDING' && (target === 'PAID' || target === 'PARTIALLY_PAID'))
+
+  // NẾU ĐƠN ĐANG Ở PENDING HOẶC TỪNG BỊ CANCELLED MÀ TIỀN THỰC TẾ ĐÃ VÀO:
+  // TỰ ĐỘNG CHUYỂN SANG CONFIRMED, ĐÁNH DẤU RESERVED VÀ KHÔI PHỤC TỒN KHO!
+  const isPaidTarget = target === 'PAID' || target === 'PARTIALLY_PAID';
+  const nextStatus = (['PENDING', 'CANCELLED'].includes(currentStatus) && isPaidTarget)
     ? 'CONFIRMED'
     : currentStatus;
 
+  // Nếu đơn từng bị CANCELLED và được khôi phục khi nhận tiền: Trừ lại tồn kho tương ứng
+  if (currentStatus === 'CANCELLED' && isPaidTarget) {
+    const itemsRes = await db.query('SELECT ProductId, Quantity FROM OrderItems WHERE OrderId = @oid', { oid: Number(orderId) });
+    for (const it of (itemsRes.recordset || [])) {
+      await db.query(`
+        UPDATE Products 
+        SET Stock = CASE WHEN Stock >= @qty THEN Stock - @qty ELSE 0 END,
+            UpdatedAt = NOW()
+        WHERE ProductId = @pid
+      `, { pid: it.ProductId || it.productid, qty: it.Quantity || it.quantity });
+    }
+  }
+
+  const cancelReasonVal = nextStatus === 'CONFIRMED' ? null : (row.CancelReason || row.cancelreason || null);
+
   await db.query(`
     UPDATE Orders
-    SET PaymentStatus = @pst, Status = @st, UpdatedAt = NOW()
+    SET PaymentStatus = @pst,
+        Status = @st,
+        StockReserved = TRUE,
+        CancelReason = @cr,
+        UpdatedAt = NOW()
     WHERE OrderId = @id
-  `, { id: Number(orderId), pst: target, st: nextStatus });
+  `, { id: Number(orderId), pst: target, st: nextStatus, cr: cancelReasonVal });
 
   await db.query(`
     INSERT INTO OrderStatusHistory (OrderId, FromStatus, ToStatus, Note, ChangedBy)
@@ -596,11 +619,13 @@ async function updatePaymentStatus(orderId, paymentStatus, { actorId = null, not
     id: Number(orderId),
     st: currentStatus,
     nextSt: nextStatus,
-    note: note || `Cập nhật thanh toán → ${target}`,
+    note: note || (currentStatus === 'CANCELLED' && isPaidTarget
+      ? `Khôi phục đơn & xác nhận thanh toán → ${target}`
+      : `Cập nhật thanh toán → ${target}`),
     by: actorId
   });
 
-  return getOrderByCodeOrId(orderId);
+  return getOrderByCodeOrId(orderId, { skipAutoCancel: true });
 }
 
 // TỰ ĐỘNG HỦY ĐƠN HÀNG CHƯA THANH TOÁN SAU 5 PHÚT
@@ -614,6 +639,11 @@ async function autoCancelExpiredUnpaidOrders() {
         AND (UPPER(COALESCE(o.PaymentStatus, 'UNPAID')) = 'UNPAID' OR o.PaymentStatus IS NULL)
         AND UPPER(COALESCE(o.PaymentMethod, '')) IN ('VIETQR_PAYOS', 'PAYOS', 'BANK_TRANSFER', 'DEPOSIT')
         AND o.CreatedAt <= (NOW() - INTERVAL '5 minutes')
+        AND NOT EXISTS (
+          SELECT 1 FROM OrderStatusHistory osh
+          WHERE osh.OrderId = o.OrderId
+            AND (osh.Note ILIKE '%chuyển khoản%' OR osh.Note ILIKE '%báo đã chuyển%')
+        )
       ORDER BY o.OrderId ASC
       LIMIT 50
     `);
@@ -741,7 +771,7 @@ function computeOrderFinancials(o = {}) {
   };
 }
 
-function mapOrder(o, items = [], history = []) {
+function mapOrder(o, items = [], history = [], extra = {}) {
   const mappedHistory = (history || []).map(h => ({
     historyId: h.HistoryId || h.historyid,
     from: h.FromStatus || h.from || h.fromstatus || null,
@@ -755,6 +785,12 @@ function mapOrder(o, items = [], history = []) {
   const userTotalSpent = Number(o.UserTotalSpent ?? o.usertotalspent ?? 0);
   const vipInfo = getCustomerVipInfo(userTotalSpent);
   const fin = computeOrderFinancials(o);
+
+  const hasReportedTransfer = Boolean(
+    extra.hasReportedTransfer ||
+    Boolean(o.hasReportedTransfer || o.HasReportedTransfer) ||
+    mappedHistory.some(h => (h.note || '').toLowerCase().includes('chuyển khoản') || (h.note || '').toLowerCase().includes('báo đã chuyển'))
+  );
 
   return {
     id: o.OrderId || o.orderid,
@@ -792,6 +828,7 @@ function mapOrder(o, items = [], history = []) {
     hasPreOrder: Boolean(o.HasPreOrder ?? o.haspreorder),
     preOrderExpected: o.PreOrderExpected || o.preorderexpected || null,
     preOrderNotified: Boolean(o.PreOrderNotified ?? o.preordernotified),
+    hasReportedTransfer,
     receiptImage: o.ReceiptImage || o.receiptimage,
     trackingCode: o.TrackingCode || o.trackingcode || null,
     trackingCarrier: o.TrackingCarrier || o.trackingcarrier || null,
@@ -839,13 +876,14 @@ async function getOrderByCodeOrId(idOrCode, { skipAutoCancel = false } = {}) {
       WHERE Phone IS NOT NULL AND Phone <> ''
       GROUP BY Phone
     ) phone_spent ON o.Phone = phone_spent.Phone
-    WHERE ${isNum ? 'o.OrderId = @v' : 'o.OrderCode = @v'}
+    WHERE ${isNum ? 'o.OrderId = @v' : '(o.OrderCode = @v OR REPLACE(o.OrderCode, \'-\', \'\') = REPLACE(@v, \'-\', \'\'))'}
   `, { v: isNum ? parseInt(idOrCode, 10) : String(idOrCode).trim().toUpperCase() });
   if (!oRes.recordset.length) return null;
   const o = oRes.recordset[0];
   const oid = o.OrderId || o.orderid;
 
   // Tự động kiểm tra và hủy nếu đơn chờ chuyển khoản/cọc đã quá hạn 5 phút
+  // NGOẠI TRỪ các đơn khách đã báo chuyển khoản hoặc mở link thanh toán
   const curStatus = String(o.Status || o.status || 'PENDING').toUpperCase();
   const curPayStatus = String(o.PaymentStatus || o.paymentstatus || 'UNPAID').toUpperCase();
   const curPayMethod = String(o.PaymentMethod || o.paymentmethod || '').toUpperCase();
@@ -856,13 +894,23 @@ async function getOrderByCodeOrId(idOrCode, { skipAutoCancel = false } = {}) {
 
   if (!skipAutoCancel && curStatus === 'PENDING' && (curPayStatus === 'UNPAID' || !curPayStatus) && isTransferOrDeposit && ageMs >= FIVE_MINS) {
     try {
-      await transitionOrderStatus(oid, 'CANCELLED', {
-        actorId: null,
-        isAdmin: true,
-        cancelReason: 'Hệ thống tự động hủy sau 5 phút do khách chưa thanh toán / chuyển cọc',
-        note: 'Hệ thống tự động hủy đơn sau 5 phút do quá thời hạn thanh toán VietQR / MB Bank'
-      });
-      return getOrderByCodeOrId(idOrCode, { skipAutoCancel: true });
+      // Kiểm tra xem khách có báo chuyển khoản hoặc khởi tạo link PayOS chưa
+      const checkOsh = await db.query(`
+        SELECT 1 FROM OrderStatusHistory
+        WHERE OrderId = @oid AND (Note ILIKE '%chuyển khoản%' OR Note ILIKE '%PayOS%')
+        LIMIT 1
+      `, { oid });
+      const hasPendingTransferSignal = checkOsh.recordset && checkOsh.recordset.length > 0;
+
+      if (!hasPendingTransferSignal) {
+        await transitionOrderStatus(oid, 'CANCELLED', {
+          actorId: null,
+          isAdmin: true,
+          cancelReason: 'Hệ thống tự động hủy sau 5 phút do khách chưa thanh toán / chuyển cọc',
+          note: 'Hệ thống tự động hủy đơn sau 5 phút do quá thời hạn thanh toán VietQR / MB Bank'
+        });
+        return getOrderByCodeOrId(idOrCode, { skipAutoCancel: true });
+      }
     } catch (e) {
       console.warn('[AUTO-CANCEL-ON-GET] Lỗi khi hủy đơn quá hạn:', e.message);
     }
@@ -1076,13 +1124,21 @@ async function listOrders({ status, paymentStatus, paymentMethod, q, userId, use
   }
 
   const ids = orders.map(o => o.OrderId || o.orderid).join(',');
-  const itemsRes = await db.query(`
-    SELECT oi.OrderId, oi.OrderItemId, oi.ProductId, oi.ProductName, oi.PackagingOption, oi.UnitPrice, oi.Quantity, oi.LineTotal,
-           p.Sku, p.ImageUrl, p.Status AS ProductStatus
-    FROM OrderItems oi
-    LEFT JOIN Products p ON oi.ProductId = p.ProductId
-    WHERE oi.OrderId IN (${ids})
-  `);
+  const [itemsRes, transferSignalRes] = await Promise.all([
+    db.query(`
+      SELECT oi.OrderId, oi.OrderItemId, oi.ProductId, oi.ProductName, oi.PackagingOption, oi.UnitPrice, oi.Quantity, oi.LineTotal,
+             p.Sku, p.ImageUrl, p.Status AS ProductStatus
+      FROM OrderItems oi
+      LEFT JOIN Products p ON oi.ProductId = p.ProductId
+      WHERE oi.OrderId IN (${ids})
+    `),
+    db.query(`
+      SELECT DISTINCT OrderId FROM OrderStatusHistory
+      WHERE OrderId IN (${ids}) AND (Note ILIKE '%chuyển khoản%' OR Note ILIKE '%báo đã chuyển%')
+    `)
+  ]);
+
+  const reportedOids = new Set((transferSignalRes.recordset || []).map(r => Number(r.OrderId || r.orderid)));
 
   const byOrder = new Map();
   for (const row of itemsRes.recordset) {
@@ -1109,7 +1165,7 @@ async function listOrders({ status, paymentStatus, paymentMethod, q, userId, use
 
   const total = Number(cRes.recordset[0]?.Total || cRes.recordset[0]?.total || 0);
   return {
-    items: orders.map(o => mapOrder(o, byOrder.get(String(o.OrderId || o.orderid)) || [])),
+    items: orders.map(o => mapOrder(o, byOrder.get(String(o.OrderId || o.orderid)) || [], [], { hasReportedTransfer: reportedOids.has(Number(o.OrderId || o.orderid)) })),
     total,
     page: p,
     pageSize: ps,

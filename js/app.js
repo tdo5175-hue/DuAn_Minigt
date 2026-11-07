@@ -6687,22 +6687,33 @@ async function triggerInstantPayOSCheck(orderCode) {
   const isAlreadyNotified = hasOrderEventBeenAcknowledged(orderCode, paymentAcknowledgedKey) ||
                             hasOrderEventBeenAcknowledged(orderCode, `STEP4_PAID_PAID_CONFIRMED`);
 
-  showToast('Đang kết nối cổng PayOS để kiểm tra giao dịch tức thì...', 'info');
+  showToast('Đang kết nối cổng PayOS & MB Bank để kiểm tra giao dịch tức thì...', 'info');
   try {
     const json = await safeFetch(`/api/orders/check-status/${encodeURIComponent(orderCode)}`);
     if (json && json.success && json.data) {
       const ord = api.normalizeOrderObject ? api.normalizeOrderObject(json.data) : json.data;
       updateLiveStep4OrderStatus(ord);
-      if (ord.paymentStatus === 'PAID' || ord.paymentStatus === 'PARTIALLY_PAID' || ord.status === 'CONFIRMED') {
-        if (isAlreadyNotified) {
-          showToast(`Đơn hàng #${orderCode} đã được ghi nhận thanh toán hoàn tất trước đó!`, 'info');
+      const isPaid = ord.paymentStatus === 'PAID' || ord.paymentStatus === 'PARTIALLY_PAID';
+      const isConfirmed = ord.status === 'CONFIRMED' || ord.status === 'PREPARING' || ord.status === 'SHIPPING' || ord.status === 'DELIVERED';
+      if (isPaid || isConfirmed) {
+        showToast(`🎉 Đơn hàng #${orderCode} đã được xác nhận thanh toán thành công!`, 'success');
+        if (typeof triggerConfetti === 'function') triggerConfetti();
+        // Ẩn panel QR nếu đang mở trong "Đơn hàng của tôi"
+        const p = document.getElementById(`qrPanel_${orderCode}`);
+        if (p) {
+          p.style.display = 'none';
+          if (window._openCustomerQrPanels) window._openCustomerQrPanels.delete(orderCode);
+        }
+        if (typeof stopCustomerOrderQrPolling === 'function') stopCustomerOrderQrPolling(orderCode);
+        if (typeof loadMyOrdersList === 'function') {
+          loadMyOrdersList(true);
         }
       } else {
         showToast('Hệ thống ngân hàng đang chuyển tiền. Vui lòng đợi trong 5 - 15 giây, hệ thống sẽ tự động khớp lệnh ngay!', 'info');
       }
     }
   } catch (err) {
-    showToast('Đang chờ tín hiệu xác nhận từ cổng thanh toán PayOS...', 'info');
+    showToast('Đang chờ tín hiệu xác nhận từ cổng thanh toán PayOS / MB Bank...', 'info');
   }
 }
 window.triggerInstantPayOSCheck = triggerInstantPayOSCheck;
@@ -9010,8 +9021,21 @@ function buildUnifiedCustomerOrderCardHTML(ord) {
         </div>
       </div>
 
-      <!-- Banner cảnh báo đếm ngược 5 phút tự động hủy cho đơn chưa thanh toán/chuyển cọc -->
+      <!-- Banner trạng thái đơn chưa thanh toán / đã báo chuyển khoản -->
       ${(ordStatus === 'PENDING' && !isPaid && !isPartiallyPaid && !isCOD) ? (() => {
+        if (ord.hasReportedTransfer) {
+          return `
+            <div style="background:linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%); border:1.5px solid #93c5fd; border-radius:10px; padding:10px 14px; margin:10px 0 8px 0; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+              <div style="font-size:12.5px; color:#1e40af; font-weight:700; display:flex; align-items:center; gap:8px;">
+                <i class="fa-solid fa-circle-check" style="color:#2563eb; font-size:16px;"></i>
+                <span>Bạn đã gửi thông báo chuyển khoản MB Bank! Admin đang đối soát (Đơn hàng được giữ an toàn, không bị hủy).</span>
+              </div>
+              <button type="button" class="btn btn-sm" style="background:#16a34a; color:#fff; border:none; padding:5px 12px; font-size:11.5px; border-radius:6px; font-weight:800; cursor:pointer; display:inline-flex; align-items:center; gap:4px;" onclick="triggerInstantPayOSCheck('${escapeHtml(orderCode)}')">
+                <i class="fa-solid fa-arrows-rotate"></i> Kiểm tra nhận tiền
+              </button>
+            </div>
+          `;
+        }
         const orderCreatedAt = new Date(ord.CreatedAt || ord.createdAt || Date.now()).getTime();
         const expiresAt = orderCreatedAt + 5 * 60 * 1000;
         return `
@@ -9315,6 +9339,84 @@ function buildUnifiedCustomerOrderCardHTML(ord) {
 }
 
 window._openCustomerQrPanels = window._openCustomerQrPanels || new Set();
+window._customerQrPollers = window._customerQrPollers || {};
+
+function startCustomerOrderQrPolling(orderCode) {
+  if (!orderCode) return;
+  stopCustomerOrderQrPolling(orderCode);
+  window._customerQrPollers[orderCode] = setInterval(async () => {
+    const el = document.getElementById(`qrPanel_${orderCode}`);
+    if (!el || el.style.display === 'none') {
+      stopCustomerOrderQrPolling(orderCode);
+      return;
+    }
+    try {
+      const res = await safeFetch(`/api/orders/check-status/${encodeURIComponent(orderCode)}`);
+      if (res && res.success && res.data) {
+        const ord = api.normalizeOrderObject ? api.normalizeOrderObject(res.data) : res.data;
+        const isPaid = ord.paymentStatus === 'PAID' || ord.paymentStatus === 'PARTIALLY_PAID';
+        const isApproved = ord.status === 'CONFIRMED' || ord.status === 'PREPARING' || ord.status === 'SHIPPING' || ord.status === 'DELIVERED';
+        if (isPaid || isApproved) {
+          stopCustomerOrderQrPolling(orderCode);
+          el.style.display = 'none';
+          window._openCustomerQrPanels.delete(orderCode);
+          showToast(`🎉 Đã khớp lệnh thanh toán thành công cho đơn #${orderCode}!`, 'success');
+          if (typeof triggerConfetti === 'function') triggerConfetti();
+          if (typeof loadMyOrdersList === 'function') loadMyOrdersList(true);
+        }
+      }
+    } catch (_) {}
+  }, 3000);
+}
+
+function stopCustomerOrderQrPolling(orderCode) {
+  if (window._customerQrPollers && window._customerQrPollers[orderCode]) {
+    clearInterval(window._customerQrPollers[orderCode]);
+    delete window._customerQrPollers[orderCode];
+  }
+}
+
+async function customerReportTransfer(orderCode, btnEl) {
+  if (!orderCode) return;
+  if (btnEl) {
+    btnEl.disabled = true;
+    btnEl.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Đang báo Admin...';
+  }
+  try {
+    const res = await safeFetch('/api/orders/notify-transfer', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ orderCode })
+    });
+    if (res && res.success) {
+      showToast(`✅ Đã gửi thông báo chuyển khoản MB Bank đơn #${orderCode} tới Admin!`, 'success');
+      if (btnEl) {
+        btnEl.innerHTML = '<i class="fa-solid fa-circle-check"></i> Đã báo Admin • Đang đối soát';
+        btnEl.style.background = '#059669';
+        btnEl.style.borderColor = '#059669';
+      }
+      triggerInstantPayOSCheck(orderCode);
+      if (typeof loadMyOrdersList === 'function') {
+        setTimeout(() => loadMyOrdersList(true), 800);
+      }
+    } else {
+      showToast(res.message || 'Chưa thể gửi thông báo, vui lòng thử lại', 'error');
+      if (btnEl) {
+        btnEl.disabled = false;
+        btnEl.innerHTML = '<i class="fa-solid fa-building-columns"></i> Tôi đã chuyển khoản MB Bank';
+      }
+    }
+  } catch (err) {
+    showToast('Lỗi gửi báo chuyển khoản: ' + err.message, 'error');
+    if (btnEl) {
+      btnEl.disabled = false;
+      btnEl.innerHTML = '<i class="fa-solid fa-building-columns"></i> Tôi đã chuyển khoản MB Bank';
+    }
+  }
+}
+window.customerReportTransfer = customerReportTransfer;
+window.startCustomerOrderQrPolling = startCustomerOrderQrPolling;
+window.stopCustomerOrderQrPolling = stopCustomerOrderQrPolling;
 
 function toggleOrderQrPanel(orderCode) {
   const el = document.getElementById(`qrPanel_${orderCode}`);
@@ -9323,10 +9425,12 @@ function toggleOrderQrPanel(orderCode) {
   if (isCurrentlyOpen) {
     el.style.display = 'none';
     window._openCustomerQrPanels.delete(orderCode);
+    stopCustomerOrderQrPolling(orderCode);
   } else {
     el.style.display = 'block';
     window._openCustomerQrPanels.add(orderCode);
     loadPayosQrForOrderPanel(orderCode);
+    startCustomerOrderQrPolling(orderCode);
   }
 }
 
@@ -9371,12 +9475,15 @@ async function loadPayosQrForOrderPanel(orderCode) {
             </div>
             <div style="margin-top:10px; display:flex; gap:8px; flex-wrap:wrap;">
               ${d.checkoutUrl ? `
-                <a href="${d.checkoutUrl}" target="_blank" class="btn btn-sm" style="background:#0284c7; color:#fff; border:none; padding:6px 12px; border-radius:6px; font-size:11.5px; font-weight:700; text-decoration:none; display:inline-flex; align-items:center; gap:4px;">
+                <a href="${d.checkoutUrl}" target="_blank" class="btn btn-sm" style="background:#0284c7; color:#fff; border:none; padding:7px 13px; border-radius:6px; font-size:11.5px; font-weight:700; text-decoration:none; display:inline-flex; align-items:center; gap:5px;">
                   <i class="fa-solid fa-arrow-up-right-from-square"></i> Cổng PayOS ↗
                 </a>
               ` : ''}
-              <button type="button" class="btn btn-sm" style="background:#16a34a; color:#fff; border:none; padding:6px 12px; border-radius:6px; font-size:11.5px; font-weight:700; display:inline-flex; align-items:center; gap:4px;" onclick="triggerInstantPayOSCheck('${escapeHtml(orderCode)}')">
+              <button type="button" class="btn btn-sm" style="background:#16a34a; color:#fff; border:none; padding:7px 13px; border-radius:6px; font-size:11.5px; font-weight:700; display:inline-flex; align-items:center; gap:5px; cursor:pointer;" onclick="triggerInstantPayOSCheck('${escapeHtml(orderCode)}')">
                 <i class="fa-solid fa-arrows-rotate"></i> Kiểm tra nhận tiền
+              </button>
+              <button type="button" class="btn btn-sm" style="background:#0284c7; color:#fff; border:none; padding:7px 13px; border-radius:6px; font-size:11.5px; font-weight:700; display:inline-flex; align-items:center; gap:5px; cursor:pointer;" onclick="customerReportTransfer('${escapeHtml(orderCode)}', this)">
+                <i class="fa-solid fa-building-columns"></i> Tôi đã chuyển khoản MB Bank
               </button>
             </div>
           </div>
@@ -9409,6 +9516,14 @@ function renderManualBankQrInBox(box, orderCode) {
         <div style="margin-top:2px;">Nội dung CK: <strong style="color:#1d4ed8; font-family:monospace; font-size:13.5px; background:#eff6ff; padding:2px 8px; border-radius:4px;">${escapeHtml(memo)}</strong> <button type="button" class="btn-copy-mini" style="background:#2563eb; color:#fff;" onclick="copyToClipboard('${escapeHtml(memo)}', 'Đã chép nội dung!')"><i class="fa-regular fa-copy"></i> Copy</button></div>
         <div style="margin-top:4px; font-size:11px; color:#0369a1;">Phí ship SPX Express <strong>${formatVND(fin.shippingFee)}</strong>: Bạn thanh toán riêng cho bưu tá khi nhận xe.</div>
         <div style="margin-top:8px; font-size:11.5px; color:#64748b; font-style:italic;">Sau khi chuyển khoản, Admin sẽ kiểm tra và duyệt đơn ngay cho bạn.</div>
+        <div style="margin-top:10px; display:flex; gap:8px; flex-wrap:wrap;">
+          <button type="button" class="btn btn-sm" style="background:#16a34a; color:#fff; border:none; padding:7px 13px; border-radius:6px; font-size:11.5px; font-weight:700; display:inline-flex; align-items:center; gap:5px; cursor:pointer;" onclick="triggerInstantPayOSCheck('${escapeHtml(orderCode)}')">
+            <i class="fa-solid fa-arrows-rotate"></i> Kiểm tra nhận tiền
+          </button>
+          <button type="button" class="btn btn-sm" style="background:#0284c7; color:#fff; border:none; padding:7px 13px; border-radius:6px; font-size:11.5px; font-weight:700; display:inline-flex; align-items:center; gap:5px; cursor:pointer;" onclick="customerReportTransfer('${escapeHtml(orderCode)}', this)">
+            <i class="fa-solid fa-building-columns"></i> Tôi đã chuyển khoản MB Bank
+          </button>
+        </div>
       </div>
     </div>
   `;
