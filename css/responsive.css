@@ -577,18 +577,6 @@ header nav.desktop-only,
     border-color: #334155 !important;
     color: #cbd5e1 !important;
   }
-    flex: 1 1 0 !important;
-    min-width: 0 !important;
-    padding: 9px 8px !important;
-    font-size: 12px !important;
-    font-weight: 700 !important;
-    border-radius: 8px !important;
-    display: inline-flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    gap: 6px !important;
-    cursor: pointer !important;
-  }
 
   /* Slide 2 (LBWK) & Slide 3 (F1) Showrooms */
   .hero-slide-lbwk,
