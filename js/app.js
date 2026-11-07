@@ -2170,6 +2170,42 @@ function syncStaticShowcaseProducts() {
 }
 window.syncStaticShowcaseProducts = syncStaticShowcaseProducts;
 
+// Bộ lọc tương tác chuyên sâu Paddock Khủng Long (Rexy #80, Roxy #77, Skeleton #77)
+function filterDinoCards(category, event) {
+  if (event && event.preventDefault) event.preventDefault();
+  const tabs = document.querySelectorAll('.gt3-paddock-tabs .gt3-tab-pill');
+  tabs.forEach(tab => {
+    tab.classList.toggle('active', tab.getAttribute('data-dino-tab') === category);
+  });
+
+  const cards = document.querySelectorAll('#gt3-trio-grid .gt3-dino-card');
+  cards.forEach(card => {
+    if (category === 'all') {
+      card.style.display = '';
+      card.style.opacity = '1';
+      card.style.transform = '';
+      card.style.boxShadow = '';
+    } else {
+      let match = false;
+      if (category === 'rexy' && card.classList.contains('rexy-theme')) match = true;
+      if (category === 'roxy' && card.classList.contains('roxy-theme')) match = true;
+      if (category === 'skeleton' && card.classList.contains('skeleton-theme')) match = true;
+
+      if (match) {
+        card.style.display = '';
+        card.style.opacity = '1';
+        card.style.transform = 'translateY(-4px)';
+        card.style.boxShadow = '0 16px 36px rgba(15,23,42,0.16)';
+      } else {
+        card.style.display = 'none';
+        card.style.transform = '';
+        card.style.boxShadow = '';
+      }
+    }
+  });
+}
+window.filterDinoCards = filterDinoCards;
+
 // Đồng bộ sản phẩm tức thì khi Admin thêm/sửa Box, Card hoặc % giảm giá
 try {
   if (typeof BroadcastChannel !== 'undefined') {
@@ -2436,7 +2472,7 @@ function selectCardPackaging(productId, packType, event) {
   const boxImgUrl = (gallery && gallery.length > 0) ? gallery[0] : (prod.ImageUrl || prod.imageUrl || prod.image || prod.Image);
   const targetImg = (normalizedPack === 'card' && cardImgUrl) ? cardImgUrl : boxImgUrl;
 
-  document.querySelectorAll(`.product-card[data-id="${productId}"], .gt3-dino-card[data-id="${productId}"]`).forEach(cardEl => {
+  document.querySelectorAll(`.product-card[data-id="${productId}"], .gt3-dino-card[data-id="${productId}"], .lbwk-hero-feature[data-id="${productId}"], .lbwk-mini-spotlight[data-id="${productId}"]`).forEach(cardEl => {
     cardEl.setAttribute('data-pack', normalizedPack);
     const btns = cardEl.querySelectorAll('.card-pack-btn');
     if (btns.length >= 2) {
@@ -2447,7 +2483,7 @@ function selectCardPackaging(productId, packType, event) {
     // Tự động chuyển đổi ảnh card tương ứng (Ảnh Vỉ Card vs Ảnh Hộp Box)
     if (targetImg) {
       const resolvedTarget = resolveStorefrontImageUrl(targetImg);
-      const imgEl = cardEl.querySelector('img.card-image, .card-image-box img, .gt3-dino-img-wrap img, .card-img-wrap img, .product-image img, .gt3-card-img-wrap img, img.product-img, img.gt3-card-image');
+      const imgEl = cardEl.querySelector('img.card-image, .card-image-box img, .gt3-dino-img-wrap img, .card-img-wrap img, .product-image img, .gt3-card-img-wrap img, img.product-img, img.gt3-card-image, .lbwk-feature-img-box img, img');
       if (imgEl) {
         imgEl.loading = 'eager';
         if (imgEl.src !== resolvedTarget) {
@@ -2462,11 +2498,28 @@ function selectCardPackaging(productId, packType, event) {
     const currEl = cardEl.querySelector('.current-price') || cardEl.querySelector('.gt3-price-group strong');
     if (currEl) currEl.textContent = formatVND(finalPrice);
 
+    // Cập nhật giá trên LBWK Hero Feature & LBWK Mini Spotlight
+    const lbwkHeroPrice = cardEl.querySelector('.lbwk-price-val');
+    if (lbwkHeroPrice) lbwkHeroPrice.textContent = formatVND(finalPrice);
+    const lbwkHeroCaption = cardEl.querySelector('.lbwk-price-caption');
+    if (lbwkHeroCaption) {
+      lbwkHeroCaption.textContent = normalizedPack === 'card' ? (isEn ? 'Blister Card Price:' : 'Giá Bản Vỉ Card:') : (isEn ? 'Price from (Box):' : 'Giá từ (Bản Box):');
+    }
+    const lbwkMiniPrice = cardEl.querySelector('.lbwk-mini-price');
+    if (lbwkMiniPrice) {
+      if (pricing.hasDiscount && basePrice > finalPrice) {
+        lbwkMiniPrice.innerHTML = `<span style="font-size:11px; text-decoration:line-through; color:#94a3b8; font-weight:600; margin-right:4px;">${formatVND(basePrice)}</span><span style="color:#e10600; font-weight:800;">${formatVND(finalPrice)}</span>`;
+      } else {
+        lbwkMiniPrice.textContent = formatVND(finalPrice);
+      }
+    }
+
     const dinoSubEl = cardEl.querySelector('.gt3-price-group span');
     if (dinoSubEl) {
+      const diff = Math.abs(pricing.finalPriceCard - pricing.finalPriceBox);
       dinoSubEl.textContent = normalizedPack === 'card'
         ? (isEn ? 'Blister Display Card' : 'Bản Vỉ Card Trưng Bày')
-        : (isEn ? 'Paper Box Edition' : 'Bản Hộp Giấy (Box Tiết Kiệm)');
+        : (isEn ? `Bản Hộp Giấy (Box Tiết Kiệm ${formatVND(diff)})` : `Bản Hộp Giấy (Box Tiết Kiệm ${formatVND(diff)})`);
     }
 
     const oldEl = cardEl.querySelector('.old-price');

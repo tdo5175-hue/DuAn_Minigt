@@ -425,24 +425,56 @@ header nav.desktop-only,
     padding: 0 !important;
     border-radius: 0 !important;
     margin: 0 !important;
+    min-height: 520px !important;
+    position: relative !important;
   }
 
   .hero-prev, .hero-next, .hero-control-btn {
     display: none !important;
   }
 
-  /* Slide 1: Main fleet */
+  /* =====================================================================
+     HERO CAROUSEL: ĐỒNG NHẤT CHIỀU CAO 520PX TRÊN MOBILE (LOẠI BỎ CO GIÃN WEB)
+     ===================================================================== */
+  .hero-slide {
+    min-height: 520px !important;
+  }
+
+  .hero-slide.active {
+    display: flex !important;
+    flex-direction: column !important;
+    min-height: 520px !important;
+    height: 100% !important;
+  }
+
+  /* Slide 1: Main fleet & interactive mobile bar */
+  .hero-slide[data-slide-index="0"].active {
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: space-between !important;
+    background: var(--bg-card, #ffffff) !important;
+  }
+
   .hero-image-stage {
-    min-height: auto !important;
+    min-height: 230px !important;
+    height: 230px !important;
     width: 100% !important;
+    position: relative !important;
     overflow: hidden !important;
+    background: #f8fafc !important;
+  }
+
+  [data-theme="dark"] .hero-image-stage,
+  body.dark-mode .hero-image-stage {
+    background: #0b1120 !important;
   }
 
   .hero-img-main {
-    min-height: auto !important;
-    max-height: 52vh !important;
+    min-height: 230px !important;
+    height: 230px !important;
     width: 100% !important;
-    object-fit: contain !important;
+    object-fit: cover !important;
+    object-position: center 65% !important;
     display: block !important;
   }
 
@@ -459,13 +491,77 @@ header nav.desktop-only,
     padding: 6px 8px !important;
   }
 
+  .hero-fleet-mobile-bar {
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: center !important;
+    padding: 14px 16px 20px !important;
+    background: var(--bg-card, #ffffff) !important;
+    border-top: 1px solid var(--border-subtle, #e2e8f0) !important;
+    flex: 1 !important;
+  }
+
+  .hero-fleet-badge {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+    background: rgba(225, 6, 0, 0.09) !important;
+    color: #e10600 !important;
+    font-size: 10px !important;
+    font-weight: 800 !important;
+    padding: 3px 9px !important;
+    border-radius: 99px !important;
+    margin-bottom: 6px !important;
+    width: fit-content !important;
+  }
+
+  .hero-fleet-title {
+    font-size: 14px !important;
+    font-weight: 800 !important;
+    color: var(--text-primary, #0f172a) !important;
+    margin: 0 0 4px !important;
+    line-height: 1.35 !important;
+  }
+
+  .hero-fleet-hint {
+    font-size: 11.5px !important;
+    color: var(--text-secondary, #64748b) !important;
+    margin: 0 0 12px !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+  }
+
+  .hero-fleet-actions {
+    display: flex !important;
+    gap: 8px !important;
+  }
+
+  .hero-fleet-actions button {
+    flex: 1 1 0 !important;
+    min-width: 0 !important;
+    padding: 9px 8px !important;
+    font-size: 12px !important;
+    font-weight: 700 !important;
+    border-radius: 8px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 6px !important;
+    cursor: pointer !important;
+  }
+
   /* Slide 2 (LBWK) & Slide 3 (F1) Showrooms */
   .hero-slide-lbwk,
   .hero-slide-f1 {
     padding: 1.35rem 1rem !important;
-    min-height: auto !important;
+    min-height: 520px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: center !important;
     background-size: cover !important;
     background-position: center !important;
+    box-sizing: border-box !important;
   }
 
   .hero-lbwk-grid {
@@ -542,8 +638,12 @@ header nav.desktop-only,
   /* Slide 4: AO Racing Dino Trio */
   .hero-slide-ao {
     padding: 1.35rem 1rem !important;
-    min-height: auto !important;
+    min-height: 520px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: center !important;
     background-size: cover !important;
+    box-sizing: border-box !important;
   }
 
   .hero-ao-grid {

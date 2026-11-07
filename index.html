@@ -34,8 +34,8 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 
   <!-- Modular CSS Bundle -->
-  <link rel="stylesheet" href="css/style.css?v=20261107_05">
-  <link rel="stylesheet" href="css/chat.css?v=20261107_05">
+  <link rel="stylesheet" href="css/style.css?v=20261107_09">
+  <link rel="stylesheet" href="css/chat.css?v=20261107_09">
 </head>
 <body>
 
@@ -84,24 +84,246 @@
             <li>
               <a href="index.html" class="header-nav-link active" data-i18n="nav_home">Trang chủ</a>
             </li>
-            <li>
+
+            <!-- Pre-Order 2026 HOT with Mega Dropdown -->
+            <li class="header-nav-item has-dropdown">
               <a href="#catalog" class="header-nav-link" onclick="filterAndScroll(event, 'pre_order')">
                 <span data-i18n="nav_preorder">Pre-Order 2026</span> <span class="badge-hot-tag">HOT</span>
+                <i class="fa-solid fa-chevron-down nav-caret"></i>
               </a>
+              <div class="nav-mega-dropdown">
+                <div class="nav-mega-header">
+                  <span class="nav-mega-badge"><i class="fa-solid fa-fire"></i> ĐỢT MỞ ĐẶT CỌC 2026</span>
+                  <h4>MÔ HÌNH PRE-ORDER CHÍNH HÃNG</h4>
+                  <p>Cọc trước 30% giữ suất xe giới hạn • SPX vận chuyển chống sốc 4 lớp</p>
+                </div>
+                <div class="nav-mega-grid">
+                  <div class="nav-mega-card" onclick="openQuickView(6)">
+                    <div class="nav-card-badge">PETIT LE MANS</div>
+                    <img src="/api/images/31" alt="Porsche GT3 R Skeleton" loading="lazy" onerror="this.src='image/ske.webp'">
+                    <div class="nav-card-info">
+                      <strong>#MGT01143 Skeleton #77</strong>
+                      <span>Porsche 911 GT3 R AO Racing</span>
+                      <div class="nav-card-price"><span>Cọc 30%: 117k</span> <strong>390.000đ</strong></div>
+                    </div>
+                  </div>
+                  <div class="nav-mega-card" onclick="openQuickView(3)">
+                    <div class="nav-card-badge">F1 LAS VEGAS</div>
+                    <img src="/api/images/26" alt="Aston Martin AMR24 Alonso" loading="lazy" onerror="this.src='image/aston-amr24-alonso.png'">
+                    <div class="nav-card-info">
+                      <strong>#MGT01396 Fernando Alonso</strong>
+                      <span>Aston Martin AMR24 F1 2024</span>
+                      <div class="nav-card-price"><span>Cọc 30%: 126k</span> <strong>420.000đ</strong></div>
+                    </div>
+                  </div>
+                  <div class="nav-mega-card" onclick="openQuickView(52)">
+                    <div class="nav-card-badge">DRIFT HALLOWEEN</div>
+                    <img src="/api/images/45" alt="Nissan S15 LBWK Halloween" loading="lazy" onerror="this.src='image/Minigt_S15_LBWK.jpg'">
+                    <div class="nav-card-info">
+                      <strong>#MGT1185 S15 #555 LBWK</strong>
+                      <span>Formula Drift Team 2025</span>
+                      <div class="nav-card-price"><span>Giảm -15%</span> <strong>204.000đ</strong></div>
+                    </div>
+                  </div>
+                </div>
+                <div class="nav-mega-footer">
+                  <button type="button" class="btn-mega-action" onclick="filterAndScroll(event, 'pre_order')">
+                    <i class="fa-solid fa-calendar-check"></i> Xem Tất Cả Xe Pre-Order ➔
+                  </button>
+                </div>
+              </div>
             </li>
-            <li>
-              <a href="#lbwk-zone" class="header-nav-link" onclick="scrollToSection(event, 'lbwk-zone')" data-i18n="nav_lbwk">Liberty Walk LBWK</a>
+
+            <!-- Liberty Walk LBWK with Mega Dropdown -->
+            <li class="header-nav-item has-dropdown">
+              <a href="#lbwk-zone" class="header-nav-link" onclick="scrollToSection(event, 'lbwk-zone')" data-i18n="nav_lbwk">
+                <span>Liberty Walk LBWK</span>
+                <i class="fa-solid fa-chevron-down nav-caret"></i>
+              </a>
+              <div class="nav-mega-dropdown">
+                <div class="nav-mega-header">
+                  <span class="nav-mega-badge"><i class="fa-solid fa-bolt"></i> NAGOYA JAPAN LICENSED</span>
+                  <h4>BẢN ĐỘ THÂN RỘNG LB★WORKS 1:64</h4>
+                  <p>Vòm bánh tán đinh cơ bắp, cánh gió GT khí động học huyền thoại Wataru Kato</p>
+                </div>
+                <div class="nav-mega-grid">
+                  <div class="nav-mega-card" onclick="openQuickView(10)">
+                    <div class="nav-card-badge">SILVIA S15</div>
+                    <img src="image/Minigt_s15chop_lbwk.jpg" alt="Nissan S15 Presentation #465" loading="lazy">
+                    <div class="nav-card-info">
+                      <strong>#MGT00465 S15 Presentation</strong>
+                      <span>Bản Box &amp; Vỉ Card Trưng Bày</span>
+                      <div class="nav-card-price"><span>Sẵn hàng</span> <strong>320.000đ</strong></div>
+                    </div>
+                  </div>
+                  <div class="nav-mega-card" onclick="openQuickView(5)">
+                    <div class="nav-card-badge">HURACÁN GT</div>
+                    <img src="image/mgt01055.webp" alt="Huracán GT Gravity" loading="lazy" onerror="this.src='image/Minigt_Lambo_LBWK.jpg'">
+                    <div class="nav-card-info">
+                      <strong>#MGT01055 Huracán Gravity</strong>
+                      <span>Bodykit tán đinh + Cánh Swan-Neck</span>
+                      <div class="nav-card-price"><span>Sẵn hàng</span> <strong>333.000đ</strong></div>
+                    </div>
+                  </div>
+                  <div class="nav-mega-card" onclick="openQuickView(55)">
+                    <div class="nav-card-badge">GOODWOOD #23</div>
+                    <img src="/api/images/60" alt="Nissan S15 Silvia Goodwood #23" loading="lazy" onerror="this.src='image/Minigt_s15chop_lbwk.jpg'">
+                    <div class="nav-card-info">
+                      <strong>#MGT0618 S15 Goodwood #23</strong>
+                      <span>Festival of Speed Limited Edition</span>
+                      <div class="nav-card-price"><span>Giảm -10%</span> <strong>495.000đ</strong></div>
+                    </div>
+                  </div>
+                </div>
+                <div class="nav-mega-footer">
+                  <button type="button" class="btn-mega-action" onclick="scrollToSection(event, 'lbwk-zone')">
+                    <i class="fa-solid fa-flag-checkered"></i> Vào Khu Showroom LB★WORKS ➔
+                  </button>
+                </div>
+              </div>
             </li>
-            <li>
-              <a href="#gt3-paddock" class="header-nav-link" onclick="scrollToSection(event, 'gt3-paddock')" data-i18n="nav_gt3">IMSA GT3 &amp; F1</a>
+
+            <!-- IMSA GT3 & F1 with Mega Dropdown -->
+            <li class="header-nav-item has-dropdown">
+              <a href="#gt3-paddock" class="header-nav-link" onclick="scrollToSection(event, 'gt3-paddock')" data-i18n="nav_gt3">
+                <span>IMSA GT3 &amp; F1</span>
+                <i class="fa-solid fa-chevron-down nav-caret"></i>
+              </a>
+              <div class="nav-mega-dropdown" style="min-width: 620px;">
+                <div class="nav-mega-header">
+                  <span class="nav-mega-badge"><i class="fa-solid fa-trophy"></i> MOTORSPORT PADDOCK</span>
+                  <h4>KHỦNG LONG AO RACING &amp; FORMULA 1</h4>
+                  <p>Bộ ba khủng long Rexy, Roxy, Skeleton cùng các siêu xe F1 thế hệ mới</p>
+                </div>
+                <div class="nav-mega-grid two-cols">
+                  <div class="nav-mega-card" onclick="openQuickView(8)">
+                    <div class="nav-card-badge" style="background:#16a34a;">REXY #80</div>
+                    <img src="image/rexy.jpg" alt="Rexy AO Racing #80" loading="lazy">
+                    <div class="nav-card-info">
+                      <strong>Porsche 911 GT3 R Rexy #80</strong>
+                      <span>Khủng Long Xanh Vô Địch Sebring</span>
+                      <div class="nav-card-price"><span>Sẵn kho</span> <strong>380.000đ</strong></div>
+                    </div>
+                  </div>
+                  <div class="nav-mega-card" onclick="openQuickView(7)">
+                    <div class="nav-card-badge" style="background:#ec4899;">ROXY #77</div>
+                    <img src="image/Roxy.webp" alt="Roxy AO Racing #77" loading="lazy">
+                    <div class="nav-card-info">
+                      <strong>Porsche 911 GT3 R Roxy #77</strong>
+                      <span>Khủng Long Hồng Road America</span>
+                      <div class="nav-card-price"><span>Giảm -5%</span> <strong>342.000đ</strong></div>
+                    </div>
+                  </div>
+                  <div class="nav-mega-card" onclick="openQuickView(6)">
+                    <div class="nav-card-badge" style="background:#6366f1;">SKELETON #77</div>
+                    <img src="image/ske.webp" alt="Skeleton AO Racing #77" loading="lazy">
+                    <div class="nav-card-info">
+                      <strong>Porsche GT3 R Skeleton #77</strong>
+                      <span>Bản Xương Halloween Petit Le Mans</span>
+                      <div class="nav-card-price"><span>Pre-Order</span> <strong>390.000đ</strong></div>
+                    </div>
+                  </div>
+                  <div class="nav-mega-card" onclick="openQuickView(4)">
+                    <div class="nav-card-badge" style="background:#e10600;">F1 RED BULL</div>
+                    <img src="image/f1_redbull.jpg" alt="Red Bull RB18 Max Verstappen" loading="lazy">
+                    <div class="nav-card-info">
+                      <strong>Red Bull RB18 #1 Verstappen</strong>
+                      <span>Vô Địch F1 Monaco Grand Prix</span>
+                      <div class="nav-card-price"><span>Sẵn kho</span> <strong>378.000đ</strong></div>
+                    </div>
+                  </div>
+                </div>
+                <div class="nav-mega-footer">
+                  <button type="button" class="btn-mega-action" onclick="scrollToSection(event, 'gt3-paddock')">
+                    <i class="fa-solid fa-flag-checkered"></i> Xem Trọn Bộ Paddock GT3 &amp; F1 ➔
+                  </button>
+                </div>
+              </div>
             </li>
-            <li>
+
+            <!-- Secret Chase with Dropdown -->
+            <li class="header-nav-item has-dropdown">
               <a href="#secret-chase" class="header-nav-link" onclick="scrollToSection(event, 'secret-chase')">
                 <i class="fa-solid fa-gem" style="color:#f59e0b; font-size:12px;"></i> <span data-i18n="nav_chase">Secret Chase</span>
+                <i class="fa-solid fa-chevron-down nav-caret"></i>
               </a>
+              <div class="nav-mega-dropdown" style="min-width: 480px;">
+                <div class="nav-mega-header">
+                  <span class="nav-mega-badge" style="background:rgba(245,158,11,0.12); color:#d97706;"><i class="fa-solid fa-gem"></i> RARITY 1/24</span>
+                  <h4>SĂN XE HIẾM SECRET CHASE</h4>
+                  <p>Tỉ lệ 1/24 unbox ra bản sơn phôi mạ Chrome đặc biệt (Raw Chase Edition)</p>
+                </div>
+                <div class="nav-mega-grid two-cols">
+                  <div class="nav-mega-card" onclick="openQuickView(37)">
+                    <div class="nav-card-badge" style="background:#b45309;">CHASE 1/24</div>
+                    <img src="/api/images/12" alt="Toyota Supra Top Secret Red Chrome" loading="lazy">
+                    <div class="nav-card-info">
+                      <strong>Toyota Supra GT-300 Top Secret</strong>
+                      <span>Red Chrome Limited Chase</span>
+                      <div class="nav-card-price"><span>Sưu tầm</span> <strong>650.000đ</strong></div>
+                    </div>
+                  </div>
+                  <div class="nav-mega-card" onclick="openQuickView(35)">
+                    <div class="nav-card-badge" style="background:#b45309;">SECRET STO</div>
+                    <img src="image/Poprace_Lambo_Secret.webp" alt="Lamborghini Huracán STO" loading="lazy">
+                    <div class="nav-card-info">
+                      <strong>Pop Race Huracán STO Secret</strong>
+                      <span>Thân Mở Capo Trước &amp; Sau</span>
+                      <div class="nav-card-price"><span>Cực hiếm</span> <strong>520.000đ</strong></div>
+                    </div>
+                  </div>
+                </div>
+                <div class="nav-mega-footer">
+                  <button type="button" class="btn-mega-action" onclick="scrollToSection(event, 'secret-chase')">
+                    <i class="fa-solid fa-gem"></i> Khám Phá Rarity Chase 1/24 ➔
+                  </button>
+                </div>
+              </div>
             </li>
-            <li>
-              <a href="#collector-hub" class="header-nav-link" onclick="scrollToSection(event, 'collector-hub')" data-i18n="nav_hub">Tiện ích 1:64</a>
+
+            <!-- Tiện ích 1:64 with Dropdown -->
+            <li class="header-nav-item has-dropdown">
+              <a href="#collector-hub" class="header-nav-link" onclick="scrollToSection(event, 'collector-hub')" data-i18n="nav_hub">
+                <span>Tiện ích 1:64</span>
+                <i class="fa-solid fa-chevron-down nav-caret"></i>
+              </a>
+              <div class="nav-mega-dropdown" style="min-width: 440px;">
+                <div class="nav-mega-header">
+                  <span class="nav-mega-badge"><i class="fa-solid fa-toolbox"></i> COLLECTOR TOOLS</span>
+                  <h4>CẨM NANG &amp; TIỆN ÍCH SƯU TẦM</h4>
+                  <p>Bảo quản xe, kiểm tra vận đơn và tương tác cùng trợ lý AI 24/7</p>
+                </div>
+                <div class="nav-mega-grid two-cols">
+                  <div class="nav-mega-card" onclick="scrollToSection(event, 'collector-hub')">
+                    <i class="fa-solid fa-shield-halved" style="font-size:24px; color:#2563eb; margin:8px 0;"></i>
+                    <div class="nav-card-info">
+                      <strong>Hộp Bảo Vệ Box &amp; Card</strong>
+                      <span>Hộp mica &amp; khay vỉ chống bụi 15k</span>
+                    </div>
+                  </div>
+                  <div class="nav-mega-card" onclick="openAiChat()">
+                    <i class="fa-solid fa-robot" style="font-size:24px; color:#e10600; margin:8px 0;"></i>
+                    <div class="nav-card-info">
+                      <strong>Trợ Lý AI Mini GT</strong>
+                      <span>Hỏi tồn kho, tiến độ đơn &amp; tư vấn</span>
+                    </div>
+                  </div>
+                  <div class="nav-mega-card" onclick="openCustomerTrackingModal()">
+                    <i class="fa-solid fa-truck-fast" style="font-size:24px; color:#059669; margin:8px 0;"></i>
+                    <div class="nav-card-info">
+                      <strong>Tra Cứu Vận Đơn SPX</strong>
+                      <span>Định vị hành trình giao hàng</span>
+                    </div>
+                  </div>
+                  <div class="nav-mega-card" onclick="openWishlistModal()">
+                    <i class="fa-solid fa-heart" style="font-size:24px; color:#dc2626; margin:8px 0;"></i>
+                    <div class="nav-card-info">
+                      <strong>Danh Sách Xe Mơ Ước</strong>
+                      <span>Lưu xe yêu thích &amp; nhận thông báo</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </li>
           </ul>
         </nav>
@@ -266,6 +488,21 @@
                   <span class="hs-price"><span>378.000đ</span> <span class="hs-cta" data-i18n="hs_in_stock">Sẵn kho ➔</span></span>
                 </span>
               </button>
+            </div>
+
+            <!-- Mobile Fleet Bar: Bù chiều cao Slide 1 trên điện thoại bằng với Slide 2, 3, 4 (520px) và hướng dẫn chạm Hotspot -->
+            <div class="hero-fleet-mobile-bar">
+              <span class="fleet-mobile-badge"><i class="fa-solid fa-flag-checkered"></i> MINI GT SHOWROOM 2026</span>
+              <h3 class="fleet-mobile-title">HẠM ĐỘI SIÊU XE DIECAST 1:64</h3>
+              <p class="fleet-mobile-desc">Chạm vào các biểu tượng <strong style="color:var(--color-primary);">(+)</strong> trên ảnh xe để xem chi tiết &amp; giá từng phiên bản!</p>
+              <div class="fleet-mobile-actions">
+                <button type="button" class="btn btn-sm btn-primary" onclick="scrollToSection(event, 'catalog')">
+                  <i class="fa-solid fa-bag-shopping"></i> Xem Catalogue
+                </button>
+                <button type="button" class="btn btn-sm btn-outline" onclick="scrollToSection(event, 'lbwk-zone')">
+                  <i class="fa-solid fa-bolt"></i> Siêu xe LBWK
+                </button>
+              </div>
             </div>
           </div>
 
@@ -651,14 +888,14 @@
 
         <div class="lbwk-bento-grid">
           <!-- Main LBWK Spotlight Card: Nissan S15 Silvia -->
-          <div class="lbwk-hero-feature" data-showcase-product-id="10">
+          <div class="lbwk-hero-feature" data-id="10" data-showcase-product-id="10" data-pack="box">
             <div class="lbwk-feature-top">
               <div class="lbwk-feature-badges">
                 <span class="lbwk-tag-red">#MGT00465 • FORMULA DRIFT</span>
                 <span class="lbwk-tag-dark"><i class="fa-solid fa-flag-checkered"></i> Nissan Official Licensed</span>
-                <span class="showcase-sold-pill zero-sales" data-sold-product-id="10">Đã bán 0</span>
+                <span class="showcase-sold-pill" data-sold-product-id="10"><i class="fa-solid fa-fire"></i> Đã bán 2</span>
               </div>
-              <h3 class="lbwk-feature-title">LB-Super Silhouette Nissan S15 Silvia Presentation</h3>
+              <h3 class="lbwk-feature-title" onclick="openQuickView(10)" style="cursor:pointer;">LB-Super Silhouette Nissan S15 Silvia Presentation</h3>
               <p class="lbwk-feature-desc" data-i18n="lbwk_s15_desc">
                 Cảm hứng thiết kế từ huyền thoại đua Group 5 thập niên 80 kết hợp kỹ thuật chế tác diecast của MINI GT: Nắp ca-pô xẻ rãnh thoát nhiệt, vòm bánh đúc liền thân và mâm 5 chấu thể thao.
               </p>
@@ -670,15 +907,27 @@
             </div>
 
             <div class="lbwk-feature-bottom">
+              <!-- Switcher Box / Card tương tác nhanh cho thẻ chính -->
+              <div class="card-pack-switch" role="group" aria-label="Chọn Box hoặc Card S15" style="margin-bottom:12px;">
+                <button type="button" class="card-pack-btn is-box active" onclick="selectCardPackaging(10, 'box', event)">
+                  <span class="pack-label"><i class="fa-solid fa-cube"></i> Box</span>
+                  <span class="pack-price">999.999đ</span>
+                </button>
+                <button type="button" class="card-pack-btn is-card" onclick="selectCardPackaging(10, 'card', event)">
+                  <span class="pack-label"><i class="fa-solid fa-shield-halved"></i> Card</span>
+                  <span class="pack-price">1.700.000đ</span>
+                </button>
+              </div>
+
               <div class="lbwk-spec-chips">
                 <span class="lbwk-spec-chip" data-i18n="lbwk_chip_scale"><i class="fa-solid fa-car-side"></i> Tỷ lệ 1:64 (~7.3 cm)</span>
-                <span class="lbwk-spec-chip"><i class="fa-solid fa-box"></i> Box: 320.000đ</span>
-                <span class="lbwk-spec-chip"><i class="fa-solid fa-shield-halved"></i> Card: 370.000đ</span>
+                <span class="lbwk-spec-chip"><i class="fa-solid fa-box"></i> Box: 999.999đ</span>
+                <span class="lbwk-spec-chip"><i class="fa-solid fa-shield-halved"></i> Card: 1.700.000đ</span>
               </div>
               <div class="lbwk-price-action-row">
                 <div class="lbwk-price-meta">
                   <span class="lbwk-price-caption" data-i18n="lbwk_price_from">Giá từ (Bản Box):</span>
-                  <span class="lbwk-price-val">320.000đ</span>
+                  <span class="lbwk-price-val">999.999đ</span>
                 </div>
                 <div class="lbwk-actions-group">
                   <button type="button" class="btn btn-outline" onclick="openQuickView(10)">
@@ -694,14 +943,24 @@
 
           <!-- Right Stack: 3 Other LBWK Icons -->
           <div class="lbwk-side-stack">
-            <div class="lbwk-mini-spotlight" data-showcase-product-id="5">
+            <div class="lbwk-mini-spotlight" data-id="5" data-showcase-product-id="5" data-pack="box">
               <img src="image/mgt01055.webp" data-product-img-id="5" alt="LB★WORKS Lamborghini Huracán GT Gravity" loading="lazy" decoding="async" onclick="openQuickView(5)" style="cursor:pointer;" onerror="this.src='image/Minigt_Lambo_LBWK.jpg'">
               <div class="lbwk-mini-info">
-                <div class="lbwk-mini-sku">#MGT01055 • BOX 350K / CARD 410K <span class="showcase-sold-pill mini" data-sold-product-id="5">Đã bán 0</span></div>
-                <h4 class="lbwk-mini-title" onclick="openQuickView(5)" style="cursor:pointer;">LB★WORKS Lamborghini Huracán GT Gravity #5</h4>
+                <div class="lbwk-mini-sku">#MGT01055 • BOX 333K / CARD 390K <span class="showcase-sold-pill mini" data-sold-product-id="5"><i class="fa-solid fa-fire"></i> Đã bán 4</span></div>
+                <h4 class="lbwk-mini-title" onclick="openQuickView(5)" style="cursor:pointer;">LB★WORKS Lamborghini Huracán GT Gravity Racing</h4>
                 <div class="lbwk-mini-sub" data-i18n="lbwk_mini1_sub">Bodykit vòm bánh rộng tán đinh + Cánh gió GT Swan-Neck</div>
+                <div class="card-pack-switch mini-switch" role="group" aria-label="Chọn Box hoặc Card Huracán" style="margin-top:6px; margin-bottom:8px;">
+                  <button type="button" class="card-pack-btn is-box active" onclick="selectCardPackaging(5, 'box', event)">
+                    <span class="pack-label"><i class="fa-solid fa-cube"></i> Box</span>
+                    <span class="pack-price">333k</span>
+                  </button>
+                  <button type="button" class="card-pack-btn is-card" onclick="selectCardPackaging(5, 'card', event)">
+                    <span class="pack-label"><i class="fa-solid fa-shield-halved"></i> Card</span>
+                    <span class="pack-price">390k</span>
+                  </button>
+                </div>
                 <div class="lbwk-mini-bottom">
-                  <strong class="lbwk-mini-price">350.000đ</strong>
+                  <strong class="lbwk-mini-price">333.000đ</strong>
                   <div style="display:flex; gap:6px;">
                     <button type="button" class="btn btn-sm btn-outline" onclick="openQuickView(5)" title="Xem chi tiết"><i class="fa-solid fa-eye"></i></button>
                     <button type="button" class="btn btn-sm btn-primary" onclick="handleCardAction(5, event)"><i class="fa-solid fa-cart-plus"></i> <span data-i18n="btn_buy_now">Mua ngay</span></button>
@@ -710,12 +969,18 @@
               </div>
             </div>
 
-            <div class="lbwk-mini-spotlight" data-showcase-product-id="17">
+            <div class="lbwk-mini-spotlight" data-id="17" data-showcase-product-id="17" data-pack="card">
               <img src="image/minig_lambo_lbwk.webp" data-product-img-id="17" alt="LB★WORKS Huracán Blister Card" loading="lazy" decoding="async" onclick="openQuickView(17)" style="cursor:pointer;" onerror="this.src='image/Minigt_Lambo_LBWK.jpg'">
               <div class="lbwk-mini-info">
-                <div class="lbwk-mini-sku"><span data-i18n="lbwk_mini2_sku">#MGT01055-LW • BẢN VỈ BLISTER CARD</span> <span class="showcase-sold-pill mini" data-sold-product-id="17">Đã bán 0</span></div>
-                <h4 class="lbwk-mini-title" data-i18n="lbwk_mini2_title" onclick="openQuickView(17)" style="cursor:pointer;">LB★WORKS Huracán GT (Bản Vỉ Treo Tường)</h4>
+                <div class="lbwk-mini-sku"><span data-i18n="lbwk_mini2_sku">#MGT01055-LW • BẢN VỈ BLISTER CARD</span> <span class="showcase-sold-pill mini" data-sold-product-id="17">Đã bán 1</span></div>
+                <h4 class="lbwk-mini-title" data-i18n="lbwk_mini2_title" onclick="openQuickView(17)" style="cursor:pointer;">LB★WORKS Lamborghini Huracán GT (Bản Vỉ Blister Card)</h4>
                 <div class="lbwk-mini-sub" data-i18n="lbwk_mini2_sub">Đóng gói vỉ nhựa bảo vệ cứng kèm Card Art sưu tầm nguyên seal</div>
+                <div class="card-pack-switch mini-switch" role="group" aria-label="Quy cách vỉ sưu tầm" style="margin-top:6px; margin-bottom:8px;">
+                  <button type="button" class="card-pack-btn is-card active" style="width:100%;" disabled>
+                    <span class="pack-label"><i class="fa-solid fa-shield-halved"></i> Card Blister Nguyên Seal</span>
+                    <span class="pack-price">410k</span>
+                  </button>
+                </div>
                 <div class="lbwk-mini-bottom">
                   <strong class="lbwk-mini-price">410.000đ</strong>
                   <div style="display:flex; gap:6px;">
@@ -726,12 +991,22 @@
               </div>
             </div>
 
-            <div class="lbwk-mini-spotlight" data-showcase-product-id="52">
+            <div class="lbwk-mini-spotlight" data-id="52" data-showcase-product-id="52" data-pack="box">
               <img src="image/Minigt_S15_LBWK.jpg" data-product-img-id="52" alt="Nissan LB-Super Silhouette S15 #555 Liberty Walk" loading="lazy" decoding="async" onclick="openQuickView(52)" style="cursor:pointer;" onerror="this.onerror=null; this.src='image/Minigt_S15_LBWK.jpg';">
               <div class="lbwk-mini-info">
-                <div class="lbwk-mini-sku">#MGT1185 • BOX 204K / CARD 272K <span class="showcase-sold-pill mini" data-sold-product-id="52">Đã bán 0</span></div>
-                <h4 class="lbwk-mini-title" onclick="openQuickView(52)" style="cursor:pointer;">Nissan LB-Super Silhouette S15 #555 LBWK Halloween</h4>
-                <div class="lbwk-mini-sub" data-i18n="lbwk_mini3_sub">Phiên bản đặc biệt Formula Drift Halloween Team MINI GT Liberty Walk</div>
+                <div class="lbwk-mini-sku">#MGT1185 • BOX 204K / CARD 272K <span class="showcase-sold-pill mini" data-sold-product-id="52"><i class="fa-solid fa-fire"></i> Đã bán 3</span></div>
+                <h4 class="lbwk-mini-title" onclick="openQuickView(52)" style="cursor:pointer;">Nissan LB-Super Silhouette S15 SILVIA #555 Team MINI GT Liberty Walk 2025 Formula Drift Halloween Special</h4>
+                <div class="lbwk-mini-sub" data-i18n="lbwk_mini3_sub">Phiên bản kỷ niệm màn trình diễn drift tại lễ hội tốc độ Anh Quốc</div>
+                <div class="card-pack-switch mini-switch" role="group" aria-label="Chọn Box hoặc Card S15 #555" style="margin-top:6px; margin-bottom:8px;">
+                  <button type="button" class="card-pack-btn is-box active" onclick="selectCardPackaging(52, 'box', event)">
+                    <span class="pack-label"><i class="fa-solid fa-cube"></i> Box (-15%)</span>
+                    <span class="pack-price">204k</span>
+                  </button>
+                  <button type="button" class="card-pack-btn is-card" onclick="selectCardPackaging(52, 'card', event)">
+                    <span class="pack-label"><i class="fa-solid fa-shield-halved"></i> Card (-15%)</span>
+                    <span class="pack-price">272k</span>
+                  </button>
+                </div>
                 <div class="lbwk-mini-bottom">
                   <strong class="lbwk-mini-price">204.000đ</strong>
                   <div style="display:flex; gap:6px;">
@@ -782,39 +1057,57 @@
         </div>
       </div>
 
-      <!-- 3 Cards: Rexy, Roxy, Skeleton sạch sẽ, thông thoáng -->
+      <!-- Paddock Interactive Filter Tabs: Rexy, Roxy, Skeleton, All -->
+      <div class="container" style="margin-top: 18px; margin-bottom: 24px; position: relative; z-index: 5;">
+        <div class="gt3-paddock-tabs" role="tablist" aria-label="Lọc các mẫu xe đua Khủng Long IMSA">
+          <button type="button" class="gt3-tab-pill active" data-dino-tab="all" onclick="filterDinoCards('all', event)">
+            <i class="fa-solid fa-flag-checkered"></i> <span>Tất cả Khủng Long (3)</span>
+          </button>
+          <button type="button" class="gt3-tab-pill rexy" data-dino-tab="rexy" onclick="filterDinoCards('rexy', event)">
+            <i class="fa-solid fa-dragon"></i> <span>🦖 Rexy #80 • Sebring Winner</span>
+          </button>
+          <button type="button" class="gt3-tab-pill roxy" data-dino-tab="roxy" onclick="filterDinoCards('roxy', event)">
+            <i class="fa-solid fa-heart"></i> <span>💗 Roxy #77 • Road America</span>
+          </button>
+          <button type="button" class="gt3-tab-pill skeleton" data-dino-tab="skeleton" onclick="filterDinoCards('skeleton', event)">
+            <i class="fa-solid fa-skull"></i> <span>💀 Skeleton #77 • Petit Le Mans</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- 3 Cards: Rexy, Roxy, Skeleton sạch sẽ, sang trọng, đầy đủ chi tiết -->
       <div class="container">
         <div class="gt3-trio-banner" id="gt3-trio-grid">
           <!-- Card 1: Rexy #80 -->
           <div class="gt3-dino-card rexy-theme" id="rexy-card" data-id="8" data-pack="box">
             <div class="gt3-card-top-row">
-              <span class="gt3-sku-tag rexy-tag">#MGT00782 • REXY #80</span>
+              <span class="gt3-sku-tag rexy-tag">#MGT00713 • REXY #80</span>
               <div style="display:flex; align-items:center; gap:5px; flex-wrap:wrap;">
-                <span class="showcase-sold-pill mini" data-sold-product-id="8">Đã bán 0</span>
+                <span class="showcase-sold-pill mini" data-sold-product-id="8"><i class="fa-solid fa-fire"></i> Đã bán 6</span>
                 <span class="gt3-status-pill rexy-status" data-i18n="rexy_status">Sẵn kho Biên Hòa</span>
               </div>
             </div>
-            <div class="gt3-dino-img-wrap" onclick="openQuickView(8)" style="cursor:pointer;">
+            <div class="gt3-dino-img-wrap" onclick="openQuickView(8)" style="cursor:pointer;" title="Xem chi tiết Porsche GT3 R Rexy #80">
               <img src="image/rexy.jpg" data-product-img-id="8" alt="Porsche 911 GT3 R #80 AO Racing Rexy" loading="lazy" decoding="async" onerror="this.onerror=null; this.src='image/rexy.jpg';">
             </div>
             <h3 onclick="openQuickView(8)" style="cursor:pointer;">Porsche 911 GT3 R #80 AO Racing "Rexy"</h3>
             <p data-i18n="rexy_desc">
-              Phiên bản khủng long xanh T-Rex tại giải đua Sebring &amp; Daytona. Tùy chọn Hộp Giấy (Box) hoặc Vỉ Nhựa (Card Blister).
+              Phiên bản khủng long xanh T-Rex vô địch Sebring 12h &amp; Daytona. Tùy chọn Hộp Giấy (Box) hoặc Vỉ Nhựa (Card Blister).
             </p>
-            <div class="card-pack-switch" role="group" aria-label="Chọn Box hoặc Card" style="margin-bottom:12px;">
+            <div class="card-pack-switch" role="group" aria-label="Chọn Box hoặc Card Rexy" style="margin-bottom:12px;">
               <button type="button" class="card-pack-btn is-box active" onclick="selectCardPackaging(8, 'box', event)">
                 <span class="pack-label"><i class="fa-solid fa-cube"></i> Box</span>
-                <span class="pack-price">380k</span>
+                <span class="pack-price">2.000.000đ</span>
               </button>
               <button type="button" class="card-pack-btn is-card" onclick="selectCardPackaging(8, 'card', event)">
                 <span class="pack-label"><i class="fa-solid fa-shield-halved"></i> Card</span>
-                <span class="pack-price">450k</span>
+                <span class="pack-price">2.300.000đ</span>
               </button>
             </div>
             <div class="gt3-card-bottom-row">
               <div class="gt3-price-group">
-                <strong>380.000đ</strong>
-                <span data-i18n="pack_box_save_label">Bản Hộp Giấy (Box Tiết Kiệm)</span>
+                <strong>2.000.000đ</strong>
+                <span data-i18n="pack_box_save_label">Bản Hộp Giấy (Box Tiết Kiệm 300.000đ)</span>
               </div>
               <div class="gt3-actions-group">
                 <button type="button" class="btn btn-sm btn-outline" onclick="openQuickView(8)" title="Xem chi tiết"><i class="fa-solid fa-eye"></i></button>
@@ -826,27 +1119,27 @@
           <!-- Card 2: Roxy #77 -->
           <div class="gt3-dino-card roxy-theme" id="roxy-card" data-id="7" data-pack="box">
             <div class="gt3-card-top-row">
-              <span class="gt3-sku-tag roxy-tag">#MGT01093 • ROXY #77</span>
+              <span class="gt3-sku-tag roxy-tag">#MGT01052 • ROXY #77</span>
               <div style="display:flex; align-items:center; gap:5px; flex-wrap:wrap;">
-                <span class="showcase-sold-pill mini" data-sold-product-id="7">Đã bán 0</span>
+                <span class="showcase-sold-pill mini" data-sold-product-id="7"><i class="fa-solid fa-fire"></i> Đã bán 3</span>
                 <span class="gt3-status-pill sale" data-i18n="roxy_status">Đang giảm -5%</span>
               </div>
             </div>
-            <div class="gt3-dino-img-wrap" onclick="openQuickView(7)" style="cursor:pointer;">
+            <div class="gt3-dino-img-wrap" onclick="openQuickView(7)" style="cursor:pointer;" title="Xem chi tiết Porsche GT3 R Roxy #77">
               <img src="image/Roxy.webp" data-product-img-id="7" alt="Porsche 911 GT3 R #77 AO Racing Roxy" loading="lazy" decoding="async" onerror="this.src='image/roxy_rexy_minigt.webp'">
             </div>
             <h3 onclick="openQuickView(7)" style="cursor:pointer;">Porsche 911 GT3 R #77 AO Racing "Roxy"</h3>
             <p data-i18n="roxy_desc">
               Phiên bản khủng long hồng Roxy tại chặng Virginia &amp; Road America. Sơn hồng Magenta kết hợp gai lưng xanh chuẩn xác.
             </p>
-            <div class="card-pack-switch" role="group" aria-label="Chọn Box hoặc Card" style="margin-bottom:12px;">
+            <div class="card-pack-switch" role="group" aria-label="Chọn Box hoặc Card Roxy" style="margin-bottom:12px;">
               <button type="button" class="card-pack-btn is-box active" onclick="selectCardPackaging(7, 'box', event)">
-                <span class="pack-label"><i class="fa-solid fa-cube"></i> Box</span>
-                <span class="pack-price">342k</span>
+                <span class="pack-label"><i class="fa-solid fa-cube"></i> Box (-5%)</span>
+                <span class="pack-price">342.000đ</span>
               </button>
               <button type="button" class="card-pack-btn is-card" onclick="selectCardPackaging(7, 'card', event)">
-                <span class="pack-label"><i class="fa-solid fa-shield-halved"></i> Card</span>
-                <span class="pack-price">399k</span>
+                <span class="pack-label"><i class="fa-solid fa-shield-halved"></i> Card (-5%)</span>
+                <span class="pack-price">399.000đ</span>
               </button>
             </div>
             <div class="gt3-card-bottom-row">
@@ -866,31 +1159,31 @@
             <div class="gt3-card-top-row">
               <span class="gt3-sku-tag skeleton-tag">#MGT01143 • SKELETON #77</span>
               <div style="display:flex; align-items:center; gap:5px; flex-wrap:wrap;">
-                <span class="showcase-sold-pill mini" data-sold-product-id="6">Đã bán 0</span>
-                <span class="gt3-status-pill preorder" data-i18n="ske_status">Pre-Order (Cọc 150k)</span>
+                <span class="showcase-sold-pill mini" data-sold-product-id="6"><i class="fa-solid fa-fire"></i> Đã bán 1</span>
+                <span class="gt3-status-pill preorder" data-i18n="ske_status">Pre-Order (Cọc 117k)</span>
               </div>
             </div>
-            <div class="gt3-dino-img-wrap" onclick="openQuickView(6)" style="cursor:pointer;">
+            <div class="gt3-dino-img-wrap" onclick="openQuickView(6)" style="cursor:pointer;" title="Xem chi tiết Porsche GT3 R Skeleton #77">
               <img src="image/ske.webp" data-product-img-id="6" alt="Porsche 911 GT3 R #77 AO Racing Skeleton" loading="lazy" decoding="async" onerror="this.src='image/roxy_rexy_minigt.webp'">
             </div>
             <h3 onclick="openQuickView(6)" style="cursor:pointer;">Porsche 911 GT3 R #77 AO Racing "Skeleton"</h3>
             <p data-i18n="ske_desc">
               Bản giới hạn Halloween Petit Le Mans với đồ họa bộ xương khủng long Rexy trên nền đen mờ. Tùy chọn Box hoặc Card.
             </p>
-            <div class="card-pack-switch" role="group" aria-label="Chọn Box hoặc Card" style="margin-bottom:12px;">
+            <div class="card-pack-switch" role="group" aria-label="Chọn Box hoặc Card Skeleton" style="margin-bottom:12px;">
               <button type="button" class="card-pack-btn is-box active" onclick="selectCardPackaging(6, 'box', event)">
                 <span class="pack-label"><i class="fa-solid fa-cube"></i> Box</span>
-                <span class="pack-price">390k</span>
+                <span class="pack-price">390.000đ</span>
               </button>
               <button type="button" class="card-pack-btn is-card" onclick="selectCardPackaging(6, 'card', event)">
                 <span class="pack-label"><i class="fa-solid fa-shield-halved"></i> Card</span>
-                <span class="pack-price">470k</span>
+                <span class="pack-price">470.000đ</span>
               </button>
             </div>
             <div class="gt3-card-bottom-row">
               <div class="gt3-price-group">
                 <strong>390.000đ</strong>
-                <span data-i18n="pack_box_save_label">Bản Hộp Giấy (Box Tiết Kiệm)</span>
+                <span data-i18n="pack_box_save_label">Bản Hộp Giấy (Box Tiết Kiệm 80.000đ)</span>
               </div>
               <div class="gt3-actions-group">
                 <button type="button" class="btn btn-sm btn-outline" onclick="openQuickView(6)" title="Xem chi tiết"><i class="fa-solid fa-eye"></i></button>
@@ -2386,7 +2679,7 @@
   <div class="toast-container" id="toastContainer" aria-live="polite"></div>
 
   <!-- Unified API Client & Application Script -->
-  <script src="js/api.js?v=20261107_08"></script>
-  <script src="js/app.js?v=20261107_08"></script>
+  <script src="js/api.js?v=20261107_09"></script>
+  <script src="js/app.js?v=20261107_09"></script>
 </body>
 </html>
