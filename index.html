@@ -34,8 +34,8 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 
   <!-- Modular CSS Bundle -->
-  <link rel="stylesheet" href="css/style.css?v=20261106_03">
-  <link rel="stylesheet" href="css/chat.css?v=20261106_03">
+  <link rel="stylesheet" href="css/style.css?v=20261107_01">
+  <link rel="stylesheet" href="css/chat.css?v=20261107_01">
 </head>
 <body>
 
@@ -49,7 +49,7 @@
     <div class="container announcement-container">
       <div class="announcement-ticker">
         <span class="badge-fire"><i class="fa-solid fa-circle" style="color:#ef4444; font-size:9px;"></i></span>
-        <span data-i18n="topbar_ticker">Đợt mở đặt trước toàn cầu: <strong>Liberty Walk LBWK, GT3 IMSA, F1 Las Vegas &amp; Secret Chase</strong> | <i class="fa-regular fa-clock" style="font-size:11px; margin-left:4px;"></i> Hạn chót đợt cọc: <strong>30/10/2026</strong></span>
+        <span data-i18n="topbar_ticker">CHÀO MỪNG ĐẾN VỚI SĂN XE BIÊN HÒA — ĐẠI LÝ CHÍNH HÃNG MINI GT 1:64 | <i class="fa-regular fa-clock" style="font-size:11px; margin-left:4px;"></i> Đợt mở đặt cọc: <strong>Tháng 11 - 12/2026</strong></span>
       </div>
       <div class="announcement-links">
         <!-- <a href="admin/index.html" style="color:#f59e0b; font-weight:700;"><i class="fa-solid fa-crown"></i> <span data-i18n="nav_admin">Quản trị Store</span></a> -->
@@ -120,13 +120,13 @@
           <!-- Wishlist Button with Badge -->
           <button type="button" class="action-btn" id="headerWishlistBtn" title="Danh sách xe yêu thích" aria-label="Danh sách yêu thích" onclick="openWishlistModal()">
             <i class="fa-regular fa-heart"></i>
-            <span class="action-badge" id="wishlistBadgeCount">4</span>
+            <span class="action-badge" id="wishlistBadgeCount">0</span>
           </button>
 
           <!-- Cart Button with Badge -->
           <button type="button" class="action-btn" id="headerCartBtn" title="Giỏ hàng mô hình" aria-label="Giỏ hàng" onclick="openCartDrawer()">
             <i class="fa-solid fa-bag-shopping"></i>
-            <span class="action-badge" id="cartBadgeCount">3</span>
+            <span class="action-badge" id="cartBadgeCount">0</span>
           </button>
 
           <!-- Combined Settings Dropdown (Theme Segmented & Language Segmented VN/EN inside Gear Icon) -->
@@ -197,13 +197,13 @@
           <div class="hero-image-stage">
             <img src="image/hero-banner.jpg" alt="Bộ sưu tập MINI GT Pre-Order 2026" class="hero-img-main" fetchpriority="high" decoding="async">
 
-              <!-- Hotspot 1: Scania Transporter Truck Set -->
-              <button class="hero-hotspot hotspot-truck" type="button" aria-label="Xem Lamborghini Sterrato & Transporter Box Set" onclick="openQuickView(1)">
+              <!-- Hotspot 1: Lamborghini Aventador SVJ Roadster -->
+              <button class="hero-hotspot hotspot-truck" type="button" aria-label="Xem Lamborghini Aventador SVJ Roadster" onclick="openQuickView(49)">
                 <span class="hero-hotspot-plus">+</span>
                 <span class="hotspot-tooltip">
-                  <span class="hs-tag">#MGTS0026 • BOX SET</span>
-                  <span class="hs-title">Huracán Sterrato All-Terrain Set (4 Xe)</span>
-                  <span class="hs-price"><span>1.850.000đ</span> <span class="hs-cta" data-i18n="hs_view_now">Xem ngay ➔</span></span>
+                  <span class="hs-tag">#MGT363 • LAMBORGHINI</span>
+                  <span class="hs-title">Lamborghini Aventador SVJ Roadster</span>
+                  <span class="hs-price"><span>315.000đ</span> <span class="hs-cta" data-i18n="hs_in_stock">Sẵn kho ➔</span></span>
                 </span>
               </button>
 
@@ -213,7 +213,7 @@
                 <span class="hotspot-tooltip">
                   <span class="hs-tag">#MGT00465 • LB★WORKS</span>
                   <span class="hs-title">LB-Super Silhouette Nissan S15 Silvia</span>
-                  <span class="hs-price"><span>320.000đ</span> <span class="hs-cta" data-i18n="hs_view_now">Xem ngay ➔</span></span>
+                  <span class="hs-price"><span>320.000đ</span> <span class="hs-cta" data-i18n="hs_in_stock">Sẵn kho ➔</span></span>
                 </span>
               </button>
 
@@ -222,38 +222,38 @@
                 <span class="hero-hotspot-plus">+</span>
                 <span class="hotspot-tooltip">
                   <span class="hs-tag">#MGT01055 • WIDEBODY</span>
-                  <span class="hs-title">LB★WORKS Lamborghini Huracán GT #5</span>
+                  <span class="hs-title">LB★WORKS Lamborghini Huracán GT</span>
+                  <span class="hs-price"><span>333.000đ</span> <span class="hs-cta" data-i18n="hs_in_stock">Sẵn kho ➔</span></span>
+                </span>
+              </button>
+
+              <!-- Hotspot 4: Light Blue Supercar (Porsche 911 GT3 RS) -->
+              <button class="hero-hotspot hotspot-bluelambo" type="button" aria-label="Xem Porsche 911 GT3 RS" onclick="openQuickView(50)">
+                <span class="hero-hotspot-plus">+</span>
+                <span class="hotspot-tooltip">
+                  <span class="hs-tag">#MGT1060 • GT3 RS</span>
+                  <span class="hs-title">Porsche 911 GT3 RS</span>
                   <span class="hs-price"><span>350.000đ</span> <span class="hs-cta" data-i18n="hs_in_stock">Sẵn kho ➔</span></span>
                 </span>
               </button>
 
-              <!-- Hotspot 4: Light Blue Supercar (Huracán GT3 EVO2) -->
-              <button class="hero-hotspot hotspot-bluelambo" type="button" aria-label="Xem Lamborghini Huracán GT3 EVO2" onclick="openQuickView(9)">
+              <!-- Hotspot 5: Aston Martin AMR24 #18 Lance Stroll -->
+              <button class="hero-hotspot hotspot-f1stroll" type="button" aria-label="Xem Aston Martin AMR24 #18 Lance Stroll" onclick="openQuickView(2)">
                 <span class="hero-hotspot-plus">+</span>
                 <span class="hotspot-tooltip">
-                  <span class="hs-tag">#MGT01129 • IMSA GT3</span>
-                  <span class="hs-title">Lamborghini Huracán GT3 EVO2 Daytona</span>
-                  <span class="hs-price"><span>330.000đ</span> <span class="hs-cta" data-i18n="hs_view_now">Xem ngay ➔</span></span>
+                  <span class="hs-tag">#MGT01413 • F1 LAS VEGAS</span>
+                  <span class="hs-title">Aston Martin AMR24 #18 Lance Stroll</span>
+                  <span class="hs-price"><span>342.000đ</span> <span class="hs-cta" data-i18n="hs_in_stock">Sẵn kho ➔</span></span>
                 </span>
               </button>
 
-              <!-- Hotspot 5: Oracle Red Bull Racing RB19 #1 Max Verstappen -->
-              <button class="hero-hotspot hotspot-f1stroll" type="button" aria-label="Xem Oracle Red Bull Racing RB19" onclick="openQuickView(4)">
+              <!-- Hotspot 6: Aston Martin AMR24 #14 Fernando Alonso -->
+              <button class="hero-hotspot hotspot-f1alonso" type="button" aria-label="Xem Aston Martin AMR24 #14 Fernando Alonso" onclick="openQuickView(3)">
                 <span class="hero-hotspot-plus">+</span>
                 <span class="hotspot-tooltip">
-                  <span class="hs-tag">#MGT00550 • WORLD CHAMPION</span>
-                  <span class="hs-title">Oracle Red Bull RB19 #1 Max Verstappen</span>
-                  <span class="hs-price"><span>378.000đ</span> <span class="hs-cta" data-i18n="hs_view_now">Xem ngay ➔</span></span>
-                </span>
-              </button>
-
-              <!-- Hotspot 6: Porsche 911 GT3 R AO Racing Rexy -->
-              <button class="hero-hotspot hotspot-f1alonso" type="button" aria-label="Xem Porsche 911 GT3 R Rexy" onclick="openQuickView(8)">
-                <span class="hero-hotspot-plus">+</span>
-                <span class="hotspot-tooltip">
-                  <span class="hs-tag">#MGT00782 • IMSA GT3</span>
-                  <span class="hs-title">Porsche 911 GT3 R Rexy #80 AO Racing</span>
-                  <span class="hs-price"><span>380.000đ</span> <span class="hs-cta" data-i18n="hs_view_now">Xem ngay ➔</span></span>
+                  <span class="hs-tag">#MGT01396 • F1 LAS VEGAS</span>
+                  <span class="hs-title">Aston Martin AMR24 #14 Fernando Alonso</span>
+                  <span class="hs-price"><span>420.000đ</span> <span class="hs-cta" data-i18n="hs_in_stock">Sẵn kho ➔</span></span>
                 </span>
               </button>
 
@@ -263,7 +263,7 @@
                 <span class="hotspot-tooltip">
                   <span class="hs-tag">#MGT00550 • MONACO GP</span>
                   <span class="hs-title">Oracle Red Bull RB18 #1 Max Verstappen</span>
-                  <span class="hs-price"><span>378.000đ</span> <span class="hs-cta" data-i18n="hs_view_now">Xem ngay ➔</span></span>
+                  <span class="hs-price"><span>378.000đ</span> <span class="hs-cta" data-i18n="hs_in_stock">Sẵn kho ➔</span></span>
                 </span>
               </button>
             </div>
@@ -554,31 +554,31 @@
         <!-- Category Filter Pills (Including Bán Chạy & Còn Hàng) -->
         <div class="filter-tags-wrapper">
           <button class="filter-pill active" data-filter="all">
-            <i class="fa-solid fa-border-all"></i> <span data-i18n="filter_all">Tất cả mô hình</span> <span class="pill-count" id="count-all">(18)</span>
+            <i class="fa-solid fa-border-all"></i> <span data-i18n="filter_all">Tất cả mô hình</span> <span class="pill-count" id="count-all">(0)</span>
           </button>
           <button class="filter-pill" data-filter="bestseller">
-            <i class="fa-solid fa-fire" style="color:#e10600;"></i> <span data-i18n="filter_bestseller">Bán chạy nhất</span> <span class="pill-count" id="count-bestseller">(6)</span>
+            <i class="fa-solid fa-fire" style="color:#e10600;"></i> <span data-i18n="filter_bestseller">Bán chạy nhất</span> <span class="pill-count" id="count-bestseller">(0)</span>
           </button>
           <button class="filter-pill" data-filter="in_stock">
-            <i class="fa-solid fa-circle-check" style="color:#10b981;"></i> <span data-i18n="filter_instock">Còn hàng</span> <span class="pill-count" id="count-in_stock">(12)</span>
+            <i class="fa-solid fa-circle-check" style="color:#10b981;"></i> <span data-i18n="filter_instock">Còn hàng</span> <span class="pill-count" id="count-in_stock">(0)</span>
           </button>
           <button class="filter-pill" data-filter="pre_order">
-            <i class="fa-solid fa-clock"></i> <span data-i18n="filter_preorder">Pre-Order Đợt Mới</span> <span class="pill-count" id="count-pre_order">(4)</span>
+            <i class="fa-solid fa-clock"></i> <span data-i18n="filter_preorder">Pre-Order Đợt Mới</span> <span class="pill-count" id="count-pre_order">(0)</span>
           </button>
           <button class="filter-pill" data-filter="lbwk">
-            <i class="fa-solid fa-bolt"></i> <span data-i18n="filter_lbwk">Liberty Walk LBWK</span> <span class="pill-count" id="count-lbwk">(4)</span>
+            <i class="fa-solid fa-bolt"></i> <span data-i18n="filter_lbwk">Liberty Walk LBWK</span> <span class="pill-count" id="count-lbwk">(0)</span>
           </button>
           <button class="filter-pill" data-filter="chase">
-            <i class="fa-solid fa-gem" style="color:#f59e0b;"></i> <span data-i18n="filter_chase">Secret Chase Car</span> <span class="pill-count" id="count-chase">(3)</span>
+            <i class="fa-solid fa-gem" style="color:#f59e0b;"></i> <span data-i18n="filter_chase">Secret Chase Car</span> <span class="pill-count" id="count-chase">(0)</span>
           </button>
           <button class="filter-pill" data-filter="f1">
-            <i class="fa-solid fa-flag-checkered"></i> <span data-i18n="filter_f1">Formula 1 Series</span> <span class="pill-count" id="count-f1">(4)</span>
+            <i class="fa-solid fa-flag-checkered"></i> <span data-i18n="filter_f1">Formula 1 Series</span> <span class="pill-count" id="count-f1">(0)</span>
           </button>
           <button class="filter-pill" data-filter="box_sets">
-            <i class="fa-solid fa-boxes-stacked"></i> <span data-i18n="filter_boxsets">Box Sets &amp; Combo</span> <span class="pill-count" id="count-box_sets">(3)</span>
+            <i class="fa-solid fa-boxes-stacked"></i> <span data-i18n="filter_boxsets">Box Sets &amp; Combo</span> <span class="pill-count" id="count-box_sets">(0)</span>
           </button>
           <button class="filter-pill" data-filter="ao_racing">
-            <i class="fa-solid fa-shield-cat"></i> <span data-i18n="filter_aoracing">AO Racing GT3</span> <span class="pill-count" id="count-ao_racing">(3)</span>
+            <i class="fa-solid fa-shield-cat"></i> <span data-i18n="filter_aoracing">AO Racing GT3</span> <span class="pill-count" id="count-ao_racing">(0)</span>
           </button>
         </div>
 
@@ -656,7 +656,7 @@
               <div class="lbwk-feature-badges">
                 <span class="lbwk-tag-red">#MGT00465 • FORMULA DRIFT</span>
                 <span class="lbwk-tag-dark"><i class="fa-solid fa-flag-checkered"></i> Nissan Official Licensed</span>
-                <span class="showcase-sold-pill" data-sold-product-id="10"><i class="fa-solid fa-fire-flame-curved"></i> Đã bán 0</span>
+                <span class="showcase-sold-pill zero-sales" data-sold-product-id="10">Đã bán 0</span>
               </div>
               <h3 class="lbwk-feature-title">LB-Super Silhouette Nissan S15 Silvia Presentation</h3>
               <p class="lbwk-feature-desc" data-i18n="lbwk_s15_desc">
@@ -726,15 +726,18 @@
               </div>
             </div>
 
-            <div class="lbwk-mini-spotlight" data-showcase-product-id="11">
-              <img src="image/Minigt_S15_LBWK.jpg" data-product-img-id="11" alt="LB-Super Silhouette S15 Goodwood FoS" loading="lazy" decoding="async" onclick="openQuickView(11)" style="cursor:pointer;" onerror="this.onerror=null; this.src='image/Minigt_S15_LBWK.jpg';">
+            <div class="lbwk-mini-spotlight" data-showcase-product-id="52">
+              <img src="image/Minigt_S15_LBWK.jpg" data-product-img-id="52" alt="Nissan LB-Super Silhouette S15 #555 Liberty Walk" loading="lazy" decoding="async" onclick="openQuickView(52)" style="cursor:pointer;" onerror="this.onerror=null; this.src='image/Minigt_S15_LBWK.jpg';">
               <div class="lbwk-mini-info">
-                <div class="lbwk-mini-sku">#MGT00618 • GOODWOOD FOS #23 <span class="showcase-sold-pill mini" data-sold-product-id="11">Đã bán 0</span></div>
-                <h4 class="lbwk-mini-title" onclick="openQuickView(11)" style="cursor:pointer;">LB-Super Silhouette S15 #23 Goodwood</h4>
-                <div class="lbwk-mini-sub" data-i18n="lbwk_mini3_sub">Phiên bản kỷ niệm màn trình diễn drift tại lễ hội tốc độ Anh Quốc</div>
+                <div class="lbwk-mini-sku">#MGT1185 • BOX 204K / CARD 272K <span class="showcase-sold-pill mini" data-sold-product-id="52">Đã bán 0</span></div>
+                <h4 class="lbwk-mini-title" onclick="openQuickView(52)" style="cursor:pointer;">Nissan LB-Super Silhouette S15 #555 LBWK Halloween</h4>
+                <div class="lbwk-mini-sub" data-i18n="lbwk_mini3_sub">Phiên bản đặc biệt Formula Drift Halloween Team MINI GT Liberty Walk</div>
                 <div class="lbwk-mini-bottom">
-                  <strong class="lbwk-mini-price">340.000đ</strong>
-                  <button type="button" class="btn btn-sm btn-outline" onclick="openQuickView(11)"><i class="fa-solid fa-eye"></i> <span data-i18n="btn_view_car">Xem xe</span></button>
+                  <strong class="lbwk-mini-price">204.000đ</strong>
+                  <div style="display:flex; gap:6px;">
+                    <button type="button" class="btn btn-sm btn-outline" onclick="openQuickView(52)" title="Xem chi tiết"><i class="fa-solid fa-eye"></i></button>
+                    <button type="button" class="btn btn-sm btn-primary" onclick="handleCardAction(52, event)"><i class="fa-solid fa-cart-plus"></i> <span data-i18n="btn_buy_now">Mua ngay</span></button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -1043,44 +1046,44 @@
             </button>
           </div>
 
-          <!-- Utility 3: Pre-Order Container Wave Tracker -->
+          <!-- Utility 3: Pre-Order & Live Warehouse Stock Tracker -->
           <div class="collector-tool-card">
             <div style="display:flex; align-items:center; gap:10px;">
               <div style="width:42px; height:42px; border-radius:10px; background:#dbeafe; color:#2563eb; display:flex; align-items:center; justify-content:center; font-size:18px;">
                 <i class="fa-solid fa-ship"></i>
               </div>
               <div>
-                <div style="font-size:11px; font-weight:800; color:#2563eb; text-transform:uppercase;" data-i18n="hub_u3_tag">LỊCH TÀU VỀ KHO BIÊN HÒA</div>
-                <h3 style="font-size:16px; font-weight:800; color:var(--text-primary); margin:0;" data-i18n="hub_u3_title">Tiến Độ Container Pre-Order</h3>
+                <div style="font-size:11px; font-weight:800; color:#2563eb; text-transform:uppercase;" data-i18n="hub_u3_tag">ĐỒNG BỘ TRỰC TIẾP KHO BIÊN HÒA</div>
+                <h3 style="font-size:16px; font-weight:800; color:var(--text-primary); margin:0;" data-i18n="hub_u3_title">Lịch Cọc &amp; Hàng Mới Cập Kho</h3>
               </div>
             </div>
 
-            <div class="wave-timeline-list">
-              <div class="wave-item-row">
+            <div class="wave-timeline-list" id="liveWaveTimelineList">
+              <div class="wave-item-row" style="cursor:pointer;" onclick="openQuickView(6)">
                 <div>
-                  <strong style="color:var(--text-primary); display:block;">Wave #74: LBWK S15 &amp; Huracán GT</strong>
-                  <span style="color:var(--text-muted); font-size:11px;" data-i18n="hub_w1_sub">Cảng Hồng Kông ➔ Kho Biên Hòa</span>
+                  <strong style="color:var(--text-primary); display:block;">#MGT01143: Porsche GT3 R Skeleton #77</strong>
+                  <span style="color:var(--text-muted); font-size:11px;">Dự kiến về: Tháng 11/2026 • Đang mở cọc</span>
                 </div>
-                <span style="background:#dcfce7; color:#15803d; font-weight:800; font-size:10.5px; padding:3px 8px; border-radius:99px;" data-i18n="hub_w1_badge">Đã cập kho</span>
+                <span style="background:#fef3c7; color:#b45309; font-weight:800; font-size:10.5px; padding:3px 8px; border-radius:99px; white-space:nowrap;">Đang nhận cọc</span>
               </div>
-              <div class="wave-item-row">
+              <div class="wave-item-row" style="cursor:pointer;" onclick="openQuickView(2)">
                 <div>
-                  <strong style="color:var(--text-primary); display:block;">Wave #75: F1 Las Vegas GP (AMR24)</strong>
-                  <span style="color:var(--text-muted); font-size:11px;" data-i18n="hub_w2_sub">Dự kiến trả hàng: 20/11/2026</span>
+                  <strong style="color:var(--text-primary); display:block;">#MGT01413: Aston Martin AMR24 F1</strong>
+                  <span style="color:var(--text-muted); font-size:11px;">Kho Biên Hòa • Sẵn hàng Box &amp; Card</span>
                 </div>
-                <span style="background:#fef3c7; color:#b45309; font-weight:800; font-size:10.5px; padding:3px 8px; border-radius:99px;" data-i18n="hub_w2_badge">Đang nhận cọc</span>
+                <span style="background:#dcfce7; color:#15803d; font-weight:800; font-size:10.5px; padding:3px 8px; border-radius:99px; white-space:nowrap;">Đã cập kho</span>
               </div>
-              <div class="wave-item-row">
+              <div class="wave-item-row" style="cursor:pointer;" onclick="openQuickView(52)">
                 <div>
-                  <strong style="color:var(--text-primary); display:block;">Wave #76: AO Racing Skeleton #77</strong>
-                  <span style="color:var(--text-muted); font-size:11px;" data-i18n="hub_w3_sub">Dự kiến trả hàng: 30/11/2026</span>
+                  <strong style="color:var(--text-primary); display:block;">#MGT1185: Nissan S15 #555 LBWK</strong>
+                  <span style="color:var(--text-muted); font-size:11px;">Kho Biên Hòa • Sẵn hàng Box &amp; Card</span>
                 </div>
-                <span style="background:#fee2e2; color:#dc2626; font-weight:800; font-size:10.5px; padding:3px 8px; border-radius:99px;" data-i18n="hub_w3_badge">Sắp hết slot</span>
+                <span style="background:#dcfce7; color:#15803d; font-weight:800; font-size:10.5px; padding:3px 8px; border-radius:99px; white-space:nowrap;">Đã cập kho</span>
               </div>
             </div>
 
             <button type="button" class="btn btn-outline btn-sm" style="margin-top:auto;" onclick="openTrackingModal()">
-              <i class="fa-solid fa-magnifying-glass"></i> <span data-i18n="hub_u3_btn">Tra cứu mã đơn Pre-Order của bạn</span>
+              <i class="fa-solid fa-magnifying-glass"></i> <span data-i18n="hub_u3_btn">Tra cứu mã đơn hàng của bạn</span>
             </button>
           </div>
         </div>
@@ -2062,18 +2065,23 @@
   <!-- MODEL COMPARISON MODAL -->
   <div class="modal-overlay" id="compareModal" role="dialog" aria-modal="true" aria-label="So sánh mô hình xe">
     <div class="modal-container" style="max-width: 860px;">
-      <button class="modal-close-btn" onclick="closeModal('compareModal')">✕</button>
       <div class="modal-body">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; border-bottom:1px solid #e2e8f0; padding-bottom:10px;">
-          <div>
-            <h3 style="font-size: var(--text-xl); color: var(--color-navy); margin-bottom: 2px;">
-              <i class="fa-solid fa-scale-balanced" style="color:var(--color-primary); margin-right:6px;"></i> So Sánh Chi Tiết Mô Hình 1:64
-            </h3>
-            <p style="font-size: 12.5px; color: var(--color-gray-500); margin:0;">
-              Đặt lên bàn cân các thông số kỹ thuật, giá cọc, hạn mức Quota và phiên bản giới hạn
-            </p>
+        <div class="wishlist-modal-header">
+          <div class="wishlist-header-title-block">
+            <span class="wishlist-header-icon" style="background:#eff6ff; color:#2563eb;">
+              <i class="fa-solid fa-scale-balanced"></i>
+            </span>
+            <div>
+              <h3 class="wishlist-modal-title">So Sánh Chi Tiết Mô Hình 1:64</h3>
+              <p class="wishlist-modal-sub">Đặt lên bàn cân các thông số kỹ thuật, giá Box/Card và tồn kho thực tế</p>
+            </div>
           </div>
-          <button class="btn btn-sm btn-outline" onclick="clearCompareList()">Xóa tất cả</button>
+          <div class="wishlist-header-actions">
+            <button type="button" class="btn btn-sm btn-outline" onclick="clearCompareList()">
+              <i class="fa-solid fa-rotate-left" style="margin-right:4px;"></i> Xóa tất cả
+            </button>
+            <button type="button" class="wishlist-close-inline" onclick="closeModal('compareModal')" aria-label="Đóng">✕</button>
+          </div>
         </div>
         <div id="compareModalContent"></div>
       </div>
@@ -2088,23 +2096,30 @@
 
   <!-- WISHLIST MODAL -->
   <div class="modal-overlay" id="wishlistModal" role="dialog" aria-modal="true" aria-label="Danh sách yêu thích">
-    <div class="modal-container" style="max-width: 600px;">
-      <button class="modal-close-btn" onclick="closeModal('wishlistModal')">✕</button>
-      <div class="modal-body">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; border-bottom:1px solid #e2e8f0; padding-bottom:10px;">
-          <div>
-            <h3 style="font-size: var(--text-xl); color: var(--color-navy); margin-bottom: 2px;">
-              <i class="fa-solid fa-heart" style="color:var(--color-primary); margin-right:6px;"></i> Danh Sách Yêu Thích
-            </h3>
-            <p style="font-size: 12.5px; color: var(--color-gray-500); margin:0;">
-              Các mô hình xe bạn đang quan tâm và theo dõi
-            </p>
+    <div class="modal-container wishlist-modal-container">
+      <div class="modal-body wishlist-modal-body">
+        <div class="wishlist-modal-header">
+          <div class="wishlist-header-title-block">
+            <span class="wishlist-header-icon">
+              <i class="fa-solid fa-heart"></i>
+            </span>
+            <div>
+              <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                <h3 class="wishlist-modal-title">Danh Sách Yêu Thích</h3>
+                <span class="wishlist-count-pill" id="wishlistHeaderCount">0 mẫu xe</span>
+              </div>
+              <p class="wishlist-modal-sub">Theo dõi giá Box/Card và tình trạng tồn kho thực tế tại Showroom</p>
+            </div>
           </div>
-          <button class="btn btn-sm btn-outline" onclick="clearWishlist()" title="Xóa tất cả">
-            <i class="fa-solid fa-trash" style="margin-right:4px;"></i> Xóa hết
-          </button>
+          <div class="wishlist-header-actions">
+            <button type="button" class="wishlist-clear-btn" id="btnClearWishlistAll" onclick="clearWishlist()" title="Xóa toàn bộ danh sách">
+              <i class="fa-regular fa-trash-can"></i> <span>Xóa hết</span>
+            </button>
+            <button type="button" class="wishlist-close-inline" onclick="closeModal('wishlistModal')" aria-label="Đóng cửa sổ">✕</button>
+          </div>
         </div>
-        <div id="wishlistModalContent"></div>
+        <div id="wishlistModalContent" class="wishlist-items-scroll"></div>
+        <div id="wishlistModalFooter" class="wishlist-modal-footer" style="display:none;"></div>
       </div>
     </div>
   </div>
@@ -2368,7 +2383,7 @@
   <div class="toast-container" id="toastContainer" aria-live="polite"></div>
 
   <!-- Unified API Client & Application Script -->
-  <script src="js/api.js?v=20261106_04"></script>
-  <script src="js/app.js?v=20261106_04"></script>
+  <script src="js/api.js?v=20261107_01"></script>
+  <script src="js/app.js?v=20261107_01"></script>
 </body>
 </html>

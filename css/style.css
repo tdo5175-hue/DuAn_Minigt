@@ -3,9 +3,9 @@
    Bundles all CSS modules for performance and clean organization
    ===================================================================== */
 
-@import url('./variables.css');
-@import url('./base.css');
-@import url('./components.css');
-@import url('./sections.css');
-@import url('./responsive.css');
+@import url('./variables.css?v=20261107_01');
+@import url('./base.css?v=20261107_01');
+@import url('./components.css?v=20261107_01');
+@import url('./sections.css?v=20261107_01');
+@import url('./responsive.css?v=20261107_01');
 
