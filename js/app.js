@@ -1938,12 +1938,23 @@ function syncStaticShowcaseProducts() {
     }
 
     const priceVal = heroCard.querySelector('.lbwk-price-val');
+    const activePack = selectedCardPackaging[pid] || 'box';
+    const chosenFinal = (activePack === 'card' && pricing.isCardAvailable) ? pricing.finalPriceCard : pricing.finalPriceBox;
     if (priceVal) {
-      priceVal.textContent = formatVND(pricing.finalPriceBox);
+      priceVal.textContent = formatVND(chosenFinal);
+    }
+
+    // Cập nhật giá lên bộ nút lbwk-pack-btn của S15
+    const packBtns = heroCard.querySelectorAll('.lbwk-pack-btn');
+    if (packBtns.length >= 2) {
+      packBtns[0].innerHTML = `<i class="fa-solid fa-cube"></i> Box: <strong>${formatVND(pricing.finalPriceBox)}</strong>`;
+      packBtns[1].innerHTML = `<i class="fa-solid fa-shield-halved"></i> Card: <strong>${formatVND(pricing.finalPriceCard)}</strong>`;
+      packBtns[0].classList.toggle('active', activePack === 'box');
+      packBtns[1].classList.toggle('active', activePack === 'card');
     }
   });
 
-  // 4B. 3 Mini Cards bên phải (Huracán #5, Huracán Blister #17, S15 Goodwood #11)
+  // 4B. 3 Mini Cards bên phải (Huracán #5, Huracán Blister #17, S15 Halloween #52)
   document.querySelectorAll('.lbwk-mini-spotlight[data-showcase-product-id]').forEach(miniCard => {
     const pid = Number(miniCard.getAttribute('data-showcase-product-id'));
     const prod = source.find(p => Number(p.ProductId || p.id) === pid);
@@ -1971,10 +1982,20 @@ function syncStaticShowcaseProducts() {
       skuEl.innerHTML = `${packDesc} ${soldHtml}`;
     }
 
+    // Cập nhật các chip mini-pack-chip
+    const miniChips = miniCard.querySelectorAll('.mini-pack-chip');
+    const miniActivePack = selectedCardPackaging[pid] || (pricing.packagingType === 'card_only' ? 'card' : 'box');
+    if (miniChips.length >= 2) {
+      miniChips[0].innerHTML = `<i class="fa-solid fa-cube"></i> Box ${formatCompactPrice(pricing.finalPriceBox)}`;
+      miniChips[1].innerHTML = `<i class="fa-solid fa-shield-halved"></i> Card ${formatCompactPrice(pricing.finalPriceCard)}`;
+      miniChips[0].classList.toggle('active', miniActivePack === 'box');
+      miniChips[1].classList.toggle('active', miniActivePack === 'card');
+    }
+
     const priceEl = miniCard.querySelector('.lbwk-mini-price');
     if (priceEl) {
-      const displayFinal = pricing.packagingType === 'card_only' ? pricing.finalPriceCard : pricing.finalPriceBox;
-      const displayOrig = pricing.packagingType === 'card_only' ? pricing.priceCard : pricing.priceBox;
+      const displayFinal = (pricing.packagingType === 'card_only' || miniActivePack === 'card') ? pricing.finalPriceCard : pricing.finalPriceBox;
+      const displayOrig = (pricing.packagingType === 'card_only' || miniActivePack === 'card') ? pricing.priceCard : pricing.priceBox;
       if (pricing.hasDiscount && displayOrig > displayFinal) {
         priceEl.innerHTML = `<span style="font-size:11px; text-decoration:line-through; color:#94a3b8; font-weight:600; margin-right:4px;">${formatVND(displayOrig)}</span><span style="color:#e10600; font-weight:800;">${formatVND(displayFinal)}</span>`;
       } else {
@@ -1982,13 +2003,19 @@ function syncStaticShowcaseProducts() {
       }
     }
 
-    const stockCount = typeof prod.Stock === 'number' ? prod.Stock : 10;
+    const stockCount = typeof prod.Stock === 'number' ? prod.Stock : (typeof prod.stock === 'number' ? prod.stock : 10);
     const isOutOfStock = stockCount <= 0 || String(prod.Status || prod.status || '').toLowerCase() === 'sold_out';
     const buyBtn = miniCard.querySelector('.btn-primary');
-    if (buyBtn && isOutOfStock) {
-      buyBtn.disabled = true;
-      buyBtn.classList.add('disabled');
-      buyBtn.innerHTML = isEn ? 'Sold Out' : 'Hết hàng';
+    if (buyBtn) {
+      if (isOutOfStock) {
+        buyBtn.disabled = true;
+        buyBtn.classList.add('disabled');
+        buyBtn.innerHTML = isEn ? 'Sold Out' : 'Hết hàng';
+      } else {
+        buyBtn.disabled = false;
+        buyBtn.classList.remove('disabled');
+        buyBtn.innerHTML = `<i class="fa-solid fa-cart-plus"></i> <span>${isEn ? 'Buy' : 'Mua ngay'}</span>`;
+      }
     }
   });
 
@@ -2495,6 +2522,20 @@ function selectCardPackaging(productId, packType, event) {
     const scalePill = cardEl.querySelector('.card-scale-pill');
     if (scalePill) scalePill.textContent = normalizedPack === 'card' ? 'CARD BLISTER' : 'BOX SEAL';
 
+    // Cập nhật các nút lbwk-pack-btn
+    const lbwkPackBtns = cardEl.querySelectorAll('.lbwk-pack-btn');
+    if (lbwkPackBtns.length >= 2) {
+      lbwkPackBtns[0].classList.toggle('active', normalizedPack === 'box');
+      lbwkPackBtns[1].classList.toggle('active', normalizedPack === 'card');
+    }
+
+    // Cập nhật các nút mini-pack-chip
+    const miniChips = cardEl.querySelectorAll('.mini-pack-chip');
+    if (miniChips.length >= 2) {
+      miniChips[0].classList.toggle('active', normalizedPack === 'box');
+      miniChips[1].classList.toggle('active', normalizedPack === 'card');
+    }
+
     const currEl = cardEl.querySelector('.current-price') || cardEl.querySelector('.gt3-price-group strong');
     if (currEl) currEl.textContent = formatVND(finalPrice);
 
@@ -2538,6 +2579,48 @@ function selectCardPackaging(productId, packType, event) {
     }
   });
 
+  // Tương tác đa chiều: Nếu sản phẩm thuộc Slide 2 (S15) hoặc Slide 3 (F1 RB18) trên Hero Banner, cập nhật trực tiếp banner
+  if (Number(productId) === 10) {
+    const s15BoxBtn = document.getElementById('heroS15BoxBtn');
+    const s15CardBtn = document.getElementById('heroS15CardBtn');
+    const s15Img = document.getElementById('heroS15SlideImg');
+    const s15Badge = document.getElementById('heroS15SlideBadge');
+    const s15BuyBtn = document.getElementById('heroS15BuyBtn');
+    if (s15BoxBtn && s15CardBtn) {
+      s15BoxBtn.classList.toggle('active', normalizedPack === 'box');
+      s15CardBtn.classList.toggle('active', normalizedPack === 'card');
+    }
+    if (s15Img) {
+      s15Img.src = normalizedPack === 'card' ? resolveStorefrontImageUrl(cardImgUrl || '/api/images/70') : 'image/Minigt_s15chop_lbwk.jpg';
+    }
+    if (s15Badge) {
+      s15Badge.innerHTML = `<span class="play-icon">▶</span> <strong>#MGT00465</strong> <span style="font-size:11.5px; color:${normalizedPack === 'card' ? '#2563eb' : '#64748b'}; font-weight:700; margin-left:6px;">${normalizedPack === 'card' ? 'Bản Vỉ Blister Card Art (1.700.000đ)' : 'Bản Hộp Giấy Sealed Box (999.999đ)'}</span>`;
+    }
+    if (s15BuyBtn) {
+      s15BuyBtn.innerHTML = `<i class="fa-solid fa-bag-shopping"></i> <span>${normalizedPack === 'card' ? 'Mua ngay Bản Card (1.700.000đ)' : 'Mua ngay Bản Box (999.999đ)'}</span>`;
+    }
+  }
+  if (Number(productId) === 4) {
+    const f1BoxBtn = document.getElementById('heroF1BoxBtn');
+    const f1CardBtn = document.getElementById('heroF1CardBtn');
+    const f1Img = document.getElementById('heroF1SlideImg');
+    const f1Badge = document.getElementById('heroF1SlideBadge');
+    const f1BuyBtn = document.getElementById('heroF1BuyBtn');
+    if (f1BoxBtn && f1CardBtn) {
+      f1BoxBtn.classList.toggle('active', normalizedPack === 'box');
+      f1CardBtn.classList.toggle('active', normalizedPack === 'card');
+    }
+    if (f1Img && cardImgUrl) {
+      f1Img.src = normalizedPack === 'card' ? resolveStorefrontImageUrl(cardImgUrl) : 'image/f1_redbull.jpg';
+    }
+    if (f1Badge) {
+      f1Badge.innerHTML = `<span class="play-icon">▶</span> <strong>#MGT00550</strong> <span style="font-size:11.5px; color:${normalizedPack === 'card' ? '#2563eb' : '#1d4ed8'}; font-weight:700; margin-left:6px;">${normalizedPack === 'card' ? 'Bản Vỉ Blister Card (432.000đ)' : 'Bản Hộp Giấy Box Seal (378.000đ)'}</span>`;
+    }
+    if (f1BuyBtn) {
+      f1BuyBtn.innerHTML = `<i class="fa-solid fa-flag-checkered"></i> <span>${normalizedPack === 'card' ? 'Mua ngay Bản Card (432.000đ)' : 'Mua ngay Bản Box (378.000đ)'}</span>`;
+    }
+  }
+
   // Đồng bộ tức thì nếu Modal Chi Tiết Sản Phẩm (Quick View) đang mở sản phẩm này
   if (typeof activeQuickViewState !== 'undefined' && activeQuickViewState && Number(activeQuickViewState.productId) === Number(productId) && Array.isArray(activeQuickViewState.images)) {
     if (normalizedPack === 'card') {
@@ -2556,6 +2639,12 @@ function selectCardPackaging(productId, packType, event) {
   }
 }
 window.selectCardPackaging = selectCardPackaging;
+
+function switchHeroSlidePack(productId, packType, btnEl) {
+  if (event && event.stopPropagation) event.stopPropagation();
+  selectCardPackaging(productId, packType);
+}
+window.switchHeroSlidePack = switchHeroSlidePack;
 
 function renderPreOrderQuickRow() {
   const container = document.getElementById('preorderQuickRow');

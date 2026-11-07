@@ -495,49 +495,88 @@ header nav.desktop-only,
     display: flex !important;
     flex-direction: column !important;
     justify-content: center !important;
-    padding: 14px 16px 20px !important;
-    background: var(--bg-card, #ffffff) !important;
-    border-top: 1px solid var(--border-subtle, #e2e8f0) !important;
+    padding: 16px 18px 20px !important;
+    background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%) !important;
+    border-top: 1px solid #e2e8f0 !important;
+    border-radius: 0 0 16px 16px !important;
     flex: 1 !important;
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.05) !important;
   }
 
-  .hero-fleet-badge {
+  .fleet-mobile-badge {
     display: inline-flex !important;
     align-items: center !important;
     gap: 6px !important;
-    background: rgba(225, 6, 0, 0.09) !important;
+    background: rgba(225, 6, 0, 0.08) !important;
     color: #e10600 !important;
-    font-size: 10px !important;
+    font-size: 11px !important;
     font-weight: 800 !important;
-    padding: 3px 9px !important;
+    padding: 4px 10px !important;
     border-radius: 99px !important;
     margin-bottom: 6px !important;
     width: fit-content !important;
+    letter-spacing: 0.04em !important;
   }
 
-  .hero-fleet-title {
-    font-size: 14px !important;
-    font-weight: 800 !important;
-    color: var(--text-primary, #0f172a) !important;
-    margin: 0 0 4px !important;
-    line-height: 1.35 !important;
+  .fleet-mobile-title {
+    font-size: 16px !important;
+    font-weight: 900 !important;
+    color: #0f172a !important;
+    margin: 0 0 6px !important;
+    line-height: 1.3 !important;
+    letter-spacing: -0.01em !important;
   }
 
-  .hero-fleet-hint {
-    font-size: 11.5px !important;
-    color: var(--text-secondary, #64748b) !important;
-    margin: 0 0 12px !important;
-    display: flex !important;
-    align-items: center !important;
-    gap: 6px !important;
+  .fleet-mobile-desc {
+    font-size: 12px !important;
+    color: #475569 !important;
+    margin: 0 0 14px !important;
+    line-height: 1.5 !important;
+    background: rgba(241, 245, 249, 0.8) !important;
+    padding: 6px 10px !important;
+    border-radius: 8px !important;
+    border: 1px dashed #cbd5e1 !important;
   }
 
-  .hero-fleet-actions {
+  .fleet-mobile-actions {
     display: flex !important;
     gap: 8px !important;
   }
 
-  .hero-fleet-actions button {
+  .fleet-mobile-actions button {
+    flex: 1 !important;
+    padding: 9px 12px !important;
+    font-size: 12.5px !important;
+    font-weight: 700 !important;
+    border-radius: 10px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 6px !important;
+  }
+
+  .fleet-mobile-actions .btn-primary {
+    background: linear-gradient(135deg, #e10600 0%, #b91c1c 100%) !important;
+    box-shadow: 0 4px 12px rgba(225, 6, 0, 0.28) !important;
+  }
+
+  [data-theme="dark"] .hero-fleet-mobile-bar,
+  body.dark-mode .hero-fleet-mobile-bar {
+    background: linear-gradient(180deg, #111a2e 0%, #0b1120 100%) !important;
+    border-top-color: #263554 !important;
+  }
+
+  [data-theme="dark"] .fleet-mobile-title,
+  body.dark-mode .fleet-mobile-title {
+    color: #f8fafc !important;
+  }
+
+  [data-theme="dark"] .fleet-mobile-desc,
+  body.dark-mode .fleet-mobile-desc {
+    background: rgba(30, 41, 59, 0.7) !important;
+    border-color: #334155 !important;
+    color: #cbd5e1 !important;
+  }
     flex: 1 1 0 !important;
     min-width: 0 !important;
     padding: 9px 8px !important;

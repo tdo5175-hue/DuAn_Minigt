@@ -34,8 +34,8 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 
   <!-- Modular CSS Bundle -->
-  <link rel="stylesheet" href="css/style.css?v=20261107_09">
-  <link rel="stylesheet" href="css/chat.css?v=20261107_09">
+  <link rel="stylesheet" href="css/style.css?v=20261107_10">
+  <link rel="stylesheet" href="css/chat.css?v=20261107_10">
 </head>
 <body>
 
@@ -519,13 +519,17 @@
                   <p class="hero-lbwk-desc" data-i18n="s2_desc">
                     Phiên bản độ thân rộng Widebody chính thức từ <strong>LB★WORKS Japan</strong>. Thiết kế khí động học Group 5 đặc trưng với vòm bánh tán đinh, cánh gió đuôi lớn và hai tùy chọn đóng gói <strong>Hộp Giấy (Box)</strong> hoặc <strong>Vỉ Nhựa (Blister Card)</strong>.
                   </p>
-                  <div class="hero-pack-preview-pills">
-                    <span class="hero-pack-pill" data-i18n="s2_pack_box"><i class="fa-solid fa-box"></i> Bản Box: <strong>320.000đ</strong></span>
-                    <span class="hero-pack-pill card-ver" data-i18n="s2_pack_card"><i class="fa-solid fa-shield-halved"></i> Bản Card: <strong>370.000đ</strong></span>
+                  <div class="hero-pack-preview-pills interactive-hero-switch" role="group" aria-label="Chọn quy cách S15">
+                    <button type="button" class="hero-pack-pill is-box active" id="heroS15BoxBtn" onclick="switchHeroSlidePack(10, 'box', this)">
+                      <i class="fa-solid fa-cube"></i> <span>Bản Box: <strong>999.999đ</strong></span>
+                    </button>
+                    <button type="button" class="hero-pack-pill is-card card-ver" id="heroS15CardBtn" onclick="switchHeroSlidePack(10, 'card', this)">
+                      <i class="fa-solid fa-shield-halved"></i> <span>Bản Card: <strong>1.700.000đ</strong></span>
+                    </button>
                   </div>
                   <div class="hero-lbwk-actions">
-                    <button class="btn-hero-red" onclick="scrollToSection(event, 'lbwk-zone')">
-                      <i class="fa-solid fa-bolt"></i> <span data-i18n="s2_btn1">Khám phá LB★WORKS ➔</span>
+                    <button class="btn-hero-red" id="heroS15BuyBtn" onclick="handleCardAction(10, event)">
+                      <i class="fa-solid fa-bag-shopping"></i> <span data-i18n="s2_btn1">Mua ngay Bản Box ➔</span>
                     </button>
                     <button class="btn-hero-white" onclick="openQuickView(10)">
                       <span data-i18n="s2_btn2">Xem chi tiết S15 #465</span>
@@ -533,11 +537,11 @@
                   </div>
                 </div>
 
-                <div class="hero-lbwk-showcase">
-                  <img src="image/Minigt_s15chop_lbwk.jpg" alt="Nissan Silvia S15 LBWK" class="hero-lbwk-img" loading="lazy" decoding="async" onerror="this.src='image/Minigt_s15chop_lbwk.jpg'">
-                  <div class="hero-car-code-badge">
+                <div class="hero-lbwk-showcase" onclick="openQuickView(10)" style="cursor:pointer;" title="Chạm để xem chi tiết ảnh xe">
+                  <img src="image/Minigt_s15chop_lbwk.jpg" id="heroS15SlideImg" alt="Nissan Silvia S15 LBWK" class="hero-lbwk-img" loading="lazy" decoding="async" onerror="this.src='image/Minigt_s15chop_lbwk.jpg'">
+                  <div class="hero-car-code-badge" id="heroS15SlideBadge">
                     <span class="play-icon">▶</span> <strong>#MGT00465</strong>
-                    <span style="font-size:11.5px; color:#64748b; font-weight:600; margin-left:6px;">Box &amp; Blister Card 1:64</span>
+                    <span style="font-size:11.5px; color:#64748b; font-weight:600; margin-left:6px;">Bản Hộp Giấy Sealed Box (999.999đ)</span>
                   </div>
                 </div>
               </div>
@@ -557,25 +561,29 @@
                   <p class="hero-f1-desc" data-i18n="s3_desc">
                     Tái hiện mẫu xe vô địch thế giới Oracle Red Bull Racing RB18 / RB19 tỷ lệ 1:64 chuẩn xác: Cánh gió trước sau nhiều tầng, lốp Pirelli P-Zero và tem đấu bản quyền chính hãng từ MINI GT.
                   </p>
-                  <div class="hero-pack-preview-pills">
-                    <span class="hero-pack-pill" data-i18n="s3_pack_box"><i class="fa-solid fa-box"></i> Bản Box: <strong>378.000đ</strong> (-10%)</span>
-                    <span class="hero-pack-pill card-ver" data-i18n="s3_pack_card"><i class="fa-solid fa-shield-halved"></i> Bản Card: <strong>432.000đ</strong> (-10%)</span>
+                  <div class="hero-pack-preview-pills interactive-hero-switch" role="group" aria-label="Chọn quy cách F1 RB18">
+                    <button type="button" class="hero-pack-pill is-box active" id="heroF1BoxBtn" onclick="switchHeroSlidePack(4, 'box', this)">
+                      <i class="fa-solid fa-cube"></i> <span>Bản Box: <strong>378.000đ</strong></span>
+                    </button>
+                    <button type="button" class="hero-pack-pill is-card card-ver" id="heroF1CardBtn" onclick="switchHeroSlidePack(4, 'card', this)">
+                      <i class="fa-solid fa-shield-halved"></i> <span>Bản Card: <strong>432.000đ</strong></span>
+                    </button>
                   </div>
                   <div class="hero-lbwk-actions">
-                    <button class="btn-hero-red" onclick="openQuickView(4)">
-                      <i class="fa-solid fa-flag-checkered"></i> <span data-i18n="s3_btn1">Xem Red Bull RB18 #1 ➔</span>
+                    <button class="btn-hero-red" id="heroF1BuyBtn" onclick="handleCardAction(4, event)">
+                      <i class="fa-solid fa-flag-checkered"></i> <span data-i18n="s3_btn1">Mua ngay Bản Box ➔</span>
                     </button>
-                    <button class="btn-hero-white" onclick="filterAndScroll(event, 'f1')">
-                      <span data-i18n="s3_btn2">Bộ sưu tập F1 Series</span>
+                    <button class="btn-hero-white" onclick="openQuickView(4)">
+                      <span data-i18n="s3_btn2">Xem chi tiết RB18 #1</span>
                     </button>
                   </div>
                 </div>
 
-                <div class="hero-lbwk-showcase">
-                  <img src="image/f1_redbull.jpg" alt="Oracle Red Bull Racing RB18 F1 Max Verstappen" class="hero-lbwk-img" loading="lazy" decoding="async" onerror="this.src='image/f1_redbull.jpg'">
-                  <div class="hero-car-code-badge">
+                <div class="hero-lbwk-showcase" onclick="openQuickView(4)" style="cursor:pointer;" title="Chạm để xem chi tiết ảnh xe">
+                  <img src="image/f1_redbull.jpg" id="heroF1SlideImg" alt="Oracle Red Bull Racing RB18 F1 Max Verstappen" class="hero-lbwk-img" loading="lazy" decoding="async" onerror="this.src='image/f1_redbull.jpg'">
+                  <div class="hero-car-code-badge" id="heroF1SlideBadge">
                     <span class="play-icon">▶</span> <strong>#MGT00550</strong>
-                    <span style="font-size:11.5px; color:#1d4ed8; font-weight:700; margin-left:6px;">Oracle Red Bull Racing #1</span>
+                    <span style="font-size:11.5px; color:#1d4ed8; font-weight:700; margin-left:6px;">Bản Hộp Giấy Box Seal (378.000đ)</span>
                   </div>
                 </div>
               </div>
@@ -907,15 +915,13 @@
             </div>
 
             <div class="lbwk-feature-bottom">
-              <!-- Switcher Box / Card tương tác nhanh cho thẻ chính -->
-              <div class="card-pack-switch" role="group" aria-label="Chọn Box hoặc Card S15" style="margin-bottom:12px;">
-                <button type="button" class="card-pack-btn is-box active" onclick="selectCardPackaging(10, 'box', event)">
-                  <span class="pack-label"><i class="fa-solid fa-cube"></i> Box</span>
-                  <span class="pack-price">999.999đ</span>
+              <!-- Switcher Box / Card tương tác nhanh cho thẻ chính (Segmented nhỏ gọn, không giãn ngang) -->
+              <div class="lbwk-pack-switcher" role="group" aria-label="Chọn Box hoặc Card S15">
+                <button type="button" class="lbwk-pack-btn is-box active" onclick="selectCardPackaging(10, 'box', event)">
+                  <i class="fa-solid fa-cube"></i> Box: <strong>999.999đ</strong>
                 </button>
-                <button type="button" class="card-pack-btn is-card" onclick="selectCardPackaging(10, 'card', event)">
-                  <span class="pack-label"><i class="fa-solid fa-shield-halved"></i> Card</span>
-                  <span class="pack-price">1.700.000đ</span>
+                <button type="button" class="lbwk-pack-btn is-card" onclick="selectCardPackaging(10, 'card', event)">
+                  <i class="fa-solid fa-shield-halved"></i> Card: <strong>1.700.000đ</strong>
                 </button>
               </div>
 
@@ -949,15 +955,9 @@
                 <div class="lbwk-mini-sku">#MGT01055 • BOX 333K / CARD 390K <span class="showcase-sold-pill mini" data-sold-product-id="5"><i class="fa-solid fa-fire"></i> Đã bán 4</span></div>
                 <h4 class="lbwk-mini-title" onclick="openQuickView(5)" style="cursor:pointer;">LB★WORKS Lamborghini Huracán GT Gravity Racing</h4>
                 <div class="lbwk-mini-sub" data-i18n="lbwk_mini1_sub">Bodykit vòm bánh rộng tán đinh + Cánh gió GT Swan-Neck</div>
-                <div class="card-pack-switch mini-switch" role="group" aria-label="Chọn Box hoặc Card Huracán" style="margin-top:6px; margin-bottom:8px;">
-                  <button type="button" class="card-pack-btn is-box active" onclick="selectCardPackaging(5, 'box', event)">
-                    <span class="pack-label"><i class="fa-solid fa-cube"></i> Box</span>
-                    <span class="pack-price">333k</span>
-                  </button>
-                  <button type="button" class="card-pack-btn is-card" onclick="selectCardPackaging(5, 'card', event)">
-                    <span class="pack-label"><i class="fa-solid fa-shield-halved"></i> Card</span>
-                    <span class="pack-price">390k</span>
-                  </button>
+                <div class="lbwk-mini-pack-row">
+                  <button type="button" class="mini-pack-chip is-box active" onclick="selectCardPackaging(5, 'box', event)"><i class="fa-solid fa-cube"></i> Box 333k</button>
+                  <button type="button" class="mini-pack-chip is-card" onclick="selectCardPackaging(5, 'card', event)"><i class="fa-solid fa-shield-halved"></i> Card 390k</button>
                 </div>
                 <div class="lbwk-mini-bottom">
                   <strong class="lbwk-mini-price">333.000đ</strong>
@@ -972,14 +972,13 @@
             <div class="lbwk-mini-spotlight" data-id="17" data-showcase-product-id="17" data-pack="card">
               <img src="image/minig_lambo_lbwk.webp" data-product-img-id="17" alt="LB★WORKS Huracán Blister Card" loading="lazy" decoding="async" onclick="openQuickView(17)" style="cursor:pointer;" onerror="this.src='image/Minigt_Lambo_LBWK.jpg'">
               <div class="lbwk-mini-info">
-                <div class="lbwk-mini-sku"><span data-i18n="lbwk_mini2_sku">#MGT01055-LW • BẢN VỈ BLISTER CARD</span> <span class="showcase-sold-pill mini" data-sold-product-id="17">Đã bán 1</span></div>
+                <div class="lbwk-mini-sku"><span data-i18n="lbwk_mini2_sku">#MGT01055-LW • BẢN VỈ BLISTER CARD</span> <span class="showcase-sold-pill mini" data-sold-product-id="17"><i class="fa-solid fa-fire"></i> Đã bán 1</span></div>
                 <h4 class="lbwk-mini-title" data-i18n="lbwk_mini2_title" onclick="openQuickView(17)" style="cursor:pointer;">LB★WORKS Lamborghini Huracán GT (Bản Vỉ Blister Card)</h4>
                 <div class="lbwk-mini-sub" data-i18n="lbwk_mini2_sub">Đóng gói vỉ nhựa bảo vệ cứng kèm Card Art sưu tầm nguyên seal</div>
-                <div class="card-pack-switch mini-switch" role="group" aria-label="Quy cách vỉ sưu tầm" style="margin-top:6px; margin-bottom:8px;">
-                  <button type="button" class="card-pack-btn is-card active" style="width:100%;" disabled>
-                    <span class="pack-label"><i class="fa-solid fa-shield-halved"></i> Card Blister Nguyên Seal</span>
-                    <span class="pack-price">410k</span>
-                  </button>
+                <div class="lbwk-mini-pack-row">
+                  <span class="mini-card-exclusive-badge">
+                    <i class="fa-solid fa-shield-halved"></i> Độc Quyền Vỉ Card Art (Sẵn kho)
+                  </span>
                 </div>
                 <div class="lbwk-mini-bottom">
                   <strong class="lbwk-mini-price">410.000đ</strong>
@@ -997,15 +996,9 @@
                 <div class="lbwk-mini-sku">#MGT1185 • BOX 204K / CARD 272K <span class="showcase-sold-pill mini" data-sold-product-id="52"><i class="fa-solid fa-fire"></i> Đã bán 3</span></div>
                 <h4 class="lbwk-mini-title" onclick="openQuickView(52)" style="cursor:pointer;">Nissan LB-Super Silhouette S15 SILVIA #555 Team MINI GT Liberty Walk 2025 Formula Drift Halloween Special</h4>
                 <div class="lbwk-mini-sub" data-i18n="lbwk_mini3_sub">Phiên bản kỷ niệm màn trình diễn drift tại lễ hội tốc độ Anh Quốc</div>
-                <div class="card-pack-switch mini-switch" role="group" aria-label="Chọn Box hoặc Card S15 #555" style="margin-top:6px; margin-bottom:8px;">
-                  <button type="button" class="card-pack-btn is-box active" onclick="selectCardPackaging(52, 'box', event)">
-                    <span class="pack-label"><i class="fa-solid fa-cube"></i> Box (-15%)</span>
-                    <span class="pack-price">204k</span>
-                  </button>
-                  <button type="button" class="card-pack-btn is-card" onclick="selectCardPackaging(52, 'card', event)">
-                    <span class="pack-label"><i class="fa-solid fa-shield-halved"></i> Card (-15%)</span>
-                    <span class="pack-price">272k</span>
-                  </button>
+                <div class="lbwk-mini-pack-row">
+                  <button type="button" class="mini-pack-chip is-box active" onclick="selectCardPackaging(52, 'box', event)"><i class="fa-solid fa-cube"></i> Box 204k (-15%)</button>
+                  <button type="button" class="mini-pack-chip is-card" onclick="selectCardPackaging(52, 'card', event)"><i class="fa-solid fa-shield-halved"></i> Card 272k (-15%)</button>
                 </div>
                 <div class="lbwk-mini-bottom">
                   <strong class="lbwk-mini-price">204.000đ</strong>
@@ -2679,7 +2672,7 @@
   <div class="toast-container" id="toastContainer" aria-live="polite"></div>
 
   <!-- Unified API Client & Application Script -->
-  <script src="js/api.js?v=20261107_09"></script>
-  <script src="js/app.js?v=20261107_09"></script>
+  <script src="js/api.js?v=20261107_10"></script>
+  <script src="js/app.js?v=20261107_10"></script>
 </body>
 </html>

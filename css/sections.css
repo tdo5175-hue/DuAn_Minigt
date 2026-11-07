@@ -2426,8 +2426,7 @@ body.dark-mode .hero-dot.active {
    ===================================================================== */
 .lbwk-showcase-section {
   padding: 3.5rem 0;
-  background: radial-gradient(circle at 85% 20%, rgba(254, 240, 138, 0.35) 0%, rgba(255, 255, 255, 0) 55%),
-              linear-gradient(135deg, #ffffff 0%, #fbfcfe 60%, #fefce8 100%);
+  background: linear-gradient(85deg, #ffffff 0%, #ffffff 32%, #fffbeb 44%, #fef08a 65%, #fde047 100%);
   color: #0f172a;
   position: relative;
   overflow: hidden;
@@ -2436,13 +2435,13 @@ body.dark-mode .hero-dot.active {
 }
 
 .lbwk-showcase-section::before {
-  content: 'LB★WORKS JAPAN';
+  content: 'LB★WORKS';
   position: absolute;
-  top: 12px;
-  right: 16px;
-  font-size: clamp(40px, 8vw, 110px);
+  top: 15px;
+  right: -8px;
+  font-size: clamp(64px, 11vw, 150px);
   font-weight: 900;
-  color: rgba(225, 6, 0, 0.04);
+  color: rgba(255, 255, 255, 0.85);
   letter-spacing: 0.08em;
   pointer-events: none;
   user-select: none;
@@ -2744,6 +2743,207 @@ body.dark-mode .hero-dot.active {
   font-size: 17px;
   color: #e10600;
   font-weight: 900;
+}
+
+/* LBWK Spotlight Compact Segmented Pack Switcher (Khắc phục triệt để lỗi giãn ngang bất thường) */
+.lbwk-pack-switcher {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: #f1f5f9;
+  padding: 4px;
+  border-radius: 99px;
+  border: 1px solid #e2e8f0;
+  margin: 10px 0 6px;
+  width: fit-content;
+  max-width: 100%;
+}
+
+.lbwk-pack-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 99px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: #475569;
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  white-space: nowrap;
+}
+
+.lbwk-pack-btn i {
+  font-size: 12px;
+}
+
+.lbwk-pack-btn:hover {
+  color: #0f172a;
+  background: rgba(255, 255, 255, 0.6);
+}
+
+.lbwk-pack-btn.active {
+  background: #ffffff;
+  color: #e10600;
+  border-color: #fecaca;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.08);
+  font-weight: 800;
+}
+
+.lbwk-pack-btn.active.is-card {
+  color: #7c3aed;
+  border-color: #ddd6fe;
+}
+
+/* LBWK Mini Spotlight Pack Controls */
+.lbwk-mini-pack-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 6px 0 4px;
+  flex-wrap: wrap;
+}
+
+.mini-pack-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 9px;
+  border-radius: 99px;
+  border: 1px solid #cbd5e1;
+  background: #f8fafc;
+  color: #475569;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+
+.mini-pack-chip:hover {
+  border-color: #94a3b8;
+  color: #0f172a;
+}
+
+.mini-pack-chip.active {
+  background: #0f172a;
+  color: #ffffff;
+  border-color: #0f172a;
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.15);
+}
+
+.mini-pack-chip.active.is-card {
+  background: #7c3aed;
+  border-color: #7c3aed;
+}
+
+/* Badge độc quyền cho sản phẩm chỉ có Card (như Huracán #17) - Sáng rõ, khẳng định sẵn hàng, không bị mờ xám */
+.mini-card-exclusive-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: rgba(16, 185, 129, 0.1);
+  color: #059669;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  font-size: 11px;
+  font-weight: 800;
+  padding: 3px 9px;
+  border-radius: 99px;
+}
+
+.mini-card-exclusive-badge i {
+  color: #059669;
+}
+
+/* Interactive Hero Pack Switchers for Slides 2 & 3 */
+.interactive-hero-switch {
+  display: inline-flex !important;
+  align-items: center;
+  gap: 10px;
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(8px);
+  padding: 6px;
+  border-radius: 99px;
+  border: 1px solid rgba(226, 232, 240, 0.8);
+  margin-bottom: 20px;
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.06);
+}
+
+button.hero-pack-pill {
+  border: 1.5px solid transparent;
+  background: #f1f5f9;
+  cursor: pointer;
+  transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  border-radius: 99px;
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #334155;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+button.hero-pack-pill:hover {
+  transform: translateY(-2px);
+  color: #0f172a;
+}
+
+button.hero-pack-pill.active {
+  background: #ffffff !important;
+  color: #e10600 !important;
+  border-color: #e10600 !important;
+  box-shadow: 0 4px 14px rgba(225, 6, 0, 0.22) !important;
+  transform: translateY(-2px);
+}
+
+button.hero-pack-pill.active.card-ver {
+  color: #2563eb !important;
+  border-color: #2563eb !important;
+  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.24) !important;
+}
+
+.hero-car-code-badge {
+  transition: all 0.25s ease;
+}
+
+/* Dark mode overrides for LBWK new components */
+[data-theme="dark"] .lbwk-pack-switcher,
+body.dark-mode .lbwk-pack-switcher {
+  background: #0f172a !important;
+  border-color: #334155 !important;
+}
+
+[data-theme="dark"] .lbwk-pack-btn,
+body.dark-mode .lbwk-pack-btn {
+  color: #94a3b8 !important;
+}
+
+[data-theme="dark"] .lbwk-pack-btn.active,
+body.dark-mode .lbwk-pack-btn.active {
+  background: #1e293b !important;
+  color: #f87171 !important;
+  border-color: #ef4444 !important;
+}
+
+[data-theme="dark"] .interactive-hero-switch,
+body.dark-mode .interactive-hero-switch {
+  background: rgba(15, 23, 42, 0.85) !important;
+  border-color: #334155 !important;
+}
+
+[data-theme="dark"] button.hero-pack-pill,
+body.dark-mode button.hero-pack-pill {
+  background: #1e293b !important;
+  color: #cbd5e1 !important;
+}
+
+[data-theme="dark"] button.hero-pack-pill.active,
+body.dark-mode button.hero-pack-pill.active {
+  background: #0f172a !important;
+  color: #f87171 !important;
+  border-color: #ef4444 !important;
 }
 
 /* =====================================================================
