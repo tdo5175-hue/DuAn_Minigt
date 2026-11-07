@@ -242,9 +242,11 @@
 }
 
 .ai-chat-window.active {
-  opacity: 1;
-  visibility: visible;
-  transform: translateY(0) scale(1);
+  opacity: 1 !important;
+  visibility: visible !important;
+  transform: translateY(0) scale(1) !important;
+  pointer-events: auto !important;
+  z-index: 100030 !important;
 }
 
 .ai-chat-order-link {
@@ -1194,7 +1196,11 @@
   }
 
   .ai-chat-window.active {
-    transform: translateY(0);
+    transform: translateY(0) !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+    pointer-events: auto !important;
+    z-index: 100030 !important;
   }
 
   .ai-chat-header {

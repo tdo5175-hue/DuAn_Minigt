@@ -11727,49 +11727,69 @@ async function openQuickViewBySku(skuCode) {
 }
 window.openQuickViewBySku = openQuickViewBySku;
 
-function toggleAiChat() {
+function openAiChat(focusInput = true) {
   const win = document.getElementById('aiChatWindow');
   const launcher = document.getElementById('aiChatLauncher');
   const dot = document.getElementById('aiChatPulseDot');
   const zaloBtn = document.getElementById('zaloSideAppBtn');
-  if (!win || !launcher) return;
+  if (!win) return;
 
-  isChatOpen = !isChatOpen;
+  isChatOpen = true;
+  win.classList.add('active');
+  win.style.zIndex = '100030';
+  if (launcher) launcher.classList.add('active');
+  if (zaloBtn) zaloBtn.classList.add('active');
+  if (dot) dot.style.display = 'none';
+
   syncMobileChatViewport();
 
-  if (isChatOpen) {
-    win.classList.add('active');
-    launcher.classList.add('active');
-    if (zaloBtn) zaloBtn.classList.add('active');
-    if (dot) dot.style.display = 'none';
-
-    const curSid = getChatSessionId();
-    if (!hasLoadedChatHistory || activeRenderedSessionId !== curSid) {
-      loadChatHistory(false);
-    } else {
-      pollChatMessages();
-    }
-
-    if (chatPollTimer) clearInterval(chatPollTimer);
-    chatPollTimer = setInterval(pollChatMessages, 4000);
-
-    // Trên PC tự focus vào ô nhập; trên Điện thoại không tự bật bàn phím ảo để khách dễ đọc lời chào & bấm Chip gợi ý
-    if (window.innerWidth > 768) {
-      setTimeout(() => {
-        const input = document.getElementById('aiChatInput');
-        if (input) input.focus();
-      }, 200);
-    }
+  const curSid = getChatSessionId();
+  if (!hasLoadedChatHistory || activeRenderedSessionId !== curSid) {
+    loadChatHistory(false);
   } else {
-    win.classList.remove('active');
-    launcher.classList.remove('active');
-    if (zaloBtn) zaloBtn.classList.remove('active');
-    if (chatPollTimer) {
-      clearInterval(chatPollTimer);
-      chatPollTimer = null;
-    }
-    const input = document.getElementById('aiChatInput');
-    if (input) input.blur();
+    pollChatMessages();
+  }
+
+  if (chatPollTimer) clearInterval(chatPollTimer);
+  chatPollTimer = setInterval(pollChatMessages, 4000);
+
+  scrollChatToBottom();
+
+  if (focusInput && window.innerWidth > 768) {
+    setTimeout(() => {
+      const input = document.getElementById('aiChatInput');
+      if (input) input.focus();
+    }, 200);
+  }
+}
+window.openAiChat = openAiChat;
+
+function closeAiChat() {
+  const win = document.getElementById('aiChatWindow');
+  const launcher = document.getElementById('aiChatLauncher');
+  const zaloBtn = document.getElementById('zaloSideAppBtn');
+  if (!win) return;
+
+  isChatOpen = false;
+  win.classList.remove('active');
+  win.style.removeProperty('z-index');
+  if (launcher) launcher.classList.remove('active');
+  if (zaloBtn) zaloBtn.classList.remove('active');
+  if (chatPollTimer) {
+    clearInterval(chatPollTimer);
+    chatPollTimer = null;
+  }
+  const input = document.getElementById('aiChatInput');
+  if (input) input.blur();
+  syncMobileChatViewport();
+}
+window.closeAiChat = closeAiChat;
+
+function toggleAiChat() {
+  if (isChatOpen) {
+    closeAiChat();
+  } else {
+    openAiChat(true);
   }
 }
 window.toggleAiChat = toggleAiChat;
@@ -11799,14 +11819,33 @@ window.openOrderFromChat = openOrderFromChat;
 async function openAiChatForOrderSupport(orderCode) {
   if (!orderCode) return;
   const cleanCode = String(orderCode).replace(/^[#\[|\]]+/g, '').trim().toUpperCase();
-  const win = document.getElementById('aiChatWindow');
-  if (!win || !win.classList.contains('active')) {
-    toggleAiChat();
+
+  // 1. Tự động đóng các modal che khuất (Đơn hàng của tôi, Chi tiết đơn, Checkout...) để lộ Khung Chat AI chính diện
+  if (typeof closeModal === 'function') {
+    closeModal('myOrdersModal');
+    closeModal('checkoutModal');
+    closeModal('quickViewModal');
+    closeModal('editOrderShippingModal');
   }
-  // Nếu lịch sử chat chưa nạp xong, chủ động đợi nạp để không bị ghi đè race condition
+  const activeModals = document.querySelectorAll('.modal-overlay.active');
+  activeModals.forEach(m => m.classList.remove('active'));
+
+  // 2. Mở DỨT KHOÁT và tức thì khung Chat AI lên trên cùng
+  openAiChat(false);
+
+  // 3. Đảm bảo z-index và hiển thị chắc chắn không bị che khuất
+  const win = document.getElementById('aiChatWindow');
+  if (win) {
+    win.classList.add('active');
+    win.style.zIndex = '100030';
+  }
+
+  // 4. Nếu lịch sử chat chưa nạp xong, chủ động đợi nạp để không bị ghi đè race condition
   if (typeof loadChatHistory === 'function' && !hasLoadedChatHistory) {
     try { await loadChatHistory(false); } catch (_) {}
   }
+
+  // 5. Tự động điền câu hỏi tra cứu đơn và gửi ngay lập tức tới Bé Bot
   const input = document.getElementById('aiChatInput');
   if (input) {
     input.value = `Kiểm tra chi tiết đơn hàng #${cleanCode} và tiến trình giao SPX`;
@@ -11814,7 +11853,8 @@ async function openAiChatForOrderSupport(orderCode) {
       if (typeof handleSendChatMessage === 'function') {
         handleSendChatMessage();
       }
-    }, 180);
+      scrollChatToBottom();
+    }, 120);
   }
 }
 window.openAiChatForOrderSupport = openAiChatForOrderSupport;
