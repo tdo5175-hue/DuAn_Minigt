@@ -453,14 +453,21 @@ async function transitionOrderStatus(orderIdOrCode, toStatus, { note, cancelReas
     const isTransferOrDeposit = ['VIETQR_PAYOS', 'PAYOS', 'BANK_TRANSFER', 'DEPOSIT'].includes(payMethodUpper);
     const isUnpaid = String(order.PaymentStatus || '').toUpperCase() === 'UNPAID' || !order.PaymentStatus;
 
+    let newPayStatus = order.PaymentStatus;
+
     // CHỐNG THẤT THOÁT HÀNG HÓA & LỖ HỔNG DUYỆT ĐƠN:
-    // Đơn thanh toán Chuyển khoản hoặc Đặt cọc mà CHƯA nhận được tiền (UNPAID) thì TUYỆT ĐỐI không được chuyển sang Đã duyệt / Đóng gói / Giao hàng!
-    // Admin phải nhận tiền thật trong tài khoản ngân hàng và bấm "Xác nhận nhận tiền/cọc" thì đơn mới được duyệt!
+    // Đơn thanh toán Chuyển khoản hoặc Đặt cọc mà CHƯA nhận được tiền (UNPAID):
+    // - Khách hàng hoặc luồng tự động không được tự ý duyệt đơn khi chưa thanh toán
+    // - Khi Admin chủ động duyệt thủ công (sau khi đã check tài khoản MB Bank thấy tiền vào), hệ thống tự động xác nhận thanh toán
     if (isTransferOrDeposit && isUnpaid && ['CONFIRMED', 'PREPARING', 'SHIPPING', 'DELIVERED'].includes(target)) {
-      throw badRequest('Đơn hàng thanh toán Chuyển khoản hoặc Đặt cọc chưa nhận được tiền thanh toán! Vui lòng kiểm tra biến động số dư tài khoản ngân hàng và bấm "Xác nhận nhận tiền/cọc" trước khi duyệt đơn.');
+      if (!isAdmin) {
+        throw badRequest('Đơn hàng thanh toán Chuyển khoản hoặc Đặt cọc chưa nhận được tiền thanh toán! Vui lòng kiểm tra biến động số dư tài khoản ngân hàng trước khi duyệt đơn.');
+      } else {
+        const hasDeposit = Number(order.DepositAmount) > 0 || Boolean(order.HasPreOrder);
+        newPayStatus = hasDeposit ? 'PARTIALLY_PAID' : 'PAID';
+      }
     }
 
-    let newPayStatus = order.PaymentStatus;
     if (target === 'DELIVERED' && (payMethodUpper === 'COD' || order.PaymentStatus === 'PARTIALLY_PAID')) {
       newPayStatus = 'PAID';
     } else if (target === 'CANCELLED' && (order.PaymentStatus === 'PAID' || order.PaymentStatus === 'PARTIALLY_PAID')) {
