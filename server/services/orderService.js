@@ -110,15 +110,22 @@ async function createOrder(payload, authUser = null) {
         : (p.PackagingType === 'box_only' ? 'box' : packType);
 
       // Phân tách tồn kho độc lập: Hộp Box vs Vỉ Card
-      const totalStock = typeof p.Stock === 'number' ? p.Stock : (typeof p.stock === 'number' ? p.stock : 0);
-      let sBox = (p.StockBox != null) ? Number(p.StockBox) : ((p.stockbox != null) ? Number(p.stockbox) : null);
-      let sCard = (p.StockCard != null) ? Number(p.StockCard) : ((p.stockcard != null) ? Number(p.stockcard) : null);
-      if (sBox === null) sBox = p.PackagingType === 'card_only' ? 0 : Math.ceil(totalStock * 0.5);
-      if (sCard === null) sCard = p.PackagingType === 'box_only' ? 0 : Math.floor(totalStock * 0.5);
+      let sBox = (p.StockBox != null) ? Number(p.StockBox) : ((p.stockbox != null) ? Number(p.stockbox) : 0);
+      let sCard = (p.StockCard != null) ? Number(p.StockCard) : ((p.stockcard != null) ? Number(p.stockcard) : 0);
       if (p.PackagingType === 'box_only') sCard = 0;
       if (p.PackagingType === 'card_only') sBox = 0;
+      if (sBox === 0 && sCard === 0 && Number(p.Stock || p.stock || 0) > 0) {
+        if (p.PackagingType === 'card_only') sCard = Number(p.Stock || p.stock);
+        else if (p.PackagingType === 'box_only') sBox = Number(p.Stock || p.stock);
+        else {
+          sBox = Math.ceil(Number(p.Stock || p.stock) * 0.5);
+          sCard = Math.floor(Number(p.Stock || p.stock) * 0.5);
+        }
+      }
 
-      if (p.Status === 'sold_out') {
+      const totalStock = Math.max(Number(p.Stock ?? p.stock ?? 0), (sBox + sCard));
+
+      if (p.Status === 'sold_out' || totalStock <= 0) {
         throw conflict(isPreOrder ? `Mẫu xe "${p.Name}" hiện đã hết toàn bộ suất đặt cọc!` : `Mẫu xe "${p.Name}" hiện đã hết hàng trong kho!`);
       }
 
@@ -129,31 +136,29 @@ async function createOrder(payload, authUser = null) {
 
       const packLabel = effectivePack === 'card' ? 'Bản Vỉ Card' : 'Bản Hộp Box';
       const slotWord = isPreOrder ? 'suất đặt cọc' : 'xe trong kho';
+      const availableForPack = effectivePack === 'card' ? sCard : sBox;
 
-      if (effectivePack === 'box') {
-        if (sBox <= 0) {
-          throw conflict(isPreOrder ? `Mẫu xe "${p.Name}" (Bản Hộp Box) hiện đã hết suất đặt cọc! Vui lòng chọn Bản Vỉ Card.` : `Mẫu xe "${p.Name}" (Bản Hộp Box) hiện đã hết hàng trong kho! Vui lòng chọn Bản Vỉ Card.`);
-        } else if (sBox < quantity) {
-          throw conflict(`Mẫu xe "${p.Name}" (${packLabel}) chỉ còn ${sBox} ${slotWord} (bạn đặt ${quantity}).`);
-        }
-      } else if (effectivePack === 'card') {
-        if (sCard <= 0) {
-          throw conflict(isPreOrder ? `Mẫu xe "${p.Name}" (Bản Vỉ Card) hiện đã hết suất đặt cọc! Vui lòng chọn Bản Hộp Box.` : `Mẫu xe "${p.Name}" (Bản Vỉ Card) hiện đã hết hàng trong kho! Vui lòng chọn Bản Hộp Box.`);
-        } else if (sCard < quantity) {
-          throw conflict(`Mẫu xe "${p.Name}" (${packLabel}) chỉ còn ${sCard} ${slotWord} (bạn đặt ${quantity}).`);
-        }
-      }
-
-      if (totalStock < quantity) {
-        throw conflict(`Mẫu xe "${p.Name}" chỉ còn ${totalStock} ${slotWord} khả dụng (bạn đặt ${quantity}).`);
+      if (availableForPack <= 0) {
+        throw conflict(isPreOrder ? `Mẫu xe "${p.Name}" (${packLabel}) hiện đã hết suất đặt cọc! Vui lòng chọn bản còn lại.` : `Mẫu xe "${p.Name}" (${packLabel}) hiện đã hết hàng trong kho! Vui lòng chọn bản còn lại.`);
+      } else if (availableForPack < quantity) {
+        throw conflict(`Mẫu xe "${p.Name}" (${packLabel}) chỉ còn ${availableForPack} ${slotWord} khả dụng (bạn đặt ${quantity}).`);
       }
 
       await q(`
         UPDATE Products
-        SET Stock = GREATEST(0, COALESCE(Stock, 0) - @qty),
-            StockBox = CASE WHEN @pack = 'box' THEN GREATEST(0, COALESCE(StockBox, 0) - @qty) ELSE COALESCE(StockBox, 0) END,
+        SET StockBox = CASE WHEN @pack = 'box' THEN GREATEST(0, COALESCE(StockBox, 0) - @qty) ELSE COALESCE(StockBox, 0) END,
             StockCard = CASE WHEN @pack = 'card' THEN GREATEST(0, COALESCE(StockCard, 0) - @qty) ELSE COALESCE(StockCard, 0) END,
-            Status = CASE WHEN GREATEST(0, COALESCE(Stock, 0) - @qty) <= 0 THEN 'sold_out' ELSE Status END,
+            Stock = GREATEST(0, 
+              (CASE WHEN @pack = 'box' THEN GREATEST(0, COALESCE(StockBox, 0) - @qty) ELSE COALESCE(StockBox, 0) END) +
+              (CASE WHEN @pack = 'card' THEN GREATEST(0, COALESCE(StockCard, 0) - @qty) ELSE COALESCE(StockCard, 0) END)
+            ),
+            Status = CASE 
+              WHEN (
+                (CASE WHEN @pack = 'box' THEN GREATEST(0, COALESCE(StockBox, 0) - @qty) ELSE COALESCE(StockBox, 0) END) +
+                (CASE WHEN @pack = 'card' THEN GREATEST(0, COALESCE(StockCard, 0) - @qty) ELSE COALESCE(StockCard, 0) END)
+              ) <= 0 THEN 'sold_out' 
+              ELSE Status 
+            END,
             UpdatedAt = NOW()
         WHERE ProductId = @pid
       `, { pid: productId, qty: quantity, pack: effectivePack });
@@ -462,30 +467,51 @@ async function transitionOrderStatus(orderIdOrCode, toStatus, { note, cancelReas
       }
     }
 
-    if (target === 'CANCELLED' && order.StockReserved) {
+    if (target === 'CANCELLED' && (order.StockReserved || order.stockreserved)) {
       const itemsRes = await q('SELECT ProductId, Quantity, PackagingOption FROM OrderItems WHERE OrderId = @oid', { oid: order.OrderId });
       for (const it of itemsRes.recordset) {
-        const itemPack = String(it.PackagingOption || 'box').toLowerCase() === 'card' ? 'card' : 'box';
+        const itemPack = String(it.PackagingOption || it.packagingoption || 'box').toLowerCase() === 'card' ? 'card' : 'box';
         await q(`
           UPDATE Products
-          SET Stock = Stock + @qty,
-              StockBox = CASE WHEN @pack = 'box' THEN StockBox + @qty ELSE StockBox END,
-              StockCard = CASE WHEN @pack = 'card' THEN StockCard + @qty ELSE StockCard END,
+          SET StockBox = CASE WHEN @pack = 'box' THEN COALESCE(StockBox, 0) + @qty ELSE COALESCE(StockBox, 0) END,
+              StockCard = CASE WHEN @pack = 'card' THEN COALESCE(StockCard, 0) + @qty ELSE COALESCE(StockCard, 0) END,
+              Stock = (
+                (CASE WHEN @pack = 'box' THEN COALESCE(StockBox, 0) + @qty ELSE COALESCE(StockBox, 0) END) +
+                (CASE WHEN @pack = 'card' THEN COALESCE(StockCard, 0) + @qty ELSE COALESCE(StockCard, 0) END)
+              ),
               Status = CASE 
-                WHEN Status = 'sold_out' AND Stock + @qty > 0 THEN 
-                  (CASE WHEN COALESCE(DepositPercent, 0) > 0 OR ReleaseDate > NOW() THEN 'pre_order' ELSE 'in_stock' END)
+                WHEN Status = 'sold_out' THEN 
+                  (CASE WHEN COALESCE(DepositPercent, 0) > 0 OR Name ILIKE '%preorder%' OR Name ILIKE '%pre-order%' OR (ReleaseDate IS NOT NULL AND ReleaseDate > NOW()) THEN 'pre_order' ELSE 'in_stock' END)
                 ELSE Status 
               END,
               UpdatedAt = NOW()
           WHERE ProductId = @pid
-        `, { pid: it.ProductId, qty: it.Quantity, pack: itemPack });
+        `, { pid: it.ProductId || it.productid, qty: it.Quantity || it.quantity, pack: itemPack });
       }
     }
 
-    if (target !== 'CANCELLED' && !order.StockReserved) {
-      const itemsRes = await q('SELECT ProductId, Quantity FROM OrderItems WHERE OrderId = @oid', { oid: order.OrderId });
+    if (target !== 'CANCELLED' && !(order.StockReserved || order.stockreserved)) {
+      const itemsRes = await q('SELECT ProductId, Quantity, PackagingOption FROM OrderItems WHERE OrderId = @oid', { oid: order.OrderId });
       for (const it of itemsRes.recordset) {
-        await q('UPDATE Products SET Stock = CASE WHEN Stock >= @qty THEN Stock - @qty ELSE 0 END WHERE ProductId = @pid', { pid: it.ProductId, qty: it.Quantity });
+        const itemPack = String(it.PackagingOption || it.packagingoption || 'box').toLowerCase() === 'card' ? 'card' : 'box';
+        await q(`
+          UPDATE Products 
+          SET StockBox = CASE WHEN @pack = 'box' THEN GREATEST(0, COALESCE(StockBox, 0) - @qty) ELSE COALESCE(StockBox, 0) END,
+              StockCard = CASE WHEN @pack = 'card' THEN GREATEST(0, COALESCE(StockCard, 0) - @qty) ELSE COALESCE(StockCard, 0) END,
+              Stock = GREATEST(0, 
+                (CASE WHEN @pack = 'box' THEN GREATEST(0, COALESCE(StockBox, 0) - @qty) ELSE COALESCE(StockBox, 0) END) +
+                (CASE WHEN @pack = 'card' THEN GREATEST(0, COALESCE(StockCard, 0) - @qty) ELSE COALESCE(StockCard, 0) END)
+              ),
+              Status = CASE 
+                WHEN (
+                  (CASE WHEN @pack = 'box' THEN GREATEST(0, COALESCE(StockBox, 0) - @qty) ELSE COALESCE(StockBox, 0) END) +
+                  (CASE WHEN @pack = 'card' THEN GREATEST(0, COALESCE(StockCard, 0) - @qty) ELSE COALESCE(StockCard, 0) END)
+                ) <= 0 THEN 'sold_out' 
+                ELSE Status 
+              END,
+              UpdatedAt = NOW() 
+          WHERE ProductId = @pid
+        `, { pid: it.ProductId || it.productid, qty: it.Quantity || it.quantity, pack: itemPack });
       }
     }
 
@@ -589,14 +615,27 @@ async function updatePaymentStatus(orderId, paymentStatus, { actorId = null, not
 
   // Nếu đơn từng bị CANCELLED và được khôi phục khi nhận tiền: Trừ lại tồn kho tương ứng
   if (currentStatus === 'CANCELLED' && isPaidTarget) {
-    const itemsRes = await db.query('SELECT ProductId, Quantity FROM OrderItems WHERE OrderId = @oid', { oid: Number(orderId) });
+    const itemsRes = await db.query('SELECT ProductId, Quantity, PackagingOption FROM OrderItems WHERE OrderId = @oid', { oid: Number(orderId) });
     for (const it of (itemsRes.recordset || [])) {
+      const itemPack = String(it.PackagingOption || it.packagingoption || 'box').toLowerCase() === 'card' ? 'card' : 'box';
       await db.query(`
         UPDATE Products 
-        SET Stock = CASE WHEN Stock >= @qty THEN Stock - @qty ELSE 0 END,
+        SET StockBox = CASE WHEN @pack = 'box' THEN GREATEST(0, COALESCE(StockBox, 0) - @qty) ELSE COALESCE(StockBox, 0) END,
+            StockCard = CASE WHEN @pack = 'card' THEN GREATEST(0, COALESCE(StockCard, 0) - @qty) ELSE COALESCE(StockCard, 0) END,
+            Stock = GREATEST(0, 
+              (CASE WHEN @pack = 'box' THEN GREATEST(0, COALESCE(StockBox, 0) - @qty) ELSE COALESCE(StockBox, 0) END) +
+              (CASE WHEN @pack = 'card' THEN GREATEST(0, COALESCE(StockCard, 0) - @qty) ELSE COALESCE(StockCard, 0) END)
+            ),
+            Status = CASE 
+              WHEN (
+                (CASE WHEN @pack = 'box' THEN GREATEST(0, COALESCE(StockBox, 0) - @qty) ELSE COALESCE(StockBox, 0) END) +
+                (CASE WHEN @pack = 'card' THEN GREATEST(0, COALESCE(StockCard, 0) - @qty) ELSE COALESCE(StockCard, 0) END)
+              ) <= 0 THEN 'sold_out' 
+              ELSE Status 
+            END,
             UpdatedAt = NOW()
         WHERE ProductId = @pid
-      `, { pid: it.ProductId || it.productid, qty: it.Quantity || it.quantity });
+      `, { pid: it.ProductId || it.productid, qty: it.Quantity || it.quantity, pack: itemPack });
     }
   }
 
