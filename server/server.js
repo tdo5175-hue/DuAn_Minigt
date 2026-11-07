@@ -109,33 +109,6 @@ function setCachedImage(id, data) {
   imageMemoryCache.set(id, data);
 }
 
-// Khởi động nạp trước bộ nhớ đệm hình ảnh ngầm (Non-blocking RAM Cache Warming)
-// Giúp ngay từ lượt truy cập đầu tiên của khách, ảnh xe & ảnh card đều tải tức thì trong < 1ms
-setTimeout(async () => {
-  try {
-    const warmRes = await db.query('SELECT ImageId, Filename, MimeType, Data FROM UploadedImages ORDER BY ImageId DESC LIMIT 70');
-    if (warmRes && warmRes.recordset) {
-      for (const row of warmRes.recordset) {
-        const id = parseInt(row.ImageId || row.imageid, 10);
-        if (!id || imageMemoryCache.has(id)) continue;
-        let data = row.Data || row.data || '';
-        let mime = row.MimeType || row.mimetype || 'image/webp';
-        if (data.startsWith('data:')) {
-          const match = data.match(/^data:([a-zA-Z0-9\/+.-]+);base64,(.+)$/);
-          if (match) { mime = match[1]; data = match[2]; }
-          else { const parts = data.split(','); data = parts[1] || parts[0]; }
-        }
-        const buffer = Buffer.from(data, 'base64');
-        const etag = `"${id}-${buffer.length}"`;
-        setCachedImage(id, { buffer, mime, etag });
-      }
-      console.log(`⚡ [IMAGE CACHE] Đã nạp sẵn ${imageMemoryCache.size} ảnh mô hình vào RAM cache siêu tốc!`);
-    }
-  } catch (err) {
-    console.warn('[IMAGE CACHE WARM] Lỗi nạp trước (không ảnh hưởng):', err.message);
-  }
-}, 1000);
-
 // Phục vụ hình ảnh mô hình xe tải lên từ database Supabase (tương thích 100% Vercel Serverless & Local)
 app.get(['/api/images/:id', '/images/:id'], async (req, res) => {
   try {

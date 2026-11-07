@@ -1426,7 +1426,7 @@ async function loadProducts() {
 
   try {
     const json = await safeFetch('/api/products?limit=200');
-    if (json && json.success && Array.isArray(json.data)) {
+    if (json && json.success && Array.isArray(json.data) && json.data.length > 0) {
       allProducts = json.data.map(p => (window.api && window.api.normalizeProductObject) ? window.api.normalizeProductObject(p) : p);
     } else if (!allProducts || allProducts.length === 0) {
       allProducts = FALLBACK_PRODUCTS.map(p => (window.api && window.api.normalizeProductObject) ? window.api.normalizeProductObject(p) : p);
@@ -2904,8 +2904,10 @@ let appCategories = [];
 async function loadAppCategories() {
   try {
     const res = await safeFetch('/api/categories');
-    if (res && res.success && Array.isArray(res.data)) {
+    if (res && res.success && Array.isArray(res.data) && res.data.length > 0) {
       appCategories = res.data;
+    } else if (window.api && typeof window.api.getSharedCategories === 'function') {
+      appCategories = window.api.getSharedCategories();
     }
   } catch (e) {
     if (window.api && typeof window.api.getSharedCategories === 'function') {

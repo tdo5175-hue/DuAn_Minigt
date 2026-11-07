@@ -60,9 +60,13 @@ let isConnected = false;
 
 function getPool() {
   if (!pool) {
+    const isVercel = Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME);
     pool = new Pool({
       connectionString: CONNECTION_STRING,
-      ssl: { rejectUnauthorized: false }
+      ssl: { rejectUnauthorized: false },
+      max: isVercel ? 4 : 10,
+      idleTimeoutMillis: 10000,
+      connectionTimeoutMillis: 10000
     });
 
     pool.on('connect', () => {
