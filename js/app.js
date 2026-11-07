@@ -3359,27 +3359,40 @@ function addToCart(productId, quantity = 1, explicitPackType = null) {
   const maxPackStock = chosenPack === 'card' ? (pricing.stockCard ?? 0) : (pricing.stockBox ?? 0);
   const packLabel = chosenPack === 'card' ? 'Bản Vỉ Card' : 'Bản Hộp Box';
 
-  // Kiểm tra tồn kho độc lập cho từng bản Hộp Box và Vỉ Card (không gộp chung)
-  if (!isPreOrder) {
-    if (packInCart + quantity > maxPackStock) {
-      if (maxPackStock <= 0) {
-        showToast(isEn ? `"${pName}" (${packLabel}) is currently sold out!` : `Mẫu xe "${pName}" (${packLabel}) hiện đã hết hàng!`, 'error');
-      } else {
-        showToast(
-          isEn 
-            ? `Only ${maxPackStock} left in stock for ${packLabel} (you already have ${packInCart} in cart).` 
-            : `Rất tiếc! Mẫu "${pName}" (${packLabel}) chỉ còn ${maxPackStock} xe trong kho (bạn đã có ${packInCart} trong giỏ).`,
-          'error'
-        );
-      }
-      return false;
-    }
+  // Kiểm tra số lượng đặt và tồn kho / suất cọc độc lập cho từng bản Hộp Box và Vỉ Card
+  if (isPreOrder && packInCart + quantity > 5) {
+    showToast(isEn ? 'Pre-order limit: maximum 5 models per order!' : `Để đảm bảo công bằng cho người sưu tầm, mỗi đơn hàng chỉ được đặt cọc tối đa 5 chiếc cho mẫu "${pName}"!`, 'error');
+    return false;
+  }
 
-    const totalInCartForProd = cart.filter(it => (it.productId == productId || it.id == productId)).reduce((s, i) => s + i.quantity, 0);
-    if (totalInCartForProd + quantity > stock) {
-      showToast(isEn ? `Total available stock for "${pName}" is ${stock} models.` : `Tổng số lượng tồn kho của mẫu xe "${pName}" chỉ còn ${stock} xe (cả Box & Card).`, 'error');
-      return false;
+  if (packInCart + quantity > maxPackStock) {
+    if (maxPackStock <= 0) {
+      showToast(
+        isEn 
+          ? (isPreOrder ? `Pre-order slots for "${pName}" (${packLabel}) are full!` : `"${pName}" (${packLabel}) is currently sold out!`)
+          : (isPreOrder ? `Mẫu xe "${pName}" (${packLabel}) hiện đã hết suất đặt cọc!` : `Mẫu xe "${pName}" (${packLabel}) hiện đã hết hàng trong kho!`),
+        'error'
+      );
+    } else {
+      showToast(
+        isEn 
+          ? (isPreOrder ? `Only ${maxPackStock} pre-order slots available for ${packLabel} (you already have ${packInCart} in cart).` : `Only ${maxPackStock} left in stock for ${packLabel} (you already have ${packInCart} in cart).`)
+          : (isPreOrder ? `Rất tiếc! Mẫu "${pName}" (${packLabel}) chỉ còn ${maxPackStock} suất đặt cọc khả dụng (bạn đã có ${packInCart} trong giỏ).` : `Rất tiếc! Mẫu "${pName}" (${packLabel}) chỉ còn ${maxPackStock} xe trong kho (bạn đã có ${packInCart} trong giỏ).`),
+        'error'
+      );
     }
+    return false;
+  }
+
+  const totalInCartForProd = cart.filter(it => (it.productId == productId || it.id == productId)).reduce((s, i) => s + i.quantity, 0);
+  if (totalInCartForProd + quantity > stock) {
+    showToast(
+      isEn 
+        ? (isPreOrder ? `Total pre-order quota for "${pName}" is ${stock} slots.` : `Total available stock for "${pName}" is ${stock} models.`)
+        : (isPreOrder ? `Tổng số suất đặt cọc khả dụng của mẫu xe "${pName}" chỉ còn ${stock} suất (cả Box & Card).` : `Tổng số lượng tồn kho của mẫu xe "${pName}" chỉ còn ${stock} xe (cả Box & Card).`),
+      'error'
+    );
+    return false;
   }
 
   const depPct = isPreOrder ? Number(prod.DepositPercent || prod.depositPercent || 30) : 0;
@@ -3561,23 +3574,36 @@ function changeCartQty(productId, delta, packType = null) {
     const prod = (allProducts && allProducts.length ? allProducts : FALLBACK_PRODUCTS).find(p => (p.ProductId || p.id) == productId);
     if (prod) {
       const isPreOrder = String(prod.Status || prod.status || '').toLowerCase() === 'pre_order';
-      if (!isPreOrder) {
-        const pricing = getProductBoxCardPricing(prod);
-        const itemPack = it.packType || 'box';
-        const maxPackStock = itemPack === 'card' ? (pricing.stockCard ?? 0) : (pricing.stockBox ?? 0);
-        const packLabel = itemPack === 'card' ? 'Bản Vỉ Card' : 'Bản Hộp Box';
+      const pricing = getProductBoxCardPricing(prod);
+      const itemPack = it.packType || 'box';
+      const maxPackStock = itemPack === 'card' ? (pricing.stockCard ?? 0) : (pricing.stockBox ?? 0);
+      const packLabel = itemPack === 'card' ? 'Bản Vỉ Card' : 'Bản Hộp Box';
 
-        if (it.quantity + delta > maxPackStock) {
-          showToast(`Mẫu này chỉ còn ${maxPackStock} xe (${packLabel}) trong kho.`, 'error');
-          return;
-        }
+      if (isPreOrder && it.quantity + delta > 5) {
+        showToast('Để đảm bảo quyền lợi sưu tầm công bằng, mỗi đơn chỉ được đặt cọc tối đa 5 xe cho mẫu này!', 'error');
+        return;
+      }
 
-        const totalStock = typeof prod.Stock === 'number' ? prod.Stock : (typeof prod.stock === 'number' ? prod.stock : 999);
-        const totalInCart = cart.filter(i => i.productId == productId).reduce((s, x) => s + x.quantity, 0);
-        if (totalInCart + delta > totalStock) {
-          showToast(`Tổng số lượng có thể đặt tối đa cho mẫu xe này là ${totalStock} xe.`, 'error');
-          return;
-        }
+      if (it.quantity + delta > maxPackStock) {
+        showToast(
+          isPreOrder 
+            ? `Mẫu này chỉ còn ${maxPackStock} suất đặt cọc (${packLabel}).` 
+            : `Mẫu này chỉ còn ${maxPackStock} xe (${packLabel}) trong kho.`, 
+          'error'
+        );
+        return;
+      }
+
+      const totalStock = typeof prod.Stock === 'number' ? prod.Stock : (typeof prod.stock === 'number' ? prod.stock : 999);
+      const totalInCart = cart.filter(i => i.productId == productId).reduce((s, x) => s + x.quantity, 0);
+      if (totalInCart + delta > totalStock) {
+        showToast(
+          isPreOrder 
+            ? `Tổng số suất đặt cọc tối đa cho mẫu xe này là ${totalStock} suất.` 
+            : `Tổng số lượng có thể đặt tối đa cho mẫu xe này là ${totalStock} xe.`, 
+          'error'
+        );
+        return;
       }
     }
   }
@@ -4082,9 +4108,9 @@ function changeQuickViewQty(productId, delta) {
   const isPreOrder = prod ? String(prod.Status || prod.status || '').toLowerCase() === 'pre_order' : false;
   const chosenPack = prod ? getSelectedPackForProduct(prod) : 'box';
   let maxQty = 20;
-  if (prod && !isPreOrder && pricing) {
+  if (prod && pricing) {
     const packStock = chosenPack === 'card' ? (pricing.stockCard ?? 0) : (pricing.stockBox ?? 0);
-    maxQty = Math.max(1, packStock);
+    maxQty = isPreOrder ? Math.min(5, Math.max(1, packStock)) : Math.max(1, packStock);
   }
   const current = parseInt(input.value, 10) || 1;
   const next = Math.max(1, Math.min(maxQty, current + delta));
@@ -4361,7 +4387,7 @@ function openQuickView(productId) {
         <div class="qv-purchase-row">
           <div class="qv-qty-stepper" aria-label="Số lượng">
             <button type="button" onclick="changeQuickViewQty(${pId}, -1)" ${isSoldOut ? 'disabled' : ''}>−</button>
-            <input type="number" id="qvQtyInput_${pId}" value="1" min="1" max="${isPreOrder ? 20 : Math.max(1, activePack === 'card' ? pricing.stockCard : pricing.stockBox)}" readonly>
+            <input type="number" id="qvQtyInput_${pId}" value="1" min="1" max="${isPreOrder ? Math.min(5, Math.max(1, activePack === 'card' ? pricing.stockCard : pricing.stockBox)) : Math.max(1, activePack === 'card' ? pricing.stockCard : pricing.stockBox)}" readonly>
             <button type="button" onclick="changeQuickViewQty(${pId}, 1)" ${isSoldOut ? 'disabled' : ''}>+</button>
           </div>
 

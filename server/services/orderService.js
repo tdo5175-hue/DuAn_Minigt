@@ -119,25 +119,33 @@ async function createOrder(payload, authUser = null) {
       if (p.PackagingType === 'card_only') sBox = 0;
 
       if (p.Status === 'sold_out') {
-        throw conflict(`Mẫu xe "${p.Name}" hiện đã hết hàng trong kho!`);
+        throw conflict(isPreOrder ? `Mẫu xe "${p.Name}" hiện đã hết toàn bộ suất đặt cọc!` : `Mẫu xe "${p.Name}" hiện đã hết hàng trong kho!`);
       }
 
-      if (!isPreOrder) {
-        if (effectivePack === 'box') {
-          if (sBox <= 0) {
-            throw conflict(`Mẫu xe "${p.Name}" (Bản Hộp Box) hiện đã hết hàng trong kho! Vui lòng chọn Bản Vỉ Card.`);
-          } else if (sBox < quantity) {
-            throw conflict(`Mẫu xe "${p.Name}" (Bản Hộp Box) chỉ còn ${sBox} xe trong kho (bạn đặt ${quantity})`);
-          }
-        } else if (effectivePack === 'card') {
-          if (sCard <= 0) {
-            throw conflict(`Mẫu xe "${p.Name}" (Bản Vỉ Card) hiện đã hết hàng trong kho! Vui lòng chọn Bản Hộp Box.`);
-          } else if (sCard < quantity) {
-            throw conflict(`Mẫu xe "${p.Name}" (Bản Vỉ Card) chỉ còn ${sCard} xe trong kho (bạn đặt ${quantity})`);
-          }
-        } else if (totalStock < quantity) {
-          throw conflict(`Mẫu xe "${p.Name}" chỉ còn ${totalStock} xe trong kho (bạn đặt ${quantity})`);
+      // Giới hạn chống gom hàng đầu cơ cho xe Pre-Order: tối đa 5 xe / mẫu
+      if (isPreOrder && quantity > 5) {
+        throw badRequest(`Để đảm bảo quyền lợi sưu tầm công bằng, mỗi đơn hàng chỉ được đặt cọc tối đa 5 chiếc cho mẫu "${p.Name}"!`);
+      }
+
+      const packLabel = effectivePack === 'card' ? 'Bản Vỉ Card' : 'Bản Hộp Box';
+      const slotWord = isPreOrder ? 'suất đặt cọc' : 'xe trong kho';
+
+      if (effectivePack === 'box') {
+        if (sBox <= 0) {
+          throw conflict(isPreOrder ? `Mẫu xe "${p.Name}" (Bản Hộp Box) hiện đã hết suất đặt cọc! Vui lòng chọn Bản Vỉ Card.` : `Mẫu xe "${p.Name}" (Bản Hộp Box) hiện đã hết hàng trong kho! Vui lòng chọn Bản Vỉ Card.`);
+        } else if (sBox < quantity) {
+          throw conflict(`Mẫu xe "${p.Name}" (${packLabel}) chỉ còn ${sBox} ${slotWord} (bạn đặt ${quantity}).`);
         }
+      } else if (effectivePack === 'card') {
+        if (sCard <= 0) {
+          throw conflict(isPreOrder ? `Mẫu xe "${p.Name}" (Bản Vỉ Card) hiện đã hết suất đặt cọc! Vui lòng chọn Bản Hộp Box.` : `Mẫu xe "${p.Name}" (Bản Vỉ Card) hiện đã hết hàng trong kho! Vui lòng chọn Bản Hộp Box.`);
+        } else if (sCard < quantity) {
+          throw conflict(`Mẫu xe "${p.Name}" (${packLabel}) chỉ còn ${sCard} ${slotWord} (bạn đặt ${quantity}).`);
+        }
+      }
+
+      if (totalStock < quantity) {
+        throw conflict(`Mẫu xe "${p.Name}" chỉ còn ${totalStock} ${slotWord} khả dụng (bạn đặt ${quantity}).`);
       }
 
       await q(`
@@ -145,7 +153,7 @@ async function createOrder(payload, authUser = null) {
         SET Stock = GREATEST(0, COALESCE(Stock, 0) - @qty),
             StockBox = CASE WHEN @pack = 'box' THEN GREATEST(0, COALESCE(StockBox, 0) - @qty) ELSE COALESCE(StockBox, 0) END,
             StockCard = CASE WHEN @pack = 'card' THEN GREATEST(0, COALESCE(StockCard, 0) - @qty) ELSE COALESCE(StockCard, 0) END,
-            Status = CASE WHEN GREATEST(0, COALESCE(Stock, 0) - @qty) <= 0 AND Status = 'in_stock' THEN 'sold_out' ELSE Status END,
+            Status = CASE WHEN GREATEST(0, COALESCE(Stock, 0) - @qty) <= 0 THEN 'sold_out' ELSE Status END,
             UpdatedAt = NOW()
         WHERE ProductId = @pid
       `, { pid: productId, qty: quantity, pack: effectivePack });
@@ -435,7 +443,11 @@ async function transitionOrderStatus(orderIdOrCode, toStatus, { note, cancelReas
           SET Stock = Stock + @qty,
               StockBox = CASE WHEN @pack = 'box' THEN StockBox + @qty ELSE StockBox END,
               StockCard = CASE WHEN @pack = 'card' THEN StockCard + @qty ELSE StockCard END,
-              Status = CASE WHEN Status = 'sold_out' AND Stock + @qty > 0 THEN 'in_stock' ELSE Status END,
+              Status = CASE 
+                WHEN Status = 'sold_out' AND Stock + @qty > 0 THEN 
+                  (CASE WHEN COALESCE(DepositPercent, 0) > 0 OR ReleaseDate > NOW() THEN 'pre_order' ELSE 'in_stock' END)
+                ELSE Status 
+              END,
               UpdatedAt = NOW()
           WHERE ProductId = @pid
         `, { pid: it.ProductId, qty: it.Quantity, pack: itemPack });

@@ -1058,10 +1058,12 @@ router.put('/orders/:id/preorder-arrived', async (req, res, next) => {
 router.put('/products/:id/convert-to-instock', async (req, res, next) => {
   try {
     const productId = req.params.id;
-    const p = await productService.getProductById(productId);
-    if (!p) throw notFound('Không tìm thấy mô hình');
+    const p = await productService.getProductByIdOrSlug(productId);
+    if (!p) throw notFound('Không tìm thấy mô hình xe');
 
-    // Chuyển trạng thái sản phẩm sang in_stock
+    const prodName = p.Name || p.name || `Xe #${productId}`;
+
+    // Chuyển trạng thái sản phẩm sang in_stock (hàng có sẵn tại kho)
     await db.query(`
       UPDATE Products
       SET Status = 'in_stock', UpdatedAt = NOW()
@@ -1070,32 +1072,45 @@ router.put('/products/:id/convert-to-instock', async (req, res, next) => {
 
     // Tự động thông báo tới các đơn đặt cọc xe chứa sản phẩm này
     const affectedOrders = await db.query(`
-      SELECT DISTINCT o.OrderId, o.OrderCode
+      SELECT DISTINCT o.OrderId, o.OrderCode, o.Status, o.PaymentStatus
       FROM Orders o
       JOIN OrderItems oi ON o.OrderId = oi.OrderId
-      WHERE oi.ProductId = @id AND o.Status IN ('PENDING', 'CONFIRMED') AND (o.PreOrderNotified = FALSE OR o.PreOrderNotified IS NULL)
+      WHERE oi.ProductId = @id AND UPPER(COALESCE(o.Status, '')) IN ('PENDING', 'CONFIRMED')
     `, { id: productId });
 
+    let updatedOrdersCount = 0;
     for (const ord of (affectedOrders.recordset || [])) {
       const oid = ord.OrderId || ord.orderid;
-      await db.query(`
-        UPDATE Orders
-        SET PreOrderNotified = TRUE, UpdatedAt = NOW()
-        WHERE OrderId = @oid
-      `, { oid });
-      await orderService.transitionOrderStatus(oid, 'PREPARING', {
-        note: `Mô hình "${p.Name || p.name}" đã cập bến kho Biên Hòa. Đơn hàng chuyển sang chuẩn bị đóng gói giao SPX.`,
-        actorId: req.user ? req.user.userId : null,
-        isAdmin: true
-      });
+      const curStatus = String(ord.Status || ord.status || '').toUpperCase();
+      const curPayStatus = String(ord.PaymentStatus || ord.paymentstatus || '').toUpperCase();
+
+      try {
+        await db.query(`
+          UPDATE Orders
+          SET PreOrderNotified = TRUE, UpdatedAt = NOW()
+          WHERE OrderId = @oid
+        `, { oid });
+
+        // Nếu đơn đã cọc hoặc đã thanh toán (CONFIRMED hoặc PAID / PARTIALLY_PAID): Chuyển sang đóng gói
+        if (curStatus === 'CONFIRMED' || curPayStatus === 'PARTIALLY_PAID' || curPayStatus === 'PAID') {
+          await orderService.transitionOrderStatus(oid, 'PREPARING', {
+            note: `Mô hình "${prodName}" đã cập bến kho Biên Hòa. Đơn hàng chuyển sang chuẩn bị đóng gói bàn giao SPX.`,
+            actorId: req.user ? req.user.userId : null,
+            isAdmin: true
+          });
+        }
+        updatedOrdersCount++;
+      } catch (ordErr) {
+        console.warn(`[CONVERT-TO-INSTOCK] Cảnh báo cập nhật đơn #${oid}:`, ordErr.message);
+      }
     }
 
     aiChatService.invalidateStoreCache();
-    const updatedProd = await productService.getProductById(productId);
+    const updatedProd = await productService.getProductByIdOrSlug(productId);
     return ok(res, {
       product: updatedProd,
-      affectedOrdersCount: affectedOrders.recordset.length
-    }, `Đã chuyển mô hình "${updatedProd.Name || updatedProd.name}" sang "Có sẵn tại kho" và cập nhật ${affectedOrders.recordset.length} đơn hàng liên quan!`);
+      affectedOrdersCount: updatedOrdersCount
+    }, `Đã chuyển mô hình "${prodName}" sang "Có sẵn tại kho" thành công! Đã cập nhật ${updatedOrdersCount} đơn hàng đặt cọc liên quan.`);
   } catch (error) {
     next(error);
   }

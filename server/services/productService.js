@@ -514,6 +514,7 @@ module.exports = {
   calcDiscountedPrice,
   listProducts,
   getProductByIdOrSlug,
+  getProductById: getProductByIdOrSlug,
   findPublic,
   listCategories,
   addCategory
