@@ -85,12 +85,80 @@ app.get(['/api/categories', '/categories'], async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// =====================================================================
+// BỘ NHỚ ĐỆM RAM TỐC ĐỘ CAO CHO HÌNH ẢNH MÔ HÌNH XE (IN-MEMORY LRU CACHE)
+// Giảm thiểu tối đa truy vấn vào Supabase PostgreSQL Cloud, tốc độ phục vụ ảnh < 1ms
+// =====================================================================
+const imageMemoryCache = new Map();
+const MAX_IMAGE_CACHE_ENTRIES = 350;
+
+function getCachedImage(id) {
+  if (!imageMemoryCache.has(id)) return null;
+  const item = imageMemoryCache.get(id);
+  // Đưa key lên đầu theo cơ chế LRU
+  imageMemoryCache.delete(id);
+  imageMemoryCache.set(id, item);
+  return item;
+}
+
+function setCachedImage(id, data) {
+  if (imageMemoryCache.size >= MAX_IMAGE_CACHE_ENTRIES) {
+    const firstKey = imageMemoryCache.keys().next().value;
+    if (firstKey) imageMemoryCache.delete(firstKey);
+  }
+  imageMemoryCache.set(id, data);
+}
+
+// Khởi động nạp trước bộ nhớ đệm hình ảnh ngầm (Non-blocking RAM Cache Warming)
+// Giúp ngay từ lượt truy cập đầu tiên của khách, ảnh xe & ảnh card đều tải tức thì trong < 1ms
+setTimeout(async () => {
+  try {
+    const warmRes = await db.query('SELECT ImageId, Filename, MimeType, Data FROM UploadedImages ORDER BY ImageId DESC LIMIT 70');
+    if (warmRes && warmRes.recordset) {
+      for (const row of warmRes.recordset) {
+        const id = parseInt(row.ImageId || row.imageid, 10);
+        if (!id || imageMemoryCache.has(id)) continue;
+        let data = row.Data || row.data || '';
+        let mime = row.MimeType || row.mimetype || 'image/webp';
+        if (data.startsWith('data:')) {
+          const match = data.match(/^data:([a-zA-Z0-9\/+.-]+);base64,(.+)$/);
+          if (match) { mime = match[1]; data = match[2]; }
+          else { const parts = data.split(','); data = parts[1] || parts[0]; }
+        }
+        const buffer = Buffer.from(data, 'base64');
+        const etag = `"${id}-${buffer.length}"`;
+        setCachedImage(id, { buffer, mime, etag });
+      }
+      console.log(`⚡ [IMAGE CACHE] Đã nạp sẵn ${imageMemoryCache.size} ảnh mô hình vào RAM cache siêu tốc!`);
+    }
+  } catch (err) {
+    console.warn('[IMAGE CACHE WARM] Lỗi nạp trước (không ảnh hưởng):', err.message);
+  }
+}, 1000);
+
 // Phục vụ hình ảnh mô hình xe tải lên từ database Supabase (tương thích 100% Vercel Serverless & Local)
 app.get(['/api/images/:id', '/images/:id'], async (req, res) => {
   try {
     const id = parseInt(req.params.id, 10);
     if (!id) return res.status(404).send('Not Found');
 
+    const clientEtag = req.headers['if-none-match'];
+    const cached = getCachedImage(id);
+
+    // 1. Phục vụ ngay từ bộ nhớ đệm RAM nếu đã có
+    if (cached) {
+      if (clientEtag && clientEtag === cached.etag) {
+        res.setHeader('Cache-Control', 'public, max-age=31536000, s-maxage=31536000, stale-while-revalidate=86400, immutable');
+        return res.status(304).end();
+      }
+      res.setHeader('Content-Type', cached.mime);
+      res.setHeader('Content-Length', cached.buffer.length);
+      res.setHeader('ETag', cached.etag);
+      res.setHeader('Cache-Control', 'public, max-age=31536000, s-maxage=31536000, stale-while-revalidate=86400, immutable');
+      return res.end(cached.buffer);
+    }
+
+    // 2. Chưa có trong RAM cache -> Đọc từ Supabase PostgreSQL
     const result = await db.query('SELECT Filename, MimeType, Data FROM UploadedImages WHERE ImageId = @id', { id });
     if (!result.recordset || result.recordset.length === 0) {
       return res.status(404).send('Image not found');
@@ -112,9 +180,20 @@ app.get(['/api/images/:id', '/images/:id'], async (req, res) => {
     }
 
     const buffer = Buffer.from(data, 'base64');
+    const etag = `"${id}-${buffer.length}"`;
+
+    // Lưu vào RAM cache để các request kế tiếp phản hồi tức thì trong < 1ms
+    setCachedImage(id, { buffer, mime, etag });
+
+    if (clientEtag && clientEtag === etag) {
+      res.setHeader('Cache-Control', 'public, max-age=31536000, s-maxage=31536000, stale-while-revalidate=86400, immutable');
+      return res.status(304).end();
+    }
+
     res.setHeader('Content-Type', mime);
     res.setHeader('Content-Length', buffer.length);
-    res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+    res.setHeader('ETag', etag);
+    res.setHeader('Cache-Control', 'public, max-age=31536000, s-maxage=31536000, stale-while-revalidate=86400, immutable');
     return res.end(buffer);
   } catch (err) {
     console.warn('[IMAGE SERVE] Error:', err.message);

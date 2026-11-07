@@ -1438,6 +1438,11 @@ async function loadProducts() {
     }
   }
 
+  // Tự động tiền tải toàn bộ ảnh Card & ảnh chi tiết vào RAM/Browser Cache ngay sau khi nạp sản phẩm
+  if (Array.isArray(allProducts) && allProducts.length > 0) {
+    preloadStorefrontImages(allProducts);
+  }
+
   // Đồng bộ giỏ hàng 100% với sản phẩm sống (tự loại bỏ xe đã bị Admin xóa, cập nhật ngay giá/giảm giá/tồn kho vừa sửa)
   if (Array.isArray(cart) && cart.length > 0) {
     let cartModified = false;
@@ -1655,6 +1660,115 @@ function getProductGalleryImages(prod) {
   return list;
 }
 window.getProductGalleryImages = getProductGalleryImages;
+
+// =====================================================================
+// KHỚP NỐI & TÌM ẢNH THÔNG MINH (TRÁNH LỆCH ĐƯỜNG DẪN /API/IMAGES VS ABSOLUTE)
+// =====================================================================
+function matchStorefrontImageUrls(urlA, urlB) {
+  if (!urlA || !urlB) return false;
+  if (urlA === urlB) return true;
+
+  const extractImageId = (u) => {
+    const m = String(u || '').match(/(?:api\/)?images\/(\d+)/i);
+    return m ? m[1] : null;
+  };
+  const idA = extractImageId(urlA);
+  const idB = extractImageId(urlB);
+  if (idA && idB && idA === idB) return true;
+
+  const normalizePath = (u) => {
+    return String(u || '').trim().replace(/^https?:\/\/[^\/]+/i, '').split('?')[0].replace(/^\/+/, '');
+  };
+  const pA = normalizePath(urlA);
+  const pB = normalizePath(urlB);
+  if (pA && pB && (pA === pB || pA.endsWith(pB) || pB.endsWith(pA))) return true;
+
+  return false;
+}
+window.matchStorefrontImageUrls = matchStorefrontImageUrls;
+
+function findImageIndexInGallery(gallery, targetUrl) {
+  if (!Array.isArray(gallery) || !targetUrl) return -1;
+  const resolvedTarget = resolveStorefrontImageUrl(targetUrl);
+  for (let i = 0; i < gallery.length; i++) {
+    if (matchStorefrontImageUrls(gallery[i], targetUrl) || matchStorefrontImageUrls(gallery[i], resolvedTarget)) {
+      return i;
+    }
+  }
+  return -1;
+}
+window.findImageIndexInGallery = findImageIndexInGallery;
+
+// =====================================================================
+// BỘ TIỀN TẢI HÌNH ẢNH NGẦM (BACKGROUND IMAGE PRELOADER)
+// Tự động tải trước toàn bộ ảnh Card & ảnh chi tiết vào Browser Cache,
+// đảm bảo khi khách bấm sang Card là ảnh hiện ra NGAY LẬP TỨC (0s delay)
+// =====================================================================
+const preloadedImageUrls = new Set();
+function preloadStorefrontImages(products) {
+  if (!Array.isArray(products) || typeof window === 'undefined') return;
+  const doPreload = () => {
+    products.forEach(p => {
+      // 1. Ưu tiên cao nhất: Tải trước toàn bộ ảnh bản Card
+      const rawCard = p.cardImageUrl || p.CardImageUrl;
+      if (rawCard) {
+        const cardUrl = resolveStorefrontImageUrl(rawCard);
+        if (cardUrl && !preloadedImageUrls.has(cardUrl)) {
+          preloadedImageUrls.add(cardUrl);
+          const img = new Image();
+          img.src = cardUrl;
+          if (typeof img.decode === 'function') {
+            img.decode().catch(() => {});
+          }
+        }
+      }
+      // 2. Tải trước 2-3 ảnh tiếp theo trong bộ sưu tập
+      const gallery = getProductGalleryImages(p);
+      if (Array.isArray(gallery)) {
+        gallery.slice(0, 3).forEach(gUrl => {
+          if (gUrl && !preloadedImageUrls.has(gUrl)) {
+            preloadedImageUrls.add(gUrl);
+            const img = new Image();
+            img.src = gUrl;
+            if (typeof img.decode === 'function') {
+              img.decode().catch(() => {});
+            }
+          }
+        });
+      }
+    });
+  };
+
+  if (typeof window.requestIdleCallback === 'function') {
+    window.requestIdleCallback(doPreload, { timeout: 1200 });
+  } else {
+    setTimeout(doPreload, 150);
+  }
+}
+window.preloadStorefrontImages = preloadStorefrontImages;
+
+// Tải dự đoán khi rê chuột hoặc chạm nhẹ vào thẻ sản phẩm
+if (typeof document !== 'undefined') {
+  const handleSpeculativePreload = (e) => {
+    const card = e.target.closest && e.target.closest('.product-card, .gt3-dino-card');
+    if (!card) return;
+    const pid = Number(card.getAttribute('data-id'));
+    if (!pid || !Array.isArray(allProducts)) return;
+    const prod = allProducts.find(p => Number(p.ProductId || p.id) === pid);
+    if (!prod) return;
+    const rawCard = prod.cardImageUrl || prod.CardImageUrl;
+    if (rawCard) {
+      const cUrl = resolveStorefrontImageUrl(rawCard);
+      if (cUrl && !preloadedImageUrls.has(cUrl)) {
+        preloadedImageUrls.add(cUrl);
+        const img = new Image();
+        img.src = cUrl;
+      }
+    }
+  };
+  document.addEventListener('mouseover', handleSpeculativePreload, { passive: true });
+  document.addEventListener('touchstart', handleSpeculativePreload, { passive: true });
+}
 
 function getProductRealSoldCount(prod) {
   if (!prod) return 0;
@@ -2332,9 +2446,13 @@ function selectCardPackaging(productId, packType, event) {
 
     // Tự động chuyển đổi ảnh card tương ứng (Ảnh Vỉ Card vs Ảnh Hộp Box)
     if (targetImg) {
+      const resolvedTarget = resolveStorefrontImageUrl(targetImg);
       const imgEl = cardEl.querySelector('img.card-image, .card-image-box img, .gt3-dino-img-wrap img, .card-img-wrap img, .product-image img, .gt3-card-img-wrap img, img.product-img, img.gt3-card-image');
       if (imgEl) {
-        imgEl.src = resolveStorefrontImageUrl(targetImg);
+        imgEl.loading = 'eager';
+        if (imgEl.src !== resolvedTarget) {
+          imgEl.src = resolvedTarget;
+        }
       }
     }
 
@@ -2366,6 +2484,23 @@ function selectCardPackaging(productId, packType, event) {
       hintEl.textContent = getCardPriceSubHintText(pricing, normalizedPack, isPreOrder, depPct, depAmt, basePrice, finalPrice, isEn);
     }
   });
+
+  // Đồng bộ tức thì nếu Modal Chi Tiết Sản Phẩm (Quick View) đang mở sản phẩm này
+  if (typeof activeQuickViewState !== 'undefined' && activeQuickViewState && Number(activeQuickViewState.productId) === Number(productId) && Array.isArray(activeQuickViewState.images)) {
+    if (normalizedPack === 'card') {
+      const cardIdx = findImageIndexInGallery(activeQuickViewState.images, cardImgUrl);
+      if (cardIdx !== -1) {
+        activeQuickViewState.activeIndex = cardIdx;
+      } else if (cardImgUrl) {
+        activeQuickViewState.images.splice(1, 0, resolveStorefrontImageUrl(cardImgUrl));
+        activeQuickViewState.activeIndex = 1;
+      }
+      refreshQuickViewGalleryDOM();
+    } else if (normalizedPack === 'box') {
+      activeQuickViewState.activeIndex = 0;
+      refreshQuickViewGalleryDOM();
+    }
+  }
 }
 window.selectCardPackaging = selectCardPackaging;
 
@@ -3618,7 +3753,7 @@ function buildQuickViewGalleryHTML(pId, pName, galleryImages, activeIndex, prici
   const prod = (allProducts && allProducts.length ? allProducts : FALLBACK_PRODUCTS).find(p => (p.ProductId || p.id) == pId);
   const rawCardImg = prod?.cardImageUrl || prod?.CardImageUrl || '';
   const cardImgResolved = rawCardImg ? resolveStorefrontImageUrl(rawCardImg) : '';
-  const isViewingCard = cardImgResolved && mainSrc === cardImgResolved;
+  const isViewingCard = Boolean(cardImgResolved && matchStorefrontImageUrls(mainSrc, cardImgResolved));
 
   // Dãy các thumbnails nằm ngay dưới Ảnh chính: Hiển thị trọn vẹn từ Ảnh 1 đến N (kèm badge nhận diện Card)
   let subRowHtml = '';
@@ -3627,7 +3762,7 @@ function buildQuickViewGalleryHTML(pId, pName, galleryImages, activeIndex, prici
     for (let subIdx = 0; subIdx < total; subIdx++) {
       const subSrc = imgs[subIdx];
       const isActiveSub = safeIdx === subIdx;
-      const isThisCard = (cardImgResolved && subSrc === cardImgResolved);
+      const isThisCard = Boolean(cardImgResolved && matchStorefrontImageUrls(subSrc, cardImgResolved));
       const isFirstThumb = (subIdx === 0);
       const tooltip = isThisCard
         ? (isEn ? 'View Blister Card photo' : 'Xem Ảnh Bản Vỉ Card')
@@ -3877,10 +4012,13 @@ function openQuickView(productId) {
   const rawCardImg = prod.cardImageUrl || prod.CardImageUrl;
   let initialActiveIndex = 0;
   if (activePack === 'card' && rawCardImg) {
-    const resolvedCard = resolveStorefrontImageUrl(rawCardImg);
-    const cardIdx = galleryImages.indexOf(resolvedCard);
+    const cardIdx = findImageIndexInGallery(galleryImages, rawCardImg);
     if (cardIdx !== -1) {
       initialActiveIndex = cardIdx;
+    } else {
+      const resolvedCard = resolveStorefrontImageUrl(rawCardImg);
+      galleryImages.splice(1, 0, resolvedCard);
+      initialActiveIndex = 1;
     }
   }
 
@@ -4158,9 +4296,17 @@ async function loadQuickViewAsyncDetails(productId) {
     const isEn = typeof currentSiteLang !== 'undefined' && currentSiteLang === 'en';
     const freshImages = getProductGalleryImages(fullProd);
     if (JSON.stringify(freshImages) !== JSON.stringify(activeQuickViewState.images)) {
+      const curPack = getSelectedPackForProduct(fullProd);
       activeQuickViewState.images = freshImages;
-      if (activeQuickViewState.activeIndex >= freshImages.length) {
-        activeQuickViewState.activeIndex = 0;
+      if (curPack === 'card') {
+        const cardIdx = findImageIndexInGallery(freshImages, fullProd.cardImageUrl || fullProd.CardImageUrl);
+        if (cardIdx !== -1) {
+          activeQuickViewState.activeIndex = cardIdx;
+        }
+      } else {
+        if (activeQuickViewState.activeIndex >= freshImages.length) {
+          activeQuickViewState.activeIndex = 0;
+        }
       }
       refreshQuickViewGalleryDOM();
     }
@@ -4311,12 +4457,15 @@ function selectQuickViewPack(productId, packType) {
   if (chosen === 'card') {
     const rawCard = prod.cardImageUrl || prod.CardImageUrl;
     if (rawCard && activeQuickViewState && Array.isArray(activeQuickViewState.images)) {
-      const resolvedCard = resolveStorefrontImageUrl(rawCard);
-      const cardIdx = activeQuickViewState.images.indexOf(resolvedCard);
+      const cardIdx = findImageIndexInGallery(activeQuickViewState.images, rawCard);
       if (cardIdx !== -1) {
         activeQuickViewState.activeIndex = cardIdx;
-        refreshQuickViewGalleryDOM();
+      } else {
+        const resolvedCard = resolveStorefrontImageUrl(rawCard);
+        activeQuickViewState.images.splice(1, 0, resolvedCard);
+        activeQuickViewState.activeIndex = 1;
       }
+      refreshQuickViewGalleryDOM();
     }
   } else if (chosen === 'box') {
     if (activeQuickViewState && Array.isArray(activeQuickViewState.images)) {
