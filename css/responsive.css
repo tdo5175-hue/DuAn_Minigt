@@ -456,8 +456,10 @@ header nav.desktop-only,
   }
 
   .hero-image-stage {
-    min-height: 230px !important;
-    height: 230px !important;
+    aspect-ratio: 1295 / 610 !important;
+    height: auto !important;
+    min-height: unset !important;
+    max-height: unset !important;
     width: 100% !important;
     position: relative !important;
     overflow: hidden !important;
@@ -470,11 +472,13 @@ header nav.desktop-only,
   }
 
   .hero-img-main {
-    min-height: 230px !important;
-    height: 230px !important;
+    aspect-ratio: 1295 / 610 !important;
     width: 100% !important;
-    object-fit: cover !important;
-    object-position: center 65% !important;
+    height: auto !important;
+    min-height: unset !important;
+    max-height: unset !important;
+    object-fit: contain !important;
+    object-position: center !important;
     display: block !important;
   }
 

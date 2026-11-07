@@ -732,6 +732,66 @@
       ImageUrl: 'image/Minigt_Lambo_LBWK.jpg',
       Description: 'Siêu bò Lamborghini Aventador độ thân rộng LB★WORKS màu đen nhám kết hợp cánh gió GT cỡ lớn.',
       Status: 'in_stock', IsFeatured: 1, IsNew: 0, soldCount: 0
+    },
+    {
+      id: 56, ProductId: 56, Sku: 'MGT01391', CarNumber: '1391',
+      Name: 'Mini GT - Toyota Vellfire 40 KUHL Metallic Pink 2025',
+      CategoryId: 1, CategorySlug: 'liberty-walk', CategoryName: 'Diecast Collection',
+      Brand: 'MINI GT', Scale: '1:64',
+      PriceBox: 350000, PriceCard: 350000, DiscountPercent: 0, PackagingType: 'box_only',
+      DepositAmount: 105000, QuotaPercent: 90, EditionNote: 'Bản Độ KUHL Metallic Pink',
+      PreOrderDeadline: '2026-12-31', Stock: 10,
+      ImageUrl: '/api/images/71',
+      Description: 'Mẫu xe độ Toyota Vellfire 40 phong cách KUHL Racing màu hồng Metallic Pink cực kỳ cuốn hút.',
+      Status: 'pre_order', IsFeatured: 1, IsNew: 1, soldCount: 0
+    },
+    {
+      id: 57, ProductId: 57, Sku: 'MGT01392', CarNumber: '1392',
+      Name: '(PRE-ORDER) Mini GT 1:64 Scania 770S Hooklift Flatbed Orange',
+      CategoryId: 4, CategorySlug: 'box-sets', CategoryName: 'Xe Tải & Xe Chở Hàng',
+      Brand: 'MINI GT', Scale: '1:64',
+      PriceBox: 2399999, PriceCard: 2399999, DiscountPercent: 0, PackagingType: 'box_only',
+      DepositAmount: 720000, QuotaPercent: 95, EditionNote: 'Xe Đầu Kéo Cẩu Sàn Trượt B8x4NA',
+      PreOrderDeadline: '2026-12-31', Stock: 5,
+      ImageUrl: '/api/images/73',
+      Description: 'Siêu phẩm xe đầu kéo Scania 770S sàn trượt Hooklift màu cam rực rỡ, chi tiết cơ khí kim loại tinh xảo.',
+      Status: 'pre_order', IsFeatured: 1, IsNew: 1, soldCount: 0
+    },
+    {
+      id: 58, ProductId: 58, Sku: 'MGT01393', CarNumber: '1393',
+      Name: '(Preorder) Mini GT 1:64 Lotus 78 #5 Mario Andretti 1977 US GP West Winner',
+      CategoryId: 2, CategorySlug: 'f1-racing', CategoryName: 'Formula 1 Racing',
+      Brand: 'MINI GT', Scale: '1:64',
+      PriceBox: 350000, PriceCard: 350000, DiscountPercent: 0, PackagingType: 'box_only',
+      DepositAmount: 105000, QuotaPercent: 92, EditionNote: 'Winner 1977 US GP West - Mario Andretti #5',
+      PreOrderDeadline: '2026-12-31', Stock: 5,
+      ImageUrl: '/api/images/78',
+      Description: 'Huyền thoại xe đua F1 Team Lotus 78 số #5 cùng tay đua Mario Andretti vô địch chặng US GP West 1977.',
+      Status: 'pre_order', IsFeatured: 1, IsNew: 1, soldCount: 0
+    },
+    {
+      id: 59, ProductId: 59, Sku: 'MGT01394', CarNumber: '1394',
+      Name: '[Preorder] Mini GT 1:64 Lamborghini Temerario Viola Pasifae',
+      CategoryId: 1, CategorySlug: 'liberty-walk', CategoryName: 'Supercar Diecast',
+      Brand: 'MINI GT', Scale: '1:64',
+      PriceBox: 350000, PriceCard: 350000, DiscountPercent: 0, PackagingType: 'box_only',
+      DepositAmount: 105000, QuotaPercent: 88, EditionNote: 'Siêu Xe Mới Nhất Lamborghini Temerario',
+      PreOrderDeadline: '2026-12-31', Stock: 3,
+      ImageUrl: '/api/images/80',
+      Description: 'Mẫu siêu xe hybrid thế hệ mới Lamborghini Temerario trong màu áo tím huyền bí Viola Pasifae.',
+      Status: 'pre_order', IsFeatured: 1, IsNew: 1, soldCount: 0
+    },
+    {
+      id: 60, ProductId: 60, Sku: 'MGT01395', CarNumber: '1395',
+      Name: '[Preorder] Mini GT 1:64 Bugatti EB110 GT Azzurro Metallizzato Mondial de l’Automobile 1992',
+      CategoryId: 1, CategorySlug: 'liberty-walk', CategoryName: 'Supercar Diecast',
+      Brand: 'MINI GT', Scale: '1:64',
+      PriceBox: 320000, PriceCard: 320000, DiscountPercent: 0, PackagingType: 'box_only',
+      DepositAmount: 96000, QuotaPercent: 85, EditionNote: 'Triển lãm Mondial de l\'Automobile 1992',
+      PreOrderDeadline: '2026-12-31', Stock: 6,
+      ImageUrl: '/api/images/82',
+      Description: 'Kiệt tác siêu xe thập niên 90 Bugatti EB110 GT màu xanh Azzurro Metallizzato tại triển lãm Paris 1992.',
+      Status: 'pre_order', IsFeatured: 1, IsNew: 1, soldCount: 0
     }
   ];
 

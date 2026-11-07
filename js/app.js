@@ -2059,15 +2059,23 @@ function syncStaticShowcaseProducts() {
   // 6. Đồng bộ Tooltips trên Hero Hotspots & Hero Slides (100% khớp sản phẩm thực trong DB)
   document.querySelectorAll('.hero-hotspot').forEach((btn, idx) => {
     const m = (btn.getAttribute('onclick') || '').match(/openQuickView\((\d+)\)/);
-    if (!m) return;
-    let pid = Number(m[1]);
-    let prod = source.find(p => Number(p.ProductId || p.id) === pid);
-    if (!prod && source.length > 0) {
-      prod = source[idx % source.length];
-      pid = Number(prod.ProductId || prod.id);
-      btn.setAttribute('onclick', `openQuickView(${pid})`);
+    let pid = m ? Number(m[1]) : 0;
+    const btnSku = (btn.dataset && btn.dataset.sku) ? String(btn.dataset.sku).toUpperCase().trim() : '';
+
+    let prod = null;
+    if (btnSku) {
+      prod = source.find(p => String(p.Sku || p.sku || '').toUpperCase().trim() === btnSku);
     }
-    if (!prod) return;
+    if (!prod && pid) {
+      prod = source.find(p => Number(p.ProductId || p.id) === pid);
+    }
+
+    if (prod) {
+      const realId = Number(prod.ProductId || prod.id);
+      btn.setAttribute('onclick', `openQuickView(${realId})`);
+    } else {
+      return; // Giữ nguyên cấu hình nút gốc, tuyệt đối không gán xe ngẫu nhiên đè lên
+    }
     const pricing = getProductBoxCardPricing(prod);
     const pSku = prod.Sku || prod.sku || 'MGT';
     const pBrand = (prod.Brand || prod.brand || 'MINI GT').toUpperCase();
@@ -2751,11 +2759,154 @@ function matchesProductFilter(p, filterKey) {
   return catSlug === targetKey || catId === targetKey || catName.includes(targetKey);
 }
 
+let catalogCurrentSearch = '';
+
+function stripVietnameseTones(str) {
+  if (!str) return '';
+  return String(str)
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[đĐ]/g, 'd')
+    .toLowerCase()
+    .trim();
+}
+window.stripVietnameseTones = stripVietnameseTones;
+
+const SEARCH_SYNONYMS = {
+  'cam': 'orange',
+  'orange': 'cam',
+  'tim': 'viola purple',
+  'viola': 'tim',
+  'hong': 'pink',
+  'pink': 'hong',
+  'xe tai': 'scania hooklift flatbed truck',
+  'scania': 'xe tai',
+  'xanh': 'blue azzurro green',
+  'azzurro': 'xanh blue'
+};
+
+function isProductSearchMatch(product, searchQuery) {
+  if (!product || !searchQuery) return false;
+  const rawQ = String(searchQuery).trim();
+  if (!rawQ) return false;
+
+  const cleanQ = stripVietnameseTones(rawQ);
+  const qTokens = cleanQ.split(/\s+/).filter(Boolean);
+  if (qTokens.length === 0) return false;
+
+  const name = String(product.Name || product.name || '');
+  const sku = String(product.Sku || product.sku || '');
+  const carNum = String(product.CarNumber || product.carNumber || '');
+  const brand = String(product.Brand || product.brand || '');
+  const catName = String(product.CategoryName || product.categoryName || (product.category && product.category.name) || '');
+  const edition = String(product.EditionNote || product.editionNote || '');
+  const desc = String(product.Description || product.description || '');
+
+  const rawHaystack = `${name} ${sku} ${carNum} ${brand} ${catName} ${edition} ${desc}`.toLowerCase();
+  const normHaystack = stripVietnameseTones(rawHaystack);
+
+  const numOnlySku = sku.replace(/\D/g, '').replace(/^0+/, '');
+  const numOnlyQuery = cleanQ.replace(/\D/g, '').replace(/^0+/, '');
+  if (numOnlyQuery && numOnlySku && (numOnlySku === numOnlyQuery || sku.toLowerCase().includes(cleanQ))) {
+    return true;
+  }
+
+  return qTokens.every(tok => {
+    if (normHaystack.includes(tok) || rawHaystack.includes(tok)) return true;
+    const syn = SEARCH_SYNONYMS[tok];
+    if (syn && syn.split(/\s+/).some(s => normHaystack.includes(s) || rawHaystack.includes(s))) return true;
+    return false;
+  });
+}
+window.isProductSearchMatch = isProductSearchMatch;
+
+function applySearchToCatalog(query) {
+  const q = String(query || '').trim();
+  catalogCurrentSearch = q;
+  const dropdown = document.getElementById('searchResultsDropdown');
+  if (dropdown) dropdown.classList.remove('active');
+
+  const input = document.getElementById('headerSearchInput');
+  if (input && q) input.value = q;
+
+  currentFilter = 'all';
+  document.querySelectorAll('.filter-pill').forEach(btn => {
+    btn.classList.toggle('active', btn.getAttribute('data-filter') === 'all');
+  });
+
+  catalogCurrentPage = 1;
+  renderProductsGrid();
+
+  const catEl = document.getElementById('catalog') || document.getElementById('mainProductGrid');
+  if (catEl) {
+    const headerOffset = 90;
+    const elementPosition = catEl.getBoundingClientRect().top + window.pageYOffset;
+    window.scrollTo({
+      top: Math.max(0, elementPosition - headerOffset),
+      behavior: 'smooth'
+    });
+  }
+}
+window.applySearchToCatalog = applySearchToCatalog;
+
+function clearCatalogSearch() {
+  catalogCurrentSearch = '';
+  const input = document.getElementById('headerSearchInput');
+  if (input) input.value = '';
+  catalogCurrentPage = 1;
+  renderProductsGrid();
+}
+window.clearCatalogSearch = clearCatalogSearch;
+
+function submitHeaderSearch() {
+  const input = document.getElementById('headerSearchInput');
+  if (input && input.value.trim()) {
+    applySearchToCatalog(input.value.trim());
+  }
+}
+window.submitHeaderSearch = submitHeaderSearch;
+
+function quickFillSearch(tag) {
+  const input = document.getElementById('headerSearchInput');
+  if (input) {
+    input.value = tag;
+    applySearchToCatalog(tag);
+  }
+}
+window.quickFillSearch = quickFillSearch;
+
 function renderProductsGrid() {
   const container = document.getElementById('mainProductGrid');
   if (!container) return;
 
   let filtered = [...allProducts];
+
+  const isEn = typeof currentSiteLang !== 'undefined' && currentSiteLang === 'en';
+  const noticeEl = document.getElementById('catalogSearchNotice');
+
+  // 0. Lọc theo từ khóa tìm kiếm (nếu người dùng đã tìm)
+  if (catalogCurrentSearch) {
+    filtered = filtered.filter(p => isProductSearchMatch(p, catalogCurrentSearch));
+    if (noticeEl) {
+      noticeEl.style.display = 'block';
+      noticeEl.innerHTML = `
+        <div class="search-active-banner">
+          <div class="search-active-info">
+            <i class="fa-solid fa-magnifying-glass"></i>
+            <span>${isEn ? 'Search results for:' : 'Kết quả tìm kiếm cho:'} <strong>"${escapeHtml(catalogCurrentSearch)}"</strong> (${filtered.length} ${isEn ? 'models found' : 'mô hình được tìm thấy'})</span>
+          </div>
+          <button type="button" class="btn btn-sm btn-outline" onclick="clearCatalogSearch()" style="background:#ffffff; color:#b91c1c; border-color:#fed7aa; font-weight:700;">
+            <i class="fa-solid fa-xmark"></i> ${isEn ? 'Clear Search' : 'Xóa tìm kiếm'}
+          </button>
+        </div>
+      `;
+    }
+  } else {
+    if (noticeEl) {
+      noticeEl.style.display = 'none';
+      noticeEl.innerHTML = '';
+    }
+  }
 
   // 1. Lọc theo Danh mục Filter Pill
   filtered = filtered.filter(p => matchesProductFilter(p, currentFilter));
@@ -2780,14 +2931,14 @@ function renderProductsGrid() {
     filtered.sort((a, b) => (getProductRealSoldCount(b) - getProductRealSoldCount(a)) || ((b.ProductId || b.id) - (a.ProductId || a.id)));
   }
 
-  const isEn = typeof currentSiteLang !== 'undefined' && currentSiteLang === 'en';
   // Cập nhật nhãn bộ lọc trên toolbar
   const filterLabelEl = document.getElementById('currentFilterLabel');
   if (filterLabelEl) {
     const pillBtn = document.querySelector(`.filter-pill[data-filter="${currentFilter}"]`);
     const pillText = pillBtn ? pillBtn.textContent.replace(/\(\d+\)/g, '').trim() : (isEn ? 'All Models' : 'Tất cả');
     const brandText = currentBrandFilter !== 'all' ? ` • ${isEn ? 'Brand' : 'Hãng'}: ${currentBrandFilter}` : '';
-    filterLabelEl.textContent = `${pillText}${brandText} (${filtered.length} ${isEn ? 'models' : 'xe'})`;
+    const searchText = catalogCurrentSearch ? ` • ${isEn ? 'Keyword' : 'Tìm'}: "${catalogCurrentSearch}"` : '';
+    filterLabelEl.textContent = `${pillText}${brandText}${searchText} (${filtered.length} ${isEn ? 'models' : 'xe'})`;
   }
 
   const totalItems = filtered.length;
@@ -2796,16 +2947,37 @@ function renderProductsGrid() {
   if (catalogCurrentPage < 1) catalogCurrentPage = 1;
 
   if (totalItems === 0) {
-    container.innerHTML = `
-      <div style="grid-column: 1 / -1; text-align: center; padding: 48px 20px; color: var(--text-secondary, #64748b); background: var(--bg-surface-alt, #f8fafc); border-radius: 14px; border: 1px dashed var(--border-subtle, #cbd5e1);">
-        <i class="fa-solid fa-car-side" style="font-size: 40px; margin-bottom: 14px; opacity: 0.4;"></i>
-        <h4 style="margin: 0 0 8px 0; color: var(--text-primary, #0f172a); font-weight: 700;">${isEn ? 'No diecast models match your current filter' : 'Không có mô hình xe nào phù hợp bộ lọc'}</h4>
-        <p style="margin: 0 0 16px 0; font-size: 13px;">${isEn ? 'Try selecting another category or reset your filters.' : 'Hãy thử chọn bộ lọc khác hoặc đặt lại bộ lọc ban đầu.'}</p>
-        <button class="btn btn-secondary btn-sm" onclick="currentBrandFilter='all'; currentSort='default'; const selB=document.getElementById('catalogBrandFilter'); if(selB) selB.value='all'; const selS=document.getElementById('catalogSortSelect'); if(selS) selS.value='default'; filterAndScroll(event, 'all');">
-          <i class="fa-solid fa-rotate-left"></i> ${isEn ? 'Reset Filters' : 'Đặt lại bộ lọc'}
-        </button>
-      </div>
-    `;
+    if (catalogCurrentSearch) {
+      container.innerHTML = `
+        <div style="grid-column: 1 / -1; text-align: center; padding: 48px 20px; color: var(--text-secondary, #64748b); background: var(--bg-surface-alt, #f8fafc); border-radius: 14px; border: 1px dashed var(--border-subtle, #cbd5e1);">
+          <i class="fa-solid fa-magnifying-glass" style="font-size: 40px; margin-bottom: 14px; opacity: 0.4; color:#e10600;"></i>
+          <h4 style="margin: 0 0 8px 0; color: var(--text-primary, #0f172a); font-weight: 700;">${isEn ? 'No models match "' + escapeHtml(catalogCurrentSearch) + '"' : 'Không tìm thấy mô hình xe nào khớp với "' + escapeHtml(catalogCurrentSearch) + '"'}</h4>
+          <p style="margin: 0 0 16px 0; font-size: 13px;">${isEn ? 'Try another keyword or click one of the popular models below:' : 'Bạn có thể thử tìm với các từ khóa gợi ý bên dưới hoặc xem lại tất cả mô hình:'}</p>
+          <div class="search-quick-tags" style="margin-bottom: 20px; justify-content:center;">
+            <span class="search-quick-tag" onclick="quickFillSearch('LBWK')">LB★WORKS</span>
+            <span class="search-quick-tag" onclick="quickFillSearch('Rexy')">Rexy #80</span>
+            <span class="search-quick-tag" onclick="quickFillSearch('F1 Las Vegas')">F1 Las Vegas</span>
+            <span class="search-quick-tag" onclick="quickFillSearch('Scania')">Xe tải Scania</span>
+            <span class="search-quick-tag" onclick="quickFillSearch('Lotus 78')">Lotus 78</span>
+            <span class="search-quick-tag" onclick="quickFillSearch('Temerario')">Temerario</span>
+          </div>
+          <button class="btn btn-secondary btn-sm" onclick="clearCatalogSearch()">
+            <i class="fa-solid fa-rotate-left"></i> ${isEn ? 'View All Models' : 'Xem tất cả sản phẩm'}
+          </button>
+        </div>
+      `;
+    } else {
+      container.innerHTML = `
+        <div style="grid-column: 1 / -1; text-align: center; padding: 48px 20px; color: var(--text-secondary, #64748b); background: var(--bg-surface-alt, #f8fafc); border-radius: 14px; border: 1px dashed var(--border-subtle, #cbd5e1);">
+          <i class="fa-solid fa-car-side" style="font-size: 40px; margin-bottom: 14px; opacity: 0.4;"></i>
+          <h4 style="margin: 0 0 8px 0; color: var(--text-primary, #0f172a); font-weight: 700;">${isEn ? 'No diecast models match your current filter' : 'Không có mô hình xe nào phù hợp bộ lọc'}</h4>
+          <p style="margin: 0 0 16px 0; font-size: 13px;">${isEn ? 'Try selecting another category or reset your filters.' : 'Hãy thử chọn bộ lọc khác hoặc đặt lại bộ lọc ban đầu.'}</p>
+          <button class="btn btn-secondary btn-sm" onclick="currentBrandFilter='all'; currentSort='default'; const selB=document.getElementById('catalogBrandFilter'); if(selB) selB.value='all'; const selS=document.getElementById('catalogSortSelect'); if(selS) selS.value='default'; filterAndScroll(event, 'all');">
+            <i class="fa-solid fa-rotate-left"></i> ${isEn ? 'Reset Filters' : 'Đặt lại bộ lọc'}
+          </button>
+        </div>
+      `;
+    }
     renderCatalogPagination(0, 1);
     return;
   }
@@ -3036,19 +3208,55 @@ function setupFilterPills() {
 }
 
 // =====================================================================
-// HERO CAROUSEL CONTROLLER (INTERACTIVE BANNER SLIDER - 10s AUTO-ROTATE)
+// HERO CAROUSEL CONTROLLER (INTERACTIVE BANNER SLIDER - TỰ ĐỘNG CHUYỂN CÓ TÍNH NĂNG TẠM DỪNG THÔNG MINH)
 // =====================================================================
 let currentHeroSlideIndex = 0;
 let heroSlideTimer = null;
+let isHeroSliderHovered = false;
+let isHeroSliderPaused = false;
+let heroTouchPauseTimeout = null;
 
-function resetHeroSlideTimer() {
+function pauseHeroSlider() {
+  isHeroSliderPaused = true;
   if (heroSlideTimer) {
     clearInterval(heroSlideTimer);
     heroSlideTimer = null;
   }
+  const wrap = document.getElementById('heroSliderWrap');
+  if (wrap) wrap.classList.add('is-paused');
+  const heroSec = document.querySelector('.hero-section');
+  if (heroSec) heroSec.classList.add('is-paused');
+}
+window.pauseHeroSlider = pauseHeroSlider;
+
+function resumeHeroSlider(delay = 10000) {
+  isHeroSliderPaused = false;
+  const wrap = document.getElementById('heroSliderWrap');
+  if (wrap) wrap.classList.remove('is-paused');
+  const heroSec = document.querySelector('.hero-section');
+  if (heroSec) heroSec.classList.remove('is-paused');
+  resetHeroSlideTimer(delay);
+}
+window.resumeHeroSlider = resumeHeroSlider;
+
+function resetHeroSlideTimer(delay = 10000) {
+  if (heroSlideTimer) {
+    clearInterval(heroSlideTimer);
+    heroSlideTimer = null;
+  }
+  // Nếu người dùng đang rê chuột, đang tương tác xe, hoặc popup QuickView đang mở: tuyệt đối dừng không tự chuyển!
+  if (isHeroSliderHovered || isHeroSliderPaused) return;
+
+  const quickViewModal = document.getElementById('quickViewModal');
+  if (quickViewModal && quickViewModal.classList.contains('active')) return;
+
   heroSlideTimer = setInterval(() => {
-    nextHeroSlide(false);
-  }, 10000); // Tự động chuyển banner sau đúng 10 giây
+    if (!isHeroSliderHovered && !isHeroSliderPaused) {
+      const qv = document.getElementById('quickViewModal');
+      if (qv && qv.classList.contains('active')) return;
+      nextHeroSlide(false);
+    }
+  }, delay);
 }
 
 function goToHeroSlide(index, manual = false) {
@@ -3074,7 +3282,9 @@ function goToHeroSlide(index, manual = false) {
     dot.setAttribute('aria-current', isAct ? 'true' : 'false');
   });
 
-  resetHeroSlideTimer();
+  if (!isHeroSliderHovered && !isHeroSliderPaused) {
+    resetHeroSlideTimer(10000);
+  }
 }
 
 function nextHeroSlide(manual = true) {
@@ -3093,6 +3303,47 @@ function initHeroSlider() {
 
   goToHeroSlide(0, false);
   resetHeroSlideTimer();
+
+  const heroSection = document.querySelector('.hero-section') || wrap;
+
+  // 1. Khi người dùng di chuột vào Hero Banner (hoặc bất kỳ điểm chạm Hotspot nào): Tạm dừng ngay lập tức
+  heroSection.addEventListener('mouseenter', () => {
+    isHeroSliderHovered = true;
+    pauseHeroSlider();
+  });
+
+  // 2. Khi người dùng rê chuột ra khỏi Hero Banner: Khởi động lại vòng lặp 10 giây từ đầu
+  heroSection.addEventListener('mouseleave', () => {
+    isHeroSliderHovered = false;
+    resumeHeroSlider(10000);
+  });
+
+  // 3. Phím Tab hoặc Focus vào các nút Hotspot (+): Tạm dừng slider để đọc thông tin
+  wrap.addEventListener('focusin', (event) => {
+    if (event.target.closest('.hero-hotspot') || event.target.closest('.hero-slide')) {
+      isHeroSliderHovered = true;
+      pauseHeroSlider();
+    }
+  });
+
+  wrap.addEventListener('focusout', () => {
+    isHeroSliderHovered = false;
+    resumeHeroSlider(10000);
+  });
+
+  // 4. Khi người dùng thao tác trên điện thoại / màn hình cảm ứng:
+  wrap.addEventListener('touchstart', () => {
+    pauseHeroSlider();
+    if (heroTouchPauseTimeout) clearTimeout(heroTouchPauseTimeout);
+  }, { passive: true });
+
+  wrap.addEventListener('touchend', () => {
+    if (heroTouchPauseTimeout) clearTimeout(heroTouchPauseTimeout);
+    // Sau khi chạm xem xe trên điện thoại, tạm dừng 20 giây để người dùng đọc thông tin thoải mái
+    heroTouchPauseTimeout = setTimeout(() => {
+      resumeHeroSlider(10000);
+    }, 20000);
+  }, { passive: true });
 
   wrap.addEventListener('keydown', (event) => {
     if (event.target.matches('.hero-hotspot') && (event.key === 'Enter' || event.key === ' ')) {
@@ -4157,8 +4408,20 @@ function handleQuickViewPurchase(productId, event, buyNow = true) {
 }
 window.handleQuickViewPurchase = handleQuickViewPurchase;
 
-function openQuickView(productId) {
-  const prod = (allProducts && allProducts.length ? allProducts : FALLBACK_PRODUCTS).find(p => (p.ProductId || p.id) == productId);
+async function openQuickView(productId) {
+  if (typeof pauseHeroSlider === 'function') pauseHeroSlider();
+
+  let prod = (allProducts && allProducts.length ? allProducts : FALLBACK_PRODUCTS).find(p => (p.ProductId || p.id) == productId);
+  if (!prod) {
+    try {
+      const res = await safeFetch(`/api/products/${productId}`);
+      if (res && res.success && res.data) {
+        prod = (window.api && window.api.normalizeProductObject) ? window.api.normalizeProductObject(res.data) : res.data;
+        if (!Array.isArray(allProducts)) allProducts = [];
+        allProducts.push(prod);
+      }
+    } catch (_) {}
+  }
   if (!prod) return;
 
   const modal = document.getElementById('quickViewModal');
@@ -10256,55 +10519,104 @@ function initCustomerRealtimeOrderWatcher() {
 
 
 // =====================================================================
-// 14. TÌM KIẾM SẢN PHẨM REAL-TIME
+// 14. TÌM KIẾM SẢN PHẨM REAL-TIME THÔNG MINH (MULTI-TOKEN, BỎ DẤU & KHỚP SKU CHUẨN XÁC)
 // =====================================================================
 function setupSearch() {
   const input = document.getElementById('headerSearchInput');
   const dropdown = document.getElementById('searchResultsDropdown');
   if (!input || !dropdown) return;
 
-  input.addEventListener('input', () => {
-    const q = input.value.trim().toLowerCase();
-    if (q.length < 2) {
+  const performLiveSearch = () => {
+    const rawVal = input.value.trim();
+    if (rawVal.length < 1) {
       dropdown.classList.remove('active');
       return;
     }
 
-    const matched = allProducts.filter(p => {
-      const name = String(p.Name || p.name || '').toLowerCase();
-      const sku = String(p.Sku || p.sku || '').toLowerCase();
-      const carNum = String(p.CarNumber || p.carNumber || '').toLowerCase();
-      const brand = String(p.Brand || p.brand || '').toLowerCase();
-      const catName = String(p.CategoryName || p.categoryName || (p.category && p.category.name) || '').toLowerCase();
-      const edition = String(p.EditionNote || p.editionNote || '').toLowerCase();
-      return name.includes(q) || sku.includes(q) || carNum.includes(q) || brand.includes(q) || catName.includes(q) || edition.includes(q);
-    }).slice(0, 8);
+    const isEn = typeof currentSiteLang !== 'undefined' && currentSiteLang === 'en';
+    const prods = (Array.isArray(allProducts) && allProducts.length > 0) ? allProducts : FALLBACK_PRODUCTS;
+    const allMatches = prods.filter(p => isProductSearchMatch(p, rawVal));
+    const matched = allMatches.slice(0, 8);
 
     if (matched.length === 0) {
-      const isEn = typeof currentSiteLang !== 'undefined' && currentSiteLang === 'en';
-      dropdown.innerHTML = `<div style="padding:12px; font-size:12px; color:var(--color-gray-500); text-align:center;">${isEn ? 'No matching models found' : 'Không tìm thấy mô hình nào'}</div>`;
-    } else {
-      const isEn = typeof currentSiteLang !== 'undefined' && currentSiteLang === 'en';
-      dropdown.innerHTML = matched.map(p => {
-        const pId = p.ProductId || p.id;
-        const pImg = getProductGalleryImages(p)[0];
-        const soldCount = getProductRealSoldCount(p);
-        return `
-        <div class="search-result-item" onclick="openQuickView(${pId}); document.getElementById('searchResultsDropdown').classList.remove('active');">
-          <img class="search-result-thumb" src="${escapeHtml(pImg)}" alt="${escapeHtml(p.Name || p.name)}" onerror="this.onerror=null; this.src='image/hero-banner.jpg';">
-          <div class="search-result-info">
-            <div class="search-result-title">${escapeHtml(p.Name || p.name)}</div>
-            <div style="display:flex; align-items:center; gap:8px; margin-top:2px;">
-              <span class="search-result-price">${formatVND(p.Price || p.price)}</span>
-              <span class="card-sold-badge ${soldCount > 0 ? 'has-sales' : 'zero-sales'}">${isEn ? `Sold ${soldCount}` : `Đã bán ${soldCount}`}</span>
-            </div>
+      dropdown.innerHTML = `
+        <div class="search-dropdown-empty">
+          <i class="fa-solid fa-magnifying-glass" style="font-size:24px; color:#cbd5e1; margin-bottom:8px;"></i>
+          <div style="font-weight:700; color:var(--color-navy, #0f172a); margin-bottom:4px;">${isEn ? 'No models found for "' + escapeHtml(rawVal) + '"' : 'Không tìm thấy mô hình nào khớp với "' + escapeHtml(rawVal) + '"'}</div>
+          <div style="font-size:12px; color:var(--text-muted, #64748b); margin-bottom:12px;">${isEn ? 'Try popular keywords:' : 'Gợi ý từ khóa tìm kiếm nhanh:'}</div>
+          <div class="search-quick-tags" style="justify-content:center;">
+            <span class="search-quick-tag" onclick="quickFillSearch('LBWK')">LB★WORKS</span>
+            <span class="search-quick-tag" onclick="quickFillSearch('Rexy')">Rexy #80</span>
+            <span class="search-quick-tag" onclick="quickFillSearch('F1 Las Vegas')">F1 Las Vegas</span>
+            <span class="search-quick-tag" onclick="quickFillSearch('Scania')">Xe tải Scania</span>
+            <span class="search-quick-tag" onclick="quickFillSearch('Lotus 78')">Lotus 78</span>
+            <span class="search-quick-tag" onclick="quickFillSearch('Temerario')">Temerario</span>
           </div>
         </div>
       `;
-      }).join('');
+    } else {
+      dropdown.innerHTML = matched.map(p => {
+        const pId = p.ProductId || p.id;
+        const pSku = p.Sku || p.sku || 'MGT';
+        const pName = p.Name || p.name || 'MINI GT 1:64';
+        const pImg = getProductGalleryImages(p)[0] || 'image/hero-banner.jpg';
+        const pricing = getProductBoxCardPricing(p);
+        const soldCount = getProductRealSoldCount(p);
+        const st = String(p.Status || p.status || 'in_stock').toLowerCase();
+        const isPre = st === 'pre_order';
+        const isSoldOut = st === 'sold_out' || (typeof p.Stock === 'number' && p.Stock <= 0 && !isPre);
+
+        let statusBadge = '';
+        if (isSoldOut) {
+          statusBadge = `<span class="search-result-status status-soldout">${isEn ? 'Sold Out' : 'Hết hàng'}</span>`;
+        } else if (isPre) {
+          statusBadge = `<span class="search-result-status status-preorder"><i class="fa-solid fa-fire"></i> Pre-Order</span>`;
+        } else {
+          statusBadge = `<span class="search-result-status status-instock"><i class="fa-solid fa-circle-check"></i> ${isEn ? 'In Stock' : 'Sẵn kho'}</span>`;
+        }
+
+        const mainPrice = (pricing.packagingType === 'card_only') ? pricing.finalPriceCard : pricing.finalPriceBox;
+        const showCardPrice = pricing.packagingType === 'both' && pricing.priceCard > 0 && pricing.priceCard !== pricing.priceBox;
+
+        return `
+          <div class="search-result-item" onclick="openQuickView(${pId}); document.getElementById('searchResultsDropdown').classList.remove('active');">
+            <img class="search-result-thumb" src="${escapeHtml(pImg)}" alt="${escapeHtml(pName)}" onerror="this.onerror=null; this.src='image/hero-banner.jpg';">
+            <div class="search-result-info">
+              <div class="search-result-header">
+                <span class="search-result-sku">#${escapeHtml(pSku)}</span>
+                ${statusBadge}
+              </div>
+              <div class="search-result-title" title="${escapeHtml(pName)}">${escapeHtml(pName)}</div>
+              <div class="search-result-bottom">
+                <span class="search-result-price">${formatVND(mainPrice)}</span>
+                ${showCardPrice ? `<span class="search-result-card-price">Card: ${formatVND(pricing.finalPriceCard)}</span>` : ''}
+                <span class="card-sold-badge ${soldCount > 0 ? 'has-sales' : 'zero-sales'}">${isEn ? `Sold ${soldCount}` : `Đã bán ${soldCount}`}</span>
+              </div>
+            </div>
+            <div class="search-result-arrow"><i class="fa-solid fa-chevron-right"></i></div>
+          </div>
+        `;
+      }).join('') + `
+        <div class="search-dropdown-footer" onclick="applySearchToCatalog('${escapeHtml(rawVal)}');">
+          <span><i class="fa-solid fa-magnifying-glass"></i> ${isEn ? `View all ${allMatches.length} models in Catalogue` : `Xem toàn bộ ${allMatches.length} mô hình trong Catalogue`}</span>
+          <i class="fa-solid fa-arrow-right"></i>
+        </div>
+      `;
     }
 
     dropdown.classList.add('active');
+  };
+
+  input.addEventListener('input', performLiveSearch);
+  input.addEventListener('focus', () => {
+    if (input.value.trim().length >= 1) performLiveSearch();
+  });
+
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      submitHeaderSearch();
+    }
   });
 
   document.addEventListener('click', (e) => {
@@ -10446,6 +10758,7 @@ function closeModal(modalId) {
   if (modal) modal.classList.remove('active');
   if (modalId === 'quickViewModal') {
     closeStorefrontGalleryLightbox();
+    if (typeof resumeHeroSlider === 'function') resumeHeroSlider(10000);
     if (window.location.hash && window.location.hash.startsWith('#product-')) {
       try {
         history.replaceState(null, '', window.location.pathname + window.location.search);

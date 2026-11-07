@@ -331,7 +331,7 @@
         <!-- Search Bar with Live Dropdown & Typewriter Animation -->
         <div class="header-search">
           <div class="search-input-wrapper">
-            <span class="search-icon-btn"><i class="fa-solid fa-magnifying-glass"></i></span>
+            <button type="button" class="search-icon-btn" aria-label="Tìm kiếm" onclick="submitHeaderSearch()" style="background:none; border:none; cursor:pointer; color:inherit; padding:0; display:flex; align-items:center;"><i class="fa-solid fa-magnifying-glass"></i></button>
             <input type="text" id="headerSearchInput" data-i18n-placeholder="search_placeholder" placeholder="Tìm theo tên xe, hãng..." autocomplete="off">
           </div>
           <div class="search-results-dropdown" id="searchResultsDropdown"></div>
@@ -419,73 +419,73 @@
           <div class="hero-image-stage">
             <img src="image/hero-banner.jpg" alt="Bộ sưu tập MINI GT Pre-Order 2026" class="hero-img-main" fetchpriority="high" decoding="async">
 
-              <!-- Hotspot 1: Lamborghini Aventador SVJ Roadster -->
-              <button class="hero-hotspot hotspot-truck" type="button" aria-label="Xem Lamborghini Aventador SVJ Roadster" onclick="openQuickView(49)">
+              <!-- Hotspot 1: Toyota Vellfire 40 KUHL Metallic Pink (#MGT01391) -->
+              <button class="hero-hotspot hotspot-pinkvan" type="button" data-sku="MGT01391" aria-label="Xem Toyota Vellfire 40 KUHL Metallic Pink" onclick="openQuickView(56)">
                 <span class="hero-hotspot-plus">+</span>
                 <span class="hotspot-tooltip">
-                  <span class="hs-tag">#MGT363 • LAMBORGHINI</span>
-                  <span class="hs-title">Lamborghini Aventador SVJ Roadster</span>
-                  <span class="hs-price"><span>315.000đ</span> <span class="hs-cta" data-i18n="hs_in_stock">Sẵn kho ➔</span></span>
+                  <span class="hs-tag">#MGT01391 • TOYOTA</span>
+                  <span class="hs-title">Mini GT - Toyota Vellfire 40 KUHL (Metallic Pink)</span>
+                  <span class="hs-price"><span>350.000đ</span> <span class="hs-cta">Đặt cọc ➔</span></span>
                 </span>
               </button>
 
-              <!-- Hotspot 2: LBWK Pink Alphard Van & S15 -->
-              <button class="hero-hotspot hotspot-pinkvan" type="button" aria-label="Xem LB-Super Silhouette Nissan S15" onclick="openQuickView(10)">
+              <!-- Hotspot 2: Scania 770S B8x4NA Hooklift Flatbed Orange (#MGT01392) -->
+              <button class="hero-hotspot hotspot-truck" type="button" data-sku="MGT01392" aria-label="Xem Scania 770S B8x4NA Hooklift Flatbed Orange" onclick="openQuickView(57)">
                 <span class="hero-hotspot-plus">+</span>
                 <span class="hotspot-tooltip">
-                  <span class="hs-tag">#MGT00465 • LB★WORKS</span>
-                  <span class="hs-title">LB-Super Silhouette Nissan S15 Silvia</span>
-                  <span class="hs-price"><span>320.000đ</span> <span class="hs-cta" data-i18n="hs_in_stock">Sẵn kho ➔</span></span>
+                  <span class="hs-tag">#MGT01392 • SCANIA</span>
+                  <span class="hs-title">Scania 770S B8x4NA Hooklift Flatbed (Orange)</span>
+                  <span class="hs-price"><span>2.399.999đ</span> <span class="hs-cta">Đặt cọc ➔</span></span>
                 </span>
               </button>
 
-              <!-- Hotspot 3: Purple Lamborghini Aventador / Huracán LBWK -->
-              <button class="hero-hotspot hotspot-purplelambo" type="button" aria-label="Xem LB★WORKS Lamborghini Huracán GT" onclick="openQuickView(5)">
+              <!-- Hotspot 3: Lamborghini Temerario Viola Pasifae (#MGT01394) -->
+              <button class="hero-hotspot hotspot-purplelambo" type="button" data-sku="MGT01394" aria-label="Xem Lamborghini Temerario Viola Pasifae" onclick="openQuickView(59)">
                 <span class="hero-hotspot-plus">+</span>
                 <span class="hotspot-tooltip">
-                  <span class="hs-tag">#MGT01055 • WIDEBODY</span>
-                  <span class="hs-title">LB★WORKS Lamborghini Huracán GT</span>
-                  <span class="hs-price"><span>333.000đ</span> <span class="hs-cta" data-i18n="hs_in_stock">Sẵn kho ➔</span></span>
+                  <span class="hs-tag">#MGT01394 • LAMBORGHINI</span>
+                  <span class="hs-title">Lamborghini Temerario (Viola Pasifae)</span>
+                  <span class="hs-price"><span>350.000đ</span> <span class="hs-cta">Đặt cọc ➔</span></span>
                 </span>
               </button>
 
-              <!-- Hotspot 4: Light Blue Supercar (Porsche 911 GT3 RS) -->
-              <button class="hero-hotspot hotspot-bluelambo" type="button" aria-label="Xem Porsche 911 GT3 RS" onclick="openQuickView(50)">
+              <!-- Hotspot 4: Bugatti EB110 GT Azzurro Metallizzato (#MGT01395) -->
+              <button class="hero-hotspot hotspot-bugatti hotspot-bluelambo" type="button" data-sku="MGT01395" aria-label="Xem Bugatti EB110 GT Azzurro Metallizzato" onclick="openQuickView(60)">
                 <span class="hero-hotspot-plus">+</span>
                 <span class="hotspot-tooltip">
-                  <span class="hs-tag">#MGT1060 • GT3 RS</span>
-                  <span class="hs-title">Porsche 911 GT3 RS</span>
-                  <span class="hs-price"><span>350.000đ</span> <span class="hs-cta" data-i18n="hs_in_stock">Sẵn kho ➔</span></span>
+                  <span class="hs-tag">#MGT01395 • BUGATTI</span>
+                  <span class="hs-title">Bugatti EB110 GT Azzurro Metallizzato 1992</span>
+                  <span class="hs-price"><span>320.000đ</span> <span class="hs-cta">Đặt cọc ➔</span></span>
                 </span>
               </button>
 
-              <!-- Hotspot 5: Aston Martin AMR24 #18 Lance Stroll -->
-              <button class="hero-hotspot hotspot-f1stroll" type="button" aria-label="Xem Aston Martin AMR24 #18 Lance Stroll" onclick="openQuickView(2)">
+              <!-- Hotspot 5: Aston Martin AMR24 #14 Fernando Alonso (#MGT01396) -->
+              <button class="hero-hotspot hotspot-f1alonso" type="button" data-sku="MGT01396" aria-label="Xem Aston Martin AMR24 #14 Fernando Alonso" onclick="openQuickView(3)">
                 <span class="hero-hotspot-plus">+</span>
                 <span class="hotspot-tooltip">
-                  <span class="hs-tag">#MGT01413 • F1 LAS VEGAS</span>
-                  <span class="hs-title">Aston Martin AMR24 #18 Lance Stroll</span>
-                  <span class="hs-price"><span>342.000đ</span> <span class="hs-cta" data-i18n="hs_in_stock">Sẵn kho ➔</span></span>
+                  <span class="hs-tag">#MGT01396 • ASTON MARTIN F1</span>
+                  <span class="hs-title">Aston Martin AMR24 #14 Fernando Alonso (Las Vegas GP)</span>
+                  <span class="hs-price"><span>420.000đ</span> <span class="hs-cta">Sẵn kho ➔</span></span>
                 </span>
               </button>
 
-              <!-- Hotspot 6: Aston Martin AMR24 #14 Fernando Alonso -->
-              <button class="hero-hotspot hotspot-f1alonso" type="button" aria-label="Xem Aston Martin AMR24 #14 Fernando Alonso" onclick="openQuickView(3)">
+              <!-- Hotspot 6: Aston Martin AMR24 #18 Lance Stroll (#MGT01413) -->
+              <button class="hero-hotspot hotspot-f1stroll" type="button" data-sku="MGT01413" aria-label="Xem Aston Martin AMR24 #18 Lance Stroll" onclick="openQuickView(2)">
                 <span class="hero-hotspot-plus">+</span>
                 <span class="hotspot-tooltip">
-                  <span class="hs-tag">#MGT01396 • F1 LAS VEGAS</span>
-                  <span class="hs-title">Aston Martin AMR24 #14 Fernando Alonso</span>
-                  <span class="hs-price"><span>420.000đ</span> <span class="hs-cta" data-i18n="hs_in_stock">Sẵn kho ➔</span></span>
+                  <span class="hs-tag">#MGT01413 • ASTON MARTIN F1</span>
+                  <span class="hs-title">Aston Martin AMR24 #18 Lance Stroll (Las Vegas GP)</span>
+                  <span class="hs-price"><span>342.000đ</span> <span class="hs-cta">Sẵn kho ➔</span></span>
                 </span>
               </button>
 
-              <!-- Hotspot 7: Oracle Red Bull Racing RB18 Verstappen F1 -->
-              <button class="hero-hotspot hotspot-f1rb18" type="button" aria-label="Xem Red Bull Racing RB18 Verstappen" onclick="openQuickView(4)">
+              <!-- Hotspot 7: Team Lotus 78 #5 Mario Andretti (#MGT01393) -->
+              <button class="hero-hotspot hotspot-lotus78 hotspot-f1rb18" type="button" data-sku="MGT01393" aria-label="Xem Team Lotus 78 #5 Mario Andretti 1977 US GP West" onclick="openQuickView(58)">
                 <span class="hero-hotspot-plus">+</span>
                 <span class="hotspot-tooltip">
-                  <span class="hs-tag">#MGT00550 • MONACO GP</span>
-                  <span class="hs-title">Oracle Red Bull RB18 #1 Max Verstappen</span>
-                  <span class="hs-price"><span>378.000đ</span> <span class="hs-cta" data-i18n="hs_in_stock">Sẵn kho ➔</span></span>
+                  <span class="hs-tag">#MGT01393 • TEAM LOTUS</span>
+                  <span class="hs-title">Team Lotus 78 #5 Mario Andretti (Winner 1977)</span>
+                  <span class="hs-price"><span>350.000đ</span> <span class="hs-cta">Đặt cọc ➔</span></span>
                 </span>
               </button>
             </div>
@@ -858,6 +858,9 @@
             </select>
           </div>
         </div>
+
+        <!-- Dynamic Catalog Search Banner (Shown when searching) -->
+        <div id="catalogSearchNotice" style="display: none; margin-bottom: 20px;"></div>
 
         <!-- Main Product Grid -->
         <div class="product-grid" id="mainProductGrid">

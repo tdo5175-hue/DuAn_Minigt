@@ -302,14 +302,16 @@
   transform: translateX(-50%) translateY(0) scale(1);
 }
 
-/* Precise Hotspot Coordinates on hero-banner.jpg */
-.hotspot-truck       { top: 54%; left: 43.5%; }
-.hotspot-pinkvan     { top: 70%; left: 28%; }
-.hotspot-purplelambo { top: 75%; left: 38%; }
-.hotspot-bluelambo   { top: 75%; left: 47.5%; }
-.hotspot-f1stroll    { top: 59%; left: 54.5%; }
-.hotspot-f1alonso    { top: 65%; left: 59.5%; }
-.hotspot-f1rb18      { top: 73%; left: 67%; }
+/* Precise Hotspot Coordinates on hero-banner.jpg (Tỷ lệ 1295x610 chuẩn xác từng mẫu xe) */
+.hotspot-pinkvan     { top: 72.0%; left: 25.0%; } /* Toyota Vellfire 40 KUHL Metallic Pink #MGT01391 */
+.hotspot-truck       { top: 53.5%; left: 42.0%; } /* Scania 770S B8x4NA Hooklift Flatbed Orange #MGT01392 */
+.hotspot-purplelambo { top: 78.0%; left: 37.0%; } /* Lamborghini Temerario Viola Pasifae #MGT01394 */
+.hotspot-bugatti,
+.hotspot-bluelambo   { top: 76.0%; left: 47.5%; } /* Bugatti EB110 GT Azzurro Metallizzato #MGT01395 */
+.hotspot-f1alonso    { top: 63.0%; left: 58.5%; } /* Aston Martin AMR24 #14 Fernando Alonso #MGT01396 */
+.hotspot-f1stroll    { top: 72.5%; left: 64.5%; } /* Aston Martin AMR24 #18 Lance Stroll #MGT01413 */
+.hotspot-lotus78,
+.hotspot-f1rb18      { top: 77.5%; left: 71.5%; } /* Team Lotus 78 #5 Mario Andretti 1977 #MGT01393 */
 
 /* --- SLIDES 2 & 3: REAL SHOWROOM CAR BACKGROUNDS WITH FROSTED OVERLAY --- */
 .hero-slide-lbwk,
@@ -858,6 +860,13 @@
 @keyframes heroDotProgress {
   0% { width: 0%; }
   100% { width: 100%; }
+}
+
+/* Tạm dừng animation thanh tiến trình khi người dùng đang di chuột hoặc chọn xe */
+.hero-slider-wrap.is-paused .hero-dot.active::after,
+.hero-section:hover .hero-dot.active::after,
+.hero-section.is-paused .hero-dot.active::after {
+  animation-play-state: paused !important;
 }
 
 /* =====================================================================
