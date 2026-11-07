@@ -10001,7 +10001,7 @@ function initCustomerRealtimeOrderWatcher() {
           const newlyApproved = ['CONFIRMED', 'PREPARING', 'SHIPPING'].includes(newStatus) && prev.status === 'PENDING';
           const newlyTracked = Boolean(newTracking) && newTracking !== prev.tracking;
           const newlyCancelled = newStatus === 'CANCELLED' && prev.status !== 'CANCELLED' && !prev.cancelledByCustomer && !isCustCancel;
-          const isPreOrderArrived = Boolean(payload.isStockArrived || payload.action === 'preorder-arrived' || orderObj?.isStockArrived);
+          const isPreOrderArrived = Boolean(payload.isStockArrived || payload.action === 'preorder-arrived' || orderObj?.isStockArrived || orderObj?.preOrderNotified || orderObj?.PreOrderNotified);
 
           customerOrderStateSnapshot[code] = {
             status: newStatus || prev.status,

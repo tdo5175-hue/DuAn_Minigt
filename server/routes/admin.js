@@ -906,6 +906,19 @@ router.put('/orders/:id/status', async (req, res, next) => {
       throw conflict('Đơn hàng đã giao thành công và hoàn tất, không thể chỉnh sửa hoặc thay đổi trạng thái!');
     }
 
+    const isPreOrder = Boolean(existing.hasPreOrder || existing.HasPreOrder);
+    const isGoodsArrived = Boolean(existing.preOrderNotified || existing.PreOrderNotified);
+    const target = String(status || '').toUpperCase();
+
+    if (isPreOrder && !isGoodsArrived) {
+      if (['SHIPPING', 'DELIVERED'].includes(target)) {
+        throw badRequest('Sản phẩm Pre-order chưa về kho (đang chờ hãng gửi về), không thể gán mã vận đơn hoặc giao hàng! Vui lòng bấm "Báo Hàng Về" sau khi xe cập bến kho Biên Hòa.');
+      }
+      if (trackingCode && String(trackingCode).trim()) {
+        throw badRequest('Sản phẩm Pre-order chưa về kho, không thể gán mã vận đơn SPX! Vui lòng bấm "Báo Hàng Về" trước.');
+      }
+    }
+
     const updated = await orderService.transitionOrderStatus(orderId, status, {
       note, trackingCode, trackingCarrier: carrier, cancelReason,
       actorId: req.user ? req.user.userId : null,
@@ -948,6 +961,13 @@ router.put('/orders/:id/tracking', async (req, res, next) => {
     }
     if (o.status === 'CANCELLED') {
       throw badRequest('Đơn hàng đã hủy, không thể gắn mã vận đơn!');
+    }
+
+    // KHÓA CHẶN TUYỆT ĐỐI ĐƠN PRE-ORDER KHI ĐANG CHỜ HÃNG SẢN XUẤT:
+    const isPreOrder = Boolean(o.hasPreOrder || o.HasPreOrder);
+    const isGoodsArrived = Boolean(o.preOrderNotified || o.PreOrderNotified);
+    if (isPreOrder && !isGoodsArrived) {
+      throw badRequest('Sản phẩm Pre-order chưa về kho (đang chờ hãng gửi về), không thể gán mã vận đơn hoặc giao hàng! Vui lòng bấm "Báo Hàng Về" sau khi lô xe cập bến kho Biên Hòa.');
     }
 
     const pMethod = String(o.paymentMethod || '').toUpperCase();

@@ -3776,7 +3776,18 @@
     `;
   }
 
-  function renderOrderBadge(status) {
+  function renderOrderBadge(status, isPreOrder = false, isGoodsArrived = false) {
+    if (isPreOrder) {
+      if (status === 'PENDING') {
+        return `<span class="status-badge" style="background:#fef3c7; color:#b45309; border:1px solid #fde68a; font-weight:700;"><i class="fa-solid fa-hourglass-half"></i> Chờ duyệt cọc</span>`;
+      }
+      if (status === 'CONFIRMED' && !isGoodsArrived) {
+        return `<span class="status-badge" style="background:#ede9fe; color:#6d28d9; border:1px solid #ddd6fe; font-weight:700;"><i class="fa-solid fa-hourglass-half"></i> Chờ hãng gửi về</span>`;
+      }
+      if (status === 'PREPARING' || (status === 'CONFIRMED' && isGoodsArrived)) {
+        return `<span class="status-badge" style="background:#dcfce7; color:#15803d; border:1px solid #bbf7d0; font-weight:700;"><i class="fa-solid fa-boxes-packing"></i> Hàng đã về kho</span>`;
+      }
+    }
     const statusMap = {
       PENDING: { text: t('order_status_pending', 'Chờ duyệt'), bg: '#fef3c7', color: '#b45309', icon: 'fa-hourglass-half' },
       CONFIRMED: { text: t('order_status_confirmed', 'Đã duyệt'), bg: '#eff6ff', color: '#1d4ed8', icon: 'fa-check' },
@@ -4085,6 +4096,10 @@
       const actionsPrimary = [];
       const actionsSecondary = [];
 
+      const isPreOrder = Boolean(o.hasPreOrder || o.HasPreOrder);
+      const isGoodsArrived = Boolean(o.preOrderNotified || o.PreOrderNotified);
+      const isWaitingPreOrder = isPreOrder && !isGoodsArrived;
+
       // 1. Thao tác tiến trình xử lý đơn chính (Workflow Primary)
       const isTransferOrDeposit = ['VIETQR_PAYOS', 'PAYOS', 'BANK_TRANSFER', 'DEPOSIT'].includes(String(o.paymentMethod || '').toUpperCase());
       const isUnpaid = o.paymentStatus === 'UNPAID' || !o.paymentStatus;
@@ -4103,7 +4118,12 @@
           actionsPrimary.push(`<button class="btn-admin btn-admin-primary" style="padding:4px 8px; font-size:11px; ${o.paymentMethod === 'COD' ? 'background:#d97706; border-color:#d97706;' : ''}" onclick="changeOrderStatus(${o.id}, 'CONFIRMED')" title="Duyệt đơn hàng ngay"><i class="fa-solid fa-check"></i> ${o.paymentMethod === 'COD' ? 'Duyệt COD' : t('btn_approve', 'Duyệt')}</button>`);
         }
       } else if (o.status === 'CONFIRMED') {
-        actionsPrimary.push(`<button class="btn-admin btn-admin-primary" style="padding:4px 8px; font-size:11px; background:#7e22ce; border-color:#7e22ce;" onclick="changeOrderStatus(${o.id}, 'PREPARING')" title="Chuyển sang đóng gói"><i class="fa-solid fa-box"></i> ${t('btn_pack', 'Đóng gói')}</button>`);
+        if (isWaitingPreOrder) {
+          // ĐƠN PRE-ORDER ĐANG CHỜ HÃNG: HÀNH ĐỘNG CHÍNH LÀ "BÁO HÀNG VỀ"
+          actionsPrimary.push(`<button class="btn-admin btn-admin-primary" style="padding:4px 9px; font-size:11px; background:#d97706; border-color:#b45309; font-weight:800; box-shadow:0 2px 4px rgba(217,119,6,0.25);" onclick="markPreOrderArrivedAction(${o.id})" title="Lô xe Pre-Order đã về tới kho Biên Hòa. Bấm để chuyển sang đóng gói & mở khóa tạo mã SPX"><i class="fa-solid fa-boxes-packing"></i> Báo Hàng Về</button>`);
+        } else {
+          actionsPrimary.push(`<button class="btn-admin btn-admin-primary" style="padding:4px 8px; font-size:11px; background:#7e22ce; border-color:#7e22ce;" onclick="changeOrderStatus(${o.id}, 'PREPARING')" title="Chuyển sang đóng gói"><i class="fa-solid fa-box"></i> ${t('btn_pack', 'Đóng gói')}</button>`);
+        }
       } else if (o.status === 'PREPARING') {
         actionsPrimary.push(`<button class="btn-admin btn-admin-primary" style="padding:4px 8px; font-size:11px; background:#ea580c; border-color:#ea580c;" onclick="openShipSpxModal(${o.id})" title="Gán mã vận đơn SPX Express"><i class="fa-solid fa-truck-fast"></i> ${o.trackingCode ? t('btn_edit_spx', 'Sửa SPX') : t('btn_assign_spx', 'Gán SPX')}</button>`);
       } else if (o.status === 'SHIPPING') {
@@ -4117,7 +4137,11 @@
       // 2. Thao tác tài chính & bổ sung ở hàng 2 (Secondary row)
       // Gán / Đổi mã SPX nếu ở trạng thái Confirmed hoặc Shipping mà cần chỉnh
       if (['CONFIRMED', 'SHIPPING'].includes(o.status)) {
-        actionsSecondary.push(`<button class="btn-admin btn-admin-outline" style="padding:3px 7px; font-size:11px; color:#ea580c; border-color:#fdba74;" onclick="openShipSpxModal(${o.id})" title="Quản lý mã vận đơn SPX Express"><i class="fa-solid fa-truck-fast"></i> ${o.trackingCode ? t('btn_edit_spx', 'Sửa SPX') : t('btn_assign_spx', 'Gán SPX')}</button>`);
+        if (!isWaitingPreOrder) {
+          actionsSecondary.push(`<button class="btn-admin btn-admin-outline" style="padding:3px 7px; font-size:11px; color:#ea580c; border-color:#fdba74;" onclick="openShipSpxModal(${o.id})" title="Quản lý mã vận đơn SPX Express"><i class="fa-solid fa-truck-fast"></i> ${o.trackingCode ? t('btn_edit_spx', 'Sửa SPX') : t('btn_assign_spx', 'Gán SPX')}</button>`);
+        } else {
+          actionsSecondary.push(`<button class="btn-admin btn-admin-outline" style="padding:3px 7px; font-size:11px; color:#94a3b8; border-color:#cbd5e1; cursor:not-allowed; opacity:0.65;" disabled title="Đơn Pre-Order đang chờ hãng sản xuất gửi về. Cần bấm 'Báo Hàng Về' trước khi tạo vận đơn SPX!"><i class="fa-solid fa-lock"></i> Gán SPX (Khóa)</button>`);
+        }
       }
 
       // Xác nhận tiền cọc hoặc thanh toán full (cho các đơn đã duyệt mà khách chuyển thêm hoặc nhận đủ)
@@ -4129,12 +4153,12 @@
         }
       }
 
-      // Báo hàng Pre-Order đã về kho
-      if ((o.hasPreOrder || o.HasPreOrder) && ['PENDING', 'CONFIRMED', 'PREPARING'].includes(o.status)) {
-        if (!o.preOrderNotified && !o.PreOrderNotified) {
-          actionsSecondary.push(`<button class="btn-admin btn-admin-primary" style="padding:3px 7px; font-size:11px; background:#d97706; border-color:#b45309;" onclick="markPreOrderArrivedAction(${o.id})" title="Báo hàng Pre-Order đã về tới kho Biên Hòa để giao"><i class="fa-solid fa-boxes-packing"></i> Báo Hàng Về</button>`);
-        } else {
-          actionsSecondary.push(`<span class="badge-arrived" style="font-size:10px; font-weight:700; padding:2px 6px; border-radius:4px;"><i class="fa-solid fa-circle-check"></i> Đã về kho</span>`);
+      // Báo hàng Pre-Order đã về kho (nếu đơn chưa ở trạng thái PREPARING/SHIPPING)
+      if (isPreOrder) {
+        if (isGoodsArrived) {
+          actionsSecondary.push(`<span class="badge-arrived" style="font-size:10px; font-weight:700; padding:2px 6px; border-radius:4px; background:#ecfdf5; color:#059669; border:1px solid #a7f3d0;"><i class="fa-solid fa-circle-check"></i> Đã về kho</span>`);
+        } else if (o.status === 'PENDING') {
+          actionsSecondary.push(`<span style="font-size:10px; color:#6d28d9; font-weight:700; padding:2px 5px; background:#f5f3ff; border:1px solid #ddd6fe; border-radius:4px;"><i class="fa-solid fa-hourglass-start"></i> Chờ duyệt cọc</span>`);
         }
       }
 
@@ -4153,7 +4177,6 @@
       const custPhone = (o.customer && o.customer.phone) || o.phone || '';
       const orderTotal = o.total ?? o.totalAmount ?? 0;
       const isPhoneRevealed = revealedPhoneOrders.has(Number(o.id));
-      const isPreOrder = Boolean(o.hasPreOrder || o.HasPreOrder);
       const preOrderExpected = o.preOrderExpected || o.PreOrderExpected || '';
 
       const createdTime = new Date(o.createdAt || o.created_at || Date.now()).getTime();
@@ -4272,7 +4295,7 @@
           <!-- 5. Tiến trình xử lý & Vận đơn SPX Express -->
           <td>
             <div style="margin-bottom:5px;">
-              ${renderOrderBadge(o.status)}
+              ${renderOrderBadge(o.status, isPreOrder, isGoodsArrived)}
             </div>
             ${o.trackingCode ? `
               <div class="badge-spx-assigned" title="Mã vận đơn SPX Express">
@@ -4282,11 +4305,15 @@
               <div style="margin-top:2px;">
                 <a href="https://spx.vn/vi" target="_blank" class="spx-track-link" title="Tra cứu trực tiếp trên hệ thống SPX Express">Tra cứu SPX ↗</a>
               </div>
+            ` : (isWaitingPreOrder ? `
+              <div class="badge-spx-unassigned badge-spx-locked" style="cursor:not-allowed; opacity:0.75; background:#f8fafc; color:#64748b; border:1px dashed #cbd5e1;" title="Đơn Pre-Order đang chờ hãng sản xuất gửi về. Cần bấm 'Báo Hàng Về' trước khi tạo vận đơn SPX!">
+                <i class="fa-solid fa-lock" style="color:#d97706;"></i> Chờ hàng về kho
+              </div>
             ` : `
               <div class="badge-spx-unassigned" onclick="openShipSpxModal(${o.id})" title="Nhấn để gán mã vận đơn SPX Express cho đơn này">
                 <i class="fa-solid fa-box-archive"></i> Chưa gán SPX
               </div>
-            `}
+            `)}
           </td>
 
           <!-- 6. Thao tác xử lý (Sticky bên phải không bị che mất hay phải kéo ngang) -->
@@ -4388,6 +4415,9 @@
 
       const isOldAddr = order.addressType === 'OLD' || order.isOldAddress;
       const isDeliveredOrCompleted = ['DELIVERED', 'COMPLETED'].includes(String(order.status || '').toUpperCase());
+      const isPreOrder = Boolean(order.hasPreOrder || order.HasPreOrder);
+      const isGoodsArrived = Boolean(order.preOrderNotified || order.PreOrderNotified);
+      const isWaitingPreOrder = isPreOrder && !isGoodsArrived;
 
       // Tính toán các thông số tài chính đối soát minh bạch chuẩn SPX Express
       const rawSubtotal = Number(order.subtotal || 0);
@@ -4762,7 +4792,17 @@
               <a href="https://spx.vn/vi" target="_blank" class="btn-admin btn-admin-outline" style="background:#fff; color:#ea580c; border-color:#fdba74; font-size:11px; padding:3px 8px; text-decoration:none;">
                 <i class="fa-solid fa-arrow-up-right-from-square"></i> Mở Web SPX (spx.vn/vi)
               </a>
-              ${!isDeliveredOrCompleted ? `<button type="button" class="btn-admin btn-admin-primary" style="background:#ea580c; border-color:#ea580c; font-size:11px; padding:3px 10px;" onclick="openShipSpxModal(${order.id})"><i class="fa-solid fa-truck-fast"></i> ${order.trackingCode ? 'Sửa mã SPX' : 'Tạo / Dán mã SPX'}</button>` : '<span style="font-size:11px; color:#059669; font-weight:700;"><i class="fa-solid fa-lock"></i> Đã giao thành công</span>'}
+              ${!isDeliveredOrCompleted ? (
+                isWaitingPreOrder ? `
+                  <button type="button" class="btn-admin btn-admin-outline" style="font-size:11px; padding:3px 10px; cursor:not-allowed; opacity:0.65; color:#64748b; border:1px dashed #cbd5e1;" disabled title="Đơn Pre-Order đang chờ hãng sản xuất gửi về. Cần bấm 'Báo Hàng Về' trước khi tạo vận đơn SPX!">
+                    <i class="fa-solid fa-lock"></i> Khóa SPX (Chờ hãng gửi về)
+                  </button>
+                ` : `
+                  <button type="button" class="btn-admin btn-admin-primary" style="background:#ea580c; border-color:#ea580c; font-size:11px; padding:3px 10px;" onclick="openShipSpxModal(${order.id})">
+                    <i class="fa-solid fa-truck-fast"></i> ${order.trackingCode ? 'Sửa mã SPX' : 'Tạo / Dán mã SPX'}
+                  </button>
+                `
+              ) : '<span style="font-size:11px; color:#059669; font-weight:700;"><i class="fa-solid fa-lock"></i> Đã giao thành công</span>'}
             </div>
           </div>
 
@@ -4813,19 +4853,27 @@
                     `)
                   : `<button type="button" class="btn-admin btn-admin-primary" style="background:#1d4ed8; border-color:#1d4ed8; font-size:11.5px; padding:5px 12px;" onclick="changeOrderStatus(${order.id}, 'CONFIRMED')" title="Duyệt đơn hàng"><i class="fa-solid fa-check"></i> ${order.paymentMethod === 'COD' ? 'Duyệt Đơn COD' : 'Duyệt Đơn'}</button>`
               ) : ''}
-              ${order.status === 'CONFIRMED' ? `
-                <button type="button" class="btn-admin btn-admin-primary" style="background:#7e22ce; border-color:#7e22ce; font-size:11.5px; padding:5px 12px;" onclick="changeOrderStatus(${order.id}, 'PREPARING')">
-                  <i class="fa-solid fa-box"></i> Đóng Gói
-                </button>
-              ` : ''}
+              ${order.status === 'CONFIRMED' ? (
+                isWaitingPreOrder ? `
+                  <button type="button" class="btn-admin btn-admin-primary" style="background:#d97706; border-color:#b45309; font-size:11.5px; padding:5px 14px; font-weight:800; box-shadow:0 2px 4px rgba(217,119,6,0.25);" onclick="markPreOrderArrivedAction(${order.id})" title="Xác nhận lô hàng Pre-Order đã về kho Biên Hòa">
+                    <i class="fa-solid fa-boxes-packing"></i> Báo Hàng Về Kho
+                  </button>
+                ` : `
+                  <button type="button" class="btn-admin btn-admin-primary" style="background:#7e22ce; border-color:#7e22ce; font-size:11.5px; padding:5px 12px;" onclick="changeOrderStatus(${order.id}, 'PREPARING')">
+                    <i class="fa-solid fa-box"></i> Đóng Gói
+                  </button>
+                `
+              ) : ''}
               ${order.status === 'PREPARING' ? `
                 <button type="button" class="btn-admin btn-admin-primary" style="background:#ea580c; border-color:#ea580c; font-size:11.5px; padding:5px 12px;" onclick="openShipSpxModal(${order.id})">
                   <i class="fa-solid fa-truck-fast"></i> Gán Mã SPX
                 </button>
               ` : ''}
-              <button type="button" class="btn-admin btn-admin-primary" style="background:#059669; border-color:#059669; font-size:11.5px; padding:5px 14px; font-weight:800;" onclick="changeOrderStatus(${order.id}, 'DELIVERED')">
-                <i class="fa-solid fa-circle-check"></i> Xác Nhận Đã Nhận Hàng (Hoàn Tất)
-              </button>
+              ${order.status === 'SHIPPING' ? `
+                <button type="button" class="btn-admin btn-admin-primary" style="background:#059669; border-color:#059669; font-size:11.5px; padding:5px 14px; font-weight:800;" onclick="changeOrderStatus(${order.id}, 'DELIVERED')">
+                  <i class="fa-solid fa-circle-check"></i> Xác Nhận Đã Nhận Hàng (Hoàn Tất)
+                </button>
+              ` : ''}
               <button type="button" class="btn-admin btn-admin-outline" style="color:#dc2626; border-color:#fca5a5; font-size:11.5px; padding:5px 10px;" onclick="openCancelOrderModal(${order.id})">
                 <i class="fa-solid fa-ban"></i> Hủy Đơn
               </button>
@@ -4904,6 +4952,14 @@
       const res = await api.get(`/api/admin/orders/${orderId}`);
       if (!res.success || !res.data) return;
       currentActionOrderData = res.data;
+
+      // KHÓA CHẶN ĐƠN PRE-ORDER KHI CHƯA VỀ KHO BIÊN HÒA:
+      const isPreOrder = Boolean(currentActionOrderData.hasPreOrder || currentActionOrderData.HasPreOrder);
+      const isGoodsArrived = Boolean(currentActionOrderData.preOrderNotified || currentActionOrderData.PreOrderNotified);
+      if (isPreOrder && !isGoodsArrived) {
+        adminToast('Sản phẩm Pre-Order chưa về kho (đang chờ hãng sản xuất gửi về)! Vui lòng bấm "Báo Hàng Về" sau khi lô xe cập bến Biên Hòa trước khi gán SPX.', 'warning');
+        return;
+      }
 
       const codeText = document.getElementById('shipSpxOrderCodeText');
       const dispatchInfo = document.getElementById('shipSpxCustomerDispatchInfo');
@@ -6381,7 +6437,16 @@ Anh/chị phản hồi giúp shop để kiện xe được đóng gói gửi đi
       if (res.success) {
         adminToast(res.message || 'Đã báo hàng về kho và chuyển sản phẩm sang hàng thường thành công!', 'success');
         if (api && typeof api.emitRealtimeSync === 'function') {
-          api.emitRealtimeSync('ORDER_UPDATED', { orderId, order: res.data?.order || res.data });
+          const ordObj = res.data?.order || res.data || {};
+          const ordCode = ordObj.code || ordObj.OrderCode || ordObj.orderCode;
+          api.emitRealtimeSync('ORDER_UPDATED', {
+            orderId,
+            orderCode: ordCode,
+            status: 'PREPARING',
+            isStockArrived: true,
+            action: 'preorder-arrived',
+            order: ordObj
+          });
           api.emitRealtimeSync('ORDERS_UPDATED', {});
           api.emitRealtimeSync('PRODUCTS_UPDATED', {});
         }

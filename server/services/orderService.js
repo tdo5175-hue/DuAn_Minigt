@@ -434,6 +434,34 @@ async function transitionOrderStatus(orderIdOrCode, toStatus, { note, cancelReas
       throw conflict('Bạn chỉ có thể hủy đơn khi đơn đang ở trạng thái Chờ xác nhận');
     }
 
+    // RÀNG BUỘC VÒNG ĐỜI TRẠNG THÁI (STATE MACHINE) CHO ĐƠN PRE-ORDER (HÀNG ĐẶT TRƯỚC TỪ HÃNG):
+    // 1. preorder_pending (PENDING): Chờ duyệt cọc / Chờ thanh toán -> Chuyển sang CONFIRMED hoặc CANCELLED
+    // 2. waiting_from_manufacturer (CONFIRMED & !isGoodsArrived): Đang chờ hãng gửi về -> Tuyệt đối cấm gán SPX, cấm nhảy sang SHIPPING hoặc DELIVERED! Chỉ chuyển sang PREPARING khi bấm "Báo Hàng Về" (arrived_local_warehouse) hoặc CANCELLED
+    // 3. arrived_local_warehouse (PREPARING & isGoodsArrived): Hàng đã về kho Biên Hòa -> Mở khóa gán mã vận đơn SPX và chuyển sang SHIPPING
+    // 4. shipping (SHIPPING): Đang giao hàng SPX -> Chuyển sang DELIVERED khi hoàn tất
+    const isPreOrder = Boolean(order.HasPreOrder || order.haspreorder);
+    const isGoodsArrived = Boolean(order.PreOrderNotified || order.preordernotified);
+
+    if (isPreOrder) {
+      if (!isGoodsArrived) {
+        // Đơn Pre-Order đang ở giai đoạn chờ hãng sản xuất gửi về
+        if (['SHIPPING', 'DELIVERED'].includes(target)) {
+          throw badRequest('Sản phẩm Pre-order chưa về kho (đang chờ hãng gửi về), không thể gán mã vận đơn hoặc giao hàng! Vui lòng bấm "Báo Hàng Về" sau khi lô xe cập bến kho Biên Hòa.');
+        }
+        if (trackingCode && String(trackingCode).trim()) {
+          throw badRequest('Sản phẩm Pre-order chưa về kho, không thể gán mã vận đơn SPX! Vui lòng bấm "Báo Hàng Về" sau khi xe cập bến kho Biên Hòa.');
+        }
+        if (fromStatus === 'CONFIRMED' && !['PREPARING', 'CANCELLED'].includes(target)) {
+          throw badRequest('Đơn Pre-order đang chờ hãng chỉ có thể chuyển sang "Hàng đã về kho" (PREPARING) khi bấm "Báo Hàng Về", hoặc Hủy đơn.');
+        }
+      }
+
+      if (target === 'PREPARING' && !isGoodsArrived) {
+        // Tự động kích hoạt PreOrderNotified khi chuyển sang PREPARING
+        await q('UPDATE Orders SET PreOrderNotified = TRUE, UpdatedAt = NOW() WHERE OrderId = @oid', { oid: order.OrderId });
+      }
+    }
+
     if (target === 'CANCELLED' && order.StockReserved) {
       const itemsRes = await q('SELECT ProductId, Quantity, PackagingOption FROM OrderItems WHERE OrderId = @oid', { oid: order.OrderId });
       for (const it of itemsRes.recordset) {

@@ -1964,6 +1964,22 @@ button, a, input, select, .order-tab-btn, .preorder-sub-btn, .nav-item, .btn-adm
   transform: translateY(-1px);
 }
 
+.badge-spx-unassigned.badge-spx-locked {
+  cursor: not-allowed !important;
+  opacity: 0.8 !important;
+  background: #f8fafc !important;
+  color: #64748b !important;
+  border: 1px dashed #cbd5e1 !important;
+  transform: none !important;
+}
+
+.badge-spx-unassigned.badge-spx-locked:hover {
+  background: #f8fafc !important;
+  color: #64748b !important;
+  border-color: #cbd5e1 !important;
+  transform: none !important;
+}
+
 [data-theme="dark"] .badge-spx-unassigned {
   background: #1e293b;
   border-color: #475569;
