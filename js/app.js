@@ -8500,6 +8500,7 @@ function renderMyOrdersCenterUI(container) {
       }
     </div>
   `;
+  startUnpaidOrderCountdownTicker();
 }
 
 async function syncCustomerOrderByQuery() {
@@ -8528,6 +8529,46 @@ async function syncCustomerOrderByQuery() {
   } catch (err) {
     showToast('Lỗi đồng bộ đơn hàng: ' + err.message, 'error');
   }
+}
+
+let unpaidOrderCountdownInterval = null;
+function startUnpaidOrderCountdownTicker() {
+  if (unpaidOrderCountdownInterval) return;
+  unpaidOrderCountdownInterval = setInterval(() => {
+    const banners = document.querySelectorAll('.order-unpaid-timer-banner');
+    if (!banners.length) return;
+    const now = Date.now();
+    banners.forEach(b => {
+      const expires = Number(b.dataset.expires || 0);
+      const clock = b.querySelector('.unpaid-countdown-clock');
+      if (!expires || !clock) return;
+      const remSeconds = Math.max(0, Math.floor((expires - now) / 1000));
+      if (remSeconds > 0) {
+        const m = String(Math.floor(remSeconds / 60)).padStart(2, '0');
+        const s = String(remSeconds % 60).padStart(2, '0');
+        clock.textContent = `${m}:${s}`;
+      } else {
+        clock.textContent = '00:00';
+        b.style.background = '#fee2e2';
+        b.style.borderColor = '#f87171';
+        const txt = b.querySelector('span');
+        if (txt) txt.textContent = 'Đã hết hạn 5 phút. Hệ thống tự động hủy đơn do chưa thanh toán.';
+        if (!b.dataset.triggeredExpired) {
+          b.dataset.triggeredExpired = 'true';
+          setTimeout(() => {
+            if (typeof fetchCustomerOrdersUnified === 'function') {
+              fetchCustomerOrdersUnified().then(() => {
+                const container = document.getElementById('myOrdersModalContent');
+                if (container && document.getElementById('myOrdersModal')?.classList.contains('active')) {
+                  renderMyOrdersCenterUI(container);
+                }
+              });
+            }
+          }, 1500);
+        }
+      }
+    });
+  }, 1000);
 }
 
 function buildUnifiedCustomerOrderCardHTML(ord) {
@@ -8650,6 +8691,24 @@ function buildUnifiedCustomerOrderCardHTML(ord) {
         </div>
       </div>
 
+      <!-- Banner cảnh báo đếm ngược 5 phút tự động hủy cho đơn chưa thanh toán/chuyển cọc -->
+      ${(ordStatus === 'PENDING' && !isPaid && !isPartiallyPaid && !isCOD) ? (() => {
+        const orderCreatedAt = new Date(ord.CreatedAt || ord.createdAt || Date.now()).getTime();
+        const expiresAt = orderCreatedAt + 5 * 60 * 1000;
+        return `
+          <div class="order-unpaid-timer-banner" data-expires="${expiresAt}" data-order="${escapeHtml(orderCode)}" style="background:linear-gradient(135deg, #fff1f2 0%, #fee2e2 100%); border:1.5px solid #fecdd3; border-radius:10px; padding:8px 12px; margin:10px 0 6px 0; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+            <div style="font-size:12px; color:#991b1b; font-weight:700; display:flex; align-items:center; gap:6px;">
+              <i class="fa-solid fa-clock-rotate-left fa-spin" style="color:#e11d48;"></i>
+              <span>Đang giữ hàng cho bạn. Vui lòng thanh toán trong:</span>
+            </div>
+            <div style="display:flex; align-items:center; gap:6px;">
+              <span class="unpaid-countdown-clock" style="font-family:monospace; font-size:13px; font-weight:900; color:#be123c; background:#ffe4e6; padding:2px 8px; border-radius:5px; border:1px solid #fda4af;">05:00</span>
+              <span style="font-size:11px; color:#be123c; font-weight:600;">(Tự hủy sau 5p)</span>
+            </div>
+          </div>
+        `;
+      })() : ''}
+
       <!-- Thanh tiến trình 5 bước (ẩn nếu đơn đã hủy) -->
       ${ordStatus !== 'CANCELLED' ? `
         <div class="order-progress-track" style="margin:14px 0;">
@@ -8670,10 +8729,13 @@ function buildUnifiedCustomerOrderCardHTML(ord) {
       ${ordStatus === 'CANCELLED' ? (() => {
         const cancelReason = ord.CancelReason || ord.cancelReason || 'Admin đã xử lý hủy đơn';
         const isCustCancel = cancelReason.toLowerCase().includes('khách') || cancelReason.toLowerCase().includes('chủ động') || cancelReason.toLowerCase().includes('yêu cầu');
-        const cancelTitle = isCustCancel
-          ? `⚠️ ĐƠN HÀNG #${escapeHtml(orderCode)} ĐÃ ĐƯỢC BẠN HỦY THÀNH CÔNG`
-          : `❌ ĐƠN HÀNG #${escapeHtml(orderCode)} ĐÃ BỊ HỦY BỞI QUẢN TRỊ VIÊN`;
-        const cancelBorder = isCustCancel ? '2px solid #f59e0b' : '2px solid #ef4444';
+        const isAutoTimeout = cancelReason.toLowerCase().includes('5 phút') || cancelReason.toLowerCase().includes('tự động') || cancelReason.toLowerCase().includes('quá hạn');
+        const cancelTitle = isAutoTimeout
+          ? `⏱️ ĐƠN HÀNG #${escapeHtml(orderCode)} ĐÃ TỰ ĐỘNG HỦY DO QUÁ HẠN 5 PHÚT CHƯA THANH TOÁN`
+          : (isCustCancel
+              ? `⚠️ ĐƠN HÀNG #${escapeHtml(orderCode)} ĐÃ ĐƯỢC BẠN HỦY THÀNH CÔNG`
+              : `❌ ĐƠN HÀNG #${escapeHtml(orderCode)} ĐÃ BỊ HỦY BỞI QUẢN TRỊ VIÊN`);
+        const cancelBorder = isAutoTimeout ? '2px solid #ef4444' : (isCustCancel ? '2px solid #f59e0b' : '2px solid #ef4444');
         const iconColor = isCustCancel ? '#d97706' : '#dc2626';
         const titleColor = isCustCancel ? '#b45309' : '#dc2626';
         const bgReason = isCustCancel ? '#fffbeb' : '#fef2f2';

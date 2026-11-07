@@ -414,7 +414,7 @@ async function transitionOrderStatus(orderIdOrCode, toStatus, { note, cancelReas
 
     const fromStatus = String(order.Status).toUpperCase();
     if (fromStatus === target) {
-      return getOrderByCodeOrId(order.OrderId);
+      return order.OrderId;
     }
 
     const allowed = ALLOWED_TRANSITIONS[fromStatus] || [];
@@ -508,16 +508,18 @@ async function transitionOrderStatus(orderIdOrCode, toStatus, { note, cancelReas
       }
     }
 
-    return getOrderByCodeOrId(order.OrderId);
+    return order.OrderId;
   });
 
-  if (target === 'DELIVERED' && resOrder && (resOrder.email || resOrder.customer?.email)) {
-    mailService.sendOrderDeliveredEmail(resOrder).catch(err => {
+  const finalOrder = await getOrderByCodeOrId(resOrder, { skipAutoCancel: true });
+
+  if (target === 'DELIVERED' && finalOrder && (finalOrder.email || finalOrder.customer?.email)) {
+    mailService.sendOrderDeliveredEmail(finalOrder).catch(err => {
       console.warn('[MailService] Failed to send order delivered email:', err.message);
     });
   }
 
-  return resOrder;
+  return finalOrder;
 }
 
 async function updatePaymentStatus(orderId, paymentStatus, { actorId = null, note = null } = {}) {
@@ -528,7 +530,8 @@ async function updatePaymentStatus(orderId, paymentStatus, { actorId = null, not
   const cur = await db.query('SELECT OrderId, Status, PaymentStatus FROM Orders WHERE OrderId = @id', { id: Number(orderId) });
   if (!cur.recordset.length) throw notFound('Không tìm thấy đơn hàng');
 
-  const currentStatus = cur.recordset[0].Status;
+  const row = cur.recordset[0];
+  const currentStatus = String(row.Status || row.status || 'PENDING').toUpperCase();
   const nextStatus = (currentStatus === 'PENDING' && (target === 'PAID' || target === 'PARTIALLY_PAID'))
     ? 'CONFIRMED'
     : currentStatus;
@@ -551,6 +554,49 @@ async function updatePaymentStatus(orderId, paymentStatus, { actorId = null, not
   });
 
   return getOrderByCodeOrId(orderId);
+}
+
+// TỰ ĐỘNG HỦY ĐƠN HÀNG CHƯA THANH TOÁN SAU 5 PHÚT
+// Hoàn lại tồn kho mô hình xe (Box/Card) và mã giảm giá để bảo toàn dữ liệu
+async function autoCancelExpiredUnpaidOrders() {
+  try {
+    const expiredRes = await db.query(`
+      SELECT o.OrderId AS "OrderId", o.OrderCode AS "OrderCode", o.CreatedAt AS "CreatedAt"
+      FROM Orders o
+      WHERE UPPER(COALESCE(o.Status, 'PENDING')) = 'PENDING'
+        AND (UPPER(COALESCE(o.PaymentStatus, 'UNPAID')) = 'UNPAID' OR o.PaymentStatus IS NULL)
+        AND UPPER(COALESCE(o.PaymentMethod, '')) IN ('VIETQR_PAYOS', 'PAYOS', 'BANK_TRANSFER', 'DEPOSIT')
+        AND o.CreatedAt <= (NOW() - INTERVAL '5 minutes')
+      ORDER BY o.OrderId ASC
+      LIMIT 50
+    `);
+
+    if (!expiredRes.recordset || expiredRes.recordset.length === 0) {
+      return 0;
+    }
+
+    let count = 0;
+    for (const ord of expiredRes.recordset) {
+      const oid = ord.OrderId || ord.orderid;
+      const code = ord.OrderCode || ord.ordercode;
+      try {
+        await transitionOrderStatus(oid, 'CANCELLED', {
+          actorId: null,
+          isAdmin: true,
+          cancelReason: 'Hệ thống tự động hủy sau 5 phút do khách chưa thanh toán / chuyển cọc',
+          note: 'Hệ thống tự động hủy đơn sau 5 phút do quá thời hạn thanh toán VietQR / MB Bank'
+        });
+        count++;
+        console.log(`[AUTO-CANCEL] Đã tự động hủy đơn quá hạn 5p #${code}`);
+      } catch (cancelErr) {
+        console.warn(`[AUTO-CANCEL] Lỗi khi hủy đơn #${code}:`, cancelErr.message);
+      }
+    }
+    return count;
+  } catch (err) {
+    console.warn('[AUTO-CANCEL] Lỗi quét đơn hết hạn 5 phút:', err.message);
+    return 0;
+  }
 }
 
 function getCustomerVipInfo(totalSpent = 0) {
@@ -728,7 +774,7 @@ function mapOrder(o, items = [], history = []) {
   };
 }
 
-async function getOrderByCodeOrId(idOrCode) {
+async function getOrderByCodeOrId(idOrCode, { skipAutoCancel = false } = {}) {
   const isNum = /^\d+$/.test(String(idOrCode));
   const oRes = await db.query(`
     SELECT o.*,
@@ -751,6 +797,29 @@ async function getOrderByCodeOrId(idOrCode) {
   if (!oRes.recordset.length) return null;
   const o = oRes.recordset[0];
   const oid = o.OrderId || o.orderid;
+
+  // Tự động kiểm tra và hủy nếu đơn chờ chuyển khoản/cọc đã quá hạn 5 phút
+  const curStatus = String(o.Status || o.status || 'PENDING').toUpperCase();
+  const curPayStatus = String(o.PaymentStatus || o.paymentstatus || 'UNPAID').toUpperCase();
+  const curPayMethod = String(o.PaymentMethod || o.paymentmethod || '').toUpperCase();
+  const isTransferOrDeposit = ['VIETQR_PAYOS', 'PAYOS', 'BANK_TRANSFER', 'DEPOSIT'].includes(curPayMethod);
+  const createdAtTime = new Date(o.CreatedAt || o.createdat || 0).getTime();
+  const ageMs = Date.now() - createdAtTime;
+  const FIVE_MINS = 5 * 60 * 1000;
+
+  if (!skipAutoCancel && curStatus === 'PENDING' && (curPayStatus === 'UNPAID' || !curPayStatus) && isTransferOrDeposit && ageMs >= FIVE_MINS) {
+    try {
+      await transitionOrderStatus(oid, 'CANCELLED', {
+        actorId: null,
+        isAdmin: true,
+        cancelReason: 'Hệ thống tự động hủy sau 5 phút do khách chưa thanh toán / chuyển cọc',
+        note: 'Hệ thống tự động hủy đơn sau 5 phút do quá thời hạn thanh toán VietQR / MB Bank'
+      });
+      return getOrderByCodeOrId(idOrCode, { skipAutoCancel: true });
+    } catch (e) {
+      console.warn('[AUTO-CANCEL-ON-GET] Lỗi khi hủy đơn quá hạn:', e.message);
+    }
+  }
 
   const [iRes, hRes] = await Promise.all([
     db.query(`
@@ -793,6 +862,13 @@ async function getOrderByCodeOrId(idOrCode) {
 }
 
 async function listOrders({ status, paymentStatus, paymentMethod, q, userId, userEmail, phone, codes, preStage, spxStatus, sortBy = 'newest', dateRange = 'ALL', page = 1, pageSize = 50 } = {}) {
+  // Tự động quét và hủy các đơn chờ thanh toán / chuyển cọc quá 5 phút
+  try {
+    await autoCancelExpiredUnpaidOrders();
+  } catch (scanErr) {
+    console.warn('[AUTO-CANCEL-SWEEP] Lỗi quét đơn quá hạn:', scanErr.message);
+  }
+
   const where = [];
   const params = {};
 
@@ -1000,6 +1076,7 @@ module.exports = {
   createOrder,
   transitionOrderStatus,
   updatePaymentStatus,
+  autoCancelExpiredUnpaidOrders,
   getOrderByCodeOrId,
   listOrders
 };

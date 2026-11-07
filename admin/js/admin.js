@@ -3723,35 +3723,28 @@
     const isPayOS = paymentMethod === 'VIETQR_PAYOS' || paymentMethod === 'PAYOS';
     const isBankOrDeposit = paymentMethod === 'BANK_TRANSFER' || paymentMethod === 'DEPOSIT';
 
-    if (isPayOS) {
-      if (paymentStatus === 'PAID') {
-        return `<span class="status-badge" style="background:#ecfdf5; color:#047857; border:1px solid #10b981; font-weight:800; display:inline-flex; align-items:center; gap:4px; box-shadow:0 1px 2px rgba(16,185,129,0.15);"><i class="fa-solid fa-bolt" style="color:#059669;"></i> ${t('pay_vietqr_auto_paid', 'VietQR Tự động • Đã thanh toán')}</span>`;
-      }
-      if (paymentStatus === 'PARTIALLY_PAID') {
-        return `<span class="status-badge" style="background:#eff6ff; color:#1d4ed8; border:1px solid #3b82f6; font-weight:800; display:inline-flex; align-items:center; gap:4px; box-shadow:0 1px 2px rgba(59,130,246,0.15);"><i class="fa-solid fa-bolt" style="color:#2563eb;"></i> ${t('pay_vietqr_auto_deposit', 'VietQR Tự động • Đã cọc')}</span>`;
-      }
-      if (paymentStatus === 'REFUND_PENDING') {
-        return `<span class="status-badge" style="background:#fef3c7; color:#b45309; border:1px solid #fde68a; font-weight:700;"><i class="fa-solid fa-rotate-left"></i> ${t('pay_payos_refund_pending', 'PayOS: Chờ hoàn tiền')}</span>`;
-      }
-      if (paymentStatus === 'REFUNDED') {
-        return `<span class="status-badge" style="background:#f1f5f9; color:#475569; border:1px solid #cbd5e1; font-weight:700;"><i class="fa-solid fa-clock-rotate-left"></i> ${t('pay_payos_refunded', 'PayOS: Đã hoàn tiền')}</span>`;
-      }
+    if (paymentStatus === 'PAID') {
       return `
-        <span class="status-badge" style="background:#f0fdf4; color:#15803d; border:1px solid #86efac; font-weight:700; font-size:11px; padding:3px 7px; display:inline-flex; align-items:center; gap:4px;">
-          <i class="fa-solid fa-qrcode"></i> ${t('pay_payos_awaiting_scan', 'VietQR PayOS (Chờ quét)')}
+        <span class="status-badge" style="background:#ecfdf5; color:#047857; border:1.5px solid #10b981; font-weight:800; font-size:11px; padding:3px 8px; border-radius:5px; display:inline-flex; align-items:center; gap:4px; box-shadow:0 1px 2px rgba(16,185,129,0.15);">
+          <i class="fa-solid fa-circle-check" style="color:#059669;"></i> ${isPayOS ? 'VietQR Auto • Đã thanh toán' : 'ĐÃ THANH TOÁN 100%'}
         </span>
-        <div style="font-size:10px; color:#16a34a; margin-top:2px; font-weight:600; line-height:1.2;">
-          <i class="fa-solid fa-bolt"></i> ${t('pay_auto_reconcile', 'Hệ thống tự động đối soát')}
+        <div style="font-size:10px; color:#059669; margin-top:2px; font-weight:700;">
+          <i class="fa-solid fa-shield-check"></i> Đã nhận đủ tiền vào TK Shop
         </div>
       `;
     }
 
-    if (paymentStatus === 'PAID') {
-      return `<span class="status-badge" style="background:#ecfdf5; color:#047857; border:1px solid #a7f3d0; font-weight:700;"><i class="fa-solid fa-circle-check"></i> ${t('pay_full_paid', 'Đã nhận đủ tiền')}</span>`;
-    }
     if (paymentStatus === 'PARTIALLY_PAID') {
-      return `<span class="status-badge" style="background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe; font-weight:700;"><i class="fa-solid fa-circle-check"></i> ${t('pay_partially_paid', 'Đã nhận cọc')}</span>`;
+      return `
+        <span class="status-badge" style="background:#eff6ff; color:#1d4ed8; border:1.5px solid #3b82f6; font-weight:800; font-size:11px; padding:3px 8px; border-radius:5px; display:inline-flex; align-items:center; gap:4px; box-shadow:0 1px 2px rgba(59,130,246,0.15);">
+          <i class="fa-solid fa-circle-check" style="color:#2563eb;"></i> ${isPayOS ? 'VietQR Auto • Đã nhận cọc' : 'ĐÃ NHẬN TIỀN CỌC'}
+        </span>
+        <div style="font-size:10px; color:#1e40af; margin-top:2px; font-weight:700;">
+          <i class="fa-solid fa-shield-check"></i> Đã nhận cọc vào TK MB Bank
+        </div>
+      `;
     }
+
     if (paymentStatus === 'REFUND_PENDING') {
       return `<span class="status-badge" style="background:#fef3c7; color:#b45309; border:1px solid #fde68a; font-weight:700;"><i class="fa-solid fa-rotate-left"></i> ${t('pay_refund_pending', 'Chờ hoàn tiền')}</span>`;
     }
@@ -3759,22 +3752,28 @@
       return `<span class="status-badge" style="background:#f1f5f9; color:#475569; border:1px solid #cbd5e1; font-weight:700;"><i class="fa-solid fa-clock-rotate-left"></i> ${t('pay_refunded', 'Đã hoàn tiền')}</span>`;
     }
 
-    // Trường hợp UNPAID:
-    // Với Đơn Chuyển Khoản Full hoặc Cọc: Khách bấm "Tôi đã chuyển khoản xong" chỉ là thông báo.
-    // Admin PHẢI check App MB Bank nhận tiền rồi mới duyệt!
-    if (isBankOrDeposit) {
+    // Đơn COD
+    if (paymentMethod === 'COD') {
       return `
-        <span class="status-badge" style="background:#fffbeb; color:#b45309; border:1.5px solid #fde68a; font-weight:800; font-size:11px; padding:3px 7px; border-radius:5px; display:inline-flex; align-items:center; gap:4px;">
-          <i class="fa-solid fa-building-columns"></i> ${t('pay_check_mbbank', 'Check TK MB Bank')}
+        <span class="status-badge" style="background:#f1f5f9; color:#475569; border:1px solid #cbd5e1; font-weight:700; font-size:11px; padding:3px 7px; display:inline-flex; align-items:center; gap:4px;">
+          <i class="fa-solid fa-hand-holding-dollar"></i> ${t('pay_cod_on_delivery', 'Thu COD khi giao')}
         </span>
-        <div style="font-size:10px; color:#c2410c; margin-top:2px; font-weight:700; line-height:1.2;">
-          <i class="fa-solid fa-bell"></i> ${t('pay_check_mbbank_hint', 'Kiểm tra TK trước khi duyệt!')}
+        <div style="font-size:10px; color:#64748b; margin-top:2px; font-weight:600;">
+          <i class="fa-solid fa-truck-fast"></i> Bưu tá SPX thu tiền khi phát
         </div>
       `;
     }
 
-    // Đơn COD
-    return `<span class="status-badge" style="background:#f1f5f9; color:#475569; border:1px solid #cbd5e1; font-weight:700;"><i class="fa-solid fa-hand-holding-dollar"></i> ${t('pay_cod_on_delivery', 'Thu COD khi giao')}</span>`;
+    // Trường hợp UNPAID (VietQR PayOS, MB Bank, Đặt Cọc):
+    // Khách chưa chuyển khoản hoặc chuyển khoản thủ công mà web chưa cập nhật:
+    return `
+      <span class="status-badge" style="background:#fee2e2; color:#b91c1c; border:1.5px solid #f87171; font-weight:800; font-size:11px; padding:3px 8px; border-radius:5px; display:inline-flex; align-items:center; gap:4px; box-shadow:0 1px 2px rgba(239,68,68,0.12);">
+        <i class="fa-solid fa-clock-rotate-left" style="color:#dc2626;"></i> CHƯA CHUYỂN KHOẢN
+      </span>
+      <div style="font-size:10px; color:#c2410c; margin-top:2px; font-weight:700; line-height:1.2;">
+        <i class="fa-solid fa-building-columns"></i> Check TK MB Bank • (Tự hủy sau 5p)
+      </div>
+    `;
   }
 
   function renderOrderBadge(status) {
@@ -4092,12 +4091,14 @@
 
       if (o.status === 'PENDING') {
         if (isTransferOrDeposit && isUnpaid) {
-          // BẢO VỆ CHỐNG THẤT THOÁT: Đơn chuyển khoản hoặc cọc chưa nhận được tiền thì phải xác nhận tiền trước khi duyệt!
+          // BẢO VỆ CHỐNG THẤT THOÁT: Nút Nhận cọc / Nhận tiền & duyệt nhanh:
           if (o.paymentMethod === 'DEPOSIT' || (o.depositAmount && Number(o.depositAmount) > 0)) {
             actionsPrimary.push(`<button class="btn-admin btn-admin-primary" style="padding:4px 8px; font-size:11px; background:#2563eb; border-color:#2563eb;" onclick="confirmPaymentAction(${o.id}, 'deposit')" title="Xác nhận nhận cọc MB Bank/PayOS và duyệt đơn"><i class="fa-solid fa-money-bill-transfer"></i> Nhận Cọc & Duyệt</button>`);
           } else {
             actionsPrimary.push(`<button class="btn-admin btn-admin-primary" style="padding:4px 8px; font-size:11px; background:#059669; border-color:#059669;" onclick="confirmPaymentAction(${o.id}, 'full')" title="Xác nhận nhận đủ tiền chuyển khoản 100% và duyệt đơn"><i class="fa-solid fa-circle-dollar-to-slot"></i> Nhận Tiền & Duyệt</button>`);
           }
+          // Nút Duyệt thủ công trực tiếp nếu admin đã check MB Bank thấy tiền vào mà web chưa tự nhảy:
+          actionsSecondary.push(`<button class="btn-admin btn-admin-outline" style="padding:3px 7px; font-size:11px; color:#1d4ed8; border-color:#93c5fd; background:#eff6ff; font-weight:700;" onclick="changeOrderStatus(${o.id}, 'CONFIRMED')" title="Duyệt đơn thủ công (Bỏ qua đối soát tự động - Đã check TK MB Bank)"><i class="fa-solid fa-check-double"></i> Duyệt thủ công</button>`);
         } else {
           actionsPrimary.push(`<button class="btn-admin btn-admin-primary" style="padding:4px 8px; font-size:11px; ${o.paymentMethod === 'COD' ? 'background:#d97706; border-color:#d97706;' : ''}" onclick="changeOrderStatus(${o.id}, 'CONFIRMED')" title="Duyệt đơn hàng ngay"><i class="fa-solid fa-check"></i> ${o.paymentMethod === 'COD' ? 'Duyệt COD' : t('btn_approve', 'Duyệt')}</button>`);
         }
@@ -4803,10 +4804,13 @@
             <div style="display:flex; gap:6px; flex-wrap:wrap;">
               ${order.status === 'PENDING' ? (
                 (['VIETQR_PAYOS', 'PAYOS', 'BANK_TRANSFER', 'DEPOSIT'].includes(String(order.paymentMethod || '').toUpperCase()) && (order.paymentStatus === 'UNPAID' || !order.paymentStatus))
-                  ? ((order.paymentMethod === 'DEPOSIT' || (order.depositAmount > 0))
-                      ? `<button type="button" class="btn-admin btn-admin-primary" style="background:#2563eb; border-color:#2563eb; font-size:11.5px; padding:5px 12px;" onclick="confirmPaymentAction(${order.id}, 'deposit')" title="Xác nhận nhận cọc và duyệt đơn"><i class="fa-solid fa-money-bill-transfer"></i> Nhận Cọc & Duyệt</button>`
-                      : `<button type="button" class="btn-admin btn-admin-primary" style="background:#059669; border-color:#059669; font-size:11.5px; padding:5px 12px;" onclick="confirmPaymentAction(${order.id}, 'full')" title="Xác nhận nhận đủ tiền 100% và duyệt đơn"><i class="fa-solid fa-circle-dollar-to-slot"></i> Nhận Tiền & Duyệt</button>`
-                    )
+                  ? (`
+                      ${(order.paymentMethod === 'DEPOSIT' || (order.depositAmount > 0))
+                        ? `<button type="button" class="btn-admin btn-admin-primary" style="background:#2563eb; border-color:#2563eb; font-size:11.5px; padding:5px 12px;" onclick="confirmPaymentAction(${order.id}, 'deposit')" title="Xác nhận nhận cọc và duyệt đơn"><i class="fa-solid fa-money-bill-transfer"></i> Nhận Cọc & Duyệt</button>`
+                        : `<button type="button" class="btn-admin btn-admin-primary" style="background:#059669; border-color:#059669; font-size:11.5px; padding:5px 12px;" onclick="confirmPaymentAction(${order.id}, 'full')" title="Xác nhận nhận đủ tiền 100% và duyệt đơn"><i class="fa-solid fa-circle-dollar-to-slot"></i> Nhận Tiền & Duyệt</button>`
+                      }
+                      <button type="button" class="btn-admin btn-admin-outline" style="color:#1d4ed8; border-color:#93c5fd; background:#eff6ff; font-size:11.5px; padding:5px 12px; font-weight:700;" onclick="changeOrderStatus(${order.id}, 'CONFIRMED')" title="Duyệt đơn thủ công (Đã thấy tiền trong MB Bank)"><i class="fa-solid fa-check-double"></i> Duyệt Đơn Thủ Công</button>
+                    `)
                   : `<button type="button" class="btn-admin btn-admin-primary" style="background:#1d4ed8; border-color:#1d4ed8; font-size:11.5px; padding:5px 12px;" onclick="changeOrderStatus(${order.id}, 'CONFIRMED')" title="Duyệt đơn hàng"><i class="fa-solid fa-check"></i> ${order.paymentMethod === 'COD' ? 'Duyệt Đơn COD' : 'Duyệt Đơn'}</button>`
               ) : ''}
               ${order.status === 'CONFIRMED' ? `

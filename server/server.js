@@ -16,6 +16,7 @@ const settingsRoutes = require('./routes/settings');
 const adminRoutes = require('./routes/admin');
 const couponRoutes = require('./routes/coupons');
 const chatRoutes = require('./routes/chat');
+const { autoCancelExpiredUnpaidOrders } = require('./services/orderService');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -173,6 +174,11 @@ async function startServer() {
     } catch (dbErr) { console.warn('Cảnh báo DB khởi động:', dbErr.message); }
     app.listen(PORT, '0.0.0.0', () => {
       console.log(`🚀 MINI GT STORE Server đang chạy tại Port: ${PORT} (0.0.0.0 & 127.0.0.1)`);
+      // Quét ngay và thiết lập chu kỳ tự động hủy đơn quá hạn 5 phút chưa thanh toán
+      autoCancelExpiredUnpaidOrders().catch(() => {});
+      setInterval(() => {
+        autoCancelExpiredUnpaidOrders().catch(() => {});
+      }, 20000);
     });
   } catch (error) {
     console.error('Lỗi khi khởi động server:', error);
