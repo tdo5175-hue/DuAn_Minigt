@@ -72,33 +72,50 @@ const DOCS = [
   },
   {
     id: 'wishlist',
-    title: 'Danh sách yêu thích',
+    title: 'Danh sách yêu thích (Đồng bộ đa thiết bị)',
     ask: 'Lưu xe yêu thích thế nào?',
     keys: ['danh sach yeu thich', 'muc yeu thich', 'luu yeu thich', 'them yeu thich', 'xe yeu thich cua toi', 'tha tim', 'trai tim',
       'luu xe', 'luu mau', 'bo yeu thich', 'xe da luu', 'nut tim'],
     answer: () => ({
       message:
-        '♡ **Danh sách xe yêu thích:**\n\n' +
-        '• Bấm **biểu tượng trái tim ♡** trên thẻ xe để lưu (bấm lần nữa để bỏ lưu).\n' +
-        '• Xem lại toàn bộ bằng nút **♡ trên thanh đầu trang** (số trên icon = số xe đã lưu).\n' +
-        '• Khi đã đăng nhập, danh sách được gắn với tài khoản của anh/chị trên trình duyệt này ạ.',
-      suggestions: ['Giỏ hàng ở đâu?', 'Xe nào đang giảm giá?']
+        '♡ **Danh sách xe yêu thích (Đồng bộ đám mây 100%):**\n\n' +
+        '• Bấm **biểu tượng trái tim ♡** góc trên phải thẻ xe (luôn hiển thị rõ cả khi di chuột vào sản phẩm) để lưu hoặc bỏ lưu.\n' +
+        '• Xem lại toàn bộ bằng nút **♡ trên thanh đầu trang**, hỗ trợ thêm nhanh vào giỏ hoặc mua ngay từ danh sách.\n' +
+        '• ☁️ Khi đã đăng nhập, danh sách Yêu thích được **lưu trực tiếp lên đám mây theo tài khoản** — mở trên Laptop hay Điện thoại đều đồng bộ tức thì ạ!',
+      suggestions: ['Giỏ hàng ở đâu?', 'Đồng bộ dữ liệu trên điện thoại thế nào?', 'Xe nào đang giảm giá?']
     })
   },
   {
     id: 'cart',
-    title: 'Giỏ hàng / Giỏ cọc',
+    title: 'Giỏ hàng / Giỏ cọc (Đồng bộ đa thiết bị)',
     ask: 'Giỏ hàng ở đâu?',
     keys: ['gio hang', 'gio coc', 'xem gio', 'xoa khoi gio', 'xoa gio', 'bot so luong', 'tang so luong', 'sua gio',
       'them vao gio', 'bo vao gio', 'cho vao gio', 'khong them duoc vao gio', 'khong bo vao gio duoc', 'bat dang nhap', 'phai dang nhap', 'can dang nhap'],
     answer: () => ({
       message:
-        '🛍️ **Giỏ hàng (Giỏ cọc) trên website:**\n\n' +
+        '🛍️ **Giỏ hàng / Giỏ cọc thông minh (Đồng bộ Laptop ↔ Điện thoại):**\n\n' +
         '• Mở giỏ bằng **icon túi 🛍️** góc trên phải (máy tính) hoặc nút **Giỏ cọc** ở thanh dưới (điện thoại).\n' +
-        '• Thêm xe bằng nút **+Box / +Card** trên thẻ xe (kể cả thẻ xe ngay trong khung chat này).\n' +
-        '• 🔐 Cần **đăng nhập tài khoản** trước khi thêm vào giỏ để giữ đúng giỏ hàng, tồn kho và hạng VIP của anh/chị.\n' +
-        '• Trong giỏ có thể tăng/giảm số lượng, xóa mẫu, rồi bấm **Tiến Hành Mua Hàng** để thanh toán.',
-      suggestions: ['Hướng dẫn đặt hàng', 'Shop có mã giảm giá không?', 'Đăng ký tài khoản thế nào?']
+        '• Chọn đúng quy cách **📦 Box** hoặc **🛡️ Card** trên thẻ xe / cửa sổ chi tiết (hoặc ngay trên thẻ xe trong khung chat này) để thêm vào giỏ.\n' +
+        '• ☁️ **Đồng bộ đa thiết bị 100%:** Thêm xe vào giỏ trên Laptop rồi đăng nhập cùng tài khoản trên Điện thoại (hoặc ngược lại), giỏ hàng vẫn giữ nguyên đầy đủ mẫu xe, quy cách Box/Card và số lượng!\n' +
+        '• 💡 Anh/chị đã đăng nhập còn có thể hỏi Bé Bot _"tính tiền giỏ hàng của tôi"_ để em tự động tìm mã giảm giá hời nhất cho giỏ hiện tại ạ!',
+      suggestions: ['Tính tiền giỏ hàng của tôi', 'Hướng dẫn đặt hàng', 'Shop có mã giảm giá không?']
+    })
+  },
+  {
+    id: 'cross_device_sync',
+    title: 'Đồng bộ dữ liệu tài khoản đa thiết bị',
+    ask: 'Đồng bộ giỏ hàng & tin nhắn trên điện thoại thế nào?',
+    keys: ['dong bo', 'dong bo du lieu', 'thiet bi khac', 'may khac', 'dien thoai va laptop', 'laptop va dien thoai',
+      'tren laptop', 'sang dien thoai', 'luu tin nhan', 'lich su chat', 'tin nhan cu', 'luu gio hang', 'mat gio hang', 'khong luu gio hang'],
+    answer: () => ({
+      message:
+        '☁️ **Hệ thống Đồng bộ Đám mây Đa thiết bị (Cloud Sync 100%):**\n\n' +
+        'Chỉ cần đăng nhập **cùng một tài khoản hội viên** (Email/SĐT hoặc Google) trên Laptop, Máy tính bảng hay Điện thoại, toàn bộ dữ liệu sau được đồng bộ tự động thời gian thực:\n' +
+        '• 🛍️ **Giỏ hàng (Box / Card & số lượng)** — thêm trên Laptop, mở Điện thoại thanh toán tiếp mượt mà.\n' +
+        '• ♡ **Danh sách xe Yêu thích** & 👤 **Địa chỉ nhận hàng SPX / Hồ sơ hội viên VIP**.\n' +
+        '• 💬 **Lịch sử trò chuyện với Bé Bot AI & Admin Showroom** — giữ trọn các câu hỏi và tư vấn trước đó trên mọi thiết bị.\n' +
+        '• 📦 **Đơn hàng & Tiến trình vận đơn SPX Express**.',
+      suggestions: ['Kiểm tra đơn hàng của tôi', 'Tính tiền giỏ hàng của tôi', 'Đặc quyền hội viên VIP là gì?']
     })
   },
   {
@@ -117,15 +134,15 @@ const DOCS = [
   },
   {
     id: 'quickview',
-    title: 'Xem chi tiết & ảnh xe',
-    ask: 'Xem thêm ảnh xe ở đâu?',
-    keys: ['xem anh', 'xem them anh', 'phong to anh', 'anh chi tiet', 'nhieu goc', 'xem chi tiet xe', 'xem nhanh', 'quick view', 'album anh'],
+    title: 'Xem chi tiết & chuyển ảnh Box / Card',
+    ask: 'Xem ảnh Box và Card của xe ở đâu?',
+    keys: ['xem anh', 'xem them anh', 'phong to anh', 'anh chi tiet', 'nhieu goc', 'xem chi tiet xe', 'xem nhanh', 'quick view', 'album anh', 'anh card', 'anh vi card'],
     answer: () => ({
       message:
-        '🖼️ **Xem chi tiết & ảnh đa góc:**\n\n' +
-        '• Bấm vào **thẻ xe** hoặc nút **👁 Xem xe** để mở cửa sổ chi tiết (giá Box/Card, tồn kho, mô tả).\n' +
-        '• Bấm vào **ảnh lớn** để mở trình xem toàn màn hình, dùng mũi tên **‹ ›** để chuyển ảnh.',
-      suggestions: ['Xe nào đang có sẵn?', 'So sánh cái 1 và cái 2']
+        '🖼️ **Xem chi tiết & Ảnh thật theo từng quy cách Box / Card:**\n\n' +
+        '• Trên thẻ sản phẩm hoặc trong cửa sổ **Chi tiết sản phẩm**, khi bấm chọn **📦 Box** hoặc **🛡️ Card**, hệ thống tự động **chuyển sang đúng ảnh Hộp giấy hoặc ảnh Vỉ nhựa Blister** thực tế của mẫu xe đó.\n' +
+        '• Bấm vào **ảnh lớn** trong cửa sổ chi tiết để phóng to toàn màn hình (Lightbox) và lướt xem đa góc độ ạ!',
+      suggestions: ['Box và Card khác nhau thế nào?', 'Xe nào đang có sẵn?']
     })
   },
   {

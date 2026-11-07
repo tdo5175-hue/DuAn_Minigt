@@ -27,6 +27,7 @@ const COLUMN_MAP = {
   userid: 'UserId', fullname: 'FullName', email: 'Email', passwordhash: 'PasswordHash',
   googleid: 'GoogleId', avatarurl: 'AvatarUrl', phone: 'Phone', address: 'Address',
   authprovider: 'AuthProvider', role: 'Role', lastloginat: 'LastLoginAt',
+  cartdata: 'CartData', wishlistdata: 'WishlistData', profilemeta: 'ProfileMeta', stateupdatedat: 'StateUpdatedAt',
   orderid: 'OrderId', ordercode: 'OrderCode', note: 'Note', shippingmethod: 'ShippingMethod',
   paymentmethod: 'PaymentMethod', paymentstatus: 'PaymentStatus', cancelreason: 'CancelReason',
   receiptimage: 'ReceiptImage', subtotal: 'Subtotal', shippingfee: 'ShippingFee',

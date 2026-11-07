@@ -93,6 +93,7 @@ function ensureChatSchema() {
         // Tối ưu hóa chỉ mục (Indexes) B-Tree để truy vấn siêu tốc O(log N) dù có hàng triệu tin nhắn
         await db.query(`
           CREATE INDEX IF NOT EXISTS idx_chat_conv_session ON chat_conversations(session_id);
+          CREATE INDEX IF NOT EXISTS idx_chat_conv_user_id ON chat_conversations(user_id);
           CREATE INDEX IF NOT EXISTS idx_chat_conv_status ON chat_conversations(status, updated_at);
           CREATE INDEX IF NOT EXISTS idx_chat_msg_conv_id ON chat_messages(conversation_id, id);
         `);
@@ -186,6 +187,238 @@ async function getPendingAdminCount(convId) {
   return Number(r.recordset?.[0]?.cnt || 0);
 }
 
+/**
+ * Hợp nhất & định danh duy nhất 1 cuộc hội thoại xuyên suốt mọi thiết bị (Laptop <-> Điện thoại) cho tài khoản đăng nhập
+ */
+async function resolveCanonicalConversation({
+  sessionId = '',
+  reqUser = null,
+  customerName = '',
+  customerEmail = '',
+  customerPhone = '',
+  createIfMissing = false
+}) {
+  let uid = (reqUser && (reqUser.userId || reqUser.id || reqUser.UserId))
+    ? Number(reqUser.userId || reqUser.id || reqUser.UserId)
+    : 0;
+  let name = String(customerName || (reqUser && (reqUser.fullName || reqUser.FullName)) || '').trim();
+  let email = String(customerEmail || (reqUser && (reqUser.email || reqUser.Email)) || '').trim().toLowerCase();
+  let phone = String(customerPhone || (reqUser && (reqUser.phone || reqUser.Phone)) || '').trim();
+  const cleanSid = String(sessionId || '').trim();
+
+  // Nếu sessionId truyền lên mang định dạng mgt_chat_user_<id>, kiểm tra khớp uid
+  if (!uid && cleanSid.startsWith('mgt_chat_user_')) {
+    const parsedFromSid = parseInt(cleanSid.replace('mgt_chat_user_', ''), 10);
+    if (Number.isFinite(parsedFromSid) && parsedFromSid > 0 && reqUser) {
+      uid = parsedFromSid;
+    }
+  }
+
+  // Bổ sung hồ sơ thật từ bảng Users khi đã đăng nhập hoặc có email
+  if (uid > 0 || email) {
+    try {
+      const uRes = await db.query(`
+        SELECT UserId, FullName, Email, Phone
+        FROM Users
+        WHERE (@uid::int > 0 AND UserId = @uid::int)
+           OR (@em::text <> '' AND LOWER(Email) = LOWER(@em::text))
+        ORDER BY CASE WHEN @uid::int > 0 AND UserId = @uid::int THEN 0 ELSE 1 END ASC
+        LIMIT 1
+      `, { uid: uid || 0, em: email || '' });
+      if (uRes.recordset && uRes.recordset.length > 0) {
+        const u = uRes.recordset[0];
+        if (uid > 0 || reqUser) {
+          uid = uid || Number(u.UserId ?? u.userid ?? 0) || 0;
+        }
+        if (!name || name === 'Khách hàng') {
+          name = String(u.FullName ?? u.fullname ?? name ?? 'Khách hàng').trim();
+        }
+        if (!email) {
+          email = String(u.Email ?? u.email ?? '').trim().toLowerCase();
+        }
+        if (!phone) {
+          phone = String(u.Phone ?? u.phone ?? '').trim();
+        }
+      }
+    } catch (_) {}
+  }
+
+  if (!name) name = 'Khách hàng';
+
+  // TRƯỜNG HỢP 1: Tài khoản hội viên đã xác thực -> Gộp toàn bộ lịch sử chat đa thiết bị về 1 phiên chuẩn duy nhất
+  if (uid > 0) {
+    const canonicalSid = `mgt_chat_user_${uid}`;
+    const legacyPrefix = `mgt_chat_u_${uid}_%`;
+    const emailSlugPrefix = email ? `mgt_chat_u_${email.replace(/[^a-z0-9_-]/g, '_')}_%` : '__none__';
+
+    const allRes = await db.query(`
+      SELECT *
+      FROM chat_conversations
+      WHERE user_id = @uid::int
+         OR session_id = @canonicalSid
+         OR session_id LIKE @legacyPrefix
+         OR session_id LIKE @emailSlugPrefix
+         OR (@em::text <> '' AND LOWER(customer_email) = LOWER(@em::text))
+         OR (@sid::text <> '' AND session_id = @sid::text AND (user_id IS NULL OR user_id = @uid::int))
+      ORDER BY CASE WHEN session_id = @canonicalSid THEN 0 ELSE 1 END ASC, id ASC
+    `, {
+      uid,
+      canonicalSid,
+      legacyPrefix,
+      emailSlugPrefix,
+      em: email || '',
+      sid: cleanSid
+    });
+
+    const rows = allRes.recordset || [];
+    if (rows.length === 0) {
+      if (!createIfMissing) {
+        return { conv: null, userId: uid, customerName: name, customerEmail: email, customerPhone: phone };
+      }
+      const ins = await db.query(`
+        INSERT INTO chat_conversations (session_id, user_id, customer_name, customer_email, customer_phone, status, unread_admin, unread_customer, pending_admin_count)
+        VALUES (@sid, @uid, @name, @email, @phone, 'bot_active', 0, 0, 0)
+        RETURNING *
+      `, {
+        sid: canonicalSid,
+        uid,
+        name,
+        email: email || null,
+        phone: phone || null
+      });
+      return { conv: ins.recordset[0], userId: uid, customerName: name, customerEmail: email, customerPhone: phone };
+    }
+
+    let primary = rows[0];
+    const duplicates = rows.slice(1);
+
+    // Gộp mọi tin nhắn từ các phiên thiết bị cũ (nếu có) vào cuộc hội thoại chính để Laptop & Điện thoại khớp 100%
+    if (duplicates.length > 0) {
+      let mergedUnreadAdmin = Number(primary.unread_admin || 0);
+      let mergedUnreadCustomer = Number(primary.unread_customer || 0);
+      let mergedStatus = primary.status;
+
+      for (const dup of duplicates) {
+        await db.query(`UPDATE chat_messages SET conversation_id = @primaryId WHERE conversation_id = @dupId`, {
+          primaryId: primary.id,
+          dupId: dup.id
+        });
+        mergedUnreadAdmin += Number(dup.unread_admin || 0);
+        mergedUnreadCustomer += Number(dup.unread_customer || 0);
+        if (dup.status === 'waiting_admin' || mergedStatus === 'waiting_admin') {
+          mergedStatus = 'waiting_admin';
+        } else if (dup.status === 'admin_joined') {
+          mergedStatus = 'admin_joined';
+        }
+        await db.query(`DELETE FROM chat_conversations WHERE id = @dupId`, { dupId: dup.id });
+      }
+
+      const pcnt = await getPendingAdminCount(primary.id);
+      const updMerged = await db.query(`
+        UPDATE chat_conversations
+        SET session_id = @canonicalSid,
+            user_id = @uid,
+            customer_name = @name,
+            customer_email = COALESCE(@email, customer_email),
+            customer_phone = COALESCE(@phone, customer_phone),
+            status = @st,
+            unread_admin = @uAdmin,
+            unread_customer = @uCust,
+            pending_admin_count = @pcnt,
+            updated_at = NOW()
+        WHERE id = @id
+        RETURNING *
+      `, {
+        canonicalSid,
+        uid,
+        name: (name && name !== 'Khách hàng') ? name : (primary.customer_name || 'Khách hàng'),
+        email: email || null,
+        phone: phone || null,
+        st: pcnt > 0 ? 'waiting_admin' : mergedStatus,
+        uAdmin: mergedUnreadAdmin,
+        uCust: mergedUnreadCustomer,
+        pcnt,
+        id: primary.id
+      });
+      if (updMerged.recordset?.[0]) primary = updMerged.recordset[0];
+    } else if (
+      primary.session_id !== canonicalSid ||
+      Number(primary.user_id || 0) !== uid ||
+      (name && name !== 'Khách hàng' && name !== primary.customer_name) ||
+      (email && email !== String(primary.customer_email || '').toLowerCase()) ||
+      (phone && phone !== primary.customer_phone)
+    ) {
+      const updSingle = await db.query(`
+        UPDATE chat_conversations
+        SET session_id = @canonicalSid,
+            user_id = @uid,
+            customer_name = @name,
+            customer_email = COALESCE(@email, customer_email),
+            customer_phone = COALESCE(@phone, customer_phone)
+        WHERE id = @id
+        RETURNING *
+      `, {
+        canonicalSid,
+        uid,
+        name: (name && name !== 'Khách hàng') ? name : (primary.customer_name || 'Khách hàng'),
+        email: email || null,
+        phone: phone || null,
+        id: primary.id
+      });
+      if (updSingle.recordset?.[0]) primary = updSingle.recordset[0];
+    }
+
+    return { conv: primary, userId: uid, customerName: name, customerEmail: email, customerPhone: phone };
+  }
+
+  // TRƯỜNG HỢP 2: Khách vãng lai chưa đăng nhập -> định danh theo sessionId trình duyệt
+  if (!cleanSid) {
+    return { conv: null, userId: null, customerName: name, customerEmail: email, customerPhone: phone };
+  }
+
+  const convRes = await db.query(`SELECT * FROM chat_conversations WHERE session_id = @sid LIMIT 1`, { sid: cleanSid });
+  if (convRes.recordset.length === 0) {
+    if (!createIfMissing) {
+      return { conv: null, userId: null, customerName: name, customerEmail: email, customerPhone: phone };
+    }
+    const insGuest = await db.query(`
+      INSERT INTO chat_conversations (session_id, user_id, customer_name, customer_email, customer_phone, status, unread_admin, unread_customer, pending_admin_count)
+      VALUES (@sid, NULL, @name, @email, @phone, 'bot_active', 0, 0, 0)
+      RETURNING *
+    `, {
+      sid: cleanSid,
+      name,
+      email: email || null,
+      phone: phone || null
+    });
+    return { conv: insGuest.recordset[0], userId: null, customerName: name, customerEmail: email, customerPhone: phone };
+  }
+
+  let guestConv = convRes.recordset[0];
+  if (
+    (name && name !== 'Khách hàng' && name !== guestConv.customer_name) ||
+    (email && email !== guestConv.customer_email) ||
+    (phone && phone !== guestConv.customer_phone)
+  ) {
+    const updG = await db.query(`
+      UPDATE chat_conversations
+      SET customer_name = @name,
+          customer_email = COALESCE(@email, customer_email),
+          customer_phone = COALESCE(@phone, customer_phone)
+      WHERE id = @id
+      RETURNING *
+    `, {
+      name: (name && name !== 'Khách hàng') ? name : (guestConv.customer_name || 'Khách hàng'),
+      email: email || null,
+      phone: phone || null,
+      id: guestConv.id
+    });
+    if (updG.recordset?.[0]) guestConv = updG.recordset[0];
+  }
+
+  return { conv: guestConv, userId: null, customerName: name, customerEmail: email, customerPhone: phone };
+}
+
 // =====================================================================
 // A. PHÂN HỆ KHÁCH HÀNG (CUSTOMER CHAT API)
 // =====================================================================
@@ -230,82 +463,20 @@ router.post('/message', optionalAuth, async (req, res, next) => {
       if (cur && cur.promise === lockPromise) sessionDedupLocks.delete(dedupKey);
     }, 3000);
 
-    // Bổ sung thông tin thật từ bảng Users nếu khách có đăng nhập hoặc có email
-    if (userId || customerEmail) {
-      try {
-        const uRes = await db.query(`
-          SELECT UserId, FullName, Email, Phone
-          FROM Users
-          WHERE (@uid::int > 0 AND UserId = @uid::int)
-             OR (@em::text <> '' AND LOWER(Email) = LOWER(@em::text))
-          LIMIT 1
-        `, { uid: userId || 0, em: customerEmail || '' });
-        if (uRes.recordset && uRes.recordset.length > 0) {
-          const u = uRes.recordset[0];
-          userId = userId || Number(u.userid || u.UserId || 0) || null;
-          if (!customerName || customerName === 'Khách hàng') {
-            customerName = String(u.fullname || u.FullName || customerName || 'Khách hàng').trim();
-          }
-          if (!customerEmail) {
-            customerEmail = String(u.email || u.Email || '').trim();
-          }
-          if (!customerPhone) {
-            customerPhone = String(u.phone || u.Phone || '').trim();
-          }
-        }
-      } catch (_) {}
-    }
-    if (!customerName) customerName = 'Khách hàng';
-
-    // 1. Tìm hoặc tạo cuộc hội thoại
-    const convRes = await db.query(`SELECT * FROM chat_conversations WHERE session_id = @sid`, { sid: sessionId });
-    let conv;
-
-    if (convRes.recordset.length === 0) {
-      const insRes = await db.query(`
-        INSERT INTO chat_conversations (session_id, user_id, customer_name, customer_email, customer_phone, status, unread_admin, unread_customer, pending_admin_count)
-        VALUES (@sid, @uid, @name, @email, @phone, 'bot_active', 0, 0, 0)
-        RETURNING *
-      `, {
-        sid: sessionId,
-        uid: userId,
-        name: customerName,
-        email: customerEmail || null,
-        phone: customerPhone || null
-      });
-      conv = insRes.recordset[0];
-    } else {
-      conv = convRes.recordset[0];
-      const shouldUpdateMeta =
-        (customerName && customerName !== 'Khách hàng' && customerName !== conv.customer_name) ||
-        (customerEmail && customerEmail !== conv.customer_email) ||
-        (customerPhone && customerPhone !== conv.customer_phone) ||
-        (userId && !conv.user_id);
-
-      if (shouldUpdateMeta) {
-        const nextUid = conv.user_id || userId || null;
-        const nextName = (customerName && customerName !== 'Khách hàng') ? customerName : (conv.customer_name || 'Khách hàng');
-        const nextEmail = customerEmail || conv.customer_email || null;
-        const nextPhone = customerPhone || conv.customer_phone || null;
-
-        const updConv = await db.query(`
-          UPDATE chat_conversations
-          SET user_id = @uid,
-              customer_name = @name,
-              customer_email = @email,
-              customer_phone = @phone
-          WHERE id = @id
-          RETURNING *
-        `, {
-          uid: nextUid,
-          name: nextName,
-          email: nextEmail,
-          phone: nextPhone,
-          id: conv.id
-        });
-        if (updConv.recordset?.[0]) conv = updConv.recordset[0];
-      }
-    }
+    // 1. Tìm hoặc hợp nhất cuộc hội thoại chuẩn xuyên thiết bị (Laptop <-> Điện thoại)
+    const resolvedCtx = await resolveCanonicalConversation({
+      sessionId,
+      reqUser: req.user,
+      customerName,
+      customerEmail,
+      customerPhone,
+      createIfMissing: true
+    });
+    const conv = resolvedCtx.conv;
+    userId = resolvedCtx.userId;
+    customerName = resolvedCtx.customerName;
+    customerEmail = resolvedCtx.customerEmail;
+    customerPhone = resolvedCtx.customerPhone;
 
     const convId = conv.id;
 
@@ -401,6 +572,9 @@ router.post('/message', optionalAuth, async (req, res, next) => {
       ];
       botResult = await aiChatService.generateBotReply(userMessage, historyForAi, {
         customerName,
+        userId,
+        customerEmail,
+        customerPhone,
         waitingAdmin: conv.status === 'waiting_admin'
       });
     }
@@ -523,9 +697,9 @@ function enrichMessagesWithLiveCards(rows = []) {
 }
 
 /**
- * 2. GET /api/chat/messages — Lấy lịch sử chat khách hàng (hỗ trợ Incremental Sync `sinceId` + Đồng bộ thẻ sản phẩm sống)
+ * 2. GET /api/chat/messages — Lấy lịch sử chat khách hàng (hỗ trợ đồng bộ đa thiết bị theo tài khoản + Incremental Sync `sinceId` + Đồng bộ thẻ sản phẩm sống)
  */
-router.get('/messages', async (req, res, next) => {
+router.get('/messages', optionalAuth, async (req, res, next) => {
   try {
     await ensureChatSchema();
     await aiChatService.getStoreData();
@@ -533,22 +707,20 @@ router.get('/messages', async (req, res, next) => {
 
     const sessionId = String(req.query.sessionId || '').trim();
     const sinceId = Math.max(0, parseInt(req.query.sinceId, 10) || 0);
-    if (!sessionId) {
+    if (!sessionId && !(req.user && req.user.userId)) {
       return ok(res, { conversation: null, messages: [], resolvedIds: [], catalogSig });
     }
 
-    const convRes = await db.query(`
-      SELECT id, session_id, user_id, customer_name, customer_email, customer_phone,
-             status, unread_admin, unread_customer, pending_admin_count, updated_at
-      FROM chat_conversations
-      WHERE session_id = @sid
-      LIMIT 1
-    `, { sid: sessionId });
-    if (convRes.recordset.length === 0) {
+    const resolvedCtx = await resolveCanonicalConversation({
+      sessionId,
+      reqUser: req.user,
+      createIfMissing: false
+    });
+    if (!resolvedCtx.conv) {
       return ok(res, { conversation: null, messages: [], resolvedIds: [], catalogSig });
     }
 
-    const conv = convRes.recordset[0];
+    const conv = resolvedCtx.conv;
 
     if (Number(conv.unread_customer || 0) > 0) {
       await db.query(`UPDATE chat_conversations SET unread_customer = 0 WHERE id = @id`, { id: conv.id });
@@ -625,17 +797,21 @@ router.get('/messages', async (req, res, next) => {
 /**
  * 3. POST /api/chat/escalate — Khách chủ động yêu cầu gặp Admin
  */
-router.post('/escalate', async (req, res, next) => {
+router.post('/escalate', optionalAuth, async (req, res, next) => {
   try {
     await ensureChatSchema();
 
     const sessionId = String(req.body.sessionId || '').trim();
-    if (!sessionId) throw badRequest('Thiếu sessionId.');
+    if (!sessionId && !(req.user && req.user.userId)) throw badRequest('Thiếu sessionId.');
 
-    const convRes = await db.query(`SELECT * FROM chat_conversations WHERE session_id = @sid`, { sid: sessionId });
-    if (convRes.recordset.length === 0) throw notFound('Không tìm thấy cuộc hội thoại.');
+    const resolvedCtx = await resolveCanonicalConversation({
+      sessionId,
+      reqUser: req.user,
+      createIfMissing: true
+    });
+    if (!resolvedCtx.conv) throw notFound('Không tìm thấy cuộc hội thoại.');
 
-    const conv = convRes.recordset[0];
+    const conv = resolvedCtx.conv;
 
     // Đánh dấu tin nhắn gần nhất của khách (nếu có) là cần Admin hỗ trợ
     const lastUserRes = await db.query(`

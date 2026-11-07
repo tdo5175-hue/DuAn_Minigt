@@ -37,6 +37,10 @@ function normalizeUser(u) {
     Phone: u.Phone ?? u.phone ?? '',
     Address: u.Address ?? u.address ?? '',
     AuthProvider: u.AuthProvider ?? u.authprovider ?? 'local',
+    CartData: u.CartData ?? u.cartdata ?? [],
+    WishlistData: u.WishlistData ?? u.wishlistdata ?? [],
+    ProfileMeta: u.ProfileMeta ?? u.profilemeta ?? {},
+    StateUpdatedAt: u.StateUpdatedAt ?? u.stateupdatedat ?? null,
     CreatedAt: u.CreatedAt ?? u.createdat
   };
 }
@@ -110,8 +114,7 @@ async function loadActiveUser(userId) {
 
   try {
     const result = await db.query(
-      `SELECT UserId, FullName, Email, Role, IsActive, PasswordHash,
-              AvatarUrl, Phone, Address, AuthProvider, CreatedAt
+      `SELECT *
        FROM Users
        WHERE UserId = @id
        LIMIT 1`,

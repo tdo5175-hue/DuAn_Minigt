@@ -2577,6 +2577,7 @@ body.dark-mode .hero-dot.active {
   border-radius: 14px;
   padding: 12px;
   border: 1px solid #f1f5f9;
+  overflow: hidden;
 }
 
 .lbwk-feature-img-box img {
@@ -3640,6 +3641,13 @@ body.dark-mode .lbwk-feature-img-box,
 body.dark-mode .lbwk-mini-spotlight img {
   background: #0d1527 !important;
   border-color: #263554 !important;
+}
+
+[data-theme="dark"] .lbwk-car-number-badge,
+body.dark-mode .lbwk-car-number-badge {
+  background: rgba(15, 23, 42, 0.92) !important;
+  color: #f8fafc !important;
+  border-color: #334155 !important;
 }
 
 [data-theme="dark"] .lbwk-spec-chip,

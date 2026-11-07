@@ -448,6 +448,7 @@ function toggleWishlist(id, e) {
     renderWishlistModal();
   }
   updateQuickViewWishlistBtn(numId);
+  scheduleCloudAccountStateSync(260);
 }
 
 function updateQuickViewWishlistBtn(productId) {
@@ -708,6 +709,7 @@ function clearWishlist() {
   updateWishlistBadge();
   renderProductsGrid();
   renderWishlistModal();
+  scheduleCloudAccountStateSync(150);
   showToast('Đã xóa tất cả mẫu xe khỏi danh sách yêu thích', 'info');
 }
 
@@ -719,6 +721,307 @@ try {
 }
 let currentToken = localStorage.getItem('minigt_token') || null;
 let pendingPostLoginCartAction = null;
+
+// =====================================================================
+// HỆ THỐNG ĐỒNG BỘ DỮ LIỆU ĐA THIẾT BỊ (LAPTOP ↔ ĐIỆN THOẠI • ZERO-LAG CLOUD SYNC)
+// Đồng bộ tức thì Giỏ hàng (Box/Card), Yêu thích & Địa chỉ/Hồ sơ lên Supabase PostgreSQL
+// =====================================================================
+let cloudStateSyncTimer = null;
+let isApplyingCloudState = false;
+let lastCloudStatePullAt = 0;
+
+function buildCompactCartPayload(items) {
+  if (!Array.isArray(items)) return [];
+  const out = [];
+  items.forEach(it => {
+    if (!it || typeof it !== 'object') return;
+    const pid = parseInt(it.productId ?? it.id, 10);
+    if (!Number.isFinite(pid) || pid <= 0) return;
+    const pack = String(it.packType || 'box').toLowerCase() === 'card' ? 'card' : 'box';
+    const qty = Math.min(99, Math.max(1, parseInt(it.quantity, 10) || 1));
+    out.push({
+      productId: pid,
+      packType: pack,
+      quantity: qty,
+      name: String(it.name || '').slice(0, 180),
+      sku: String(it.sku || '').slice(0, 40),
+      price: Number(it.price || 0),
+      originalPrice: Number(it.originalPrice || it.price || 0),
+      discountPercent: Number(it.discountPercent || 0),
+      isPreOrder: Boolean(it.isPreOrder),
+      depositPercent: Number(it.depositPercent || 0),
+      depositAmount: Number(it.depositAmount || 0),
+      imageUrl: String(it.imageUrl || '').slice(0, 400)
+    });
+  });
+  return out.slice(0, 100);
+}
+
+function hydrateCloudCartItems(rawItems) {
+  if (!Array.isArray(rawItems)) return [];
+  const hasCatalog = Array.isArray(allProducts) && allProducts.length > 0;
+  const hydrated = [];
+
+  rawItems.forEach(it => {
+    if (!it || typeof it !== 'object') return;
+    const pid = parseInt(it.productId ?? it.id, 10);
+    if (!Number.isFinite(pid) || pid <= 0) return;
+    let pack = String(it.packType || 'box').toLowerCase() === 'card' ? 'card' : 'box';
+    let qty = Math.min(99, Math.max(1, parseInt(it.quantity, 10) || 1));
+
+    if (hasCatalog) {
+      const p = allProducts.find(prod => Number(prod.ProductId || prod.id) === pid);
+      if (!p) return;
+      const pricing = getProductBoxCardPricing(p);
+      const statusLower = String(p.Status || p.status || '').toLowerCase();
+      const isPre = statusLower === 'pre_order';
+      if (statusLower === 'sold_out' || (!isPre && !pricing.isBoxAvailable && !pricing.isCardAvailable)) {
+        return;
+      }
+      if (pricing.packagingType === 'box_only') pack = 'box';
+      else if (pricing.packagingType === 'card_only') pack = 'card';
+      else if (!isPre) {
+        if (pack === 'box' && !pricing.isBoxAvailable && pricing.isCardAvailable) pack = 'card';
+        else if (pack === 'card' && !pricing.isCardAvailable && pricing.isBoxAvailable) pack = 'box';
+      }
+      if (!isPre) {
+        const maxPack = pack === 'card' ? pricing.stockCard : pricing.stockBox;
+        if (maxPack > 0 && qty > maxPack) qty = maxPack;
+      }
+      const liveUnitPrice = pack === 'card' ? pricing.finalPriceCard : pricing.finalPriceBox;
+      const liveOrigPrice = pack === 'card' ? pricing.priceCard : pricing.priceBox;
+      const depPct = isPre ? Number(p.DepositPercent || p.depositPercent || 30) : 0;
+      const liveDepAmt = isPre ? (Math.round((liveUnitPrice * (depPct / 100)) / 1000) * 1000) : 0;
+      const rawCardImg = p.cardImageUrl || p.CardImageUrl || '';
+      const liveImg = (pack === 'card' && rawCardImg)
+        ? resolveStorefrontImageUrl(rawCardImg)
+        : (getProductGalleryImages(p)[0] || it.imageUrl || 'image/hero-banner.jpg');
+
+      hydrated.push({
+        productId: pid,
+        packType: pack,
+        packagingType: pricing.packagingType,
+        name: p.Name || p.name || it.name || 'MINI GT 1:64',
+        sku: p.Sku || p.sku || it.sku || 'MGT',
+        price: liveUnitPrice,
+        originalPrice: liveOrigPrice,
+        discountPercent: pricing.discountPercent,
+        priceBox: pricing.priceBox,
+        priceCard: pricing.priceCard,
+        finalPriceBox: pricing.finalPriceBox,
+        finalPriceCard: pricing.finalPriceCard,
+        isPreOrder: isPre,
+        depositPercent: depPct,
+        depositAmount: liveDepAmt,
+        imageUrl: liveImg,
+        quantity: qty
+      });
+    } else {
+      hydrated.push({
+        productId: pid,
+        packType: pack,
+        name: it.name || 'MINI GT 1:64',
+        sku: it.sku || 'MGT',
+        price: Number(it.price || 0),
+        originalPrice: Number(it.originalPrice || it.price || 0),
+        discountPercent: Number(it.discountPercent || 0),
+        isPreOrder: Boolean(it.isPreOrder),
+        depositPercent: Number(it.depositPercent || 0),
+        depositAmount: Number(it.depositAmount || 0),
+        imageUrl: it.imageUrl || 'image/hero-banner.jpg',
+        quantity: qty
+      });
+    }
+  });
+
+  return hydrated;
+}
+
+function syncWishlistHeartsInDom() {
+  const wishSet = new Set((Array.isArray(wishlist) ? wishlist : []).map(id => Number(id)));
+  document.querySelectorAll('.product-card[data-id]').forEach(cardEl => {
+    const pid = Number(cardEl.getAttribute('data-id'));
+    const btn = cardEl.querySelector('.card-wishlist-btn');
+    if (!btn) return;
+    const active = wishSet.has(pid);
+    btn.classList.toggle('active', active);
+    const icon = btn.querySelector('i');
+    if (icon) {
+      icon.className = active ? 'fa-solid fa-heart' : 'fa-regular fa-heart';
+    }
+  });
+  const wishModal = document.getElementById('wishlistModal');
+  if (wishModal && wishModal.classList.contains('active') && typeof renderWishlistModal === 'function') {
+    renderWishlistModal();
+  }
+  if (typeof activeQuickViewState !== 'undefined' && activeQuickViewState && activeQuickViewState.productId) {
+    updateQuickViewWishlistBtn(activeQuickViewState.productId);
+  }
+}
+
+function applyCloudAccountState(payload) {
+  if (!payload || typeof payload !== 'object') return;
+  isApplyingCloudState = true;
+  try {
+    if (currentUser) {
+      let profileChanged = false;
+      ['fullName', 'phone', 'address', 'city', 'addressType', 'oldAddressNote', 'deliveryNote', 'stateUpdatedAt'].forEach(k => {
+        if (payload[k] !== undefined && payload[k] !== null && payload[k] !== '') {
+          if (currentUser[k] !== payload[k]) {
+            currentUser[k] = payload[k];
+            profileChanged = true;
+          }
+        }
+      });
+      if (payload.hasPassword !== undefined) {
+        const hp = Boolean(payload.hasPassword || currentUser.hasPassword);
+        if (currentUser.hasPassword !== hp) {
+          currentUser.hasPassword = hp;
+          profileChanged = true;
+        }
+      }
+      if (profileChanged) {
+        try {
+          localStorage.setItem('minigt_user', JSON.stringify(currentUser));
+          const uKey = currentUser.userId || currentUser.id || currentUser.email;
+          if (uKey) localStorage.setItem('minigt_user_' + uKey, JSON.stringify(currentUser));
+        } catch (_) {}
+        if (typeof updateUserHeaderUI === 'function') updateUserHeaderUI();
+      }
+    }
+
+    const uKey = currentUser ? (currentUser.userId || currentUser.id || currentUser.email) : null;
+
+    if (Array.isArray(payload.cartData)) {
+      cart = hydrateCloudCartItems(payload.cartData);
+      try {
+        localStorage.setItem('minigt_cart', JSON.stringify(cart));
+        if (uKey) localStorage.setItem('minigt_cart_user_' + uKey, JSON.stringify(cart));
+      } catch (_) {}
+      if (typeof updateCartBadge === 'function') updateCartBadge();
+      if (typeof renderCartDrawer === 'function') renderCartDrawer();
+      if (document.getElementById('checkoutModal')?.classList.contains('active')) {
+        if (typeof renderCheckoutStep1 === 'function') renderCheckoutStep1();
+        if (typeof renderCheckoutStep3 === 'function') renderCheckoutStep3();
+      }
+    }
+
+    if (Array.isArray(payload.wishlistData)) {
+      const validSet = (Array.isArray(allProducts) && allProducts.length > 0)
+        ? new Set(allProducts.map(p => Number(p.ProductId || p.id)))
+        : null;
+      const seen = new Set();
+      const nextWish = [];
+      payload.wishlistData.forEach(rawId => {
+        const numId = parseInt(rawId, 10);
+        if (!Number.isFinite(numId) || numId <= 0 || seen.has(numId)) return;
+        if (validSet && !validSet.has(numId)) return;
+        seen.add(numId);
+        nextWish.push(numId);
+      });
+      wishlist = nextWish;
+      try {
+        localStorage.setItem('minigt_wishlist', JSON.stringify(wishlist));
+        if (uKey) localStorage.setItem('minigt_wishlist_user_' + uKey, JSON.stringify(wishlist));
+      } catch (_) {}
+      if (typeof updateWishlistBadge === 'function') updateWishlistBadge();
+      syncWishlistHeartsInDom();
+    }
+  } finally {
+    isApplyingCloudState = false;
+  }
+}
+
+async function pushAccountStateToCloudNow({ merge = false, tokenOverride = null, keepalive = false } = {}) {
+  if (cloudStateSyncTimer) {
+    clearTimeout(cloudStateSyncTimer);
+    cloudStateSyncTimer = null;
+  }
+  const tok = tokenOverride || ((typeof api !== 'undefined' && api && typeof api.getToken === 'function') ? api.getToken() : currentToken);
+  if (!tok) return null;
+
+  const bodyObj = {
+    merge: Boolean(merge),
+    cartData: buildCompactCartPayload(cart),
+    wishlistData: Array.isArray(wishlist) ? wishlist.map(id => Number(id)).filter(id => Number.isFinite(id) && id > 0) : [],
+    profileMeta: currentUser ? {
+      city: currentUser.city || '',
+      addressType: currentUser.addressType || 'NEW',
+      oldAddressNote: currentUser.oldAddressNote || '',
+      deliveryNote: currentUser.deliveryNote || ''
+    } : undefined
+  };
+
+  try {
+    if (keepalive || tokenOverride) {
+      const targetUrl = (typeof api !== 'undefined' && api && typeof api.resolveUrl === 'function')
+        ? api.resolveUrl('/api/auth/sync-state')
+        : '/api/auth/sync-state';
+      const resp = await fetch(targetUrl, {
+        method: 'PUT',
+        keepalive: Boolean(keepalive),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${tok}`
+        },
+        body: JSON.stringify(bodyObj)
+      });
+      if (!resp.ok) return null;
+      const json = await resp.json().catch(() => null);
+      if (merge && json && json.success && json.data && !tokenOverride) {
+        applyCloudAccountState(json.data);
+      }
+      return json;
+    }
+
+    const res = await api.put('/api/auth/sync-state', bodyObj);
+    if (res && res.success && res.data) {
+      lastCloudStatePullAt = Date.now();
+      if (merge) {
+        applyCloudAccountState(res.data);
+      } else if (currentUser && res.data.stateUpdatedAt) {
+        currentUser.stateUpdatedAt = res.data.stateUpdatedAt;
+      }
+    }
+    return res;
+  } catch (_) {
+    return null;
+  }
+}
+
+function scheduleCloudAccountStateSync(delayMs = 280) {
+  if (isApplyingCloudState || !isCustomerAuthenticated()) return;
+  if (cloudStateSyncTimer) clearTimeout(cloudStateSyncTimer);
+  cloudStateSyncTimer = setTimeout(() => {
+    cloudStateSyncTimer = null;
+    pushAccountStateToCloudNow({ merge: false });
+  }, delayMs);
+}
+
+async function pullAccountStateFromCloud(force = false) {
+  if (!isCustomerAuthenticated() || cloudStateSyncTimer) return;
+  const now = Date.now();
+  if (!force && (now - lastCloudStatePullAt) < 10000) return;
+  lastCloudStatePullAt = now;
+  try {
+    const res = await api.get('/api/auth/sync-state');
+    if (res && res.success && res.data && !cloudStateSyncTimer) {
+      applyCloudAccountState(res.data);
+    }
+  } catch (_) {}
+}
+
+window.addEventListener('pagehide', () => {
+  if (cloudStateSyncTimer && isCustomerAuthenticated()) {
+    pushAccountStateToCloudNow({ merge: false, keepalive: true });
+  }
+});
+
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden && isCustomerAuthenticated()) {
+    pullAccountStateFromCloud(false);
+  }
+});
 
 function isCustomerAuthenticated() {
   const u = (typeof api !== 'undefined' && api && typeof api.getCurrentUser === 'function')
@@ -1138,11 +1441,13 @@ async function loadProducts() {
   // Đồng bộ giỏ hàng 100% với sản phẩm sống (tự loại bỏ xe đã bị Admin xóa, cập nhật ngay giá/giảm giá/tồn kho vừa sửa)
   if (Array.isArray(cart) && cart.length > 0) {
     let cartModified = false;
+    let structuralCartChange = false;
     const nextCart = [];
     cart.forEach(it => {
       const p = allProducts.find(prod => Number(prod.ProductId || prod.id) === Number(it.productId || it.id));
       if (!p) {
         cartModified = true;
+        structuralCartChange = true;
         return; // Sản phẩm đã bị Admin xóa hoặc ẩn khỏi cửa hàng
       }
       const pricing = getProductBoxCardPricing(p);
@@ -1150,6 +1455,7 @@ async function loadProducts() {
       const isPre = statusLower === 'pre_order';
       if (statusLower === 'sold_out' || (!isPre && !pricing.isBoxAvailable && !pricing.isCardAvailable)) {
         cartModified = true;
+        structuralCartChange = true;
         return;
       }
 
@@ -1175,6 +1481,10 @@ async function loadProducts() {
       if (!isPre) {
         const maxPack = pack === 'card' ? pricing.stockCard : pricing.stockBox;
         if (maxPack > 0 && nextQty > maxPack) nextQty = maxPack;
+      }
+
+      if (it.packType !== pack || it.quantity !== nextQty) {
+        structuralCartChange = true;
       }
 
       if (
@@ -1213,7 +1523,7 @@ async function loadProducts() {
     });
     if (cartModified) {
       cart = nextCart;
-      saveCart();
+      saveCart(!structuralCartChange);
       updateCartBadge();
       renderCartDrawer();
     }
@@ -2921,7 +3231,7 @@ function switchCartItemPackaging(productId, currentPack, newPack) {
 }
 window.switchCartItemPackaging = switchCartItemPackaging;
 
-function saveCart() {
+function saveCart(skipCloud = false) {
   localStorage.setItem('minigt_cart', JSON.stringify(cart));
   if (currentUser) {
     const uKey = currentUser.userId || currentUser.id || currentUser.email;
@@ -2930,6 +3240,9 @@ function saveCart() {
     }
   }
   updateCartBadge();
+  if (!skipCloud) {
+    scheduleCloudAccountStateSync(280);
+  }
 }
 
 function updateCartBadge() {
@@ -3659,6 +3972,15 @@ function openQuickView(productId) {
             <span>${isEn ? 'SPX Express Nationwide' : 'Giao nhanh SPX toàn quốc'}</span>
           </div>
         </div>
+
+        <!-- Mô tả chi tiết mô hình đặt cân đối ngay dưới Gallery cột trái (không để khoảng trắng lệch cột) -->
+        <div class="qv-description-box qv-desc-under-gallery">
+          <div class="qv-description-title">
+            <i class="fa-solid fa-circle-info" style="color:#e10600;"></i>
+            <span>${isEn ? 'Collector Model Description' : 'Mô tả chi tiết mô hình'}</span>
+          </div>
+          <div class="qv-description-content">${escapeHtml(pDesc)}</div>
+        </div>
       </div>
 
       <!-- CỘT PHẢI: THÔNG TIN CHI TIẾT ĐẦY ĐỦ, ĐÃ BÁN THẬT, CHỌN BOX/CARD & MUA HÀNG -->
@@ -3753,7 +4075,7 @@ function openQuickView(productId) {
           </div>
         </div>
 
-        <!-- Chọn số lượng + Thêm giỏ + Mua ngay + Yêu thích -->
+        <!-- Chọn số lượng + Thêm giỏ + Mua ngay + Yêu thích (Chuẩn 1 hàng gọn đẹp trên PC, 2 hàng cân đối trên Mobile) -->
         <div class="qv-purchase-row">
           <div class="qv-qty-stepper" aria-label="Số lượng">
             <button type="button" onclick="changeQuickViewQty(${pId}, -1)" ${isSoldOut ? 'disabled' : ''}>−</button>
@@ -3761,17 +4083,18 @@ function openQuickView(productId) {
             <button type="button" onclick="changeQuickViewQty(${pId}, 1)" ${isSoldOut ? 'disabled' : ''}>+</button>
           </div>
 
-          <button type="button" class="btn btn-outline" style="height:44px; padding:0 14px; font-weight:800;" ${isSoldOut ? 'disabled' : ''} onclick="handleQuickViewPurchase(${pId}, event, false)">
-            <i class="fa-solid fa-cart-plus" style="margin-right:5px;"></i> ${isEn ? 'Add to Cart' : 'Thêm vào giỏ'}
+          <button type="button" class="btn btn-outline qv-btn-cart" ${isSoldOut ? 'disabled' : ''} onclick="handleQuickViewPurchase(${pId}, event, false)">
+            <i class="fa-solid fa-cart-plus"></i>
+            <span>${isEn ? 'Add Cart' : 'Thêm giỏ'}</span>
           </button>
 
-          <button type="button" class="btn btn-primary" id="qvActionBtn_${pId}" style="flex: 1; min-width: 190px; height:44px; font-weight:800;" ${isSoldOut ? 'disabled' : ''} onclick="handleQuickViewPurchase(${pId}, event, true)">
+          <button type="button" class="btn btn-primary qv-btn-buy" id="qvActionBtn_${pId}" ${isSoldOut ? 'disabled' : ''} onclick="handleQuickViewPurchase(${pId}, event, true)">
             ${isSoldOut
-              ? (isEn ? 'Sold Out' : 'Hết hàng')
-              : `<i class="fa-solid fa-bag-shopping" style="margin-right:6px;"></i> ${isPreOrder ? (isEn ? 'Pre-Order' : 'Đặt cọc ngay') : (isEn ? 'Buy Now' : 'Mua ngay')} (${activePack === 'card' ? 'Card' : 'Box'} - ${formatVND(currentFinal)})`}
+              ? `<span>${isEn ? 'Sold Out' : 'Hết hàng'}</span>`
+              : `<i class="fa-solid fa-bag-shopping"></i> <span>${isPreOrder ? (isEn ? 'Pre-Order' : 'Đặt cọc') : (isEn ? 'Buy Now' : 'Mua ngay')} • ${formatVND(currentFinal)}</span>`}
           </button>
 
-          <button type="button" class="btn btn-outline" id="quickViewWishlistBtn" style="min-width: 44px; height:44px; padding: 0 12px;" onclick="toggleWishlist(${pId}, event);" title="${isWish ? 'Đã lưu yêu thích' : 'Yêu thích'}">
+          <button type="button" class="btn btn-outline qv-btn-wish" id="quickViewWishlistBtn" onclick="toggleWishlist(${pId}, event);" title="${isWish ? 'Đã lưu yêu thích' : 'Yêu thích'}">
             <i class="fa-${isWish ? 'solid' : 'regular'} fa-heart" style="color:${isWish ? '#dc2626' : 'inherit'}; font-size: 15px;"></i>
           </button>
         </div>
@@ -3795,20 +4118,11 @@ function openQuickView(productId) {
             <span class="qv-spec-val">${escapeHtml(packModeText)} ${isPreOrder ? (isEn ? '(Pre-Order)' : '(Đang mở cọc)') : `(Box: ${pricing.stockBox} | Card: ${pricing.stockCard})`}</span>
           </div>
           ${pEdition ? `
-            <div class="qv-spec-item" style="grid-column: 1 / -1; background:rgba(225,6,0,0.04); border:1px solid rgba(225,6,0,0.18); border-radius:8px; padding:7px 12px; display:flex; justify-content:space-between; align-items:center;">
-              <span class="qv-spec-label" style="color:var(--color-primary); font-weight:700;"><i class="fa-solid fa-star"></i> ${isEn ? 'Special Edition Note' : 'Ghi chú phiên bản'}</span>
-              <span class="qv-spec-val" style="color:var(--color-primary); font-weight:800;">${escapeHtml(pEdition)}</span>
+            <div class="qv-spec-item qv-spec-edition-row">
+              <span class="qv-spec-label"><i class="fa-solid fa-star"></i> ${isEn ? 'Special Edition Note' : 'Ghi chú phiên bản'}</span>
+              <span class="qv-spec-val">${escapeHtml(pEdition)}</span>
             </div>
           ` : ''}
-        </div>
-
-        <!-- Mô tả chi tiết sản phẩm -->
-        <div class="qv-description-box">
-          <div class="qv-description-title">
-            <i class="fa-solid fa-circle-info" style="color:#e10600;"></i>
-            <span>${isEn ? 'Collector Model Description' : 'Mô tả chi tiết mô hình'}</span>
-          </div>
-          <div style="white-space: pre-line;">${escapeHtml(pDesc)}</div>
         </div>
       </div>
     </div>
@@ -3990,7 +4304,7 @@ function selectQuickViewPack(productId, packType) {
 
   const actionBtn = document.getElementById(`qvActionBtn_${productId}`);
   if (actionBtn && !actionBtn.disabled) {
-    actionBtn.innerHTML = `<i class="fa-solid fa-bag-shopping" style="margin-right:6px;"></i> ${isPreOrder ? (isEn ? 'Pre-Order' : 'Đặt cọc ngay') : (isEn ? 'Buy Now' : 'Mua ngay')} (${chosen === 'card' ? 'Card' : 'Box'} - ${formatVND(finalPrice)})`;
+    actionBtn.innerHTML = `<i class="fa-solid fa-bag-shopping"></i> <span>${isPreOrder ? (isEn ? 'Pre-Order' : 'Đặt cọc') : (isEn ? 'Buy Now' : 'Mua ngay')} • ${formatVND(finalPrice)}</span>`;
   }
 
   // Tự động chuyển ảnh lớn trong Gallery sang Ảnh Bản Card khi khách chọn bản Card
@@ -6804,40 +7118,51 @@ function loginSuccess(user, token, rememberMe = true, rawPassword = '') {
   updateUserHeaderUI();
   closeModal('authModal');
 
-  // Khôi phục giỏ hàng riêng của người dùng nếu có lưu trước đó (tài khoản mới luôn là giỏ hàng rỗng)
+  // Đồng bộ Giỏ hàng, Wishlist & Địa chỉ đa thiết bị từ Cloud PostgreSQL (Laptop ↔ Điện thoại)
   const uKey = cleanUser.userId || cleanUser.id || cleanUser.email;
+  let localSavedCart = [];
+  let localSavedWish = [];
   if (uKey) {
     try {
       const savedUserCart = localStorage.getItem('minigt_cart_user_' + uKey);
       if (savedUserCart) {
         const parsed = JSON.parse(savedUserCart);
-        cart = Array.isArray(parsed) ? parsed : [];
-      } else {
-        cart = [];
+        if (Array.isArray(parsed)) localSavedCart = parsed;
       }
-      localStorage.setItem('minigt_cart', JSON.stringify(cart));
-    } catch (_) {
-      cart = [];
-    }
-
-    // Khôi phục wishlist riêng của người dùng nếu có lưu trước đó (tài khoản mới luôn là wishlist rỗng)
+    } catch (_) {}
     try {
       const savedUserWishlist = localStorage.getItem('minigt_wishlist_user_' + uKey);
       if (savedUserWishlist) {
         const parsedW = JSON.parse(savedUserWishlist);
-        wishlist = Array.isArray(parsedW) ? parsedW : [];
-      } else {
-        wishlist = [];
+        if (Array.isArray(parsedW)) localSavedWish = parsedW;
       }
+    } catch (_) {}
+  }
+
+  const hasCloudArrays = Array.isArray(cleanUser.cartData) || Array.isArray(cleanUser.wishlistData);
+  const cloudCartCount = Array.isArray(cleanUser.cartData) ? cleanUser.cartData.length : 0;
+  const cloudWishCount = Array.isArray(cleanUser.wishlistData) ? cleanUser.wishlistData.length : 0;
+
+  if (hasCloudArrays && (cloudCartCount > 0 || cloudWishCount > 0 || (localSavedCart.length === 0 && localSavedWish.length === 0))) {
+    applyCloudAccountState(cleanUser);
+  } else {
+    cart = localSavedCart;
+    wishlist = localSavedWish;
+    try {
+      localStorage.setItem('minigt_cart', JSON.stringify(cart));
       localStorage.setItem('minigt_wishlist', JSON.stringify(wishlist));
-    } catch (_) {
-      wishlist = [];
+    } catch (_) {}
+    if (localSavedCart.length > 0 || localSavedWish.length > 0) {
+      pushAccountStateToCloudNow({ merge: true });
+    } else if (!hasCloudArrays) {
+      pullAccountStateFromCloud(true);
     }
   }
 
   updateCartBadge();
   renderCartDrawer();
   updateWishlistBadge();
+  syncWishlistHeartsInDom();
   if (typeof renderWishlistModal === 'function') renderWishlistModal();
 
   // Đồng bộ phiên AI Chatbox riêng biệt theo tài khoản người dùng vừa đăng nhập
@@ -6903,7 +7228,10 @@ function loginSuccess(user, token, rememberMe = true, rawPassword = '') {
 }
 
 function logout() {
-  // 1. Lưu giỏ hàng & wishlist của tài khoản đang đăng xuất để khôi phục khi họ đăng nhập lại
+  // 1. Đẩy ngay thay đổi giỏ hàng/yêu thích chưa kịp debounce lên Cloud trước khi thoát để thiết bị khác nhận đủ 100%
+  if (cloudStateSyncTimer && currentToken) {
+    pushAccountStateToCloudNow({ merge: false, tokenOverride: currentToken, keepalive: true });
+  }
   if (currentUser) {
     const uKey = currentUser.userId || currentUser.id || currentUser.email;
     if (uKey) {
@@ -7018,33 +7346,33 @@ function updateUserHeaderUI() {
       `;
     }
 
-    // Render khu vực tài khoản trong Mobile Drawer
+    // Render khu vực tài khoản trong Mobile Drawer (Chuẩn cả Sáng & Tối)
     if (drawerUserArea) {
       drawerUserArea.innerHTML = `
-        <div style="background:var(--bg-card, #f8fafc); border:1px solid var(--border-subtle, #e2e8f0); border-radius:12px; padding:12px; box-shadow:0 2px 8px rgba(0,0,0,0.04);">
-          <div style="display:flex; align-items:center; gap:10px; margin-bottom:10px;">
-            <img src="${avatarSrc}" alt="${escapeHtml(currentUser.fullName)}" onerror="this.src='image/anh-clone.jpg'" style="width:44px; height:44px; border-radius:50%; object-fit:cover; border:2px solid var(--color-primary, #dc2626);">
+        <div class="drawer-user-card">
+          <div class="drawer-user-card-head">
+            <img src="${avatarSrc}" alt="${escapeHtml(currentUser.fullName)}" onerror="this.src='image/anh-clone.jpg'" class="drawer-user-avatar">
             <div style="overflow:hidden; flex:1;">
-              <div style="font-size:13.5px; font-weight:800; color:var(--text-primary, #0f172a); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+              <div class="drawer-user-name">
                 ${escapeHtml(currentUser.fullName || 'Hội viên MINI GT')}
               </div>
-              <div style="font-size:11.5px; color:var(--text-secondary, #64748b); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+              <div class="drawer-user-email">
                 ${escapeHtml(currentUser.email || '')}
               </div>
-              <div style="display:inline-flex; align-items:center; gap:4px; font-size:10.5px; font-weight:700; color:#b45309; background:#fef3c7; padding:1px 6px; border-radius:6px; margin-top:3px;">
+              <div class="drawer-user-vip-badge">
                 <i class="fa-solid fa-crown" style="font-size:9px;"></i> ${escapeHtml(tierName)} • ${pts} pts
               </div>
             </div>
           </div>
-          <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-bottom:8px;">
-            <button type="button" onclick="closeMobileNav(); openUserProfileModal();" style="padding:7px 8px; font-size:11.5px; font-weight:700; border-radius:8px; border:1px solid var(--border-subtle, #cbd5e1); background:var(--bg-surface, #fff); color:var(--text-primary, #1e293b); cursor:pointer; display:flex; align-items:center; justify-content:center; gap:4px;">
+          <div class="drawer-user-quick-grid">
+            <button type="button" class="drawer-user-quick-btn" onclick="closeMobileNav(); openUserProfileModal();">
               <i class="fa-solid fa-id-card" style="color:#dc2626;"></i> ${isEn ? 'Profile' : 'Hồ sơ'}
             </button>
-            <button type="button" onclick="closeMobileNav(); openMyOrdersModal();" style="padding:7px 8px; font-size:11.5px; font-weight:700; border-radius:8px; border:1px solid var(--border-subtle, #cbd5e1); background:var(--bg-surface, #fff); color:var(--text-primary, #1e293b); cursor:pointer; display:flex; align-items:center; justify-content:center; gap:4px;">
-              <i class="fa-solid fa-box-archive" style="color:#2563eb;"></i> ${isEn ? 'Orders' : 'Đơn SPX'}
+            <button type="button" class="drawer-user-quick-btn" onclick="closeMobileNav(); openMyOrdersModal();">
+              <i class="fa-solid fa-box-archive" style="color:#3b82f6;"></i> ${isEn ? 'Orders' : 'Đơn SPX'}
             </button>
           </div>
-          <button type="button" onclick="closeMobileNav(); logout();" style="width:100%; padding:8px; font-size:12px; font-weight:800; border-radius:8px; border:1px solid rgba(225, 29, 72, 0.35); background:rgba(225, 29, 72, 0.12); color:#f43f5e; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px;">
+          <button type="button" class="drawer-user-logout-btn" onclick="closeMobileNav(); logout();">
             <i class="fa-solid fa-right-from-bracket"></i> ${isEn ? 'SIGN OUT' : 'ĐĂNG XUẤT TÀI KHOẢN'}
           </button>
         </div>
@@ -7068,9 +7396,9 @@ function updateUserHeaderUI() {
 
     if (drawerUserArea) {
       drawerUserArea.innerHTML = `
-        <div style="background:var(--bg-card, #f8fafc); border:1px solid var(--border-subtle, #e2e8f0); border-radius:12px; padding:12px; text-align:center;">
-          <div style="font-size:12.5px; color:var(--text-secondary, #64748b); margin-bottom:8px;">
-            ${isEn ? 'Sign in to enjoy 11k SPX shipping, earn points & track pre-orders' : 'Đăng nhập để nhận cọc 11k, tích điểm và theo dõi đơn SPX Express'}
+        <div class="drawer-guest-card">
+          <div class="drawer-guest-desc">
+            ${isEn ? 'Sign in to sync your Cart & AI Chat across devices + 11k SPX shipping' : 'Đăng nhập để đồng bộ Giỏ hàng & Tin nhắn đa thiết bị + Ship SPX 11k'}
           </div>
           <button type="button" class="btn btn-primary" style="width:100%; height:40px; font-size:12.5px; font-weight:800; border-radius:8px; display:flex; align-items:center; justify-content:center; gap:6px;" onclick="closeMobileNav(); openAuthModal('login');">
             <i class="fa-regular fa-user"></i> ${isEn ? 'SIGN IN / REGISTER' : 'ĐĂNG NHẬP / ĐĂNG KÝ'}
@@ -9337,6 +9665,14 @@ function setupSearch() {
 function initSearchTypewriter(input) {
   if (!input) return;
 
+  // Trên điện thoại / thiết bị cảm ứng: tắt vòng lặp gõ chữ liên tục mỗi 35-65ms trên thanh Header dính để cuộn trang mượt 60fps không lag!
+  const isTouchOrMobile = window.innerWidth <= 768 || (window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
+  if (isTouchOrMobile) {
+    const isEn = typeof currentSiteLang !== 'undefined' && currentSiteLang === 'en';
+    input.setAttribute('placeholder', isEn ? 'Search model, SKU, brand...' : 'Tìm theo tên xe, SKU, hãng...');
+    return;
+  }
+
   const phrasesVi = [
     'Tìm theo tên xe, SKU, hãng...',
     'Tìm Porsche 911 GT3 R Rexy #80...',
@@ -9380,8 +9716,12 @@ function initSearchTypewriter(input) {
   });
 
   function tick() {
+    if (document.hidden || window.innerWidth <= 768) {
+      timer = setTimeout(tick, 1800);
+      return;
+    }
     if (isPaused || input.value.trim()) {
-      timer = setTimeout(tick, 500);
+      timer = setTimeout(tick, 700);
       return;
     }
 
@@ -10943,11 +11283,28 @@ document.addEventListener('DOMContentLoaded', () => {
     safeFetch('/api/auth/me', { headers: { 'Authorization': `Bearer ${currentToken}` } })
       .then(res => {
         if (res && res.success && res.data) {
+          const prevUserId = currentUser ? (currentUser.userId || currentUser.id) : null;
           currentUser = Object.assign({}, currentUser || {}, res.data, {
             hasPassword: Boolean(res.data.hasPassword || (currentUser && currentUser.hasPassword))
           });
           try { localStorage.setItem('minigt_user', JSON.stringify(currentUser)); } catch (_) {}
           updateUserHeaderUI();
+
+          const cloudCartLen = Array.isArray(res.data.cartData) ? res.data.cartData.length : 0;
+          const cloudWishLen = Array.isArray(res.data.wishlistData) ? res.data.wishlistData.length : 0;
+          if (cloudCartLen > 0 || cloudWishLen > 0 || (cart.length === 0 && wishlist.length === 0)) {
+            applyCloudAccountState(res.data);
+          } else if (cart.length > 0 || wishlist.length > 0) {
+            pushAccountStateToCloudNow({ merge: true });
+          }
+          lastCloudStatePullAt = Date.now();
+
+          const nextUserId = currentUser.userId || currentUser.id;
+          if (prevUserId !== nextUserId && typeof syncChatSessionOnAuthChange === 'function') {
+            syncChatSessionOnAuthChange();
+          } else if (isChatOpen && typeof loadChatHistory === 'function') {
+            loadChatHistory(true);
+          }
         }
       }).catch(() => {});
   }
@@ -11014,15 +11371,15 @@ function getChatSessionId() {
     const u = (typeof api !== 'undefined' && api && typeof api.getCurrentUser === 'function')
       ? api.getCurrentUser()
       : currentUser;
-    const rawKey = (u && (u.userId || u.id || u.email || u.Email)) ? String(u.userId || u.id || u.email || u.Email).trim().toLowerCase().replace(/[^a-z0-9_-]/g, '_') : '';
-    if (rawKey) {
-      const storageKey = `minigt_chat_session_user_${rawKey}`;
-      let userSid = localStorage.getItem(storageKey);
-      if (!userSid) {
-        userSid = `mgt_chat_u_${rawKey}_${Date.now().toString(36)}`;
-        try { localStorage.setItem(storageKey, userSid); } catch (_) {}
-      }
-      return userSid;
+    const numericUid = u ? parseInt(u.userId ?? u.id, 10) : 0;
+    if (Number.isFinite(numericUid) && numericUid > 0) {
+      return `mgt_chat_user_${numericUid}`;
+    }
+    const cleanEmail = (u && (u.email || u.Email))
+      ? String(u.email || u.Email).trim().toLowerCase().replace(/[^a-z0-9_-]/g, '_')
+      : '';
+    if (cleanEmail) {
+      return `mgt_chat_email_${cleanEmail}`;
     }
   }
 
@@ -11165,6 +11522,7 @@ document.addEventListener('visibilitychange', () => {
 function initCuteBotGreetings() {
   const greetEl = document.getElementById('aiLauncherGreeting');
   if (!greetEl) return;
+  if (window.innerWidth <= 768) return; // Bong bóng chào ẩn trên mobile, tắt interval để tiết kiệm pin & chống giật
   const greetings = [
     'Hỏi Bé Bot 1:64 nè! ✨',
     'Tra cứu giá Box / Card 📦',
@@ -11174,11 +11532,11 @@ function initCuteBotGreetings() {
   ];
   let gIdx = 0;
   setInterval(() => {
-    if (isChatOpen) return;
+    if (isChatOpen || document.hidden || window.innerWidth <= 768) return;
     gIdx = (gIdx + 1) % greetings.length;
     greetEl.style.opacity = '0';
     setTimeout(() => {
-      if (!isChatOpen) {
+      if (!isChatOpen && !document.hidden) {
         greetEl.textContent = greetings[gIdx];
         greetEl.style.opacity = '1';
       }

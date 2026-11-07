@@ -12,6 +12,117 @@ const { ok, badRequest, unauthorized, forbidden, conflict } = require('../utils/
 // Bộ nhớ lưu tạm OTP trong bộ nhớ (kèm backup Supabase PostgreSQL)
 const otpStore = new Map();
 
+// Tự động khởi tạo các cột đồng bộ đa thiết bị (Giỏ hàng, Yêu thích, Hồ sơ mở rộng) trên bảng Users
+let userSyncColsPromise = null;
+async function ensureUserSyncColumns() {
+  if (!userSyncColsPromise) {
+    userSyncColsPromise = (async () => {
+      try {
+        await db.query(`ALTER TABLE Users ADD COLUMN IF NOT EXISTS CartData JSONB DEFAULT '[]'::jsonb`);
+        await db.query(`ALTER TABLE Users ADD COLUMN IF NOT EXISTS WishlistData JSONB DEFAULT '[]'::jsonb`);
+        await db.query(`ALTER TABLE Users ADD COLUMN IF NOT EXISTS ProfileMeta JSONB DEFAULT '{}'::jsonb`);
+        await db.query(`ALTER TABLE Users ADD COLUMN IF NOT EXISTS StateUpdatedAt TIMESTAMP DEFAULT NOW()`);
+      } catch (err) {
+        userSyncColsPromise = null;
+        console.warn('[AUTH SYNC COLUMNS INIT]:', err.message);
+      }
+    })();
+  }
+  return userSyncColsPromise;
+}
+ensureUserSyncColumns();
+
+function parseJsonColumn(val, fallback) {
+  if (val == null) return fallback;
+  if (typeof val === 'object') {
+    if (Array.isArray(fallback)) return Array.isArray(val) ? val : fallback;
+    return (!Array.isArray(val) && val) ? val : fallback;
+  }
+  if (typeof val === 'string') {
+    try {
+      const parsed = JSON.parse(val);
+      if (Array.isArray(fallback)) return Array.isArray(parsed) ? parsed : fallback;
+      return (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) ? parsed : fallback;
+    } catch (_) {
+      return fallback;
+    }
+  }
+  return fallback;
+}
+
+function sanitizeCompactCart(rawCart) {
+  if (!Array.isArray(rawCart)) return [];
+  const mergedMap = new Map();
+  for (const item of rawCart) {
+    if (!item || typeof item !== 'object') continue;
+    const productId = parseInt(item.productId ?? item.ProductId ?? item.id, 10);
+    if (!Number.isFinite(productId) || productId <= 0) continue;
+    const packType = String(item.packType || item.packagingOption || 'box').toLowerCase() === 'card' ? 'card' : 'box';
+    const quantity = Math.max(1, Math.min(99, parseInt(item.quantity ?? item.Quantity ?? 1, 10) || 1));
+    const selected = item.selected !== false;
+    const key = `${productId}_${packType}`;
+
+    if (mergedMap.has(key)) {
+      const prev = mergedMap.get(key);
+      prev.quantity = Math.min(99, prev.quantity + quantity);
+      prev.selected = prev.selected || selected;
+    } else {
+      const entry = {
+        productId,
+        packType,
+        quantity,
+        selected
+      };
+      if (item.name) entry.name = String(item.name).trim().slice(0, 180);
+      if (item.sku) entry.sku = String(item.sku).trim().slice(0, 50);
+      if (Number.isFinite(Number(item.price)) && Number(item.price) > 0) entry.price = Math.round(Number(item.price));
+      if (item.imageUrl) entry.imageUrl = String(item.imageUrl).trim().slice(0, 255);
+      if (typeof item.isPreOrder === 'boolean') entry.isPreOrder = item.isPreOrder;
+      mergedMap.set(key, entry);
+    }
+    if (mergedMap.size >= 60) break;
+  }
+  return Array.from(mergedMap.values());
+}
+
+function sanitizeWishlistIds(rawWishlist) {
+  if (!Array.isArray(rawWishlist)) return [];
+  const out = [];
+  const seen = new Set();
+  for (const rawId of rawWishlist) {
+    const numId = parseInt(typeof rawId === 'object' && rawId ? (rawId.productId ?? rawId.id) : rawId, 10);
+    if (Number.isFinite(numId) && numId > 0 && !seen.has(numId)) {
+      seen.add(numId);
+      out.push(numId);
+      if (out.length >= 100) break;
+    }
+  }
+  return out;
+}
+
+function mergeCompactCarts(cloudCart, incomingCart) {
+  const base = sanitizeCompactCart(cloudCart);
+  const incoming = sanitizeCompactCart(incomingCart);
+  const map = new Map();
+  for (const it of base) {
+    map.set(`${it.productId}_${it.packType}`, { ...it });
+  }
+  for (const it of incoming) {
+    const key = `${it.productId}_${it.packType}`;
+    if (map.has(key)) {
+      const existing = map.get(key);
+      existing.quantity = Math.max(existing.quantity, it.quantity);
+      existing.selected = it.selected !== false;
+      if (it.name) existing.name = it.name;
+      if (it.imageUrl) existing.imageUrl = it.imageUrl;
+      if (it.price) existing.price = it.price;
+    } else if (map.size < 60) {
+      map.set(key, { ...it });
+    }
+  }
+  return Array.from(map.values());
+}
+
 async function setDbOtp(identifier, otp, expiresAt) {
   const key = String(identifier || '').trim().toLowerCase();
   otpStore.set(key, { otp: String(otp), expiresAt: Number(expiresAt) });
@@ -91,6 +202,10 @@ function normalizeUserRow(u) {
     AuthProvider: u.AuthProvider ?? u.authprovider,
     Role: u.Role ?? u.role,
     IsActive: u.IsActive ?? u.isactive ?? true,
+    CartData: u.CartData ?? u.cartdata ?? [],
+    WishlistData: u.WishlistData ?? u.wishlistdata ?? [],
+    ProfileMeta: u.ProfileMeta ?? u.profilemeta ?? {},
+    StateUpdatedAt: u.StateUpdatedAt ?? u.stateupdatedat ?? null,
     CreatedAt: u.CreatedAt ?? u.createdat,
     LastLoginAt: u.LastLoginAt ?? u.lastloginat
   };
@@ -126,6 +241,9 @@ function publicUser(raw, stats = {}) {
 
   const isGoogle = String(u.AuthProvider || '').toLowerCase() === 'google';
   const isProfileIncomplete = Boolean(!u.Phone || !u.Address || (!isGoogle && !hasPassword));
+  const cartData = sanitizeCompactCart(parseJsonColumn(u.CartData, []));
+  const wishlistData = sanitizeWishlistIds(parseJsonColumn(u.WishlistData, []));
+  const profileMeta = parseJsonColumn(u.ProfileMeta, {});
 
   return {
     id: u.UserId,
@@ -141,6 +259,13 @@ function publicUser(raw, stats = {}) {
     Phone: u.Phone || '',
     address: u.Address || '',
     Address: u.Address || '',
+    city: profileMeta.city || '',
+    addressType: profileMeta.addressType || 'NEW',
+    oldAddressNote: profileMeta.oldAddressNote || '',
+    deliveryNote: profileMeta.deliveryNote || '',
+    cartData,
+    wishlistData,
+    stateUpdatedAt: u.StateUpdatedAt || null,
     role: u.Role || 'customer',
     Role: u.Role || 'customer',
     tier: u.Role === 'admin' ? 'Founder / Admin' : 'Collector VIP',
@@ -245,6 +370,7 @@ router.post('/register', async (req, res, next) => {
 // POST /api/auth/login
 router.post('/login', async (req, res, next) => {
   try {
+    await ensureUserSyncColumns();
     const identifier = v.cleanStr(req.body.email || req.body.username, 150).toLowerCase();
     const password = String(req.body.password || '');
 
@@ -380,6 +506,7 @@ router.get('/google/config', (req, res) => {
 // POST /api/auth/google
 router.post('/google', async (req, res, next) => {
   try {
+    await ensureUserSyncColumns();
     let googleData = null;
     if (req.body.credential) {
       try {
@@ -838,11 +965,13 @@ router.post('/reset-password', async (req, res, next) => {
 // PUT /api/auth/profile
 router.put('/profile', async (req, res, next) => {
   try {
+    await ensureUserSyncColumns();
     const userId = Number(req.body.userId || req.body.id || 0);
     const email = v.cleanStr(req.body.email, 150).toLowerCase();
     const fullName = v.cleanStr(req.body.fullName, 100);
     const phone = v.cleanStr(req.body.phone, 20);
     const address = v.cleanStr(req.body.address, 255);
+    const hasMetaFields = ['city', 'addressType', 'oldAddressNote', 'oldWardNote', 'deliveryNote'].some(k => req.body[k] !== undefined);
     const oldPassword = req.body.oldPassword ? String(req.body.oldPassword).trim() : '';
     const newPassword = (req.body.newPassword || req.body.password) ? String(req.body.newPassword || req.body.password).trim() : '';
 
@@ -868,7 +997,7 @@ router.put('/profile', async (req, res, next) => {
         throw badRequest('Mật khẩu mới phải có tối thiểu 6 ký tự');
       }
 
-      if (user.PasswordHash) {
+      if (user.PasswordHash && user.PasswordHash !== 'google_oauth_pass') {
         if (!oldPassword) {
           throw badRequest('Vui lòng nhập mật khẩu cũ (hiện tại) để xác thực thay đổi');
         }
@@ -881,7 +1010,7 @@ router.put('/profile', async (req, res, next) => {
       passwordHash = await bcrypt.hash(newPassword, 10);
     }
 
-    // 2. Cập nhật tường minh vào Postgres
+    // 3. Cập nhật tường minh vào Postgres (gồm cả ProfileMeta mở rộng cho đồng bộ đa thiết bị)
     const targetUserId = user.UserId;
     const updates = [];
     const params = { targetUserId };
@@ -897,6 +1026,21 @@ router.put('/profile', async (req, res, next) => {
     if (address) {
       updates.push('Address = @address');
       params.address = address;
+    }
+    if (hasMetaFields) {
+      const prevMeta = parseJsonColumn(user.ProfileMeta, {});
+      const nextMeta = {
+        ...prevMeta,
+        ...(req.body.city !== undefined ? { city: v.cleanStr(req.body.city, 100) } : {}),
+        ...(req.body.addressType !== undefined ? { addressType: String(req.body.addressType).toUpperCase() === 'OLD' ? 'OLD' : 'NEW' } : {}),
+        ...((req.body.oldAddressNote !== undefined || req.body.oldWardNote !== undefined)
+          ? { oldAddressNote: v.cleanStr(req.body.oldAddressNote ?? req.body.oldWardNote, 180) }
+          : {}),
+        ...(req.body.deliveryNote !== undefined ? { deliveryNote: v.cleanStr(req.body.deliveryNote, 255) } : {})
+      };
+      updates.push('ProfileMeta = CAST(@profileMetaJson AS JSONB)');
+      updates.push('StateUpdatedAt = NOW()');
+      params.profileMetaJson = JSON.stringify(nextMeta);
     }
     if (passwordHash) {
       updates.push('PasswordHash = @passwordHash');
@@ -935,14 +1079,117 @@ router.put('/profile', async (req, res, next) => {
 });
 
 // GET /api/auth/me
-router.get('/me', authenticate, requireActiveUser, async (req, res) => {
-  const stats = await getUserOrderStats(req.dbUser.UserId, req.dbUser.Email, req.dbUser.Phone);
-  const clean = publicUser(req.dbUser, stats);
-  return res.status(200).json({
-    success: true,
-    user: clean,
-    data: clean
-  });
+router.get('/me', authenticate, requireActiveUser, async (req, res, next) => {
+  try {
+    await ensureUserSyncColumns();
+    let fullRow = req.dbUser;
+    const fresh = await db.query('SELECT * FROM Users WHERE UserId = @uid LIMIT 1', { uid: req.dbUser.UserId });
+    if (fresh.recordset && fresh.recordset.length > 0) {
+      fullRow = normalizeUserRow(fresh.recordset[0]);
+    }
+    const stats = await getUserOrderStats(fullRow.UserId, fullRow.Email, fullRow.Phone);
+    const clean = publicUser(fullRow, stats);
+    return res.status(200).json({
+      success: true,
+      user: clean,
+      data: clean
+    });
+  } catch (err) { next(err); }
+});
+
+// GET /api/auth/sync-state — Lấy nhanh dữ liệu Giỏ hàng & Yêu thích Cloud cho đa thiết bị (Laptop <-> Điện thoại)
+router.get('/sync-state', authenticate, requireActiveUser, async (req, res, next) => {
+  try {
+    await ensureUserSyncColumns();
+    const r = await db.query(
+      'SELECT CartData, WishlistData, ProfileMeta, StateUpdatedAt FROM Users WHERE UserId = @uid LIMIT 1',
+      { uid: req.dbUser.UserId }
+    );
+    const row = (r.recordset && r.recordset[0]) || {};
+    const cartData = sanitizeCompactCart(parseJsonColumn(row.CartData ?? row.cartdata, []));
+    const wishlistData = sanitizeWishlistIds(parseJsonColumn(row.WishlistData ?? row.wishlistdata, []));
+    const profileMeta = parseJsonColumn(row.ProfileMeta ?? row.profilemeta, {});
+    const stateUpdatedAt = row.StateUpdatedAt ?? row.stateupdatedat ?? null;
+
+    return ok(res, {
+      userId: req.dbUser.UserId,
+      cartData,
+      wishlistData,
+      profileMeta,
+      city: profileMeta && typeof profileMeta === 'object' ? (profileMeta.city || '') : '',
+      addressType: profileMeta && typeof profileMeta === 'object' ? (profileMeta.addressType || 'NEW') : 'NEW',
+      oldAddressNote: profileMeta && typeof profileMeta === 'object' ? (profileMeta.oldAddressNote || '') : '',
+      deliveryNote: profileMeta && typeof profileMeta === 'object' ? (profileMeta.deliveryNote || '') : '',
+      stateUpdatedAt
+    });
+  } catch (err) { next(err); }
+});
+
+// PUT /api/auth/sync-state — Lưu / Hợp nhất Giỏ hàng, Yêu thích & ProfileMeta lên Supabase Cloud không độ trễ
+router.put('/sync-state', authenticate, requireActiveUser, async (req, res, next) => {
+  try {
+    await ensureUserSyncColumns();
+    const uid = req.dbUser.UserId;
+    const isMerge = Boolean(req.body && req.body.merge === true);
+    const incomingCart = req.body ? (Array.isArray(req.body.cartData) ? req.body.cartData : (Array.isArray(req.body.cart) ? req.body.cart : null)) : null;
+    const incomingWishlist = req.body ? (Array.isArray(req.body.wishlistData) ? req.body.wishlistData : (Array.isArray(req.body.wishlist) ? req.body.wishlist : null)) : null;
+    const incomingMeta = (req.body && req.body.profileMeta && typeof req.body.profileMeta === 'object') ? req.body.profileMeta : null;
+
+    const curRes = await db.query(
+      'SELECT CartData, WishlistData, ProfileMeta, StateUpdatedAt FROM Users WHERE UserId = @uid LIMIT 1',
+      { uid }
+    );
+    const curRow = (curRes.recordset && curRes.recordset[0]) || {};
+    const curCart = sanitizeCompactCart(parseJsonColumn(curRow.CartData ?? curRow.cartdata, []));
+    const curWishlist = sanitizeWishlistIds(parseJsonColumn(curRow.WishlistData ?? curRow.wishlistdata, []));
+    const curMetaRaw = parseJsonColumn(curRow.ProfileMeta ?? curRow.profilemeta, {});
+    const curMeta = (curMetaRaw && typeof curMetaRaw === 'object' && !Array.isArray(curMetaRaw)) ? curMetaRaw : {};
+
+    const nextCart = incomingCart !== null
+      ? (isMerge ? mergeCompactCarts(curCart, incomingCart) : sanitizeCompactCart(incomingCart))
+      : curCart;
+
+    const nextWishlist = incomingWishlist !== null
+      ? (isMerge ? sanitizeWishlistIds([...curWishlist, ...incomingWishlist]) : sanitizeWishlistIds(incomingWishlist))
+      : curWishlist;
+
+    const nextMeta = Object.assign({}, curMeta);
+    if (incomingMeta) {
+      if (incomingMeta.city !== undefined && (!isMerge || incomingMeta.city)) nextMeta.city = v.cleanStr(incomingMeta.city, 100);
+      if (incomingMeta.addressType !== undefined && (!isMerge || incomingMeta.addressType)) nextMeta.addressType = String(incomingMeta.addressType).toUpperCase() === 'OLD' ? 'OLD' : 'NEW';
+      if (incomingMeta.oldAddressNote !== undefined && (!isMerge || incomingMeta.oldAddressNote)) nextMeta.oldAddressNote = v.cleanStr(incomingMeta.oldAddressNote, 300);
+      if (incomingMeta.deliveryNote !== undefined && (!isMerge || incomingMeta.deliveryNote)) nextMeta.deliveryNote = v.cleanStr(incomingMeta.deliveryNote, 400);
+    }
+
+    const up = await db.query(`
+      UPDATE Users
+      SET CartData = CAST(@cartJson AS JSONB),
+          WishlistData = CAST(@wishlistJson AS JSONB),
+          ProfileMeta = CAST(@metaJson AS JSONB),
+          StateUpdatedAt = NOW()
+      WHERE UserId = @uid
+      RETURNING CartData, WishlistData, ProfileMeta, StateUpdatedAt
+    `, {
+      uid,
+      cartJson: JSON.stringify(nextCart),
+      wishlistJson: JSON.stringify(nextWishlist),
+      metaJson: JSON.stringify(nextMeta)
+    });
+
+    const saved = (up.recordset && up.recordset[0]) || {};
+    const savedMeta = parseJsonColumn(saved.ProfileMeta ?? saved.profilemeta, nextMeta) || {};
+    return ok(res, {
+      userId: uid,
+      cartData: sanitizeCompactCart(parseJsonColumn(saved.CartData ?? saved.cartdata, nextCart)),
+      wishlistData: sanitizeWishlistIds(parseJsonColumn(saved.WishlistData ?? saved.wishlistdata, nextWishlist)),
+      profileMeta: savedMeta,
+      city: savedMeta.city || '',
+      addressType: savedMeta.addressType || 'NEW',
+      oldAddressNote: savedMeta.oldAddressNote || '',
+      deliveryNote: savedMeta.deliveryNote || '',
+      stateUpdatedAt: saved.StateUpdatedAt ?? saved.stateupdatedat ?? new Date().toISOString()
+    });
+  } catch (err) { next(err); }
 });
 
 module.exports = router;

@@ -548,6 +548,128 @@ function resolveProductCardsBySkus(skus = []) {
   return cards;
 }
 
+function detectRegionEtaFromAddress(address) {
+  const norm = cleanText(address || '');
+  if (!norm) return null;
+  if (/(ha noi|hai phong|quang ninh|bac ninh|bac giang|hai duong|hung yen|vinh phuc|thai nguyen|nam dinh|thai binh|ninh binh|phu tho|lao cai|yen bai|son la|dien bien|lai chau|hoa binh|lang son|cao bang|bac kan|ha giang|tuyen quang)/.test(norm)) {
+    return { region: 'Miền Bắc', days: '3 – 4 ngày' };
+  }
+  if (/(da nang|thua thien|hue|thanh hoa|nghe an|ha tinh|quang binh|quang tri|quang nam|quang ngai|binh dinh|quy nhon|phu yen|khanh hoa|nha trang|ninh thuan|binh thuan|phan thiet|kon tum|gia lai|pleiku|dak lak|buon ma thuot|dak nong|lam dong|da lat)/.test(norm)) {
+    return { region: 'Miền Trung / Tây Nguyên', days: '2 – 3 ngày' };
+  }
+  if (/(dong nai|bien hoa|ho chi minh|tphcm|tp hcm|sai gon|binh duong|ba ria|vung tau|tay ninh|binh phuoc|long an|tien giang|ben tre|vinh long|tra vinh|dong thap|an giang|kien giang|can tho|hau giang|soc trang|bac lieu|ca mau)/.test(norm)) {
+    return { region: 'Miền Nam', days: '1 – 2 ngày' };
+  }
+  return null;
+}
+
+function computeVipTierFromSpend(totalSpent = 0) {
+  const spent = Math.max(0, Number(totalSpent) || 0);
+  if (spent > 5000000) {
+    return { level: 5, name: 'VIP 5 — Kim Cương', couponCode: 'VIP5', discountPercent: 10, maxDiscount: 300000, canCod: true, nextName: null, needed: 0 };
+  }
+  if (spent >= 1000000) {
+    return { level: 4, name: 'VIP 4 — Bạch Kim', couponCode: 'VIP4', discountPercent: 7, maxDiscount: 150000, canCod: true, nextName: 'VIP 5 — Kim Cương', needed: 5000001 - spent };
+  }
+  if (spent > 500000) {
+    return { level: 3, name: 'VIP 3 — Collector Vàng', couponCode: 'VIP3', discountPercent: 4, maxDiscount: 100000, canCod: false, nextName: 'VIP 4 — Bạch Kim (mở khóa Ship COD)', needed: 1000000 - spent };
+  }
+  if (spent > 200000) {
+    return { level: 2, name: 'VIP 2 — Collector Bạc', couponCode: 'VIP2', discountPercent: 2, maxDiscount: 50000, canCod: false, nextName: 'VIP 3 — Collector Vàng', needed: 500001 - spent };
+  }
+  return { level: 1, name: 'VIP 1 — Tân Thủ 1:64', couponCode: null, discountPercent: 0, maxDiscount: 0, canCod: false, nextName: 'VIP 2 — Collector Bạc', needed: 200001 - spent };
+}
+
+async function getLoggedInAccountContext(opts = {}) {
+  const uid = opts && opts.userId && Number.isFinite(Number(opts.userId)) && Number(opts.userId) > 0 ? Number(opts.userId) : null;
+  const email = opts && opts.customerEmail ? String(opts.customerEmail).trim().toLowerCase() : '';
+  const rawPhone = opts && opts.customerPhone ? String(opts.customerPhone).replace(/[\s.\-()]/g, '') : '';
+  const phone = rawPhone ? (rawPhone.startsWith('+84') ? '0' + rawPhone.slice(3) : rawPhone) : '';
+
+  if (!uid && !email && !phone) {
+    return { isLoggedIn: false, userId: null, orders: [], totalSpent: 0, vip: computeVipTierFromSpend(0), cartItems: [], wishlistIds: [] };
+  }
+
+  try {
+    let userRow = null;
+    if (uid) {
+      const uRes = await db.query('SELECT UserId, FullName, Email, Phone, CartData, WishlistData FROM Users WHERE UserId = @uid LIMIT 1', { uid });
+      userRow = uRes.recordset?.[0] || null;
+    }
+    const effEmail = email || String(userRow?.Email || userRow?.email || '').trim().toLowerCase();
+    const uPhoneRaw = String(userRow?.Phone || userRow?.phone || '').replace(/[\s.\-()]/g, '');
+    const effPhone = phone || (uPhoneRaw ? (uPhoneRaw.startsWith('+84') ? '0' + uPhoneRaw.slice(3) : uPhoneRaw) : '');
+
+    const conds = [];
+    const params = {};
+    if (uid) {
+      conds.push('o.UserId = @uid');
+      params.uid = uid;
+    }
+    if (effEmail) {
+      conds.push('LOWER(COALESCE(o.Email, \'\')) = @em');
+      params.em = effEmail;
+    }
+    if (effPhone && effPhone.length >= 9) {
+      conds.push("REPLACE(REPLACE(REPLACE(COALESCE(o.Phone, ''), ' ', ''), '-', ''), '.', '') = @ph");
+      params.ph = effPhone;
+    }
+
+    let orders = [];
+    let totalSpent = 0;
+    if (conds.length > 0) {
+      const whereClause = conds.join(' OR ');
+      const [ordRes, spentRes] = await Promise.all([
+        db.query(`
+          SELECT o.OrderId, o.OrderCode, o.Status, o.PaymentMethod, o.PaymentStatus, o.Total, o.DepositAmount,
+                 o.ShippingFee, o.Address, o.TrackingCode, o.TrackingCarrier, o.CreatedAt,
+                 (SELECT STRING_AGG(oi.Quantity::text || 'x ' || oi.ProductName || ' (' || UPPER(COALESCE(oi.PackType, 'box')) || ')', ', ')
+                  FROM OrderItems oi WHERE oi.OrderId = o.OrderId) AS ItemsSummary
+          FROM Orders o
+          WHERE (${whereClause})
+          ORDER BY o.OrderId DESC
+          LIMIT 3
+        `, params),
+        db.query(`
+          SELECT COALESCE(SUM(o.Total), 0)::bigint AS spent
+          FROM Orders o
+          WHERE (${whereClause}) AND UPPER(COALESCE(o.Status, '')) = 'DELIVERED'
+        `, params)
+      ]);
+      orders = ordRes.recordset || [];
+      totalSpent = Number(spentRes.recordset?.[0]?.spent || 0);
+    }
+
+    let cartItems = [];
+    let wishlistIds = [];
+    const rawCart = userRow?.CartData ?? userRow?.cartdata;
+    if (rawCart) {
+      const parsedCart = typeof rawCart === 'string' ? JSON.parse(rawCart) : rawCart;
+      if (Array.isArray(parsedCart)) cartItems = parsedCart;
+    }
+    const rawWish = userRow?.WishlistData ?? userRow?.wishlistdata;
+    if (rawWish) {
+      const parsedWish = typeof rawWish === 'string' ? JSON.parse(rawWish) : rawWish;
+      if (Array.isArray(parsedWish)) wishlistIds = parsedWish;
+    }
+
+    return {
+      isLoggedIn: Boolean(uid || effEmail),
+      userId: uid,
+      fullName: userRow?.FullName || userRow?.fullname || opts.customerName || '',
+      email: effEmail,
+      phone: effPhone,
+      orders,
+      totalSpent,
+      vip: computeVipTierFromSpend(totalSpent),
+      cartItems,
+      wishlistIds
+    };
+  } catch (_) {
+    return { isLoggedIn: Boolean(uid || email), userId: uid, orders: [], totalSpent: 0, vip: computeVipTierFromSpend(0), cartItems: [], wishlistIds: [] };
+  }
+}
+
 // Tra cứu đơn hàng thông minh theo Mã đơn (MGT-... / ORD-... / DH-...) HOẶC theo SĐT (khi khách hỏi tra đơn)
 // Tuyệt đối không nhầm với mã SKU sản phẩm (MGT01093, MGTS0026, PR64-0102...)
 async function lookupOrderSmart(rawText, hasOrderIntent = false, products = []) {
@@ -560,9 +682,12 @@ async function lookupOrderSmart(rawText, hasOrderIntent = false, products = []) 
     if (!isProductSku) {
       try {
         const res = await db.query(`
-          SELECT OrderId, OrderCode, Status, PaymentMethod, PaymentStatus, Total, DepositAmount, ShippingFee, TrackingCode, TrackingCarrier, CreatedAt
-          FROM Orders
-          WHERE UPPER(OrderCode) = @code
+          SELECT o.OrderId, o.OrderCode, o.Status, o.PaymentMethod, o.PaymentStatus, o.Total, o.DepositAmount,
+                 o.ShippingFee, o.Address, o.TrackingCode, o.TrackingCarrier, o.CreatedAt,
+                 (SELECT STRING_AGG(oi.Quantity::text || 'x ' || oi.ProductName || ' (' || UPPER(COALESCE(oi.PackType, 'box')) || ')', ', ')
+                  FROM OrderItems oi WHERE oi.OrderId = o.OrderId) AS ItemsSummary
+          FROM Orders o
+          WHERE UPPER(o.OrderCode) = @code
           LIMIT 1
         `, { code });
         if (res.recordset && res.recordset.length > 0) {
@@ -582,10 +707,13 @@ async function lookupOrderSmart(rawText, hasOrderIntent = false, products = []) 
       const normPhone = '0' + phoneMatch[0].replace(/^(?:\+?84|0)/, '');
       try {
         const res = await db.query(`
-          SELECT OrderId, OrderCode, Status, PaymentMethod, PaymentStatus, Total, DepositAmount, ShippingFee, TrackingCode, TrackingCarrier, CreatedAt
-          FROM Orders
-          WHERE REPLACE(REPLACE(REPLACE(COALESCE(Phone, ''), ' ', ''), '-', ''), '.', '') = @ph
-          ORDER BY OrderId DESC
+          SELECT o.OrderId, o.OrderCode, o.Status, o.PaymentMethod, o.PaymentStatus, o.Total, o.DepositAmount,
+                 o.ShippingFee, o.Address, o.TrackingCode, o.TrackingCarrier, o.CreatedAt,
+                 (SELECT STRING_AGG(oi.Quantity::text || 'x ' || oi.ProductName || ' (' || UPPER(COALESCE(oi.PackType, 'box')) || ')', ', ')
+                  FROM OrderItems oi WHERE oi.OrderId = o.OrderId) AS ItemsSummary
+          FROM Orders o
+          WHERE REPLACE(REPLACE(REPLACE(COALESCE(o.Phone, ''), ' ', ''), '-', ''), '.', '') = @ph
+          ORDER BY o.OrderId DESC
           LIMIT 3
         `, { ph: normPhone });
         return {
@@ -725,8 +853,10 @@ const P = {
   hours: ['gio mo cua', 'may gio', 'mo cua', 'dong cua', 'gio lam viec', 'chu nhat co mo', 'mo den may gio'],
   contact: ['hotline', 'so dien thoai', 'zalo', 'lien he', 'facebook', 'fanpage', 'so phone', 'gmail', 'email shop'],
   authentic: ['chinh hang', 'hang that', 'fake', 'real', 'auth', 'nguon goc', 'hang gia', 'hang nhai', 'xuat xu', 'ban quyen'],
-  howToOrder: ['dat hang', 'cach mua', 'mua nhu the nao', 'dat mua', 'huong dan mua', 'mua sao', 'mua the nao', 'order nhu the nao', 'cach dat', 'chot don sao'],
+  howToOrder: ['dat hang', 'cach mua', 'mua nhu the nao', 'dat mua', 'huong dan mua', 'huong dan dat hang', 'cach dat hang', 'mua sao', 'mua the nao', 'order nhu the nao', 'cach dat', 'chot don sao'],
   orderTracking: ['tra cuu don', 'kiem tra don', 'xem don hang', 'theo doi don', 'tra don hang', 'tra ma don', 'tra cuu don hang', 'xem tinh trang don', 'tinh trang don'],
+  myOrderAsk: ['don cua toi', 'don hang cua toi', 'don cua minh', 'don hang cua minh', 'don cua em', 'don hang cua em', 'kien hang cua em', 'ma van don', 'don vua dat', 'don moi dat', 'don hang bao lau toi', 'don bao lau toi', 'khi nao nhan duoc', 'bao gio nhan duoc', 'kiem tra don cua toi', 'don toi dau'],
+  myCartAsk: ['gio hang cua toi', 'gio cua toi', 'tinh tien gio hang', 'gio hang co gi', 'trong gio co gi', 'gio coc cua toi'],
   followUp: ['mau do', 'mau nay', 'mau tren', 'xe do', 'xe nay', 'chiec do', 'chiec nay', 'con do', 'cai do', 'cai nay', 'em do', 'em nay', 'mau vua roi', 'mau vua noi']
 };
 
@@ -734,7 +864,7 @@ const ESC = {
   damage: ['tray', 'xuoc', 'nut kinh', 'be kinh', 'vo kinh', 'gay guong', 'bi gay', 'gay banh', 'mop', 'rach seal', 'bong tem', 'loi son', 'hu hong', 'bi hong', 'bi loi', 'hang loi', 'vo hop', 'mat banh', 'rot banh', 'bi mop', 'cong truc', 'ket banh'],
   receipt: ['nhan', 'nhan duoc', 'vua nhan', 'giao toi', 'da mua', 'mua roi', 'dat roi', 've toi', 'vua ve', 'mo ra', 'khui', 'mo hop', 'cua toi', 'cua minh', 'cua em', 'shop gui', 'gui sai'],
   refund: ['khieu nai', 'tra hang', 'hoan tien', 'hoan coc', 'tra coc', 'lay lai coc', 'huy don', 'huy coc', 'doi hang', 'giao nham', 'sai hang', 'thieu hang', 'giao thieu', 'mat hang'],
-  orderIssue: ['ma van don', 'don cua toi', 'don hang cua toi', 'don hang cua minh', 'don cua minh', 'don cua em', 'don hang cua em', 'kien hang cua em', 'gop chung', 'gop don', 'gui chung kien', 'sua don', 'doi dia chi', 'doi so dien thoai', 'chua nhan duoc', 'chua giao', 'giao tre', 'giao cham', 'chua thay don', 'da chuyen khoan', 'chuyen khoan roi', 'thanh toan roi ma', 'loi thanh toan', 'khong nhan duoc otp', 'tru tien roi', 'hen gio giao'],
+  orderIssue: ['gop chung', 'gop don', 'gui chung kien', 'sua don', 'doi so dien thoai', 'giao tre', 'giao cham', 'chua thay don', 'da chuyen khoan ma', 'chuyen khoan roi ma', 'thanh toan roi ma', 'loi thanh toan', 'khong nhan duoc otp', 'tru tien roi', 'hen gio giao'],
   human: ['gap admin', 'gap chu shop', 'gap quan ly', 'noi chuyen voi nguoi', 'nguoi that', 'nhan vien tu van', 'tu van vien', 'nho admin', 'admin oi', 'anh thinh oi', 'anh nam oi', 'goi lai cho', 'goi cho minh', 'goi cho toi', 'cho gap admin', 'chuyen cho admin', 'ket noi admin', 'lien he admin', 'lien he shop', 'can ho tro', 'admin xu ly', 'can gap admin', 'lien quan den admin'],
   wholesale: ['mua si', 'gia si', 'lay si', 'nhap si', 'dai ly', 'cong tac vien', 'ctv', 'chiet khau si', 'bot gia', 'fix gia', 'mac ca', 'tra gia'],
   negative: ['lua dao', 'te qua', 'that vong', 'buc minh', 'qua te', 'kem chat luong', 'lam an kieu gi', 'boc phot'],
@@ -1695,11 +1825,17 @@ function answerCategories(products) {
   );
 }
 
-function answerCoupons(coupons) {
+function answerCoupons(coupons, userCtx = null) {
+  const vipNote = (userCtx && userCtx.isLoggedIn && userCtx.vip)
+    ? (userCtx.vip.couponCode
+        ? `\n\n👑 **Đặc quyền tài khoản của anh/chị (${userCtx.vip.name}):** Đang mở khóa mã riêng **${userCtx.vip.couponCode}** giảm **${userCtx.vip.discountPercent}%** (tối đa **${formatVnd(userCtx.vip.maxDiscount)}**)${userCtx.vip.canCod ? ' + **Ship COD 100%**' : ''}!`
+        : `\n\n👑 **Tài khoản của anh/chị (${userCtx.vip.name}):** Tích lũy đã giao **${formatVnd(userCtx.totalSpent)}** — chỉ cần thêm **${formatVnd(userCtx.vip.needed)}** để lên **${userCtx.vip.nextName}** và mở khóa mã **VIP2 (-2%)**!`)
+    : `\n\n👑 Ngoài ra, hội viên tích lũy còn có mã **VIP2 (-2%) → VIP5 (-10%)** và **MIỄN PHÍ SHIP SPX** cho đơn từ **${formatVnd(SHOP.freeShipThreshold)}**!`;
+
   if (!coupons || !coupons.length) {
     return reply(
-      `Dạ hiện tại Showroom đang áp dụng ưu đãi **FREESHIP 0đ toàn quốc** cho mọi đơn hàng từ **${formatVnd(SHOP.freeShipThreshold)}** (phí ship đơn thường cũng chỉ **${formatVnd(SHOP.shippingFee)}**) cùng đặc quyền giảm tới **10%** cho hội viên VIP ạ!`,
-      ['Đặc quyền hội viên VIP là gì?', 'Xe nào đang giảm giá?', 'Xe nào đang có sẵn?']
+      `Dạ hiện tại Showroom đang áp dụng ưu đãi **FREESHIP 0đ toàn quốc** cho mọi đơn hàng từ **${formatVnd(SHOP.freeShipThreshold)}** (phí ship đơn thường cũng chỉ **${formatVnd(SHOP.shippingFee)}**) cùng đặc quyền giảm tới **10%** cho hội viên VIP ạ!${vipNote}`,
+      ['Đặc quyền hội viên VIP là gì?', 'Tính tiền giỏ hàng của tôi', 'Xe nào đang giảm giá?']
     );
   }
   const lines = coupons.map(c => {
@@ -1709,22 +1845,31 @@ function answerCoupons(coupons) {
     return `• 🎟️ Mã **${c.code}** — ${benefit} cho đơn từ **${formatVnd(c.minOrderAmount)}**\n  _(${c.description})_`;
   });
   return reply(
-    `🎉 Dạ hiện Showroom đang có **${coupons.length} mã giảm giá (Voucher)** hoạt động trực tiếp trên hệ thống:\n\n${lines.join('\n\n')}\n\n` +
-    `👑 Ngoài ra, hội viên tích lũy còn có mã **VIP2 (-2%) → VIP5 (-10%)** và **MIỄN PHÍ SHIP SPX** cho đơn từ **${formatVnd(SHOP.freeShipThreshold)}**! Anh/chị nhắm mẫu nào nhắn em tính giá áp mã luôn nhé! ✨`,
-    ['Xe nào đang giảm giá?', 'Đặc quyền hội viên VIP là gì?', 'Xe nào đang có sẵn?']
+    `🎉 Dạ hiện Showroom đang có **${coupons.length} mã giảm giá (Voucher)** hoạt động trực tiếp trên hệ thống:\n\n${lines.join('\n\n')}${vipNote}\n\nAnh/chị nhắm mẫu nào (hoặc nhắn _"tính tiền giỏ hàng của tôi"_) để em tính giá áp mã hời nhất luôn nhé! ✨`,
+    ['Tính tiền giỏ hàng của tôi', 'Xe nào đang giảm giá?', 'Đặc quyền hội viên VIP là gì?']
   );
 }
 
-function answerVipTiers() {
+function answerVipTiers(userCtx = null) {
+  let personalHeader = '';
+  if (userCtx && userCtx.isLoggedIn && userCtx.vip) {
+    const v = userCtx.vip;
+    personalHeader =
+      `👤 **Hạng hiện tại của anh/chị${userCtx.fullName ? ` (${userCtx.fullName})` : ''}:** **${v.name}**\n` +
+      `• Tổng chi tiêu đơn giao thành công: **${formatVnd(userCtx.totalSpent)}**\n` +
+      (v.couponCode ? `• Mã ưu đãi riêng đang mở: **${v.couponCode}** (giảm **${v.discountPercent}%**, tối đa **${formatVnd(v.maxDiscount)}**)${v.canCod ? ' · **Đã mở khóa Ship COD 100%** ✅' : ''}\n` : '') +
+      (v.nextName ? `• Cột mốc kế tiếp: cần thêm **${formatVnd(v.needed)}** để thăng hạng **${v.nextName}**.\n\n` : '• Anh/chị đã đạt hạng cao nhất tại Showroom! 🏆\n\n');
+  }
   return reply(
-    '👑 **Hệ thống Hạng Hội Viên VIP & Đặc quyền tại MINI GT STORE BIÊN HÒA:**\n\n' +
+    personalHeader +
+    '👑 **Bảng Hạng Hội Viên VIP & Đặc quyền tại MINI GT STORE BIÊN HÒA:**\n\n' +
     '• **VIP 1 (0đ – 200k):** Tích điểm hội viên & nhận thông báo suất Pre-Order sớm\n' +
     '• **VIP 2 — Collector Bạc (trên 200k):** Mã **VIP2** giảm **2%** tổng đơn (tối đa 50k)\n' +
     '• **VIP 3 — Collector Vàng (trên 500k):** Mã **VIP3** giảm **4%** tổng đơn (tối đa 100k)\n' +
     '• **VIP 4 — Bạch Kim (từ 1.000.000đ):** Mã **VIP4** giảm **7%** (tối đa 150k) + **Mở khóa đặc quyền Ship COD tiền mặt 100%**\n' +
     '• **VIP 5 — Kim Cương (trên 5.000.000đ):** Mã **VIP5** giảm kịch trần **10%** (tối đa 300k) + Ưu tiên giữ xe hiếm!\n\n' +
-    '💡 Hệ thống tự động cộng dồn chi tiêu theo **Tài khoản & Số điện thoại** của anh/chị sau mỗi đơn giao thành công ạ!',
-    ['Shop có mã giảm giá không?', 'Xe nào đang có sẵn?']
+    '💡 Hệ thống tự động đồng bộ hạng VIP trên mọi thiết bị theo **Tài khoản & Số điện thoại** sau mỗi đơn giao thành công ạ!',
+    ['Shop có mã giảm giá không?', 'Kiểm tra đơn hàng của tôi', 'Xe nào đang có sẵn?']
   );
 }
 
@@ -1732,7 +1877,7 @@ function formatSingleOrderSummary(o) {
   const statusMap = {
     PENDING: '⏳ Chờ xác nhận',
     CONFIRMED: '✅ Đã xác nhận đơn',
-    PREPARING: '📦 Đang đóng gói chống sốc',
+    PREPARING: '📦 Đang đóng gói chống sốc 4 lớp',
     SHIPPING: '🚚 Đang giao qua SPX Express',
     DELIVERED: '🎉 Đã giao thành công',
     CANCELLED: '❌ Đã hủy'
@@ -1747,7 +1892,8 @@ function formatSingleOrderSummary(o) {
     PENDING: '⏳ Chờ thanh toán'
   };
   const code = o.OrderCode || o.ordercode;
-  const st = statusMap[String(o.Status || o.status || '').toUpperCase()] || (o.Status || o.status);
+  const rawStatus = String(o.Status || o.status || '').toUpperCase();
+  const st = statusMap[rawStatus] || (o.Status || o.status);
   const pst = payMap[String(o.PaymentStatus || o.paymentstatus || '').toUpperCase()] || (o.PaymentStatus || o.paymentstatus);
   const total = Number(o.Total ?? o.total ?? 0);
   const deposit = Number(o.DepositAmount || o.depositamount || 0);
@@ -1755,21 +1901,128 @@ function formatSingleOrderSummary(o) {
   const isDeposit = payMethod === 'DEPOSIT' || deposit > 0;
   let depositInfo = '';
   if (isDeposit && deposit > 0) {
-    depositInfo = `\n  🛡️ Tiền cọc: **${formatVnd(deposit)}** · Cần thanh toán COD khi nhận xe: **${formatVnd(Math.max(0, total - deposit))}**`;
+    depositInfo = `\n  🛡️ Đã cọc: **${formatVnd(deposit)}** · COD khi nhận xe: **${formatVnd(Math.max(0, total - deposit))}**`;
+  } else if (payMethod === 'COD') {
+    depositInfo = `\n  💵 Thanh toán khi nhận hàng (Ship COD): **${formatVnd(total)}**`;
   }
 
+  const itemsSummary = o.ItemsSummary || o.itemssummary || '';
+  const addr = o.Address || o.address || '';
+  const regionEta = detectRegionEtaFromAddress(addr);
   const tCode = o.TrackingCode || o.trackingcode;
-  const tCarrier = o.TrackingCarrier || o.trackingcarrier || 'SPX Express';
 
-  return `• **#${code}**\n` +
-         `  Tiến trình: **${st}** · ${pst}\n` +
-         `  Tổng đơn (gồm ship SPX 11k): **${formatVnd(total)}**${depositInfo}\n` +
-         `${tCode ? `  🚚 Mã SPX Express: **${tCode}** (tra cứu trực tiếp tại spx.vn/vi)\n` : ''}` +
-         `  ⏱️ **Thời gian giao hàng SPX Express dự kiến (từ Kho Biên Hòa):**\n` +
-         `  - **Miền Nam** (TP.HCM, Đồng Nai, Tây Nam Bộ...): **1 – 2 ngày**\n` +
-         `  - **Miền Trung** (Đà Nẵng, Huế, Nha Trang...): **2 – 3 ngày**\n` +
-         `  - **Miền Bắc** (Hà Nội, Hải Phòng...): **3 – 4 ngày**\n` +
-         `  *(Chưa tính thời gian shop kiểm tra xe nguyên seal & đóng gói 4 lớp xốp nổ khoảng 1 ngày)*`;
+  let etaLine = '';
+  if (rawStatus === 'DELIVERED') {
+    etaLine = '  ✅ Đơn hàng đã được giao thành công tới tay anh/chị!';
+  } else if (rawStatus === 'CANCELLED') {
+    etaLine = '  ℹ️ Đơn hàng này đã hủy trên hệ thống.';
+  } else if (regionEta) {
+    etaLine = `  ⏱️ **Dự kiến giao tới ${regionEta.region}:** khoảng **${regionEta.days}** qua SPX Express *(chưa tính ~1 ngày kiểm seal & bọc chống sốc 4 lớp tại kho Biên Hòa)*.`;
+  } else {
+    etaLine = '  ⏱️ **Dự kiến SPX Express (từ Biên Hòa):** Miền Nam **1–2 ngày** · Miền Trung **2–3 ngày** · Miền Bắc **3–4 ngày** *(+ ~1 ngày kiểm seal & đóng gói 4 lớp)*.';
+  }
+
+  return `• **#${code}** — ${st} · ${pst}\n` +
+         (itemsSummary ? `  🏎️ Sản phẩm: ${itemsSummary}\n` : '') +
+         `  💰 Tổng đơn: **${formatVnd(total)}**${depositInfo}\n` +
+         `${tCode ? `  🚚 Mã vận đơn SPX Express: **${tCode}** _(tra tại spx.vn/vi)_\n` : ''}` +
+         etaLine;
+}
+
+function answerLoggedInOrders(userCtx) {
+  const caller = userCtx.fullName ? ` **${userCtx.fullName}**` : ' anh/chị';
+  if (!userCtx.orders || !userCtx.orders.length) {
+    return reply(
+      `Dạ em vừa kiểm tra trực tiếp trên tài khoản của${caller} nhưng hiện chưa có đơn hàng nào được ghi nhận ạ 😊\n\n` +
+      '• Nếu anh/chị vừa đặt bằng SĐT khác, hãy gõ **mã đơn MGT-...** hoặc _"kiểm tra đơn 09xxxxxxxx"_ để em tra cứu ngay.\n' +
+      '• Hoặc anh/chị có thể xem các mẫu đang Sale giảm giá để lên đơn đầu tiên nhé!',
+      ['Xe nào đang giảm giá?', 'Hướng dẫn đặt hàng', 'Shop có mã giảm giá không?']
+    );
+  }
+  return reply(
+    `📦 **Đơn hàng đồng bộ trực tiếp trên tài khoản của${caller} (${userCtx.orders.length} đơn gần nhất):**\n\n` +
+    userCtx.orders.map(formatSingleOrderSummary).join('\n\n') +
+    '\n\n💡 _Anh/chị có thể bấm mục **Đơn hàng của tôi (Đơn SPX)** để xem hóa đơn chi tiết hoặc tự bấm **✏️ Sửa địa chỉ** khi đơn chưa bàn giao SPX. Nếu cần hỗ trợ riêng, nhắn **"gặp admin"** là Quản trị viên tiếp nhận ngay ạ!_',
+    ['Shop có mã giảm giá không?', 'Quy chuẩn đóng gói SPX', 'Gặp Admin hỗ trợ trực tiếp']
+  );
+}
+
+function answerMyCart(userCtx, products, coupons) {
+  if (!userCtx || !userCtx.isLoggedIn) {
+    return reply(
+      '🔐 Dạ anh/chị vui lòng **đăng nhập tài khoản** để Bé Bot đọc giỏ hàng đồng bộ đám mây và tính mã giảm giá hời nhất cho mình nhé!\n\n' +
+      '_(Hoặc anh/chị nhắn trực tiếp tên mẫu xe, VD: "tính tiền Roxy bản Card" để em báo giá liền ạ!)_',
+      ['Xe nào đang giảm giá?', 'Shop có mã giảm giá không?', 'Hướng dẫn đặt hàng']
+    );
+  }
+  const rawItems = Array.isArray(userCtx.cartItems) ? userCtx.cartItems : [];
+  if (!rawItems.length) {
+    return reply(
+      `🛍️ Giỏ hàng đồng bộ trên tài khoản của anh/chị hiện đang trống ạ!\n\nAnh/chị có thể bấm **+Box / +Card** trên thẻ xe bất kỳ (trên Laptop hay Điện thoại đều tự động lưu đồng bộ) rồi hỏi lại em nhé! ✨`,
+      ['Xe nào đang giảm giá?', 'Xe nào đang có sẵn?', 'Shop có mã giảm giá không?']
+    );
+  }
+
+  const byId = new Map(products.map(p => [Number(p.ProductId), p]));
+  let subtotal = 0;
+  let depositSub = 0;
+  let hasPreOrder = false;
+  const matchedSkus = [];
+  const lines = [];
+
+  for (const item of rawItems) {
+    const pid = Number(item.productId || item.id);
+    const qty = Math.max(1, Number(item.quantity) || 1);
+    const reqPack = String(item.packType || 'box').toLowerCase() === 'card' ? 'card' : 'box';
+    const liveProd = byId.get(pid);
+    if (liveProd) {
+      const pack = effectivePack(liveProd, reqPack);
+      const unit = priceOf(liveProd, pack);
+      const lineTotal = unit * qty;
+      subtotal += lineTotal;
+      if (liveProd.Status === 'pre_order') {
+        hasPreOrder = true;
+        depositSub += depositOfProduct(liveProd, lineTotal);
+      }
+      if (matchedSkus.length < 3) matchedSkus.push(liveProd.Sku);
+      lines.push(`• ${qty} × **[${liveProd.Sku}] ${liveProd.Name}** (${packName(pack)}): **${formatVnd(lineTotal)}**`);
+    } else {
+      const fallbackPrice = Math.max(0, Number(item.price) || 0);
+      subtotal += fallbackPrice * qty;
+      lines.push(`• ${qty} × **${item.name || `#${pid}`}** (${packName(reqPack)}): **${formatVnd(fallbackPrice * qty)}**`);
+    }
+  }
+
+  const ship = subtotal >= SHOP.freeShipThreshold ? 0 : SHOP.shippingFee;
+  let bestCode = null;
+  let bestSave = 0;
+  for (const c of (coupons || [])) {
+    const s = calcCouponSaving(c, subtotal);
+    if (s > bestSave) { bestSave = s; bestCode = c.code; }
+  }
+  if (userCtx.vip && userCtx.vip.couponCode) {
+    const vipSave = Math.min(roundK((subtotal * userCtx.vip.discountPercent) / 100), userCtx.vip.maxDiscount || Infinity);
+    if (vipSave > bestSave) { bestSave = vipSave; bestCode = userCtx.vip.couponCode; }
+  }
+
+  const out = [
+    `🛍️ **Giỏ hàng đồng bộ hiện tại của anh/chị (${rawItems.length} dòng sản phẩm):**`,
+    '',
+    ...lines,
+    '',
+    `• Tạm tính tiền xe: **${formatVnd(subtotal)}**`,
+    `• Phí ship SPX Express: ${ship === 0 ? '**0đ (FREESHIP)** 🎉' : `**${formatVnd(ship)}** _(thêm ${formatVnd(SHOP.freeShipThreshold - subtotal)} để Freeship)_`}`
+  ];
+  if (bestCode && bestSave > 0) {
+    out.push(`• 🎟️ **Mã khuyên dùng hời nhất:** nhập **${bestCode}** giảm ngay **-${formatVnd(bestSave)}** → Tổng thanh toán cả ship chỉ còn **${formatVnd(Math.max(0, subtotal - bestSave) + ship)}**!`);
+  } else {
+    out.push(`• 💰 **Tổng thanh toán tạm tính: ${formatVnd(subtotal + ship)}**`);
+  }
+  if (hasPreOrder && depositSub > 0) {
+    out.push(`• ⏳ Phần cọc giữ suất cho mẫu Pre-Order trong giỏ: **${formatVnd(depositSub)}**.`);
+  }
+
+  return reply(out.join('\n'), ['Hướng dẫn đặt hàng', 'Shop có mã giảm giá không?', 'Kiểm tra đơn hàng của tôi'], { matchedProducts: matchedSkus });
 }
 
 function answerOrderLookup(lookup) {
@@ -1777,7 +2030,7 @@ function answerOrderLookup(lookup) {
     const label = lookup.mode === 'phone' ? `số điện thoại **${lookup.query}**` : `mã đơn **${lookup.query}**`;
     return reply(
       `Dạ em vừa tra trực tiếp trên CSDL nhưng chưa tìm thấy đơn hàng nào khớp với ${label} ạ 🥺\n` +
-      '• Anh/chị kiểm tra lại mã đơn (VD: _MGT-2026..._) hoặc bấm mục **"Tra cứu đơn hàng"** trên thanh menu đầu trang nhé.\n' +
+      '• Anh/chị kiểm tra lại mã đơn (VD: _MGT-2026..._) hoặc đăng nhập đúng tài khoản đặt hàng rồi hỏi _"đơn hàng của tôi"_ nhé.\n' +
       '• Nếu cần Admin hỗ trợ trực tiếp ngay, anh/chị chỉ cần nhắn _"gặp admin"_ hoặc gọi/Zalo **0981.903.400** để Quản trị viên tiếp quản liền ạ!',
       ['Gặp Admin hỗ trợ đơn hàng', 'Bao lâu nhận được xe?']
     );
@@ -1804,18 +2057,18 @@ const KNOWLEDGE = {
     const caller = opts.customerName && !/khach hang/i.test(cleanText(opts.customerName)) ? ` **${opts.customerName}**` : ' anh/chị';
     return reply(
       `Dạ em tên là **Bé Bot Săn Xe 1:64** 🤖💕 — Trợ lý AI thông minh thế hệ mới trực 24/7 của **${SHOP.name}** (website được sáng tạo bởi hai bạn **Đỗ Quốc Thịnh & Nguyễn Đình Nam**).\n\n` +
-      `Chào${caller} nha! Dữ liệu của em được **đồng bộ thời gian thực 100%** với kho xe, chương trình giảm giá, phí ship SPX (**${formatVnd(SHOP.shippingFee)}**) và bảng mã Voucher của Showroom ạ! ✨`,
+      `Chào${caller} nha! Dữ liệu của em được **đồng bộ thời gian thực 100%** với kho xe, giỏ hàng đa thiết bị, đơn vận chuyển SPX (**${formatVnd(SHOP.shippingFee)}**), hạng VIP và bảng mã Voucher của Showroom ạ! ✨`,
       ['Ai là người tạo web này?', 'Xe nào đang giảm giá?', 'Shop có mã giảm giá không?']
     );
   },
   botCapability: () => reply(
     'Dạ **Bé Bot Săn Xe 1:64** có thể hỗ trợ anh/chị siêu tốc các việc sau ạ:\n\n' +
-    '1️⃣ **Tra cứu xe & giá Sale đồng bộ thật 100%:** Hỏi tên xe, F1, LBWK, Porsche khủng long, xe đang giảm giá...\n' +
-    '2️⃣ **Tính tiền & Áp thử Voucher:** Nhắn _"áp mã MINIGT30K cho Roxy"_ hoặc _"2 chiếc Roxy cả ship bao nhiêu"_\n' +
+    '1️⃣ **Tra cứu xe, ảnh Box/Card & giá Sale thật 100%:** Hỏi tên xe, F1, LBWK, Porsche khủng long, xe đang giảm giá...\n' +
+    '2️⃣ **Đọc Giỏ hàng đồng bộ & Tìm mã hời nhất:** Nhắn _"tính tiền giỏ hàng của tôi"_ hoặc _"áp mã MINIGT30K cho Roxy"_\n' +
     '3️⃣ **Ghép Combo theo ngân sách:** VD nhắn _"có 800k mua được 2 xe nào?"_\n' +
-    '4️⃣ **Tra cứu đơn hàng ngay trong chat:** Gõ mã đơn _MGT-..._ hoặc _"kiểm tra đơn 0912..."_\n' +
-    '5️⃣ **Kết nối Admin thông minh:** Câu hỏi khó ngoài phạm vi được ghim kèm ngữ cảnh lên Admin, trong lúc chờ anh/chị hỏi câu khác em vẫn trả lời ngay! 🚀',
-    ['Xe nào đang giảm giá?', 'Có 800k mua được 2 xe nào?', 'Ai là người tạo web này?']
+    '4️⃣ **Tra cứu đơn hàng & Hạng VIP tự động:** Nhắn _"đơn hàng của tôi bao lâu tới?"_, _"hạng VIP của tôi"_, hoặc gõ mã _MGT-..._\n' +
+    '5️⃣ **Kết nối Admin thông minh:** Nhắn _"gặp admin"_ bất cứ lúc nào để Quản trị viên trả lời trực tiếp trên mọi thiết bị! 🚀',
+    ['Tính tiền giỏ hàng của tôi', 'Kiểm tra đơn hàng của tôi', 'Xe nào đang giảm giá?']
   ),
   smallTalk: (ctx) => {
     const t = ctx.text;
@@ -1923,21 +2176,26 @@ const KNOWLEDGE = {
     'Toàn bộ mô hình tại Showroom đều được phân phối chính ngạch từ **MINI GT (TSM-Model)** và **Pop Race** — đầy đủ tem chống giả Hologram bản quyền của hãng sản xuất xe thật (Porsche, Lamborghini, Red Bull Racing, Aston Martin, Liberty Walk...), nguyên seal 100% chưa khui ạ! 🛡️',
     ['Xe nào đang có sẵn?', 'Chính sách bảo hành thế nào?']
   ),
-  howToOrder: () => reply(
-    '🛒 **4 bước đặt xe siêu nhanh trên Website:**\n\n' +
-    '1️⃣ Chọn xe ưng ý (hoặc bấm nút **+Box / +Card** ngay trên thẻ xe trong khung chat này!).\n' +
-    '2️⃣ Mở **Giỏ hàng** → bấm **Tiến Hành Mua Hàng** → chọn nhanh thẻ Voucher giảm giá (như **MINIGT30K**, **SANXE50K**).\n' +
-    '3️⃣ Điền tên, SĐT, địa chỉ nhận hàng → quét mã **VietQR tự động** (xác nhận tức thì) hoặc COD (với VIP 4+).\n' +
-    '4️⃣ Nhận biên nhận xác nhận tự động qua **Gmail** và gõ mã đơn vào khung chat bất cứ lúc nào để Bé Bot tra hành trình đơn!',
-    ['Shop có mã giảm giá không?', 'Xe nào đang giảm giá?']
-  ),
+  howToOrder: (coupons = []) => {
+    const voucherExamples = coupons.length ? coupons.slice(0, 2).map(c => `**${c.code}**`).join(', ') : '**VIP2 → VIP5**';
+    return reply(
+      '🛒 **Quy trình 4 bước đặt xe chuẩn & nhanh nhất trên Website:**\n\n' +
+      '1️⃣ **Chọn xe & Quy cách:** Bấm vào thẻ xe chọn **📦 Bản Hộp (Box)** hoặc **🛡️ Bản Vỉ (Card)** _(ảnh sản phẩm tự động chuyển đúng ảnh Box/Card thật)_ → bấm **Thêm vào giỏ** hoặc **Mua ngay**.\n' +
+      `2️⃣ **Kiểm tra Giỏ hàng & Áp Voucher:** Mở **Giỏ hàng** _(đồng bộ tự động trên cả Laptop & Điện thoại)_ → bấm **Tiến Hành Mua Hàng** → chọn mã giảm giá (${voucherExamples}).\n` +
+      `3️⃣ **Chọn Giao nhận & Thanh toán:**\n` +
+      `   • Giao tận nơi **SPX Express** (**${formatVnd(SHOP.shippingFee)}**, Freeship từ **${formatVnd(SHOP.freeShipThreshold)}**), **Gom đơn Box Saver (0đ)** hoặc **Nhận tại Showroom (0đ)**.\n` +
+      `   • Quét **VietQR PayOS tự động** (xác nhận đơn ngay trong vài giây), đặt cọc **${Math.round(SHOP.depositRate * 100)}%** cho xe Pre-Order, hoặc **Ship COD 100%** (từ **VIP 4+**).\n` +
+      '4️⃣ **Theo dõi hành trình:** Biên nhận điện tử gửi ngay về **Gmail**; anh/chị xem mục **Đơn hàng của tôi (Đơn SPX)** hoặc hỏi thẳng Bé Bot _"kiểm tra đơn hàng của tôi"_ bất cứ lúc nào ạ!',
+      ['Tính tiền giỏ hàng của tôi', 'Shop có mã giảm giá không?', 'Xe nào đang giảm giá?']
+    );
+  },
   tracking: () => reply(
     '📦 **Cách tra cứu đơn hàng cực nhanh ngay trong khung chat:**\n\n' +
-    '• **Cách 1 (Theo Mã đơn):** Gõ trực tiếp **Mã đơn hàng** (VD: _MGT-2026..._) vào ô chat này.\n' +
-    '• **Cách 2 (Theo Số điện thoại):** Nhắn _"kiểm tra đơn 09xxxxxxxx"_, Bé Bot sẽ tra 3 đơn gần nhất của anh/chị ngay lập tức!\n' +
-    '• **Cách 3:** Bấm nút **"Tra cứu đơn hàng"** trên thanh menu đầu trang web.\n\n' +
-    'Nếu đơn hàng cần đổi địa chỉ hay hỗ trợ gấp, anh/chị nhắn chi tiết để em chuyển lên **Admin Showroom** xử lý ngay nhé ạ!',
-    ['Gặp Admin Showroom', 'Xe nào đang có sẵn?']
+    '• **Cách 1 (Đã đăng nhập):** Chỉ cần nhắn _"kiểm tra đơn hàng của tôi"_, Bé Bot tự động lấy danh sách đơn, trạng thái thanh toán và thời gian giao SPX theo đúng tài khoản của anh/chị!\n' +
+    '• **Cách 2 (Theo Mã đơn / SĐT):** Gõ trực tiếp **Mã đơn hàng** (VD: _MGT-2026..._) hoặc _"kiểm tra đơn 09xxxxxxxx"_.\n' +
+    '• **Cách 3:** Mở mục **Đơn hàng của tôi (Đơn SPX)** trên thanh điều hướng.\n\n' +
+    'Nếu cần hỗ trợ gấp, anh/chị nhắn _"gặp admin"_ để Quản trị viên xử lý trực tiếp nhé ạ!',
+    ['Kiểm tra đơn hàng của tôi', 'Gặp Admin Showroom', 'Xe nào đang có sẵn?']
   )
 };
 
@@ -1950,10 +2208,10 @@ function answerGreeting(products, coupons, opts) {
     `Dạ **Bé Bot Săn Xe 1:64** xin chào${name}! ✨\n` +
     `Showroom đang đồng bộ trực tiếp **${ready} siêu phẩm sẵn kho**${saleCnt ? `, **${saleCnt} mẫu đang Sale giảm giá**` : ''}${topCode} (Ship SPX toàn quốc chỉ **${formatVnd(SHOP.shippingFee)}**). Anh/chị có thể hỏi em tự nhiên như:\n` +
     '• 🏎️ _"Xe nào đang giảm giá?"_, _"Roxy còn k, áp mã MINIGT30K bn?"_\n' +
-    '• 🧮 _"Có 800k mua được 2 xe nào?"_, _"So sánh Roxy và Rexy"_\n' +
-    '• 👨‍💻 _"Ai tạo ra web này?"_, _"Kiểm tra đơn 0912345678"_\n\n' +
+    '• 🛍️ _"Tính tiền giỏ hàng của tôi"_, _"Đơn hàng của tôi bao lâu tới?"_\n' +
+    '• 🧮 _"Có 800k mua được 2 xe nào?"_, _"Hướng dẫn đặt hàng"_\n\n' +
     'Anh/chị đang muốn tìm mẫu xe nào để em kiểm tra ngay ạ? 💕',
-    ['Xe nào đang giảm giá?', 'Xe nào đang có sẵn?', 'Shop có mã giảm giá không?', 'Ai là người tạo web này?']
+    ['Xe nào đang giảm giá?', 'Tính tiền giỏ hàng của tôi', 'Shop có mã giảm giá không?', 'Kiểm tra đơn hàng của tôi']
   );
 }
 
@@ -1986,8 +2244,23 @@ async function runEngine(ctx, history, opts) {
   const I = ctx.intents;
 
   // 1. Tra cứu đơn hàng trực tiếp theo Mã đơn (MGT-...) HOẶC theo SĐT
-  const orderLookup = await lookupOrderSmart(ctx.raw, I.orderTracking, products);
+  const orderLookup = await lookupOrderSmart(ctx.raw, I.orderTracking || I.myOrderAsk, products);
   if (orderLookup) return answerOrderLookup(orderLookup);
+
+  // 1b. Tra cứu đơn hàng hoặc giỏ hàng đồng bộ của tài khoản đang đăng nhập
+  if (I.myCartAsk) {
+    const userCtx = await getLoggedInAccountContext(opts);
+    return answerMyCart(userCtx, products, coupons);
+  }
+  if (I.myOrderAsk || I.orderTracking) {
+    const userCtx = await getLoggedInAccountContext(opts);
+    if (userCtx.isLoggedIn || (userCtx.orders && userCtx.orders.length > 0)) {
+      return answerLoggedInOrders(userCtx);
+    }
+    if (I.myOrderAsk && !I.orderTracking) {
+      return KNOWLEDGE.tracking();
+    }
+  }
 
   // 2. Hỏi về Nhà sáng tạo web Thịnh & Nam (nếu câu chỉ hỏi về tác giả hoặc hỏi nối tiếp chủ đề Thịnh & Nam)
   const found = searchProducts(ctx.searchText, products);
@@ -1999,7 +2272,7 @@ async function runEngine(ctx, history, opts) {
   }
 
   // 2b. Nếu khách gõ đích danh một mã SKU sản phẩm (VD: MGTS0026, MGT9999, F1-TEST-99, [POP001]...) nhưng mã đó KHÔNG tồn tại hoặc ĐÃ BỊ ADMIN XÓA khỏi kho -> báo rõ ngay, tuyệt đối không trả nhầm xe cùng dòng (VD: chữ "F1" trong "F1-TEST-99") hay xe cũ trong bộ nhớ!
-  if (!ctx.explicitCouponCode && !I.orderTracking) {
+  if (!ctx.explicitCouponCode && !I.orderTracking && !I.myOrderAsk) {
     const rawStr = String(ctx.raw || '');
     const normStr = normalize(rawStr);
     const bracketSku = rawStr.match(/\[([A-Z0-9][A-Z0-9\-_]{2,22})\]/i);
@@ -2047,7 +2320,7 @@ async function runEngine(ctx, history, opts) {
 
   // 3b. Tri thức tính năng website / định nghĩa chuyên sâu (chạy trên RAM, 0 token)
   const kHit = searchKnowledge(ctx.text);
-  if (kHit && kHit.doc) {
+  if (kHit && kHit.doc && !I.howToOrder && !I.vipAsk && !I.couponAsk) {
     const isDef = kHit.doc.definition && (kHit.isDefinitionQuestion || !found.length);
     const isStrongSiteFeature = kHit.strong && !ctx.explicitCouponCode && !ctx.price && !ctx.qty;
     if (isDef || isStrongSiteFeature) {
@@ -2066,7 +2339,7 @@ async function runEngine(ctx, history, opts) {
   const policyIntent = I.shipping || I.payment || I.address || I.hours || I.contact || I.boxcard ||
                        I.preorderPolicy || I.authentic || I.howToOrder || I.categories ||
                        I.materialSpec || I.scaleSize || I.chaseAsk || I.careTip || (I.couponAsk && !ctx.explicitCouponCode) ||
-                       I.vipAsk || I.warrantyInfo || I.accountHelp || I.orderTracking;
+                       I.vipAsk || I.warrantyInfo || I.accountHelp || I.orderTracking || I.myOrderAsk || I.myCartAsk;
   const catalogListIntent = I.saleList || I.cheapest || I.expensive || I.bestSeller ||
                             I.newArrival || I.instockList || I.preorderList || I.listWord || I.gift;
   const productQuestion = I.price || I.stock || I.deposit || I.eta || I.total || !!ctx.qty || !!ctx.pref || I.compare || !!ctx.explicitCouponCode;
@@ -2146,12 +2419,17 @@ async function runEngine(ctx, history, opts) {
     return answerFilter(products, ctx, coupons);
   }
   if (I.gift) return answerGift(products, ctx);
-  if (I.vipAsk) return answerVipTiers();
+  if (I.vipAsk) {
+    const userCtx = await getLoggedInAccountContext(opts);
+    return answerVipTiers(userCtx);
+  }
   if (I.couponAsk) {
-    const r = answerCoupons(coupons);
+    const userCtx = await getLoggedInAccountContext(opts);
+    const r = answerCoupons(coupons, userCtx);
     r.message = appendSecondaryIntents(r.message, ctx, coupons, { couponAsk: true });
     return r;
   }
+  if (I.howToOrder) return KNOWLEDGE.howToOrder(coupons);
   if (I.materialSpec) {
     const r = KNOWLEDGE.materialSpec();
     r.message = appendSecondaryIntents(r.message, ctx, coupons);
@@ -2186,7 +2464,6 @@ async function runEngine(ctx, history, opts) {
     return r;
   }
   if (I.authentic) return KNOWLEDGE.authentic();
-  if (I.howToOrder) return KNOWLEDGE.howToOrder();
   if (I.greet) return answerGreeting(products, coupons, opts);
 
   // 9. Ký tự quá ngắn (VD: "?", ".") -> nhắc nhẹ nhàng không làm rác Admin
@@ -2221,7 +2498,7 @@ async function runEngine(ctx, history, opts) {
 // =====================================================================
 // 8. MICRO-RAG GEMINI API (CHỈ NẠP TOP 4 XE LIÊN QUAN — TIẾT KIỆM 90% TOKEN)
 // =====================================================================
-function buildMicroRagContext(ctx, history, products, coupons) {
+function buildMicroRagContext(ctx, history, products, coupons, userCtx = null) {
   const matched = searchProducts(ctx.searchText, products);
   const mem = getContextProducts(history, products);
   const pool = [];
@@ -2248,21 +2525,32 @@ function buildMicroRagContext(ctx, history, products, coupons) {
     }
   }
 
-  return `Tổng kho: ${products.length} mẫu.\nMẫu liên quan nhất:\n${prodLines}${coupLines ? `\nVoucher:\n${coupLines}` : ''}${knowledgeSnippet}`;
+  let userSnippet = '';
+  if (userCtx && userCtx.isLoggedIn) {
+    const latestOrd = userCtx.orders && userCtx.orders[0]
+      ? ` · Đơn mới nhất: #${userCtx.orders[0].OrderCode || userCtx.orders[0].ordercode} (${userCtx.orders[0].Status || userCtx.orders[0].status})`
+      : '';
+    userSnippet = `\nKhách đang đăng nhập: ${userCtx.fullName || 'Hội viên'} · ${userCtx.vip.name} (đã mua ${formatVnd(userCtx.totalSpent)})${latestOrd}`;
+  }
+
+  return `Tổng kho: ${products.length} mẫu.\nMẫu liên quan nhất:\n${prodLines}${coupLines ? `\nVoucher:\n${coupLines}` : ''}${knowledgeSnippet}${userSnippet}`;
 }
 
 async function callGeminiApi(ctx, userMessage, history, opts) {
   const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
   if (!apiKey) return null;
-  const { products, coupons } = await getStoreData();
-  const microContext = buildMicroRagContext(ctx, history, products, coupons);
+  const [{ products, coupons }, userCtx] = await Promise.all([
+    getStoreData(),
+    getLoggedInAccountContext(opts)
+  ]);
+  const microContext = buildMicroRagContext(ctx, history, products, coupons, userCtx);
 
   const systemInstruction = `Bạn là "Bé Bot Săn Xe 1:64" của "${SHOP.name}".
 Tác giả web: Đỗ Quốc Thịnh & Nguyễn Đình Nam (${CREATORS.university}), Zalo ${SHOP.hotline}.
-Địa chỉ: ${SHOP.address} · Ship SPX ${formatVnd(SHOP.shippingFee)}, Freeship từ ${formatVnd(SHOP.freeShipThreshold)}. VietQR tự động (${SHOP.bankName}) hoặc COD cho VIP 4+ (từ 1tr). Pre-Order cọc 30%.
+Địa chỉ: ${SHOP.address} · Ship SPX ${formatVnd(SHOP.shippingFee)} (Nam 1-2 ngày, Trung 2-3 ngày, Bắc 3-4 ngày + 1 ngày bọc 4 lớp), Freeship từ ${formatVnd(SHOP.freeShipThreshold)}. VietQR PayOS tự động (${SHOP.bankName}), cọc Pre-Order ${Math.round(SHOP.depositRate * 100)}%, hoặc COD cho VIP 4+ (từ 1tr). Giỏ hàng, Yêu thích & Lịch sử Chat đồng bộ 100% đa thiết bị theo tài khoản.
 DỮ LIỆU THỰC TẾ:
 ${microContext}
-QUY TẮC: Xưng "em/Bé Bot", gọi "anh/chị". Nhắc xe phải ghi [MGT...] đúng mã thật. Nếu ngoài phạm vi hoặc khiếu nại/đơn cá nhân/mua sỉ >5 xe/gặp người thật thì thêm [ESCALATE] ở cuối.`;
+QUY TẮC: Xưng "em/Bé Bot", gọi "anh/chị". Nhắc xe phải ghi [MGT...] đúng mã thật, không tự bịa giá/tồn kho. Nếu ngoài phạm vi hoặc khiếu nại/mua sỉ >5 xe/gặp người thật thì thêm [ESCALATE] ở cuối.`;
 
   const past = history.slice(-6);
   if (past.length && past[past.length - 1].sender_type === 'user' && past[past.length - 1].message === userMessage) past.pop();
@@ -2322,8 +2610,12 @@ async function generateBotReply(userMessage, conversationHistory = [], opts = {}
     });
   }
 
-  // B2. Gemini Micro-RAG (nếu có key) — câu hỏi về Thịnh & Nam hoặc tra mã đơn ưu tiên bộ máy chuẩn xác nội bộ
-  if (!ctx.intents.creatorAsk && !ctx.intents.orderTracking && !wasLastTopicCreators(conversationHistory)) {
+  // B2. Gemini Micro-RAG (nếu có key) — các câu hỏi tra cứu dữ liệu cá nhân (đơn hàng, giỏ hàng, VIP, voucher, tác giả) ưu tiên bộ máy SQL chuẩn xác 100%
+  const preferSqlEngine = ctx.intents.creatorAsk || ctx.intents.orderTracking || ctx.intents.myOrderAsk ||
+                          ctx.intents.myCartAsk || ctx.intents.vipAsk || ctx.intents.couponAsk ||
+                          ctx.intents.howToOrder || /\b((?:MGT[-_][A-Z0-9\-]{3,24})|(?:(?:ORD|DH)[-_]?[A-Z0-9\-]{4,24}))\b/i.test(ctx.raw) ||
+                          wasLastTopicCreators(conversationHistory);
+  if (!preferSqlEngine) {
     const gemini = await callGeminiApi(ctx, userMessage, conversationHistory, opts);
     if (gemini) {
       const isEscalated = gemini.includes('[ESCALATE]');

@@ -1112,16 +1112,29 @@
   }
 
   .ai-chat-launcher {
-    bottom: calc(70px + env(safe-area-inset-bottom, 0px));
-    left: 12px;
-    width: 52px;
-    height: 52px;
-    box-shadow: 0 8px 22px rgba(225, 6, 0, 0.22), 0 3px 8px rgba(15, 23, 42, 0.12);
+    bottom: calc(68px + env(safe-area-inset-bottom, 0px)) !important;
+    right: 10px !important;
+    left: auto !important;
+    width: 46px !important;
+    height: 46px !important;
+    box-shadow: 0 6px 18px rgba(225, 6, 0, 0.22), 0 2px 6px rgba(15, 23, 42, 0.14);
+  }
+
+  .ai-launcher-aura,
+  .ai-launcher-aura-2,
+  .ai-sparkle {
+    display: none !important;
+    animation: none !important;
   }
 
   .ai-robot-icon-wrap {
-    width: 38px;
-    height: 38px;
+    width: 34px !important;
+    height: 34px !important;
+  }
+
+  .cute-ai-robot-svg {
+    width: 34px !important;
+    height: 34px !important;
   }
 
   .ai-launcher-greeting {
