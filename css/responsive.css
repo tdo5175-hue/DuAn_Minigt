@@ -378,6 +378,15 @@ header nav.desktop-only,
     z-index: 99999 !important;
   }
 
+  /* Đảm bảo khung Chat AI luôn nổi lên trên mọi Modal (Thanh toán / Đơn của tôi) trên Mobile */
+  .ai-chat-launcher {
+    z-index: 100010 !important;
+  }
+
+  .ai-chat-window {
+    z-index: 100020 !important;
+  }
+
   .header-search {
     order: 4 !important;
     width: 100% !important;

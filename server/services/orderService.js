@@ -79,12 +79,16 @@ async function createOrder(payload, authUser = null) {
 
     for (const entry of merged.values()) {
       const { productId, packType, quantity } = entry;
+      if (!Number.isInteger(quantity) || quantity < 1 || quantity > 50) {
+        throw badRequest('Số lượng đặt cho mỗi mẫu xe phải từ 1 đến 50 chiếc!');
+      }
       const pRes = await q(`
         SELECT ProductId, Sku, Name, Price, OldPrice, PriceBox, PriceCard, DiscountPercent,
                PackagingType, DepositAmount, DepositPercent, ExpectedDelivery, ReleaseDate,
                Stock, StockBox, StockCard, Status, IsActive
         FROM Products
         WHERE ProductId = @pid
+        FOR UPDATE
       `, { pid: productId });
 
       if (pRes.recordset.length === 0 || !pRes.recordset[0].IsActive) {
@@ -156,8 +160,8 @@ async function createOrder(payload, authUser = null) {
       const lineTotal = unitPrice * quantity;
       subtotal += lineTotal;
 
-      const depPct = Number(p.DepositPercent || (p.DepositAmount && unitPrice > 0 ? Math.round((Number(p.DepositAmount) / unitPrice) * 100) : 30));
-      const unitDeposit = isPreOrder ? Math.round((unitPrice * (depPct / 100)) / 1000) * 1000 : 0;
+      const depPct = Math.min(100, Math.max(10, Number(p.DepositPercent || 30)));
+      const unitDeposit = isPreOrder ? Math.round(unitPrice * (depPct / 100)) : 0;
       depositRequired += unitDeposit * quantity;
 
       lineItems.push({
@@ -197,12 +201,17 @@ async function createOrder(payload, authUser = null) {
       }
     }
 
-    const total = Math.max(0, subtotal + shippingFee + protectorFee - voucherDiscount);
+    // TÁCH BẠCH TUYỆT ĐỐI TIỀN HÀNG CỦA SHOP & PHÍ VẬN CHUYỂN CỦA ĐƠN VỊ SPX EXPRESS (11.000đ)
+    const productPayable = Math.max(0, subtotal + protectorFee - voucherDiscount);
+    const total = productPayable + shippingFee;
     let finalPaymentMethod = paymentMethod;
     if (hasPreOrder && finalPaymentMethod !== 'VIETQR_PAYOS') finalPaymentMethod = 'DEPOSIT';
 
     // KIỂM TRA ĐIỀU KIỆN SHIP COD 100% PHÒNG CHỐNG BOM ĐƠN (CHỈ TÍNH ĐƠN ĐÃ GIAO THÀNH CÔNG DELIVERED)
     if (finalPaymentMethod === 'COD') {
+      if (hasPreOrder) {
+        throw badRequest('Đơn hàng chứa mẫu xe Pre-Order bắt buộc đặt cọc giữ suất trước qua VietQR!');
+      }
       let isCodEligible = false;
       let totalAccumulated = 0;
       const uid = authUser ? (authUser.userId || authUser.id) : null;
@@ -238,13 +247,22 @@ async function createOrder(payload, authUser = null) {
       }
 
       if (!isCodEligible) {
-        throw badRequest(`Phương thức "Thanh toán khi nhận hàng (Ship COD 100%)" chỉ dành cho thành viên VIP 4 trở lên (đã tích lũy mua sắm từ 1.000.000đ trở lên để đảm bảo an toàn đơn hàng). Tích lũy hiện tại của bạn: ${new Intl.NumberFormat('vi-VN').format(totalAccumulated)}đ. Vui lòng chọn Đặt cọc 30% hoặc Chuyển khoản VietQR MB Bank!`);
+        throw badRequest(`Phương thức "Thanh toán khi nhận hàng (Ship COD 100%)" chỉ dành cho thành viên VIP 4 trở lên (đã tích lũy mua sắm từ 1.000.000đ trở lên để đảm bảo an toàn đơn hàng). Tích lũy hiện tại của bạn: ${new Intl.NumberFormat('vi-VN').format(totalAccumulated)}đ. Vui lòng chọn Đặt cọc 30% hoặc Chuyển khoản VietQR!`);
       }
     }
 
-    const depositAmount = (finalPaymentMethod === 'DEPOSIT' || (hasPreOrder && finalPaymentMethod === 'VIETQR_PAYOS'))
-      ? Math.min(total, depositRequired || Math.round(total * 0.3))
-      : (finalPaymentMethod === 'BANK_TRANSFER' ? total : 0);
+    // Tiền cọc 30% CHỈ TÍNH TRÊN TIỀN SẢN PHẨM CỦA SHOP (productPayable), TUYỆT ĐỐI KHÔNG CỘNG PHÍ SHIP SPX 11K VÀO CỌC!
+    const isPartialDepositMode = finalPaymentMethod === 'DEPOSIT' || (hasPreOrder && finalPaymentMethod === 'VIETQR_PAYOS');
+    let depositAmount = 0;
+    if (isPartialDepositMode && productPayable > 0) {
+      if (hasPreOrder && depositRequired > 0) {
+        const grossGoods = Math.max(1, subtotal + protectorFee);
+        const rawPreDeposit = depositRequired + Math.round(protectorFee * 0.3);
+        depositAmount = Math.min(productPayable, Math.round(rawPreDeposit * (productPayable / grossGoods)));
+      } else {
+        depositAmount = Math.min(productPayable, Math.round(productPayable * 0.3));
+      }
+    }
 
     // Tự động tìm kiếm và gắn UserId nếu khách hàng đã có tài khoản (theo email hoặc SĐT)
     let finalUserId = authUser ? (authUser.userId || authUser.id) : null;
@@ -443,7 +461,7 @@ async function transitionOrderStatus(orderIdOrCode, toStatus, { note, cancelReas
     }
 
     let newPayStatus = order.PaymentStatus;
-    if (target === 'DELIVERED' && payMethodUpper === 'COD') {
+    if (target === 'DELIVERED' && (payMethodUpper === 'COD' || order.PaymentStatus === 'PARTIALLY_PAID')) {
       newPayStatus = 'PAID';
     } else if (target === 'CANCELLED' && (order.PaymentStatus === 'PAID' || order.PaymentStatus === 'PARTIALLY_PAID')) {
       newPayStatus = 'REFUND_PENDING';
@@ -550,6 +568,86 @@ function getCustomerVipInfo(totalSpent = 0) {
   }
 }
 
+// =====================================================================
+// HÀM ĐỐI SOÁT TÀI CHÍNH CHUẨN — TÁCH BẠCH DOANH THU SHOP & SHIP SPX 11K
+// =====================================================================
+function computeOrderFinancials(o = {}) {
+  const subtotal = Math.max(0, Number(o.Subtotal ?? o.subtotal ?? 0));
+  const shippingFee = Math.max(0, Number(o.ShippingFee ?? o.shippingFee ?? o.shippingfee ?? 0));
+  const total = Math.max(0, Number(o.Total ?? o.total ?? o.totalAmount ?? (subtotal + shippingFee)));
+  const productPayable = Math.max(0, total - shippingFee);
+  const noteStr = String(o.Note ?? o.note ?? '');
+  const protectorFee = /PROTECTOR PVC 15K/i.test(noteStr) ? 15000 : 0;
+  const discountAmount = Math.max(0, subtotal + protectorFee - productPayable);
+
+  const payMethodUpper = String(o.PaymentMethod ?? o.paymentMethod ?? o.paymentmethod ?? 'DEPOSIT').toUpperCase();
+  const payStatusUpper = String(o.PaymentStatus ?? o.paymentStatus ?? o.paymentstatus ?? 'UNPAID').toUpperCase();
+  const statusUpper = String(o.Status ?? o.status ?? 'PENDING').toUpperCase();
+  const hasPreOrder = Boolean(o.HasPreOrder ?? o.hasPreOrder ?? o.haspreorder);
+
+  const rawDeposit = Math.max(0, Number(o.DepositAmount ?? o.depositAmount ?? o.depositamount ?? 0));
+  // Tương thích ngược: đơn BANK_TRANSFER cũ từng lưu DepositAmount = Total thì vẫn nhận diện đúng là Full Transfer
+  const isPartialDeposit = payMethodUpper === 'DEPOSIT' ||
+                           (hasPreOrder && (payMethodUpper === 'VIETQR_PAYOS' || payMethodUpper === 'PAYOS')) ||
+                           (rawDeposit > 0 && rawDeposit < productPayable);
+  const isCod = payMethodUpper === 'COD';
+  const isFullTransfer = !isPartialDeposit && !isCod;
+
+  const depositAmount = isPartialDeposit
+    ? Math.min(productPayable, rawDeposit > 0 ? rawDeposit : Math.round(productPayable * 0.3))
+    : 0;
+
+  // Số tiền khách quét mã VietQR chuyển trực tiếp cho Shop (KHÔNG BAO GIỜ gộp cước 11k của SPX)
+  const qrTransferAmount = isCod ? 0 : (isPartialDeposit ? depositAmount : productPayable);
+
+  const isDelivered = statusUpper === 'DELIVERED' || statusUpper === 'COMPLETED';
+  const isCancelled = statusUpper === 'CANCELLED';
+  const isPaidFull = payStatusUpper === 'PAID' || isDelivered;
+  const isPartiallyPaid = payStatusUpper === 'PARTIALLY_PAID';
+
+  const paidToShopAmount = isCancelled
+    ? 0
+    : (isPaidFull ? productPayable : (isPartiallyPaid ? depositAmount : 0));
+
+  // Tiền hàng của Shop còn lại thu hộ qua SPX khi giao kiện
+  let remainingProductAmount = 0;
+  if (!isCancelled && !isPaidFull) {
+    if (isPartialDeposit) {
+      remainingProductAmount = Math.max(0, productPayable - depositAmount);
+    } else if (isCod) {
+      remainingProductAmount = productPayable;
+    } else {
+      // Đơn chuyển khoản Full: chuyển đủ 100% tiền xe qua VietQR cho Shop trước khi gửi, nên COD tiền xe = 0đ
+      remainingProductAmount = 0;
+    }
+  }
+
+  // Phí ship đơn vị SPX Express thu riêng khi giao hàng (0đ nếu Freeship / Nhận tại shop / Box Saver / Đã giao xong)
+  const shippingPayableOnDelivery = (isCancelled || isDelivered) ? 0 : shippingFee;
+
+  // Tổng số tiền thực tế khách thanh toán cho bưu tá SPX khi nhận hàng
+  const payableOnDelivery = remainingProductAmount + shippingPayableOnDelivery;
+
+  return {
+    subtotal,
+    protectorFee,
+    discountAmount,
+    productPayable,
+    shippingFee,
+    total,
+    depositAmount,
+    qrTransferAmount,
+    paidToShopAmount,
+    remainingProductAmount,
+    shippingPayableOnDelivery,
+    payableOnDelivery,
+    spxCodForShop: remainingProductAmount,
+    isPartialDeposit,
+    isFullTransfer,
+    isCod
+  };
+}
+
 function mapOrder(o, items = [], history = []) {
   const mappedHistory = (history || []).map(h => ({
     historyId: h.HistoryId || h.historyid,
@@ -563,6 +661,7 @@ function mapOrder(o, items = [], history = []) {
 
   const userTotalSpent = Number(o.UserTotalSpent ?? o.usertotalspent ?? 0);
   const vipInfo = getCustomerVipInfo(userTotalSpent);
+  const fin = computeOrderFinancials(o);
 
   return {
     id: o.OrderId || o.orderid,
@@ -603,11 +702,24 @@ function mapOrder(o, items = [], history = []) {
     receiptImage: o.ReceiptImage || o.receiptimage,
     trackingCode: o.TrackingCode || o.trackingcode || null,
     trackingCarrier: o.TrackingCarrier || o.trackingcarrier || null,
-    subtotal: Number(o.Subtotal || o.subtotal || 0),
-    shippingFee: Number(o.ShippingFee || o.shippingfee || 0),
-    total: Number(o.Total || o.total || 0),
-    totalAmount: Number(o.Total || o.total || 0),
-    depositAmount: Number(o.DepositAmount || o.depositamount || 0),
+    subtotal: fin.subtotal,
+    protectorFee: fin.protectorFee,
+    discount: fin.discountAmount,
+    discountAmount: fin.discountAmount,
+    productPayable: fin.productPayable,
+    shippingFee: fin.shippingFee,
+    total: fin.total,
+    totalAmount: fin.total,
+    depositAmount: fin.depositAmount,
+    qrTransferAmount: fin.qrTransferAmount,
+    paidToShopAmount: fin.paidToShopAmount,
+    remainingProductAmount: fin.remainingProductAmount,
+    shippingPayableOnDelivery: fin.shippingPayableOnDelivery,
+    payableOnDelivery: fin.payableOnDelivery,
+    codAmount: fin.payableOnDelivery,
+    spxCodForShop: fin.spxCodForShop,
+    isPartialDeposit: fin.isPartialDeposit,
+    isFullTransfer: fin.isFullTransfer,
     createdAt: o.CreatedAt || o.createdat,
     updatedAt: o.UpdatedAt || o.updatedat,
     items,
@@ -884,6 +996,7 @@ async function listOrders({ status, paymentStatus, paymentMethod, q, userId, use
 
 module.exports = {
   ALLOWED_TRANSITIONS,
+  computeOrderFinancials,
   createOrder,
   transitionOrderStatus,
   updatePaymentStatus,

@@ -621,14 +621,17 @@ async function getLoggedInAccountContext(opts = {}) {
       const whereClause = conds.join(' OR ');
       const [ordRes, spentRes] = await Promise.all([
         db.query(`
-          SELECT o.OrderId, o.OrderCode, o.Status, o.PaymentMethod, o.PaymentStatus, o.Total, o.DepositAmount,
-                 o.ShippingFee, o.Address, o.TrackingCode, o.TrackingCarrier, o.CreatedAt,
-                 (SELECT STRING_AGG(oi.Quantity::text || 'x ' || oi.ProductName || ' (' || UPPER(COALESCE(oi.PackType, 'box')) || ')', ', ')
+          SELECT o.OrderId, o.OrderCode, o.Status, o.PaymentMethod, o.PaymentStatus,
+                 o.Subtotal, o.ShippingFee, o.ShippingMethod, o.Total, o.DepositAmount,
+                 o.FullName, o.Phone, o.Email, o.Address, o.Note,
+                 o.TrackingCode, o.TrackingCarrier, o.HasPreOrder, o.PreOrderExpected, o.PreOrderNotified,
+                 o.CancelReason, o.CreatedAt, o.UpdatedAt,
+                 (SELECT STRING_AGG(oi.Quantity::text || 'x ' || oi.ProductName || ' (' || UPPER(COALESCE(oi.PackagingOption, 'box')) || ')', ', ')
                   FROM OrderItems oi WHERE oi.OrderId = o.OrderId) AS ItemsSummary
           FROM Orders o
           WHERE (${whereClause})
           ORDER BY o.OrderId DESC
-          LIMIT 3
+          LIMIT 5
         `, params),
         db.query(`
           SELECT COALESCE(SUM(o.Total), 0)::bigint AS spent
@@ -665,38 +668,82 @@ async function getLoggedInAccountContext(opts = {}) {
       cartItems,
       wishlistIds
     };
-  } catch (_) {
+  } catch (err) {
+    console.warn('[AI Chat getLoggedInAccountContext Error]:', err.message);
     return { isLoggedIn: Boolean(uid || email), userId: uid, orders: [], totalSpent: 0, vip: computeVipTierFromSpend(0), cartItems: [], wishlistIds: [] };
   }
 }
 
-// Tra cứu đơn hàng thông minh theo Mã đơn (MGT-... / ORD-... / DH-...) HOẶC theo SĐT (khi khách hỏi tra đơn)
+const ORDER_LOOKUP_SELECT_SQL = `
+  SELECT o.OrderId, o.OrderCode, o.Status, o.PaymentMethod, o.PaymentStatus,
+         o.Subtotal, o.ShippingFee, o.ShippingMethod, o.Total, o.DepositAmount,
+         o.FullName, o.Phone, o.Email, o.Address, o.Note,
+         o.TrackingCode, o.TrackingCarrier, o.HasPreOrder, o.PreOrderExpected, o.PreOrderNotified,
+         o.CancelReason, o.CreatedAt, o.UpdatedAt,
+         (SELECT STRING_AGG(oi.Quantity::text || 'x ' || oi.ProductName || ' (' || UPPER(COALESCE(oi.PackagingOption, 'box')) || ')', ', ')
+          FROM OrderItems oi WHERE oi.OrderId = o.OrderId) AS ItemsSummary
+  FROM Orders o
+`;
+
+function extractOrderCodeFromText(rawText, products = []) {
+  const s = String(rawText || '');
+  // Ưu tiên khớp chuẩn mã đơn: MGT-20261107-1234, #MGT-20261107-1234, MGT 20261107 1234, MGT202611071234, ORD-..., DH-...
+  const datedMgt = s.match(/(?:^|[\s#(\["'«])(?:MGT)[\s\-_]?(20\d{6})[\s\-_]?([A-Z0-9]{2,10})(?=$|[\s)\]"'».,!?;:])/i);
+  if (datedMgt) {
+    return `MGT-${datedMgt[1]}-${datedMgt[2]}`.toUpperCase();
+  }
+  const codeMatch = s.match(/(?:^|[\s#(\["'«])((?:MGT[-_][A-Z0-9\-_]{3,24})|(?:(?:ORD|DH)[-_]?[A-Z0-9\-_]{4,24}))(?=$|[\s)\]"'».,!?;:])/i);
+  if (!codeMatch) return null;
+  const code = codeMatch[1].toUpperCase().replace(/_/g, '-');
+  const isProductSku = Array.isArray(products) && products.some(
+    p => String(p.Sku || '').toUpperCase() === code || String(p.Sku || '').replace(/[-_]/g, '').toUpperCase() === code.replace(/[-_]/g, '')
+  );
+  return isProductSku ? null : code;
+}
+
+function getContextOrderCodeFromHistory(history = [], products = []) {
+  if (!Array.isArray(history) || !history.length) return null;
+  const recent = history.slice(-10);
+  for (let i = recent.length - 1; i >= 0; i--) {
+    const msg = recent[i] && (recent[i].message || recent[i].content || '');
+    const code = extractOrderCodeFromText(msg, products);
+    if (code) return code;
+  }
+  return null;
+}
+
+function isOrderFollowUpQuestion(ctx, products = []) {
+  if (!ctx || !ctx.text) return false;
+  const t = ctx.text;
+  const I = ctx.intents || {};
+  // Không can thiệp nếu khách đang hỏi danh sách xe mới hoặc hỏi đích danh 1 mẫu xe khác trong kho
+  if (I.saleList || I.cheapest || I.expensive || I.bestSeller || I.newArrival || I.instockList || I.creatorAsk || I.botIdentity) {
+    return false;
+  }
+  if (Array.isArray(products) && products.length && searchProducts(ctx.searchText, products).length > 0 && !/(don nay|don do|kien nay|trong don)/.test(t)) {
+    return false;
+  }
+  return /(don nay|don do|don tren|don vua|kien nay|kien hang nay|ma don nay|khi nhan xe|khi nhan hang|nhan xe tra|nhan hang tra|tra cho shipper|tra cho buu ta|con phai tra|con lai bao nhieu|can thanh toan bao nhieu|sao tien coc|tinh coc|tien coc tinh|phi ship don|tien ship bao nhieu|bao lau giao|bao lau toi|bao lau nhan|khi nao giao|khi nao toi|khi nao nhan|may ngay toi|may ngay nhan|tien trinh|tien do|toi dau roi|den dau roi|ma van don|doi dia chi|sua dia chi|doi so dien thoai|sua so dien thoai|huy don)/.test(t);
+}
+
+// Tra cứu đơn hàng thông minh theo Mã đơn (MGT-... / ORD-... / DH-...) HOẶC theo SĐT HOẶC theo Bộ nhớ hội thoại
 // Tuyệt đối không nhầm với mã SKU sản phẩm (MGT01093, MGTS0026, PR64-0102...)
-async function lookupOrderSmart(rawText, hasOrderIntent = false, products = []) {
-  const codeMatch = String(rawText || '').match(/\b((?:MGT[-_][A-Z0-9\-]{3,24})|(?:(?:ORD|DH)[-_]?[A-Z0-9\-]{4,24}))\b/i);
-  if (codeMatch) {
-    const code = codeMatch[1].toUpperCase();
-    const isProductSku = Array.isArray(products) && products.some(
-      p => String(p.Sku || '').toUpperCase() === code || String(p.Sku || '').replace(/[-_]/g, '').toUpperCase() === code.replace(/[-_]/g, '')
-    );
-    if (!isProductSku) {
-      try {
-        const res = await db.query(`
-          SELECT o.OrderId, o.OrderCode, o.Status, o.PaymentMethod, o.PaymentStatus, o.Total, o.DepositAmount,
-                 o.ShippingFee, o.Address, o.TrackingCode, o.TrackingCarrier, o.CreatedAt,
-                 (SELECT STRING_AGG(oi.Quantity::text || 'x ' || oi.ProductName || ' (' || UPPER(COALESCE(oi.PackType, 'box')) || ')', ', ')
-                  FROM OrderItems oi WHERE oi.OrderId = o.OrderId) AS ItemsSummary
-          FROM Orders o
-          WHERE UPPER(o.OrderCode) = @code
-          LIMIT 1
-        `, { code });
-        if (res.recordset && res.recordset.length > 0) {
-          return { mode: 'code', found: true, orders: [res.recordset[0]], query: code };
-        }
-        return { mode: 'code', found: false, orders: [], query: code };
-      } catch (_) {
-        return null;
+async function lookupOrderSmart(rawText, hasOrderIntent = false, products = [], history = [], ctx = null) {
+  const explicitCode = extractOrderCodeFromText(rawText, products);
+  if (explicitCode) {
+    try {
+      const res = await db.query(`
+        ${ORDER_LOOKUP_SELECT_SQL}
+        WHERE UPPER(o.OrderCode) = @code
+        LIMIT 1
+      `, { code: explicitCode });
+      if (res.recordset && res.recordset.length > 0) {
+        return { mode: 'code', found: true, orders: [res.recordset[0]], query: explicitCode };
       }
+      return { mode: 'code', found: false, orders: [], query: explicitCode };
+    } catch (err) {
+      console.warn('[AI Chat lookupOrderSmart by code Error]:', err.message);
+      return null;
     }
   }
 
@@ -707,11 +754,7 @@ async function lookupOrderSmart(rawText, hasOrderIntent = false, products = []) 
       const normPhone = '0' + phoneMatch[0].replace(/^(?:\+?84|0)/, '');
       try {
         const res = await db.query(`
-          SELECT o.OrderId, o.OrderCode, o.Status, o.PaymentMethod, o.PaymentStatus, o.Total, o.DepositAmount,
-                 o.ShippingFee, o.Address, o.TrackingCode, o.TrackingCarrier, o.CreatedAt,
-                 (SELECT STRING_AGG(oi.Quantity::text || 'x ' || oi.ProductName || ' (' || UPPER(COALESCE(oi.PackType, 'box')) || ')', ', ')
-                  FROM OrderItems oi WHERE oi.OrderId = o.OrderId) AS ItemsSummary
-          FROM Orders o
+          ${ORDER_LOOKUP_SELECT_SQL}
           WHERE REPLACE(REPLACE(REPLACE(COALESCE(o.Phone, ''), ' ', ''), '-', ''), '.', '') = @ph
           ORDER BY o.OrderId DESC
           LIMIT 3
@@ -722,11 +765,32 @@ async function lookupOrderSmart(rawText, hasOrderIntent = false, products = []) 
           orders: res.recordset || [],
           query: normPhone
         };
-      } catch (_) {
+      } catch (err) {
+        console.warn('[AI Chat lookupOrderSmart by phone Error]:', err.message);
         return null;
       }
     }
   }
+
+  // Tra cứu nối tiếp theo bộ nhớ hội thoại khi khách vừa hỏi 1 đơn #MGT-... trước đó
+  if (ctx && isOrderFollowUpQuestion(ctx, products)) {
+    const contextCode = getContextOrderCodeFromHistory(history, products);
+    if (contextCode) {
+      try {
+        const res = await db.query(`
+          ${ORDER_LOOKUP_SELECT_SQL}
+          WHERE UPPER(o.OrderCode) = @code
+          LIMIT 1
+        `, { code: contextCode });
+        if (res.recordset && res.recordset.length > 0) {
+          return { mode: 'followup', found: true, orders: [res.recordset[0]], query: contextCode };
+        }
+      } catch (err) {
+        console.warn('[AI Chat lookupOrderSmart followup Error]:', err.message);
+      }
+    }
+  }
+
   return null;
 }
 
@@ -854,8 +918,8 @@ const P = {
   contact: ['hotline', 'so dien thoai', 'zalo', 'lien he', 'facebook', 'fanpage', 'so phone', 'gmail', 'email shop'],
   authentic: ['chinh hang', 'hang that', 'fake', 'real', 'auth', 'nguon goc', 'hang gia', 'hang nhai', 'xuat xu', 'ban quyen'],
   howToOrder: ['dat hang', 'cach mua', 'mua nhu the nao', 'dat mua', 'huong dan mua', 'huong dan dat hang', 'cach dat hang', 'mua sao', 'mua the nao', 'order nhu the nao', 'cach dat', 'chot don sao'],
-  orderTracking: ['tra cuu don', 'kiem tra don', 'xem don hang', 'theo doi don', 'tra don hang', 'tra ma don', 'tra cuu don hang', 'xem tinh trang don', 'tinh trang don'],
-  myOrderAsk: ['don cua toi', 'don hang cua toi', 'don cua minh', 'don hang cua minh', 'don cua em', 'don hang cua em', 'kien hang cua em', 'ma van don', 'don vua dat', 'don moi dat', 'don hang bao lau toi', 'don bao lau toi', 'khi nao nhan duoc', 'bao gio nhan duoc', 'kiem tra don cua toi', 'don toi dau'],
+  orderTracking: ['tra cuu don', 'kiem tra don', 'xem don hang', 'theo doi don', 'tra don hang', 'tra ma don', 'tra cuu don hang', 'xem tinh trang don', 'tinh trang don', 'tien trinh don', 'tien trinh giao', 'kiem tra chi tiet don', 'hoi ve don', 've don nay'],
+  myOrderAsk: ['don cua toi', 'don hang cua toi', 'don cua minh', 'don hang cua minh', 'don cua em', 'don hang cua em', 'kien hang cua em', 'ma van don', 'don vua dat', 'don moi dat', 'don hang bao lau toi', 'don bao lau toi', 'khi nao nhan duoc', 'bao gio nhan duoc', 'kiem tra don cua toi', 'don toi dau', 'tien trinh cua toi'],
   myCartAsk: ['gio hang cua toi', 'gio cua toi', 'tinh tien gio hang', 'gio hang co gi', 'trong gio co gi', 'gio coc cua toi'],
   followUp: ['mau do', 'mau nay', 'mau tren', 'xe do', 'xe nay', 'chiec do', 'chiec nay', 'con do', 'cai do', 'cai nay', 'em do', 'em nay', 'mau vua roi', 'mau vua noi']
 };
@@ -864,8 +928,8 @@ const ESC = {
   damage: ['tray', 'xuoc', 'nut kinh', 'be kinh', 'vo kinh', 'gay guong', 'bi gay', 'gay banh', 'mop', 'rach seal', 'bong tem', 'loi son', 'hu hong', 'bi hong', 'bi loi', 'hang loi', 'vo hop', 'mat banh', 'rot banh', 'bi mop', 'cong truc', 'ket banh'],
   receipt: ['nhan', 'nhan duoc', 'vua nhan', 'giao toi', 'da mua', 'mua roi', 'dat roi', 've toi', 'vua ve', 'mo ra', 'khui', 'mo hop', 'cua toi', 'cua minh', 'cua em', 'shop gui', 'gui sai'],
   refund: ['khieu nai', 'tra hang', 'hoan tien', 'hoan coc', 'tra coc', 'lay lai coc', 'huy don', 'huy coc', 'doi hang', 'giao nham', 'sai hang', 'thieu hang', 'giao thieu', 'mat hang'],
-  orderIssue: ['gop chung', 'gop don', 'gui chung kien', 'sua don', 'doi so dien thoai', 'giao tre', 'giao cham', 'chua thay don', 'da chuyen khoan ma', 'chuyen khoan roi ma', 'thanh toan roi ma', 'loi thanh toan', 'khong nhan duoc otp', 'tru tien roi', 'hen gio giao'],
-  human: ['gap admin', 'gap chu shop', 'gap quan ly', 'noi chuyen voi nguoi', 'nguoi that', 'nhan vien tu van', 'tu van vien', 'nho admin', 'admin oi', 'anh thinh oi', 'anh nam oi', 'goi lai cho', 'goi cho minh', 'goi cho toi', 'cho gap admin', 'chuyen cho admin', 'ket noi admin', 'lien he admin', 'lien he shop', 'can ho tro', 'admin xu ly', 'can gap admin', 'lien quan den admin'],
+  orderIssue: ['gop chung', 'gop don', 'gui chung kien', 'sua don', 'giao tre', 'giao cham', 'chua thay don', 'da chuyen khoan ma', 'chuyen khoan roi ma', 'thanh toan roi ma', 'loi thanh toan', 'khong nhan duoc otp', 'tru tien roi', 'hen gio giao'],
+  human: ['gap admin', 'gap chu shop', 'gap quan ly', 'noi chuyen voi nguoi', 'nguoi that', 'nhan vien tu van', 'tu van vien', 'nho admin', 'admin oi', 'anh thinh oi', 'anh nam oi', 'goi lai cho', 'goi cho minh', 'goi cho toi', 'cho gap admin', 'chuyen cho admin', 'ket noi admin', 'lien he admin', 'lien he shop', 'can admin ho tro', 'nho admin ho tro', 'admin xu ly', 'can gap admin', 'lien quan den admin'],
   wholesale: ['mua si', 'gia si', 'lay si', 'nhap si', 'dai ly', 'cong tac vien', 'ctv', 'chiet khau si', 'bot gia', 'fix gia', 'mac ca', 'tra gia'],
   negative: ['lua dao', 'te qua', 'that vong', 'buc minh', 'qua te', 'kem chat luong', 'lam an kieu gi', 'boc phot'],
   customMod: ['do den', 'do mam', 'son lai', 'custom mau', 'dat lam rieng', 'in 3d', 'nhan sua xe', 'thay truc banh']
@@ -959,19 +1023,32 @@ function analyze(raw) {
   };
 }
 
-function detectEscalation(ctx) {
+function detectEscalation(ctx, history = []) {
   const t = ctx.text;
+  const hasExplicitAdminRequest = hasAny(t, ESC.human) || (hasAny(t, ['gap', 'lien he', 'noi chuyen', 'ket noi']) && hasAny(t, ['admin', 'quan ly', 'chu shop', 'nguoi that', 'chu web']));
+  if (hasExplicitAdminRequest) return 'customer_request';
+
+  // Nếu khách đang tra cứu 1 mã đơn cụ thể hoặc đang hỏi nối tiếp về đơn hàng (hướng dẫn hủy đơn / sửa địa chỉ) -> để bộ máy SQL đọc đơn thực tế xử lý trước!
+  const hasExplicitOrderCode = Boolean(extractOrderCodeFromText(ctx.raw, cachedProducts));
+  const hasHistoryOrder = Boolean(getContextOrderCodeFromHistory(history, cachedProducts));
+  if ((hasExplicitOrderCode || hasHistoryOrder) && /(doi dia chi|sua dia chi|doi so dien thoai|sua so dien thoai|lam sao huy|cach huy|huy don nay sao|co huy don duoc khong)/.test(t)) {
+    return null;
+  }
+  if (hasExplicitOrderCode && !hasAny(t, ESC.damage) && !hasAny(t, ESC.negative) && !/(hoan tien|hoan coc|tra hang|chuyen khoan roi ma|da chuyen khoan ma|tru tien roi)/.test(t)) {
+    return null;
+  }
+
   if (hasAny(t, ESC.orderIssue)) {
-    if (/\b((?:MGT|ORD|DH)[-_]?[A-Z0-9]{4,20})\b/i.test(ctx.raw)) return null;
+    if (hasExplicitOrderCode) return null;
     if (ctx.intents.orderTracking && /(?:\+?84|0)(3|5|7|8|9)\d{8}\b/.test(ctx.raw.replace(/[\s.\-()]/g, ''))) return null;
     return 'order_support';
   }
-  if (hasAny(t, ESC.human) || (hasAny(t, ['gap', 'lien he', 'noi chuyen']) && hasAny(t, ['admin', 'quan ly', 'chu shop', 'nguoi that', 'chu web']))) return 'customer_request';
   if (hasAny(t, ESC.customMod)) return 'not_understood';
   if (ctx.intents.creatorAsk || ctx.intents.botIdentity) return null;
   if (hasAny(t, ESC.negative)) return 'complaint_defect';
   if (hasAny(t, ESC.refund)) {
     if (ctx.intents.warrantyInfo && !hasAny(t, ESC.receipt)) return null;
+    if (/(lam sao huy|cach huy|co huy don duoc|huong dan huy)/.test(t) && !/(hoan tien|hoan coc|tra hang)/.test(t)) return null;
     return 'complaint_defect';
   }
   if (hasAny(t, ESC.wholesale) || (ctx.qty && ctx.qty > SHOP.wholesaleQty)) return 'wholesale_deal';
@@ -983,21 +1060,22 @@ function detectEscalation(ctx) {
   return null;
 }
 
-function buildEscalationMessage(reason, rawQuestion) {
+function buildEscalationMessage(reason, rawQuestion, relatedOrderCode = null) {
   const shortQ = String(rawQuestion || '').length > 85 ? String(rawQuestion).slice(0, 82) + '...' : String(rawQuestion || '');
-  const tailNote = '\n\n💡 _Trong lúc chờ Admin phản hồi câu hỏi này, anh/chị **vẫn có thể hỏi Bé Bot bình thường** về giá xe, tồn kho, mã giảm giá, F1, LBWK... em vẫn trả lời ngay lập tức ạ!_ ✨';
+  const orderBadge = relatedOrderCode ? ` (Đơn liên quan: **#${relatedOrderCode}**)` : '';
+  const tailNote = '\n\n💡 _Trong lúc chờ Admin phản hồi câu hỏi này, anh/chị **vẫn có thể hỏi Bé Bot bình thường** về giá xe, tồn kho, mã giảm giá, tiến trình đơn SPX... em vẫn trả lời ngay lập tức ạ!_ ✨';
 
   switch (reason) {
     case 'complaint_defect':
-      return `Dạ Bé Bot rất tiếc về sự bất tiện này ạ 🙏 Em đã **gửi khẩn cấp nội dung phản ánh «${shortQ}» kèm lịch sử trò chuyện trước đó lên Quản trị viên Showroom** để kiểm tra và hỗ trợ bảo hành/xử lý ưu tiên cho anh/chị ngay tại đây!${tailNote}`;
+      return `Dạ Bé Bot rất tiếc về sự bất tiện này ạ 🙏 Em đã **gửi khẩn cấp nội dung phản ánh «${shortQ}»${orderBadge} kèm lịch sử trò chuyện trước đó lên Quản trị viên Showroom** để kiểm tra và hỗ trợ bảo hành/xử lý ưu tiên cho anh/chị ngay tại đây!${tailNote}`;
     case 'order_support':
-      return `Dạ vấn đề đơn hàng «${shortQ}» cần đối chiếu trên hệ thống vận đơn thực tế, em đã **chuyển thông báo kèm đoạn chat trước đó lên Admin Showroom** rồi ạ 📨 Admin sẽ kiểm tra và phản hồi trực tiếp cho mình ngay nhé!${tailNote}`;
+      return `Dạ vấn đề đơn hàng «${shortQ}»${orderBadge} cần đối chiếu trên hệ thống vận đơn thực tế, em đã **chuyển thông báo kèm đoạn chat trước đó lên Admin Showroom** rồi ạ 📨 Admin sẽ kiểm tra và phản hồi trực tiếp cho mình ngay nhé!${tailNote}`;
     case 'wholesale_deal':
       return `Dạ với nhu cầu mua số lượng lớn / chính sách giá ưu đãi riêng («${shortQ}»), em đã **gửi thông báo kèm nội dung trao đổi lên Quản lý Showroom (Thịnh & Nam)** để báo mức chiết khấu tốt nhất cho anh/chị ạ! ⏳${tailNote}`;
     case 'customer_request':
-      return `Dạ em đã **gửi tín hiệu mời Quản trị viên Showroom kèm nội dung cuộc trò chuyện** vào hỗ trợ trực tiếp cho anh/chị rồi ạ! 🙋‍♂️ Admin sẽ phản hồi mình sớm nhất ngay tại khung chat này nhé.${tailNote}`;
+      return `Dạ em đã **gửi tín hiệu mời Quản trị viên Showroom kèm nội dung cuộc trò chuyện${orderBadge}** vào hỗ trợ trực tiếp cho anh/chị rồi ạ! 🙋‍♂️ Admin sẽ phản hồi mình sớm nhất ngay tại khung chat này nhé.${tailNote}`;
     default:
-      return `Dạ câu hỏi **«${shortQ}»** nằm ngoài dữ liệu tự động hiện tại của Bé Bot nên em đã **gửi thông báo câu hỏi này kèm các tin nhắn trước đó lên Admin Showroom** rồi ạ! 📨\n\nAdmin khi vào hệ thống sẽ thấy ngay câu hỏi này và trả lời chi tiết cho anh/chị.${tailNote}`;
+      return `Dạ câu hỏi **«${shortQ}»**${orderBadge} nằm ngoài dữ liệu tự động hiện tại của Bé Bot nên em đã **gửi thông báo câu hỏi này kèm các tin nhắn trước đó lên Admin Showroom** rồi ạ! 📨\n\nAdmin khi vào hệ thống sẽ thấy ngay câu hỏi này và trả lời chi tiết cho anh/chị.${tailNote}`;
   }
 }
 
@@ -1873,7 +1951,56 @@ function answerVipTiers(userCtx = null) {
   );
 }
 
-function formatSingleOrderSummary(o) {
+function computeAiOrderFinancials(o) {
+  const rawStatus = String(o.Status || o.status || 'PENDING').toUpperCase();
+  const payMethod = String(o.PaymentMethod || o.paymentmethod || 'COD').toUpperCase();
+  const payStatus = String(o.PaymentStatus || o.paymentstatus || 'UNPAID').toUpperCase();
+  const total = Number(o.Total ?? o.total ?? 0);
+  const shippingFee = Number(o.ShippingFee ?? o.shippingfee ?? 0);
+  const subtotal = Number(o.Subtotal ?? o.subtotal ?? Math.max(0, total - shippingFee));
+  const note = String(o.Note ?? o.note ?? '');
+  const protectorFee = /PROTECT|BẢO VỆ|PVC\s*15K/i.test(note) ? 15000 : 0;
+  const productPayable = Math.max(0, total - shippingFee);
+  const discountAmount = Math.max(0, subtotal + protectorFee - productPayable);
+  const rawDeposit = Number(o.DepositAmount ?? o.depositamount ?? 0);
+  const isPartialDeposit = payMethod === 'DEPOSIT' || (rawDeposit > 0 && rawDeposit < productPayable);
+  const deposit = isPartialDeposit
+    ? (rawDeposit > 0 && rawDeposit <= productPayable ? rawDeposit : Math.round(productPayable * 0.3))
+    : 0;
+  const qrTransferAmount = payMethod === 'COD' ? 0 : (isPartialDeposit ? deposit : productPayable);
+  const remainingProductAmount = (rawStatus === 'CANCELLED' || payStatus === 'PAID')
+    ? 0
+    : (isPartialDeposit ? Math.max(0, productPayable - deposit) : (payMethod === 'COD' ? productPayable : 0));
+  const shippingPayableOnDelivery = (rawStatus === 'DELIVERED' || rawStatus === 'CANCELLED') ? 0 : shippingFee;
+  const payableOnDelivery = (rawStatus === 'DELIVERED' || rawStatus === 'CANCELLED')
+    ? 0
+    : (remainingProductAmount + shippingPayableOnDelivery);
+  return {
+    rawStatus, payMethod, payStatus, total, shippingFee, subtotal, protectorFee,
+    productPayable, discountAmount, isPartialDeposit, deposit, qrTransferAmount,
+    remainingProductAmount, shippingPayableOnDelivery, payableOnDelivery
+  };
+}
+
+function buildOrderProgressBarText(rawStatus) {
+  if (rawStatus === 'CANCELLED') return '❌ **Tiến trình:** Đơn hàng đã hủy';
+  const steps = [
+    { k: 'PENDING', label: 'Đặt đơn' },
+    { k: 'CONFIRMED', label: 'Đã xác nhận' },
+    { k: 'PREPARING', label: 'Đóng gói 4 lớp' },
+    { k: 'SHIPPING', label: 'Đang giao SPX' },
+    { k: 'DELIVERED', label: 'Đã nhận xe' }
+  ];
+  const curIdx = Math.max(0, steps.findIndex(s => s.k === rawStatus));
+  const rendered = steps.map((s, idx) => {
+    if (idx < curIdx) return `✅ ${s.label}`;
+    if (idx === curIdx) return `👉 **[${s.label}]**`;
+    return `⚪ ${s.label}`;
+  }).join(' → ');
+  return `📍 **Tiến trình:** ${rendered}`;
+}
+
+function formatSingleOrderSummary(o, detailed = false) {
   const statusMap = {
     PENDING: '⏳ Chờ xác nhận',
     CONFIRMED: '✅ Đã xác nhận đơn',
@@ -1883,50 +2010,68 @@ function formatSingleOrderSummary(o) {
     CANCELLED: '❌ Đã hủy'
   };
   const payMap = {
-    PAID: '✅ Đã thanh toán đủ 100%',
-    PARTIALLY_PAID: '🛡️ Đã thanh toán cọc giữ suất',
+    PAID: '✅ Đã thanh toán đủ 100% tiền hàng',
+    PARTIALLY_PAID: '🛡️ Đã cọc 30% giữ suất',
     DEPOSIT_PAID: '🛡️ Đã thanh toán cọc 30%',
     REFUND_PENDING: '⏳ Chờ hoàn tiền',
     REFUNDED: '↩️ Đã hoàn tiền',
-    UNPAID: '⏳ Chưa thanh toán',
+    UNPAID: '⏳ Chờ thanh toán',
     PENDING: '⏳ Chờ thanh toán'
   };
+
   const code = o.OrderCode || o.ordercode;
-  const rawStatus = String(o.Status || o.status || '').toUpperCase();
-  const st = statusMap[rawStatus] || (o.Status || o.status);
-  const pst = payMap[String(o.PaymentStatus || o.paymentstatus || '').toUpperCase()] || (o.PaymentStatus || o.paymentstatus);
-  const total = Number(o.Total ?? o.total ?? 0);
-  const deposit = Number(o.DepositAmount || o.depositamount || 0);
-  const payMethod = String(o.PaymentMethod || o.paymentmethod || '').toUpperCase();
-  const isDeposit = payMethod === 'DEPOSIT' || deposit > 0;
-  let depositInfo = '';
-  if (isDeposit && deposit > 0) {
-    depositInfo = `\n  🛡️ Đã cọc: **${formatVnd(deposit)}** · COD khi nhận xe: **${formatVnd(Math.max(0, total - deposit))}**`;
-  } else if (payMethod === 'COD') {
-    depositInfo = `\n  💵 Thanh toán khi nhận hàng (Ship COD): **${formatVnd(total)}**`;
-  }
+  const fin = computeAiOrderFinancials(o);
+  const st = statusMap[fin.rawStatus] || (o.Status || o.status);
+  const pst = fin.payMethod === 'COD' && fin.payStatus === 'UNPAID'
+    ? '💵 Thanh toán khi nhận xe (Ship COD)'
+    : (payMap[fin.payStatus] || fin.payStatus);
 
   const itemsSummary = o.ItemsSummary || o.itemssummary || '';
+  const fullName = o.FullName || o.fullname || '';
+  const phone = o.Phone || o.phone || '';
   const addr = o.Address || o.address || '';
   const regionEta = detectRegionEtaFromAddress(addr);
   const tCode = o.TrackingCode || o.trackingcode;
 
+  let paymentBlock = '';
+  if (fin.isPartialDeposit) {
+    const depState = (fin.payStatus === 'PARTIALLY_PAID' || fin.payStatus === 'PAID') ? 'đã nhận' : 'chờ quét VietQR';
+    paymentBlock =
+      `  💳 Tiền hàng Shop: **${formatVnd(fin.productPayable)}** · Cọc 30% cho Shop: **${formatVnd(fin.deposit)}** _(${depState}, không tính phí ship SPX)_\n` +
+      `  🚚 **Trả bưu tá SPX khi nhận xe: ${formatVnd(fin.payableOnDelivery)}** _(gồm **${formatVnd(fin.remainingProductAmount)}** tiền hàng còn lại + **${formatVnd(fin.shippingFee)}** phí ship SPX)_`;
+  } else if (fin.payMethod === 'COD') {
+    paymentBlock =
+      `  💵 **Trả bưu tá SPX khi nhận xe (COD): ${formatVnd(fin.payableOnDelivery)}** _(gồm **${formatVnd(fin.productPayable)}** tiền hàng Shop + **${formatVnd(fin.shippingFee)}** phí ship SPX)_`;
+  } else {
+    const qrState = fin.payStatus === 'PAID' ? 'Shop đã nhận đủ 100%' : 'chờ quét VietQR cho Shop';
+    paymentBlock =
+      `  💳 Chuyển khoản 100% tiền hàng cho Shop: **${formatVnd(fin.productPayable)}** _(${qrState})_\n` +
+      `  🚚 **Trả bưu tá SPX khi nhận xe: ${formatVnd(fin.payableOnDelivery)}** _(${fin.shippingFee > 0 ? `chỉ trả phí ship của SPX Express, tiền hàng 0đ` : 'Miễn phí 0đ'})_`;
+  }
+
   let etaLine = '';
-  if (rawStatus === 'DELIVERED') {
+  if (fin.rawStatus === 'DELIVERED') {
     etaLine = '  ✅ Đơn hàng đã được giao thành công tới tay anh/chị!';
-  } else if (rawStatus === 'CANCELLED') {
-    etaLine = '  ℹ️ Đơn hàng này đã hủy trên hệ thống.';
+  } else if (fin.rawStatus === 'CANCELLED') {
+    etaLine = `  ℹ️ Đơn hàng này đã hủy${o.CancelReason || o.cancelreason ? ` (${o.CancelReason || o.cancelreason})` : ''}.`;
   } else if (regionEta) {
     etaLine = `  ⏱️ **Dự kiến giao tới ${regionEta.region}:** khoảng **${regionEta.days}** qua SPX Express *(chưa tính ~1 ngày kiểm seal & bọc chống sốc 4 lớp tại kho Biên Hòa)*.`;
   } else {
     etaLine = '  ⏱️ **Dự kiến SPX Express (từ Biên Hòa):** Miền Nam **1–2 ngày** · Miền Trung **2–3 ngày** · Miền Bắc **3–4 ngày** *(+ ~1 ngày kiểm seal & đóng gói 4 lớp)*.';
   }
 
-  return `• **#${code}** — ${st} · ${pst}\n` +
-         (itemsSummary ? `  🏎️ Sản phẩm: ${itemsSummary}\n` : '') +
-         `  💰 Tổng đơn: **${formatVnd(total)}**${depositInfo}\n` +
-         `${tCode ? `  🚚 Mã vận đơn SPX Express: **${tCode}** _(tra tại spx.vn/vi)_\n` : ''}` +
-         etaLine;
+  const lines = [
+    `• **#${code}** — ${st} · ${pst}`,
+    detailed ? `  ${buildOrderProgressBarText(fin.rawStatus)}` : null,
+    itemsSummary ? `  🏎️ Mô hình: **${itemsSummary}**` : null,
+    detailed && (fullName || addr) ? `  📍 Nhận hàng: **${fullName || 'Khách hàng'}**${phone ? ` (${phone})` : ''}${addr ? ` — ${addr}` : ''}` : null,
+    `  💰 Tổng giá trị đơn (Hàng + Ship SPX): **${formatVnd(fin.total)}**`,
+    paymentBlock,
+    tCode ? `  📦 Mã vận đơn SPX Express: **${tCode}** _(tra cứu tại spx.vn/vi)_` : null,
+    etaLine
+  ].filter(Boolean);
+
+  return lines.join('\n');
 }
 
 function answerLoggedInOrders(userCtx) {
@@ -1934,16 +2079,22 @@ function answerLoggedInOrders(userCtx) {
   if (!userCtx.orders || !userCtx.orders.length) {
     return reply(
       `Dạ em vừa kiểm tra trực tiếp trên tài khoản của${caller} nhưng hiện chưa có đơn hàng nào được ghi nhận ạ 😊\n\n` +
-      '• Nếu anh/chị vừa đặt bằng SĐT khác, hãy gõ **mã đơn MGT-...** hoặc _"kiểm tra đơn 09xxxxxxxx"_ để em tra cứu ngay.\n' +
+      '• Nếu anh/chị vừa đặt bằng SĐT khác, hãy gõ **mã đơn #MGT-...** hoặc _"kiểm tra đơn 09xxxxxxxx"_ để em tra cứu ngay.\n' +
       '• Hoặc anh/chị có thể xem các mẫu đang Sale giảm giá để lên đơn đầu tiên nhé!',
       ['Xe nào đang giảm giá?', 'Hướng dẫn đặt hàng', 'Shop có mã giảm giá không?']
     );
   }
+  const latestCode = userCtx.orders[0].OrderCode || userCtx.orders[0].ordercode;
   return reply(
     `📦 **Đơn hàng đồng bộ trực tiếp trên tài khoản của${caller} (${userCtx.orders.length} đơn gần nhất):**\n\n` +
-    userCtx.orders.map(formatSingleOrderSummary).join('\n\n') +
-    '\n\n💡 _Anh/chị có thể bấm mục **Đơn hàng của tôi (Đơn SPX)** để xem hóa đơn chi tiết hoặc tự bấm **✏️ Sửa địa chỉ** khi đơn chưa bàn giao SPX. Nếu cần hỗ trợ riêng, nhắn **"gặp admin"** là Quản trị viên tiếp nhận ngay ạ!_',
-    ['Shop có mã giảm giá không?', 'Quy chuẩn đóng gói SPX', 'Gặp Admin hỗ trợ trực tiếp']
+    userCtx.orders.map((ord, idx) => formatSingleOrderSummary(ord, idx === 0)).join('\n\n') +
+    '\n\n💡 _Anh/chị có thể bấm vào mã đơn hoặc hỏi tiếp em về thời gian giao, số tiền trả bưu tá SPX, sửa địa chỉ nhận hàng; hoặc nhắn **"gặp admin"** nếu cần Quản trị viên hỗ trợ riêng ạ!_',
+    [
+      latestCode ? `Kiểm tra chi tiết đơn #${latestCode}` : 'Khi nhận xe tôi cần trả bao nhiêu?',
+      'Khi nhận xe tôi cần trả bao nhiêu?',
+      'Đổi địa chỉ nhận hàng được không?',
+      'Gặp Admin hỗ trợ trực tiếp'
+    ]
   );
 }
 
@@ -2025,30 +2176,102 @@ function answerMyCart(userCtx, products, coupons) {
   return reply(out.join('\n'), ['Hướng dẫn đặt hàng', 'Shop có mã giảm giá không?', 'Kiểm tra đơn hàng của tôi'], { matchedProducts: matchedSkus });
 }
 
-function answerOrderLookup(lookup) {
+function answerOrderLookup(lookup, ctx = null) {
   if (!lookup.found) {
-    const label = lookup.mode === 'phone' ? `số điện thoại **${lookup.query}**` : `mã đơn **${lookup.query}**`;
+    const label = lookup.mode === 'phone' ? `số điện thoại **${lookup.query}**` : `mã đơn **#${lookup.query}**`;
     return reply(
       `Dạ em vừa tra trực tiếp trên CSDL nhưng chưa tìm thấy đơn hàng nào khớp với ${label} ạ 🥺\n` +
-      '• Anh/chị kiểm tra lại mã đơn (VD: _MGT-2026..._) hoặc đăng nhập đúng tài khoản đặt hàng rồi hỏi _"đơn hàng của tôi"_ nhé.\n' +
+      '• Anh/chị kiểm tra lại mã đơn (VD: _#MGT-2026..._) hoặc đăng nhập đúng tài khoản đặt hàng rồi hỏi _"đơn hàng của tôi"_ nhé.\n' +
       '• Nếu cần Admin hỗ trợ trực tiếp ngay, anh/chị chỉ cần nhắn _"gặp admin"_ hoặc gọi/Zalo **0981.903.400** để Quản trị viên tiếp quản liền ạ!',
-      ['Gặp Admin hỗ trợ đơn hàng', 'Bao lâu nhận được xe?']
+      ['Kiểm tra đơn hàng của tôi', 'Gặp Admin hỗ trợ đơn hàng', 'Bao lâu nhận được xe?']
     );
   }
   if (lookup.mode === 'phone') {
+    const topCode = lookup.orders[0] ? (lookup.orders[0].OrderCode || lookup.orders[0].ordercode) : '';
     return reply(
       `📦 **Tìm thấy ${lookup.orders.length} đơn hàng gần nhất của SĐT ${lookup.query}:**\n\n` +
-      lookup.orders.map(formatSingleOrderSummary).join('\n\n') +
-      '\n\n💡 _(Nếu cần sửa địa chỉ nhận xe hay hỗ trợ gấp, anh/chị nhắn "gặp admin" để em kết nối Admin ngay nhé!)_',
-      ['Bao lâu nhận được xe?', 'Gặp Admin Showroom']
+      lookup.orders.map((ord, idx) => formatSingleOrderSummary(ord, idx === 0)).join('\n\n') +
+      '\n\n💡 _(Anh/chị có thể bấm vào mã đơn để xem chi tiết, hoặc nhắn "gặp admin" nếu cần hỗ trợ riêng nhé!)_',
+      [
+        topCode ? `Kiểm tra chi tiết đơn #${topCode}` : 'Bao lâu nhận được xe?',
+        'Khi nhận xe tôi cần trả bao nhiêu?',
+        'Gặp Admin Showroom'
+      ]
     );
   }
+
   const o = lookup.orders[0];
+  const code = o.OrderCode || o.ordercode;
+  const fin = computeAiOrderFinancials(o);
+  const addr = o.Address || o.address || '';
+  const orderRegionEta = detectRegionEtaFromAddress(addr);
+  const t = ctx && ctx.text ? ctx.text : '';
+  const askedRegionEta = detectRegionEtaFromAddress(t);
+  const regionEta = askedRegionEta || orderRegionEta;
+
+  let directFocus = '';
+  if (/(huy don)/.test(t)) {
+    if (fin.rawStatus === 'PENDING' && fin.payStatus === 'UNPAID') {
+      directFocus = `✅ **Hướng dẫn hủy đơn #${code}:** Đơn hiện đang ở trạng thái **Chờ xác nhận (chưa thanh toán)** — anh/chị có thể mở mục **Đơn hàng của tôi (Đơn SPX)** và bấm nút **🚫 Hủy đơn** để hủy ngay lập tức và hoàn tồn kho tự động ạ!\n\n`;
+    } else if (fin.rawStatus === 'CANCELLED') {
+      directFocus = `ℹ️ Đơn hàng **#${code}** đã được hủy trên hệ thống rồi ạ.\n\n`;
+    } else {
+      directFocus = `⚠️ Đơn hàng **#${code}** hiện đã chuyển sang trạng thái **${fin.rawStatus}**${fin.payStatus !== 'UNPAID' ? ' và đã ghi nhận thanh toán' : ''}. Để hủy/hoàn tiền an toàn, anh/chị bấm nút **"Gặp Admin hỗ trợ đơn #${code}"** bên dưới để Quản trị viên xử lý trực tiếp ngay nhé!\n\n`;
+    }
+  } else if (/(doi dia chi|sua dia chi|doi so dien thoai|sua so dien thoai)/.test(t)) {
+    if (!['SHIPPING', 'DELIVERED', 'CANCELLED'].includes(fin.rawStatus)) {
+      directFocus = `✏️ **Đổi địa chỉ / SĐT cho đơn #${code}:** Đơn chưa bàn giao bưu cục nên anh/chị có thể mở ngay **Đơn hàng của tôi (Đơn SPX)** → bấm nút **✏️ Sửa địa chỉ** trên thẻ đơn **#${code}** để cập nhật tức thì ạ!\n\n`;
+    } else {
+      directFocus = `🚚 Đơn **#${code}** đã bàn giao vận chuyển SPX nên hệ thống khóa sửa tự động. Anh/chị bấm **"Gặp Admin hỗ trợ đơn #${code}"** bên dưới để Admin điều phối bưu cục giúp mình nhé!\n\n`;
+    }
+  } else if (/(khi nhan xe|khi nhan hang|nhan xe tra|nhan hang tra|tra cho shipper|tra cho buu ta|con phai tra|con lai bao nhieu|can thanh toan|sao tien coc|tinh coc|tien ship|phi ship)/.test(t)) {
+    if (fin.rawStatus === 'DELIVERED' || fin.rawStatus === 'CANCELLED') {
+      directFocus = `💰 **Chi tiết thanh toán đơn #${code}:** Đơn đã kết thúc nên số tiền cần trả thêm khi nhận hàng là **0đ** ạ.\n\n`;
+    } else if (fin.isPartialDeposit) {
+      directFocus =
+        `💰 **Giải thích chi tiết số tiền đơn #${code}:**\n` +
+        `• Tiền hàng của Shop: **${formatVnd(fin.productPayable)}** _(Cọc 30% chỉ tính trên tiền hàng = **${formatVnd(fin.deposit)}**, tuyệt đối không cộng phí ship SPX vào tiền cọc)_\n` +
+        `• Tiền hàng còn lại (70%): **${formatVnd(fin.remainingProductAmount)}**\n` +
+        `• Phí vận chuyển của đơn vị SPX Express: **${formatVnd(fin.shippingFee)}**\n` +
+        `👉 **Tổng cần trả cho bưu tá SPX khi nhận xe là: ${formatVnd(fin.payableOnDelivery)}** ạ!\n\n`;
+    } else if (fin.payMethod === 'COD') {
+      directFocus =
+        `💰 **Số tiền thanh toán khi nhận xe đơn #${code}:**\n` +
+        `• Tiền hàng của Shop: **${formatVnd(fin.productPayable)}** + Phí ship của SPX Express: **${formatVnd(fin.shippingFee)}**\n` +
+        `👉 **Tổng trả cho bưu tá SPX khi nhận xe: ${formatVnd(fin.payableOnDelivery)}** ạ!\n\n`;
+    } else {
+      directFocus =
+        `💰 **Chi tiết thanh toán đơn #${code}:**\n` +
+        `• Chuyển khoản VietQR cho Shop (100% tiền hàng): **${formatVnd(fin.productPayable)}** _(${fin.payStatus === 'PAID' ? 'Shop đã nhận đủ' : 'chờ quét mã VietQR'})_\n` +
+        `• Phí ship của đơn vị SPX Express: **${formatVnd(fin.shippingFee)}**\n` +
+        `👉 **Khi nhận xe anh/chị chỉ trả cho bưu tá SPX đúng ${formatVnd(fin.payableOnDelivery)}** (tiền hàng còn lại 0đ) ạ!\n\n`;
+    }
+  } else if (lookup.mode === 'followup' && /(bao lau|khi nao|may ngay|ngay giao|thoi gian giao)/.test(t)) {
+    if (askedRegionEta) {
+      directFocus = `⏱️ **Thời gian giao SPX Express tới ${askedRegionEta.region}:** Khoảng **${askedRegionEta.days}** kể từ khi bàn giao SPX Express *(chưa tính ~1 ngày kiểm seal & bọc chống sốc 4 lớp tại kho Biên Hòa)* ạ!\n\n`;
+    } else if (orderRegionEta) {
+      directFocus = `⏱️ **Thời gian giao dự kiến đơn #${code} (${orderRegionEta.region}):** Khoảng **${orderRegionEta.days}** kể từ khi bàn giao SPX Express *(chưa tính ~1 ngày kiểm seal & bọc chống sốc 4 lớp tại kho Biên Hòa)* ạ!\n\n`;
+    } else {
+      directFocus = `⏱️ **Thời gian giao SPX Express đơn #${code}:** Miền Nam **1–2 ngày** · Miền Trung **2–3 ngày** · Miền Bắc **3–4 ngày** *(chưa tính ~1 ngày đóng gói 4 lớp chống sốc tại kho Biên Hòa)* ạ!\n\n`;
+    }
+  }
+
+  const headerTitle = directFocus
+    ? `📦 **Thông tin trực tiếp đơn hàng #${code}:**\n`
+    : `📦 **Chi tiết & Tiến trình đơn hàng #${code} (dữ liệu thời gian thực):**\n\n`;
+
+  const supportFooter =
+    `\n\n🤝 **Anh/chị cần Bé Bot hỗ trợ gì thêm về đơn #${code} không ạ?**\n` +
+    `_(Em có thể giải đáp ngay số tiền trả bưu tá SPX, thời gian giao theo khu vực, cách đổi địa chỉ nhận hàng; hoặc nhắn **"gặp admin"** để kết nối Quản trị viên trực tiếp!)_`;
+
   return reply(
-    `📦 **Kết quả tra cứu đơn hàng #${o.OrderCode || o.ordercode}:**\n\n` +
-    formatSingleOrderSummary(o) +
-    '\n\n💡 *Nếu anh/chị cần thay đổi thông tin nhận hàng hoặc có yêu cầu riêng, cứ nhắn "gặp admin" hoặc gọi/Zalo **0981.903.400** để Admin xử lý trực tiếp nhé ạ!*',
-    ['Thời gian nhận xe?', 'Quy chuẩn đóng gói SPX', 'Gặp Admin hỗ trợ trực tiếp']
+    directFocus + headerTitle + formatSingleOrderSummary(o, true) + supportFooter,
+    [
+      'Khi nhận xe tôi cần trả bao nhiêu?',
+      'Bao lâu giao tới địa chỉ của tôi?',
+      'Đổi địa chỉ nhận hàng được không?',
+      `Gặp Admin hỗ trợ đơn #${code}`
+    ]
   );
 }
 
@@ -2156,10 +2379,10 @@ const KNOWLEDGE = {
     ['Đơn hàng của tôi bao lâu tới?', 'Shop có mã giảm giá không?', 'Gặp Admin hỗ trợ trực tiếp']
   ),
   payment: () => reply(
-    `💳 **Các hình thức thanh toán tại ${SHOP.name}:**\n\n` +
-    `• **Chuyển khoản VietQR tự động (Khuyên dùng):** Quét mã QR (${SHOP.bankName} — **${SHOP.bankAccountNo}** · **${SHOP.bankAccountName}**) qua cổng tự động, hệ thống xác nhận đơn ngay sau vài giây!\n` +
-    `• **Đặt cọc ${Math.round(SHOP.depositRate * 100)}%:** Áp dụng cho các siêu phẩm Pre-Order sắp phát hành.\n` +
-    '• **Thanh toán khi nhận hàng (Ship COD 100%):** Đặc quyền mở khóa tự động cho thành viên **VIP 4 trở lên** (đã tích lũy mua sắm từ **1.000.000đ** trên hệ thống) ạ!',
+    `💳 **Các hình thức thanh toán minh bạch tại ${SHOP.name}:**\n\n` +
+    `• **Chuyển khoản VietQR 100% tiền hàng (Khuyên dùng):** Quét mã QR (${SHOP.bankName} — **${SHOP.bankAccountNo}** · **${SHOP.bankAccountName}**) chỉ chuyển **đúng 100% tiền hàng cho Shop**, còn phí vận chuyển **${formatVnd(SHOP.shippingFee)}** anh/chị thanh toán riêng cho bưu tá **SPX Express** khi nhận xe (Freeship 0đ cho đơn từ **${formatVnd(SHOP.freeShipThreshold)}**).\n` +
+    `• **Đặt cọc ${Math.round(SHOP.depositRate * 100)}% + COD phần còn lại:** Mức cọc **30%** chỉ tính trên **tiền hàng của Shop** (tuyệt đối không tính trên phí ship SPX). Khi nhận xe, anh/chị thanh toán **70% tiền hàng còn lại + ${formatVnd(SHOP.shippingFee)} phí ship** cho bưu tá SPX.\n` +
+    '• **Thanh toán khi nhận hàng (Ship COD 100%):** Đặc quyền mở khóa tự động cho thành viên **VIP 4 trở lên** (đã tích lũy giao thành công từ **1.000.000đ** trên hệ thống) ạ!',
     ['Đặc quyền hội viên VIP là gì?', 'Shop có mã giảm giá không?', 'Hướng dẫn đặt hàng']
   ),
   contact: () => reply(
@@ -2243,9 +2466,9 @@ async function runEngine(ctx, history, opts) {
   const { products, coupons } = await getStoreData();
   const I = ctx.intents;
 
-  // 1. Tra cứu đơn hàng trực tiếp theo Mã đơn (MGT-...) HOẶC theo SĐT
-  const orderLookup = await lookupOrderSmart(ctx.raw, I.orderTracking || I.myOrderAsk, products);
-  if (orderLookup) return answerOrderLookup(orderLookup);
+  // 1. Tra cứu đơn hàng trực tiếp theo Mã đơn (MGT-...) HOẶC theo SĐT HOẶC câu hỏi nối tiếp về đơn vừa xem
+  const orderLookup = await lookupOrderSmart(ctx.raw, I.orderTracking || I.myOrderAsk, products, history, ctx);
+  if (orderLookup) return answerOrderLookup(orderLookup, ctx);
 
   // 1b. Tra cứu đơn hàng hoặc giỏ hàng đồng bộ của tài khoản đang đăng nhập
   if (I.myCartAsk) {
@@ -2272,7 +2495,7 @@ async function runEngine(ctx, history, opts) {
   }
 
   // 2b. Nếu khách gõ đích danh một mã SKU sản phẩm (VD: MGTS0026, MGT9999, F1-TEST-99, [POP001]...) nhưng mã đó KHÔNG tồn tại hoặc ĐÃ BỊ ADMIN XÓA khỏi kho -> báo rõ ngay, tuyệt đối không trả nhầm xe cùng dòng (VD: chữ "F1" trong "F1-TEST-99") hay xe cũ trong bộ nhớ!
-  if (!ctx.explicitCouponCode && !I.orderTracking && !I.myOrderAsk) {
+  if (!ctx.explicitCouponCode && !I.orderTracking && !I.myOrderAsk && !extractOrderCodeFromText(ctx.raw, products)) {
     const rawStr = String(ctx.raw || '');
     const normStr = normalize(rawStr);
     const bracketSku = rawStr.match(/\[([A-Z0-9][A-Z0-9\-_]{2,22})\]/i);
@@ -2289,7 +2512,7 @@ async function runEngine(ctx, history, opts) {
       (hashSku && /\d/.test(hashSku[1]) ? hashSku[1] : '')
     ).trim();
 
-    if (candidateSku && /[a-z]/i.test(candidateSku) && /\d/.test(candidateSku) && !/^(1[-/:]64|gt[-_]?r\d*|gt[-_]?3\w*|lb[-_]?w\w*|s[-_]?15|r[-_]?3[2345]|f[-_]?40)$/i.test(candidateSku)) {
+    if (candidateSku && /[a-z]/i.test(candidateSku) && /\d/.test(candidateSku) && !/^(1[-/:]64|gt[-_]?r\d*|gt[-_]?3\w*|lb[-_]?w\w*|s[-_]?15|r[-_]?3[2345]|f[-_]?40|mgt[-_\s]*20\d{2}[a-z0-9\-_]*|ord[-_][a-z0-9\-_]*|dh[-_][a-z0-9\-_]*)$/i.test(candidateSku)) {
       const askSku = candidateSku.toUpperCase();
       const askNorm = askSku.replace(/[-_]/g, '');
       const isMgtShorthand = /^MGT0*\d{2,5}$/.test(askNorm);
@@ -2598,13 +2821,16 @@ async function generateBotReply(userMessage, conversationHistory = [], opts = {}
   const ctx = analyze(userMessage);
 
   // B1. Phát hiện yêu cầu cần Admin can thiệp trực tiếp (khiếu nại, đơn cá nhân, mua sỉ, đòi gặp Admin)
-  const reason = detectEscalation(ctx);
+  const reason = detectEscalation(ctx, conversationHistory);
+  const activeOrderCode = extractOrderCodeFromText(ctx.raw, cachedProducts) || getContextOrderCodeFromHistory(conversationHistory, cachedProducts);
   if (reason) {
     return finalizeBotResult({
-      message: buildEscalationMessage(reason, ctx.raw),
+      message: buildEscalationMessage(reason, ctx.raw, activeOrderCode),
       isEscalated: true,
       confident: true,
-      suggestions: ['Xe nào đang giảm giá?', 'Shop có mã giảm giá không?'],
+      suggestions: activeOrderCode
+        ? [`Kiểm tra chi tiết đơn #${activeOrderCode}`, 'Xe nào đang giảm giá?']
+        : ['Xe nào đang giảm giá?', 'Shop có mã giảm giá không?'],
       matchedProducts: [],
       reason
     });
@@ -2613,7 +2839,8 @@ async function generateBotReply(userMessage, conversationHistory = [], opts = {}
   // B2. Gemini Micro-RAG (nếu có key) — các câu hỏi tra cứu dữ liệu cá nhân (đơn hàng, giỏ hàng, VIP, voucher, tác giả) ưu tiên bộ máy SQL chuẩn xác 100%
   const preferSqlEngine = ctx.intents.creatorAsk || ctx.intents.orderTracking || ctx.intents.myOrderAsk ||
                           ctx.intents.myCartAsk || ctx.intents.vipAsk || ctx.intents.couponAsk ||
-                          ctx.intents.howToOrder || /\b((?:MGT[-_][A-Z0-9\-]{3,24})|(?:(?:ORD|DH)[-_]?[A-Z0-9\-]{4,24}))\b/i.test(ctx.raw) ||
+                          ctx.intents.howToOrder || Boolean(extractOrderCodeFromText(ctx.raw, cachedProducts)) ||
+                          Boolean(activeOrderCode && isOrderFollowUpQuestion(ctx, cachedProducts)) ||
                           wasLastTopicCreators(conversationHistory);
   if (!preferSqlEngine) {
     const gemini = await callGeminiApi(ctx, userMessage, conversationHistory, opts);
@@ -2655,7 +2882,9 @@ module.exports = {
   invalidateStoreCache,
   getCatalogSignature,
   extractSkusFromText,
+  extractOrderCodeFromText,
+  getContextOrderCodeFromHistory,
   resolveProductCardsBySkus,
   buildEscalationMessage,
-  _internal: { analyze, detectEscalation, searchProducts, parsePriceRange, parseQuantity, expandSlang }
+  _internal: { analyze, detectEscalation, searchProducts, parsePriceRange, parseQuantity, expandSlang, extractOrderCodeFromText, getContextOrderCodeFromHistory }
 };

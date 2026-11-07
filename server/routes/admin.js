@@ -946,6 +946,20 @@ router.put('/orders/:id/tracking', async (req, res, next) => {
     if (o.status === 'DELIVERED' || o.status === 'COMPLETED') {
       throw conflict('Đơn hàng đã giao thành công và hoàn tất, không thể chỉnh sửa mã vận đơn!');
     }
+    if (o.status === 'CANCELLED') {
+      throw badRequest('Đơn hàng đã hủy, không thể gắn mã vận đơn!');
+    }
+
+    const pMethod = String(o.paymentMethod || '').toUpperCase();
+    const pStatus = String(o.paymentStatus || 'UNPAID').toUpperCase();
+    if (['VIETQR_PAYOS', 'PAYOS', 'BANK_TRANSFER', 'DEPOSIT'].includes(pMethod) && pStatus === 'UNPAID') {
+      throw badRequest('Đơn hàng Chuyển khoản / Đặt cọc chưa nhận được tiền thanh toán! Vui lòng kiểm tra và xác nhận nhận tiền trước khi gán mã vận đơn SPX.');
+    }
+
+    const cleanTracking = String(trackingCode || '').trim().toUpperCase();
+    if (!cleanTracking || cleanTracking.length < 4) {
+      throw badRequest('Vui lòng nhập mã vận đơn SPX hợp lệ (tối thiểu 4 ký tự).');
+    }
 
     const oid = o.orderId || o.id;
     const nextStatus = (autoShip || o.status === 'PENDING' || o.status === 'CONFIRMED' || o.status === 'PREPARING')
@@ -958,7 +972,7 @@ router.put('/orders/:id/tracking', async (req, res, next) => {
       WHERE OrderId = @oid
     `, {
       oid,
-      tCode: String(trackingCode || '').trim().toUpperCase(),
+      tCode: cleanTracking,
       tCarrier: carrier || 'SPX Express',
       st: nextStatus
     });

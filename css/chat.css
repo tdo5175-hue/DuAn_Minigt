@@ -8,7 +8,7 @@
   position: fixed;
   bottom: 26px;
   left: 24px;
-  z-index: 988;
+  z-index: 100010;
   width: 64px;
   height: 64px;
   border-radius: 50%;
@@ -222,7 +222,7 @@
   bottom: 102px;
   left: 24px;
   right: auto;
-  z-index: 995;
+  z-index: 100020;
   width: 395px;
   max-width: calc(100vw - 32px);
   height: 550px;
@@ -245,6 +245,29 @@
   opacity: 1;
   visibility: visible;
   transform: translateY(0) scale(1);
+}
+
+.ai-chat-order-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 7px;
+  border-radius: 6px;
+  background: #eff6ff;
+  color: #1d4ed8;
+  border: 1px solid #bfdbfe;
+  font-weight: 800;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  text-decoration: none;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.ai-chat-order-link:hover {
+  background: #dbeafe;
+  border-color: #60a5fa;
+  color: #1e40af;
 }
 
 /* 3. HEADER KHUNG CHAT & NÚT ZALO Ở GÓC PHẢI BOX CHAT */

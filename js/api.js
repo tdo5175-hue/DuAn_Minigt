@@ -1284,9 +1284,40 @@
     const trackingCode = ord.trackingCode || ord.TrackingCode || null;
     const trackingCarrier = ord.trackingCarrier || ord.TrackingCarrier || 'SPX Express';
     const isApproved = ['CONFIRMED', 'PREPARING', 'SHIPPING', 'DELIVERED'].includes(status) || Boolean(trackingCode);
-    const totalAmount = Number(ord.totalAmount ?? ord.TotalAmount ?? ord.total ?? 0);
-    const depositAmount = Number(ord.depositAmount ?? ord.totalDeposit ?? ord.DepositAmount ?? 0);
-    const remainingAmount = Math.max(0, totalAmount - depositAmount);
+    const totalAmount = Number(ord.totalAmount ?? ord.TotalAmount ?? ord.total ?? ord.Total ?? 0);
+    const shippingFee = Number(ord.shippingFee ?? ord.ShippingFee ?? 0);
+    const subtotal = Number(ord.subtotal ?? ord.Subtotal ?? Math.max(0, totalAmount - shippingFee));
+    const noteStr = String(ord.note ?? ord.Note ?? '');
+    const protectorFee = Number(ord.protectorFee ?? (/PROTECT|BẢO VỆ|PVC\s*15K/i.test(noteStr) ? 15000 : 0));
+    const productPayable = Number(ord.productPayable ?? Math.max(0, totalAmount - shippingFee));
+    const discountAmount = Number(ord.discountAmount ?? Math.max(0, subtotal + protectorFee - productPayable));
+    const rawDeposit = Number(ord.depositAmount ?? ord.totalDeposit ?? ord.DepositAmount ?? 0);
+    const isPartialDeposit = paymentMethod === 'DEPOSIT' || (rawDeposit > 0 && rawDeposit < productPayable);
+    const isFullTransfer = !isPartialDeposit && paymentMethod !== 'COD';
+    const depositAmount = isPartialDeposit
+      ? (rawDeposit > 0 && rawDeposit <= productPayable ? rawDeposit : Math.round(productPayable * 0.3))
+      : 0;
+    const qrTransferAmount = Number(ord.qrTransferAmount ?? (paymentMethod === 'COD' ? 0 : (isPartialDeposit ? depositAmount : productPayable)));
+    const paidToShopAmount = Number(ord.paidToShopAmount ?? (
+      paymentStatus === 'PAID'
+        ? productPayable
+        : ((paymentStatus === 'PARTIALLY_PAID' || paymentStatus === 'DEPOSIT_PAID') ? depositAmount : 0)
+    ));
+    const remainingProductAmount = Number(ord.remainingProductAmount ?? (
+      (status === 'CANCELLED' || paymentStatus === 'PAID')
+        ? 0
+        : (isPartialDeposit ? Math.max(0, productPayable - depositAmount) : (paymentMethod === 'COD' ? productPayable : 0))
+    ));
+    const shippingPayableOnDelivery = Number(ord.shippingPayableOnDelivery ?? (
+      (status === 'DELIVERED' || status === 'CANCELLED') ? 0 : shippingFee
+    ));
+    const payableOnDelivery = Number(ord.payableOnDelivery ?? (
+      (status === 'DELIVERED' || status === 'CANCELLED') ? 0 : (remainingProductAmount + shippingPayableOnDelivery)
+    ));
+    const spxCodForShop = Number(ord.spxCodForShop ?? (
+      (status === 'DELIVERED' || status === 'CANCELLED' || paymentStatus === 'PAID') ? 0 : remainingProductAmount
+    ));
+    const remainingAmount = payableOnDelivery;
 
     let approvalNotice = null;
     if (trackingCode) {
@@ -1306,14 +1337,12 @@
     const newAddressEquivalent = ord.newAddressEquivalent || ord.NewAddressEquivalent || '';
     const city = ord.city || ord.City || (ord.shipping && ord.shipping.city) || (ord.customer && ord.customer.city) || '';
     const district = ord.district || ord.District || (ord.shipping && ord.shipping.district) || (ord.customer && ord.customer.district) || '';
-    const codAmount = paymentStatus === 'PAID' ? 0 : (depositAmount > 0 ? Math.max(0, totalAmount - depositAmount) : totalAmount);
+    const codAmount = payableOnDelivery;
     const preOrderNotified = Boolean(ord.preOrderNotified ?? ord.PreOrderNotified) || ['PREPARING', 'SHIPPING', 'DELIVERED'].includes(status);
     const wasPreOrder = Boolean(
       ord.wasPreOrder ??
       ord.hasPreOrder ??
       ord.HasPreOrder ??
-      (paymentMethod === 'DEPOSIT') ??
-      (depositAmount > 0) ??
       (Array.isArray(ord.items) && ord.items.some(i => i.isPreOrder || i.Status === 'pre_order' || String(i.status || '').toLowerCase() === 'pre_order'))
     );
     const hasPreOrder = Boolean(wasPreOrder && !preOrderNotified);
@@ -1378,8 +1407,19 @@
       paymentStatus,
       PaymentStatus: paymentStatus,
       paymentStatusLabel: PAYMENT_STATUS_LABELS[paymentStatus] || paymentStatus,
-      subtotal: Number(ord.subtotal ?? ord.Subtotal ?? totalAmount),
-      shippingFee: Number(ord.shippingFee ?? ord.ShippingFee ?? 0),
+      subtotal,
+      shippingFee,
+      protectorFee,
+      discountAmount,
+      productPayable,
+      isPartialDeposit,
+      isFullTransfer,
+      qrTransferAmount,
+      paidToShopAmount,
+      remainingProductAmount,
+      shippingPayableOnDelivery,
+      payableOnDelivery,
+      spxCodForShop,
       total: totalAmount,
       totalAmount,
       TotalAmount: totalAmount,

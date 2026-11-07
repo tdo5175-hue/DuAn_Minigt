@@ -4336,6 +4336,62 @@ let checkoutShippingMode = 'SPX_STANDARD';
 let checkoutBoxProtector = false;
 let checkoutAppliedVoucher = null;
 
+function computeCustomerOrderFinancials(ord = {}) {
+  const ordStatus = String(ord.Status || ord.status || 'PENDING').toUpperCase();
+  const payMethod = String(ord.PaymentMethod || ord.paymentMethod || 'COD').toUpperCase();
+  const payStatus = String(ord.PaymentStatus || ord.paymentStatus || 'UNPAID').toUpperCase();
+  const shippingFee = Math.max(0, Number(ord.ShippingFee ?? ord.shippingFee ?? 0));
+  const total = Math.max(0, Number(ord.Total ?? ord.total ?? ord.totalAmount ?? 0));
+  const subtotal = Math.max(0, Number(ord.Subtotal ?? ord.subtotal ?? Math.max(0, total - shippingFee)));
+  const noteStr = String(ord.Note ?? ord.note ?? '');
+  const protectorFee = Number(ord.protectorFee ?? (/PROTECT|BẢO VỆ|PVC\s*15K/i.test(noteStr) ? 15000 : 0));
+  const productPayable = Math.max(0, Number(ord.productPayable ?? Math.max(0, total - shippingFee)));
+  const discountAmount = Math.max(0, Number(ord.discountAmount ?? Math.max(0, subtotal + protectorFee - productPayable)));
+  const rawDeposit = Math.max(0, Number(ord.DepositAmount ?? ord.depositAmount ?? ord.totalDeposit ?? 0));
+
+  const isCOD = payMethod === 'COD';
+  const isPartialDeposit = payMethod === 'DEPOSIT' || (rawDeposit > 0 && rawDeposit < productPayable);
+  const isFullTransfer = !isCOD && !isPartialDeposit;
+  const depositAmount = isPartialDeposit
+    ? (rawDeposit > 0 && rawDeposit <= productPayable ? rawDeposit : Math.round(productPayable * 0.3))
+    : 0;
+
+  const qrTransferAmount = isCOD ? 0 : (isPartialDeposit ? depositAmount : productPayable);
+  const paidToShopAmount = payStatus === 'PAID'
+    ? productPayable
+    : ((payStatus === 'PARTIALLY_PAID' || payStatus === 'DEPOSIT_PAID') ? depositAmount : 0);
+
+  const remainingProductAmount = (ordStatus === 'CANCELLED' || payStatus === 'PAID')
+    ? 0
+    : (isPartialDeposit ? Math.max(0, productPayable - depositAmount) : (isCOD ? productPayable : 0));
+
+  const shippingPayableOnDelivery = (ordStatus === 'DELIVERED' || ordStatus === 'CANCELLED') ? 0 : shippingFee;
+  const payableOnDelivery = (ordStatus === 'DELIVERED' || ordStatus === 'CANCELLED')
+    ? 0
+    : (remainingProductAmount + shippingPayableOnDelivery);
+
+  return {
+    ordStatus,
+    payMethod,
+    payStatus,
+    subtotal,
+    protectorFee,
+    discountAmount,
+    productPayable,
+    shippingFee,
+    total,
+    isCOD,
+    isPartialDeposit,
+    isFullTransfer,
+    depositAmount,
+    qrTransferAmount,
+    paidToShopAmount,
+    remainingProductAmount,
+    shippingPayableOnDelivery,
+    payableOnDelivery
+  };
+}
+
 function calculateCheckoutTotals() {
   const selectedItems = cart.filter(it => it.selected !== false);
   const subtotal = selectedItems.reduce((acc, it) => acc + (it.price * it.quantity), 0);
@@ -4352,14 +4408,18 @@ function calculateCheckoutTotals() {
     })
     .reduce((acc, it) => acc + ((it.depositAmount || Math.round(it.price * 0.3)) * it.quantity), 0);
 
-  let shippingFee = 11000;
-  let shippingLabel = 'SPX Express Tiêu Chuẩn (Đồng giá toàn quốc)';
+  const freeShipThreshold = Number(storeSettings?.free_shipping_threshold || 1000000);
+  let shippingFee = Number(storeSettings?.shipping_fee || 11000);
+  let shippingLabel = 'SPX Express Tiêu Chuẩn (Trả riêng cho bưu tá SPX)';
   if (checkoutShippingMode === 'BOX_SAVER') {
     shippingFee = 0;
     shippingLabel = 'Gom đơn lưu kho (Box Saver - Miễn phí lưu kho)';
   } else if (checkoutShippingMode === 'SHOWROOM_PICKUP') {
     shippingFee = 0;
     shippingLabel = 'Nhận trực tiếp tại Showroom Biên Hòa (0đ)';
+  } else if (subtotal >= freeShipThreshold) {
+    shippingFee = 0;
+    shippingLabel = `SPX Express Tiêu Chuẩn (Freeship đơn từ ${formatVND(freeShipThreshold)})`;
   }
 
   const protectorFee = checkoutBoxProtector ? 15000 : 0;
@@ -4384,11 +4444,18 @@ function calculateCheckoutTotals() {
     }
   }
 
-  const grandTotal = Math.max(0, subtotal + shippingFee + protectorFee - voucherDiscount);
+  // Tách bạch tuyệt đối: Tiền hàng của Shop (productPayable) KHÔNG BAO GIỜ cộng phí ship của SPX Express!
+  const productPayable = Math.max(0, subtotal + protectorFee - voucherDiscount);
+  const grandTotal = productPayable + shippingFee;
   const isDepositChosen = typeof selectedCheckoutPaymentMethod !== 'undefined' && selectedCheckoutPaymentMethod === 'DEPOSIT';
-  const inStockDeposit = Math.min(grandTotal, Math.max(50000, Math.round(grandTotal * 0.3)));
-  const depositAmount = hasPreOrder 
-    ? Math.min(grandTotal, totalDepositRaw) 
+  const inStockDeposit = Math.min(productPayable, Math.round(productPayable * 0.3));
+  const preOrderBaseDeposit = totalDepositRaw > 0 ? totalDepositRaw : Math.round(subtotal * 0.3);
+  const preOrderAdjustedDeposit = Math.min(
+    productPayable,
+    Math.max(0, Math.round(preOrderBaseDeposit + (protectorFee * 0.3) - (voucherDiscount * 0.3)))
+  );
+  const depositAmount = hasPreOrder
+    ? (isDepositChosen ? inStockDeposit : preOrderAdjustedDeposit)
     : (isDepositChosen ? inStockDeposit : 0);
 
   return {
@@ -4398,6 +4465,7 @@ function calculateCheckoutTotals() {
     protectorFee,
     voucherDiscount,
     voucherDesc,
+    productPayable,
     grandTotal,
     depositAmount,
     hasPreOrder
@@ -4995,26 +5063,26 @@ function renderCheckoutStep1() {
   summaryEl.innerHTML = `
     <div style="background:#f8fafc; border-radius:10px; padding:12px 14px; margin-top:12px; border:1px solid #e2e8f0; font-size:12.5px;">
       <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
-        <span style="color:#64748b;">${isEn ? `Subtotal (${cart.length} items):` : `Tổng tiền hàng (${cart.length} mẫu):`}</span>
-        <strong style="color:var(--color-navy);">${formatVND(recalcTotals.subtotal)}</strong>
+        <span style="color:#64748b;">${isEn ? `Product Subtotal (${selectedItems.length} items):` : `Tiền hàng thanh toán cho Shop (${selectedItems.length} mẫu):`}</span>
+        <strong style="color:var(--color-navy);">${formatVND(recalcTotals.productPayable)}</strong>
       </div>
       <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
-        <span style="color:#64748b;"><i class="fa-solid fa-truck-fast" style="color:#ea580c; margin-right:4px;"></i> ${isEn ? 'Estimated SPX Shipping:' : 'Phí vận chuyển dự kiến:'}</span>
-        <strong style="color:#059669;">${formatVND(recalcTotals.shippingFee)}</strong>
+        <span style="color:#64748b;"><i class="fa-solid fa-truck-fast" style="color:#ea580c; margin-right:4px;"></i> ${isEn ? 'SPX Express Shipping (paid to courier):' : 'Phí vận chuyển (của đơn vị SPX Express):'}</span>
+        <strong style="color:#059669;">${recalcTotals.shippingFee === 0 ? '0đ (Miễn phí)' : formatVND(recalcTotals.shippingFee)}</strong>
       </div>
       <div style="display:flex; justify-content:space-between; margin-top:8px; border-top:1px dashed #cbd5e1; padding-top:8px; font-size:14px; font-weight:800;">
-        <span style="color:var(--color-navy);">${isEn ? 'Estimated Total:' : 'Tạm tính tổng đơn:'}</span>
+        <span style="color:var(--color-navy);">${isEn ? 'Estimated Order Total:' : 'Tổng giá trị đơn (Hàng + Ship SPX):'}</span>
         <span style="color:var(--color-primary);">${formatVND(recalcTotals.grandTotal)}</span>
       </div>
       ${hasPreOrder ? `
         <div style="margin-top:8px; padding:8px 10px; background:#fff1f1; border-radius:6px; font-size:12px; color:#b91c1c; display:flex; justify-content:space-between; align-items:center;">
-          <span><strong>${isEn ? '30% Pre-Order Deposit:' : 'Tiền cọc giữ slot đợt này:'}</strong></span>
+          <span><strong>${isEn ? '30% Pre-Order Deposit (on product only):' : 'Cọc giữ suất 30% (chỉ tính trên tiền hàng):'}</strong></span>
           <span style="font-size:14px; font-weight:800;">${formatVND(recalcTotals.depositAmount)}</span>
         </div>
       ` : `
         <div style="margin-top:8px; padding:8px 10px; background:#ecfdf5; border-radius:6px; font-size:12px; color:#047857; display:flex; justify-content:space-between; align-items:center;">
           <span><strong>${isEn ? 'Order Type:' : 'Loại đơn hàng:'}</strong></span>
-          <span style="font-weight:700;"><i class="fa-solid fa-circle-check"></i> Hàng có sẵn trong kho (Thanh toán 100%)</span>
+          <span style="font-weight:700;"><i class="fa-solid fa-circle-check"></i> Hàng có sẵn nguyên seal (Hỗ trợ Cọc 30% / CK Full)</span>
         </div>
       `}
     </div>
@@ -5284,33 +5352,40 @@ function renderCheckoutStep3() {
   }
 
   const totals = calculateCheckoutTotals();
-  const { subtotal, shippingFee, shippingLabel, protectorFee, voucherDiscount, grandTotal, depositAmount } = totals;
+  const { subtotal, shippingFee, shippingLabel, protectorFee, voucherDiscount, productPayable, grandTotal, depositAmount } = totals;
 
   let payNowAmount = 0;
-  let remainingCodAmount = grandTotal;
+  let remainingProductCod = 0;
+  let payableOnDelivery = grandTotal;
   let labelPayNow = '';
   let noteText = '';
 
   if (selectedCheckoutPaymentMethod === 'COD') {
     payNowAmount = 0;
-    remainingCodAmount = grandTotal;
-    labelPayNow = 'Thanh toán khi nhận xe (COD):';
-    noteText = `<i class="fa-solid fa-hand-holding-dollar" style="color:#059669;"></i> Bạn sẽ thanh toán <strong>${formatVND(grandTotal)}</strong> khi nhận và kiểm tra mô hình xe.`;
+    remainingProductCod = productPayable;
+    payableOnDelivery = productPayable + shippingFee;
+    labelPayNow = 'Chuyển khoản trước cho Shop:';
+    noteText = `<i class="fa-solid fa-hand-holding-dollar" style="color:#059669;"></i> Khi nhận xe, bạn thanh toán <strong>${formatVND(payableOnDelivery)}</strong> cho bưu tá SPX (gồm <strong>${formatVND(productPayable)}</strong> tiền hàng của Shop + <strong>${formatVND(shippingFee)}</strong> phí ship của SPX Express).`;
   } else if (selectedCheckoutPaymentMethod === 'VIETQR_PAYOS') {
-    payNowAmount = hasPreOrder ? depositAmount : grandTotal;
-    remainingCodAmount = Math.max(0, grandTotal - payNowAmount);
-    labelPayNow = hasPreOrder ? 'Tiền cọc thanh toán PayOS VietQR 24/7:' : 'Thanh toán PayOS VietQR tự động 100%:';
-    noteText = `<i class="fa-solid fa-bolt" style="color:#0284c7;"></i> Cổng PayOS tự động tạo mã VietQR có sẵn số tiền <strong>${formatVND(payNowAmount)}</strong>. ${remainingCodAmount > 0 ? `Số tiền còn lại <strong>${formatVND(remainingCodAmount)}</strong> thanh toán COD khi nhận xe.` : 'Hệ thống tự động xác nhận đơn ngay khi bạn quét mã!'}`;
+    payNowAmount = hasPreOrder ? depositAmount : productPayable;
+    remainingProductCod = Math.max(0, productPayable - payNowAmount);
+    payableOnDelivery = remainingProductCod + shippingFee;
+    labelPayNow = hasPreOrder ? 'Cọc 30% tiền hàng qua PayOS VietQR:' : 'Chuyển khoản 100% tiền hàng cho Shop:';
+    noteText = hasPreOrder
+      ? `<i class="fa-solid fa-bolt" style="color:#0284c7;"></i> Cọc 30% chỉ tính trên tiền hàng của Shop = <strong>${formatVND(payNowAmount)}</strong> (không tính phí ship SPX). Khi nhận xe thanh toán cho bưu tá SPX: <strong>${formatVND(payableOnDelivery)}</strong> (Hàng còn lại ${formatVND(remainingProductCod)} + Ship SPX ${formatVND(shippingFee)}).`
+      : `<i class="fa-solid fa-bolt" style="color:#0284c7;"></i> Bạn chỉ chuyển <strong>${formatVND(productPayable)}</strong> (100% tiền hàng) cho Shop qua VietQR. ${shippingFee > 0 ? `Phí vận chuyển <strong>${formatVND(shippingFee)}</strong> là của đơn vị SPX Express — bạn trả riêng cho bưu tá SPX khi nhận xe!` : 'Đơn được miễn phí vận chuyển nên khi nhận xe bạn trả <strong>0đ</strong>!'}`;
   } else if (selectedCheckoutPaymentMethod === 'BANK_TRANSFER' || selectedCheckoutPaymentMethod === 'FULL_TRANSFER') {
-    payNowAmount = grandTotal;
-    remainingCodAmount = 0;
-    labelPayNow = 'Chuyển khoản Full 100% qua MB Bank:';
-    noteText = `<i class="fa-solid fa-credit-card" style="color:#2563eb;"></i> Bạn chuyển khoản <strong>${formatVND(grandTotal)}</strong> qua VietQR. Khi nhận kiện xe bạn <strong>không phải trả thêm tiền</strong>.`;
+    payNowAmount = productPayable;
+    remainingProductCod = 0;
+    payableOnDelivery = shippingFee;
+    labelPayNow = 'Chuyển khoản 100% tiền hàng qua MB Bank:';
+    noteText = `<i class="fa-solid fa-credit-card" style="color:#2563eb;"></i> Bạn chuyển đúng <strong>${formatVND(productPayable)}</strong> tiền hàng cho Shop. ${shippingFee > 0 ? `Khi nhận kiện xe bạn chỉ trả <strong>${formatVND(shippingFee)}</strong> phí ship trực tiếp cho bưu tá SPX Express.` : 'Khi nhận kiện xe bạn không phải trả thêm khoản nào (0đ).'}`;
   } else {
-    payNowAmount = depositAmount;
-    remainingCodAmount = Math.max(0, grandTotal - payNowAmount);
-    labelPayNow = 'Tiền cọc quét mã VietQR MB Bank ngay:';
-    noteText = `<i class="fa-solid fa-money-bill-transfer" style="color:#dc2626;"></i> Quét mã cọc trước <strong>${formatVND(payNowAmount)}</strong>. Số tiền còn lại <strong>${formatVND(remainingCodAmount)}</strong> thanh toán khi nhận xe.`;
+    payNowAmount = depositAmount > 0 ? depositAmount : Math.round(productPayable * 0.3);
+    remainingProductCod = Math.max(0, productPayable - payNowAmount);
+    payableOnDelivery = remainingProductCod + shippingFee;
+    labelPayNow = 'Cọc 30% tiền hàng qua VietQR cho Shop:';
+    noteText = `<i class="fa-solid fa-money-bill-transfer" style="color:#dc2626;"></i> Cọc 30% chỉ tính trên tiền hàng (<strong>30% × ${formatVND(productPayable)} = ${formatVND(payNowAmount)}</strong>, không cộng phí ship SPX). Khi nhận xe bạn trả cho bưu tá SPX: <strong>${formatVND(payableOnDelivery)}</strong> (gồm <strong>${formatVND(remainingProductCod)}</strong> tiền hàng còn lại + <strong>${formatVND(shippingFee)}</strong> phí ship SPX).`;
   }
 
   const itemsPreviewHtml = `
@@ -5350,12 +5425,8 @@ function renderCheckoutStep3() {
     ${itemsPreviewHtml}
     <div style="background:#f8fafc; border-radius:10px; padding:12px 14px; border:1px solid #e2e8f0; font-size:12.5px;">
       <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
-        <span style="color:#64748b;">Tổng giá trị sản phẩm (${cart.length} mẫu):</span>
+        <span style="color:#64748b;">Tạm tính mô hình (${selectedItems.length} mẫu):</span>
         <strong>${formatVND(subtotal)}</strong>
-      </div>
-      <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
-        <span style="color:#64748b;"><i class="fa-solid fa-truck-fast" style="color:#ea580c; margin-right:4px;"></i> ${escapeHtml(shippingLabel)}:</span>
-        <strong style="color:#059669;">${shippingFee === 0 ? '0đ (Miễn phí)' : formatVND(shippingFee)}</strong>
       </div>
       ${protectorFee > 0 ? `
         <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
@@ -5369,19 +5440,37 @@ function renderCheckoutStep3() {
           <strong>-${formatVND(voucherDiscount)}</strong>
         </div>
       ` : ''}
-      <div style="display:flex; justify-content:space-between; margin-bottom:6px; font-weight:800; padding-top:5px; border-top:1px dashed #cbd5e1;">
-        <span style="color:var(--color-navy);">Tổng thanh toán đơn hàng:</span>
+      <div style="display:flex; justify-content:space-between; margin-bottom:5px; font-weight:700; color:#0f172a;">
+        <span>Tiền hàng thanh toán cho Shop:</span>
+        <span>${formatVND(productPayable)}</span>
+      </div>
+      <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
+        <span style="color:#64748b;"><i class="fa-solid fa-truck-fast" style="color:#ea580c; margin-right:4px;"></i> ${escapeHtml(shippingLabel)}:</span>
+        <strong style="color:#0369a1;">${shippingFee === 0 ? '0đ (Miễn phí)' : formatVND(shippingFee)}</strong>
+      </div>
+      <div style="display:flex; justify-content:space-between; margin-bottom:6px; font-weight:800; padding-top:6px; border-top:1px dashed #cbd5e1;">
+        <span style="color:var(--color-navy);">Tổng giá trị đơn (Hàng + Ship SPX):</span>
         <span style="color:var(--color-navy); font-size:14px;">${formatVND(grandTotal)}</span>
       </div>
-      <div style="border-top:1.5px solid #e2e8f0; margin-top:8px; padding-top:8px; display:flex; justify-content:space-between; align-items:center;">
-        <span style="font-size:13px; font-weight:800; color:${payNowAmount > 0 ? '#dc2626' : '#059669'};">
-          ${labelPayNow}
-        </span>
-        <span style="font-size:17px; font-weight:900; color:${payNowAmount > 0 ? '#dc2626' : '#059669'};">
-          ${formatVND(payNowAmount > 0 ? payNowAmount : grandTotal)}
-        </span>
+      <div style="border-top:1.5px solid #e2e8f0; margin-top:8px; padding-top:8px; display:flex; flex-direction:column; gap:5px;">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <span style="font-size:12.5px; font-weight:800; color:${payNowAmount > 0 ? '#dc2626' : '#475569'};">
+            💳 ${labelPayNow}
+          </span>
+          <span style="font-size:16px; font-weight:900; color:${payNowAmount > 0 ? '#dc2626' : '#475569'};">
+            ${formatVND(payNowAmount)}
+          </span>
+        </div>
+        <div style="display:flex; justify-content:space-between; align-items:center; background:#fff7ed; border:1px solid #fed7aa; padding:6px 10px; border-radius:7px;">
+          <span style="font-size:12px; font-weight:800; color:#c2410c;">
+            🚚 Thanh toán cho bưu tá SPX khi nhận xe:
+          </span>
+          <span style="font-size:14px; font-weight:900; color:#c2410c;">
+            ${formatVND(payableOnDelivery)}${shippingFee > 0 ? ` <em style="font-size:11px; font-weight:600; font-style:normal;">(${remainingProductCod > 0 ? `Hàng ${formatVND(remainingProductCod)} + ` : ''}Ship SPX ${formatVND(shippingFee)})</em>` : ''}
+          </span>
+        </div>
       </div>
-      <div style="font-size:11.5px; color:#475569; margin-top:6px; line-height:1.4; background:#ffffff; padding:8px 10px; border-radius:6px; border:1px solid #e2e8f0;">
+      <div style="font-size:11.5px; color:#475569; margin-top:8px; line-height:1.45; background:#ffffff; padding:8px 10px; border-radius:6px; border:1px solid #e2e8f0;">
         ${noteText}
       </div>
     </div>
@@ -5644,15 +5733,23 @@ function renderCheckoutStep4(rawOrder) {
   const container = document.getElementById('checkoutStep4Details');
   if (!container) return;
 
+  const fin = computeCustomerOrderFinancials(order);
   const paymentMethod = (order.paymentMethod || selectedCheckoutPaymentMethod || 'DEPOSIT').toUpperCase();
   const isPayOS = paymentMethod.includes('PAYOS') || paymentMethod.includes('VIETQR_PAYOS') || paymentMethod === 'DEPOSIT';
   const isCOD = paymentMethod.includes('COD');
-  const isFull = paymentMethod.includes('FULL') || paymentMethod.includes('BANK_TRANSFER');
+  const isFull = fin.isFullTransfer;
 
-  const totalAmount = Number(order.totalAmount ?? order.total ?? 0);
-  const depositAmount = Number(order.depositAmount ?? order.totalDeposit ?? 0);
-  let transferAmount = depositAmount > 0 ? depositAmount : totalAmount;
-  if (isFull) transferAmount = totalAmount;
+  const totalAmount = fin.total;
+  const depositAmount = fin.depositAmount;
+  const transferAmount = fin.qrTransferAmount;
+
+  // Chủ động cập nhật bong bóng lời chào của Bé Bot ở góc trái để nhắc khách hỏi về đơn vừa đặt
+  const aiGreetingEl = document.getElementById('aiLauncherGreeting');
+  const aiPulseDot = document.getElementById('aiChatPulseDot');
+  if (aiGreetingEl) {
+    aiGreetingEl.innerHTML = `Cần hỗ trợ đơn <strong>#${escapeHtml(orderCode)}</strong>? Hỏi em ngay! 💬`;
+  }
+  if (aiPulseDot) aiPulseDot.style.display = 'block';
 
   const transferDesc = `MINI GT #${orderCode}`;
   const bankAcc = storeSettings?.bank_account_no || '87654321082007';
@@ -5738,13 +5835,41 @@ function renderCheckoutStep4(rawOrder) {
 
       ${itemsPreviewStep4Html}
 
+      <!-- BẢNG TÁCH BẠCH MINH BẠCH TIỀN HÀNG SHOP & PHÍ VẬN CHUYỂN SPX EXPRESS -->
+      <div style="background:#f8fafc; border:1.5px solid #e2e8f0; border-radius:12px; padding:12px 14px; margin-bottom:14px; text-align:left; font-size:12.5px;">
+        <div style="font-size:11.5px; font-weight:800; color:#0f172a; text-transform:uppercase; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center;">
+          <span><i class="fa-solid fa-file-invoice-dollar" style="color:#dc2626; margin-right:4px;"></i> Bảng Kê Hóa Đơn &amp; Đối Soát Thanh Toán</span>
+          <span style="font-size:10.5px; color:#0369a1; background:#e0f2fe; padding:2px 8px; border-radius:999px; font-weight:700;">Chuẩn chống nhầm lẫn SPX</span>
+        </div>
+        <div style="display:flex; justify-content:space-between; margin-bottom:4px; color:#334155;">
+          <span>Tiền hàng thanh toán cho Shop${fin.protectorFee > 0 ? ` (gồm Protector +${formatVND(fin.protectorFee)})` : ''}${fin.discountAmount > 0 ? ` (đã trừ Voucher -${formatVND(fin.discountAmount)})` : ''}:</span>
+          <strong>${formatVND(fin.productPayable)}</strong>
+        </div>
+        <div style="display:flex; justify-content:space-between; margin-bottom:6px; color:#0369a1;">
+          <span>Phí vận chuyển (thuộc đơn vị SPX Express):</span>
+          <strong>${fin.shippingFee > 0 ? formatVND(fin.shippingFee) : '0đ (Miễn phí)'}</strong>
+        </div>
+        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(210px, 1fr)); gap:8px; margin-top:8px; padding-top:8px; border-top:1px dashed #cbd5e1;">
+          <div style="background:#ffffff; border:1px solid #bfdbfe; border-radius:8px; padding:8px 10px;">
+            <div style="font-size:11px; color:#1e40af; font-weight:700;">💳 Chuyển khoản VietQR cho Shop:</div>
+            <div style="font-size:15px; font-weight:900; color:#dc2626; margin-top:2px;">${formatVND(fin.qrTransferAmount)}</div>
+            <div style="font-size:10.5px; color:#64748b;">${fin.isCOD ? 'Đơn Ship COD (Không cần quét QR)' : (fin.isPartialDeposit ? `Đúng 30% tiền hàng (${formatVND(fin.productPayable)})` : '100% tiền hàng của Shop (không cộng ship)')}</div>
+          </div>
+          <div style="background:#fff7ed; border:1px solid #fed7aa; border-radius:8px; padding:8px 10px;">
+            <div style="font-size:11px; color:#9a3412; font-weight:700;">🚚 Trả cho bưu tá SPX khi nhận xe:</div>
+            <div style="font-size:15px; font-weight:900; color:#c2410c; margin-top:2px;">${formatVND(fin.payableOnDelivery)}</div>
+            <div style="font-size:10.5px; color:#7c2d12;">${fin.remainingProductAmount > 0 ? `Hàng còn lại ${formatVND(fin.remainingProductAmount)} + Ship SPX ${formatVND(fin.shippingFee)}` : (fin.shippingFee > 0 ? `Chỉ trả phí ship ${formatVND(fin.shippingFee)} cho SPX` : 'Không cần trả thêm (0đ)')}</div>
+          </div>
+        </div>
+      </div>
+
       ${isCOD ? `
         <div style="background:#f8fafc; border:1.5px solid #cbd5e1; border-radius:10px; padding:12px 14px; margin-bottom:14px; text-align:left;">
           <div style="font-weight:700; color:#1e293b; font-size:13px; margin-bottom:4px;">
             <i class="fa-solid fa-hand-holding-dollar" style="color:#059669; margin-right:4px;"></i> Hình thức: Thanh toán khi nhận hàng (Ship COD SPX)
           </div>
           <div style="font-size:12px; color:#64748b;">
-            Tổng tiền thanh toán cho bưu tá SPX khi nhận và kiểm tra kiện xe: <strong style="color:#dc2626; font-size:14px;">${formatVND(totalAmount)}</strong>.
+            Tổng tiền thanh toán cho bưu tá SPX khi nhận và kiểm tra kiện xe: <strong style="color:#dc2626; font-size:14px;">${formatVND(fin.payableOnDelivery)}</strong> (gồm ${formatVND(fin.productPayable)} tiền hàng + ${formatVND(fin.shippingFee)} phí ship SPX).
           </div>
         </div>
       ` : (isPayOS ? `
@@ -8415,26 +8540,18 @@ function buildUnifiedCustomerOrderCardHTML(ord) {
   const isPartiallyPaid = payStatus === 'PARTIALLY_PAID';
   const isApproved = Boolean(ord.isApproved) || ['CONFIRMED', 'PREPARING', 'SHIPPING', 'DELIVERED'].includes(ordStatus) || Boolean(trackingCode);
 
+  const fin = computeCustomerOrderFinancials(ord);
   const isPayOS = payMethod === 'VIETQR_PAYOS' || payMethod === 'PAYOS';
   const isBank = payMethod === 'BANK_TRANSFER' || payMethod === 'FULL_TRANSFER';
-  const isDeposit = payMethod === 'DEPOSIT';
-  const isCOD = payMethod === 'COD';
-  const isTransfer = isPayOS || isBank;
+  const isDeposit = fin.isPartialDeposit;
+  const isCOD = fin.isCOD;
+  const isTransfer = fin.isFullTransfer;
 
-  const subtotal = Number(ord.Subtotal || ord.subtotal || 0);
-  const shippingFee = Number(ord.ShippingFee || ord.shippingFee || 11000);
-  const total = Number(ord.Total || ord.total || (subtotal + shippingFee));
-  const depositAmount = Number(ord.DepositAmount || ord.depositAmount || ord.totalDeposit || 0);
-
-  let codToCollect = 0;
-  if (isCOD) {
-    codToCollect = isPaid ? 0 : total;
-  } else if (isDeposit) {
-    codToCollect = isPaid ? 0 : Math.max(0, total - depositAmount);
-  } else {
-    // VIETQR_PAYOS hoặc BANK_TRANSFER: Thanh toán full 100% trước, khi giao thu 0đ
-    codToCollect = 0;
-  }
+  const subtotal = fin.subtotal;
+  const shippingFee = fin.shippingFee;
+  const total = fin.total;
+  const depositAmount = fin.depositAmount;
+  const codToCollect = fin.payableOnDelivery;
 
   const paymentMemo = ord.paymentMemo || ord.PaymentMemo || `MINI GT ${orderCode}`;
   const bankAcc = storeSettings?.bank_account_no || '87654321082007';
@@ -8508,7 +8625,7 @@ function buildUnifiedCustomerOrderCardHTML(ord) {
   }
 
   const canEditShipping = ['PENDING', 'CONFIRMED', 'PREPARING'].includes(ordStatus) && !trackingCode;
-  const canConfirmReceived = (ordStatus === 'SHIPPING' || Boolean(trackingCode)) && ordStatus !== 'DELIVERED' && ordStatus !== 'CANCELLED';
+  const canConfirmReceived = ordStatus === 'SHIPPING';
   const canCancel = ordStatus === 'PENDING' && !trackingCode;
   // ĐƠN SHIP COD TUYỆT ĐỐI KHÔNG HIỆN MÃ QR VÀ NÚT QUÉT MÃ (VÌ THU TIỀN MẶT KHI NHẬN XE)
   const needsQrTransfer = !isPaid && !isPartiallyPaid && !isCOD && ordStatus !== 'CANCELLED';
@@ -8720,34 +8837,45 @@ function buildUnifiedCustomerOrderCardHTML(ord) {
             <div>Địa chỉ: <span>${escapeHtml(address)}</span></div>
             ${note ? `<div style="color:#64748b; font-style:italic;">Ghi chú: ${escapeHtml(note)}</div>` : ''}
           </div>
-          <div style="font-size:12px; line-height:1.6;">
-            <div style="display:flex; justify-content:space-between;"><span>Tổng đơn (gồm ship SPX ${formatVND(shippingFee)}):</span><strong>${formatVND(total)}</strong></div>
+          <div style="font-size:12px; line-height:1.65;">
+            <div style="display:flex; justify-content:space-between; color:#334155;">
+              <span>Tiền hàng của Shop${fin.protectorFee > 0 ? ' (+Protector)' : ''}${fin.discountAmount > 0 ? ' (-Voucher)' : ''}:</span>
+              <strong>${formatVND(fin.productPayable)}</strong>
+            </div>
+            <div style="display:flex; justify-content:space-between; color:#0369a1;">
+              <span>Phí ship của đơn vị SPX Express:</span>
+              <strong>${shippingFee > 0 ? formatVND(shippingFee) : '0đ (Miễn phí)'}</strong>
+            </div>
+            <div style="display:flex; justify-content:space-between; color:#64748b; font-size:11.5px;">
+              <span>Tổng giá trị đơn (Hàng + Ship SPX):</span>
+              <strong>${formatVND(total)}</strong>
+            </div>
             ${isDeposit ? `
-              <div style="display:flex; justify-content:space-between; color:#2563eb;">
-                <span>Tiền cọc giữ mẫu (30%):</span>
+              <div style="display:flex; justify-content:space-between; color:#2563eb; margin-top:2px;">
+                <span>Cọc 30% tiền hàng cho Shop:</span>
                 <strong>${formatVND(depositAmount)} <em style="font-size:11px; font-weight:normal;">(${isPartiallyPaid || isPaid ? 'Đã nhận cọc' : 'Chờ cọc'})</em></strong>
               </div>
-              <div style="display:flex; justify-content:space-between; font-weight:800; color:${codToCollect === 0 ? '#15803d' : '#dc2626'}; margin-top:2px; padding-top:4px; border-top:1px solid #f1f5f9;">
-                <span>Cần thanh toán khi nhận xe (COD còn lại 70%):</span>
-                <span>${codToCollect === 0 ? '0đ (Đã tất toán 100%)' : formatVND(codToCollect)}</span>
+              <div style="display:flex; justify-content:space-between; font-weight:800; color:${codToCollect === 0 ? '#15803d' : '#dc2626'}; margin-top:3px; padding-top:5px; border-top:1px solid #f1f5f9;">
+                <span>Trả bưu tá SPX khi nhận xe:</span>
+                <span>${codToCollect === 0 ? '0đ (Đã hoàn tất)' : `${formatVND(codToCollect)} <em style="font-size:10.5px; font-weight:600; font-style:normal;">(Hàng ${formatVND(fin.remainingProductAmount)} + Ship ${formatVND(shippingFee)})</em>`}</span>
               </div>
             ` : (isTransfer ? `
-              <div style="display:flex; justify-content:space-between; color:#0284c7;">
-                <span>Hình thức:</span>
-                <strong>Chuyển khoản VietQR PayOS (100%)</strong>
+              <div style="display:flex; justify-content:space-between; color:#0284c7; margin-top:2px;">
+                <span>Chuyển khoản 100% tiền hàng cho Shop:</span>
+                <strong>${formatVND(fin.productPayable)} <em style="font-size:11px; font-weight:normal;">(${isPaid ? 'Đã nhận đủ' : 'Chờ quét QR'})</em></strong>
               </div>
-              <div style="display:flex; justify-content:space-between; font-weight:800; color:${isPaid ? '#15803d' : '#d97706'}; margin-top:2px; padding-top:4px; border-top:1px solid #f1f5f9;">
-                <span>Trạng thái chuyển khoản:</span>
-                <span>${isPaid ? 'Đã thanh toán đủ 100% (Thu COD: 0đ)' : `Chờ chuyển khoản ${formatVND(total)} (Thu COD: 0đ)`}</span>
+              <div style="display:flex; justify-content:space-between; font-weight:800; color:${codToCollect === 0 ? '#15803d' : '#c2410c'}; margin-top:3px; padding-top:5px; border-top:1px solid #f1f5f9;">
+                <span>Trả bưu tá SPX khi nhận xe:</span>
+                <span>${codToCollect === 0 ? '0đ (Đã hoàn tất)' : `${formatVND(codToCollect)} <em style="font-size:10.5px; font-weight:600; font-style:normal;">(Chỉ phí ship SPX, tiền hàng 0đ)</em>`}</span>
               </div>
             ` : `
-              <div style="display:flex; justify-content:space-between; color:#1d4ed8;">
+              <div style="display:flex; justify-content:space-between; color:#1d4ed8; margin-top:2px;">
                 <span>Hình thức:</span>
-                <strong>Thu tiền mặt khi nhận hàng (Ship COD SPX)</strong>
+                <strong>Ship COD SPX (VIP 4+)</strong>
               </div>
-              <div style="display:flex; justify-content:space-between; font-weight:800; color:${isPaid ? '#15803d' : '#dc2626'}; margin-top:2px; padding-top:4px; border-top:1px solid #f1f5f9;">
-                <span>Tiền mặt shipper SPX thu khi phát kiện:</span>
-                <span>${isPaid ? '0đ (Đã thanh toán cho SPX)' : formatVND(codToCollect)}</span>
+              <div style="display:flex; justify-content:space-between; font-weight:800; color:${isPaid ? '#15803d' : '#dc2626'}; margin-top:3px; padding-top:5px; border-top:1px solid #f1f5f9;">
+                <span>Trả bưu tá SPX khi nhận xe:</span>
+                <span>${isPaid || codToCollect === 0 ? '0đ (Đã hoàn tất)' : `${formatVND(codToCollect)} <em style="font-size:10.5px; font-weight:600; font-style:normal;">(Hàng ${formatVND(fin.productPayable)} + Ship ${formatVND(shippingFee)})</em>`}</span>
               </div>
             `)}
           </div>
@@ -8780,7 +8908,7 @@ function buildUnifiedCustomerOrderCardHTML(ord) {
           ` : ''}
           ${needsQrTransfer ? `
             <button type="button" class="btn btn-outline btn-sm" style="font-size:11.5px; padding:5px 10px; color:#0284c7; border-color:#bae6fd; background:#f0f9ff; font-weight:700;" onclick="toggleOrderQrPanel('${escapeHtml(orderCode)}')">
-              <i class="fa-solid fa-qrcode" style="margin-right:4px;"></i> ${isDeposit ? `Hiện mã QR Cọc (${formatVND(depositAmount)})` : `Hiện mã QR Chuyển Khoản (${formatVND(total)})`}
+              <i class="fa-solid fa-qrcode" style="margin-right:4px;"></i> ${isDeposit ? `Hiện mã QR Cọc 30% (${formatVND(depositAmount)})` : `Hiện mã QR Tiền Hàng (${formatVND(fin.productPayable)})`}
             </button>
           ` : ''}
           <button type="button" class="btn btn-outline btn-sm" style="font-size:11.5px; padding:5px 10px; color:#15803d; border-color:#86efac; background:#f0fdf4; font-weight:700;" onclick="openAiChatForOrderSupport('${escapeHtml(orderCode)}')">
@@ -8884,10 +9012,8 @@ async function loadPayosQrForOrderPanel(orderCode) {
 
 function renderManualBankQrInBox(box, orderCode) {
   const ord = findOrderInCustomerMemory(orderCode);
-  const total = Number(ord?.Total || ord?.total || 0);
-  const deposit = Number(ord?.DepositAmount || ord?.depositAmount || 0);
-  const payMethod = String(ord?.PaymentMethod || ord?.paymentMethod || '').toUpperCase();
-  const amt = (payMethod === 'DEPOSIT' && deposit > 0) ? deposit : total;
+  const fin = computeCustomerOrderFinancials(ord || {});
+  const amt = fin.qrTransferAmount > 0 ? fin.qrTransferAmount : fin.productPayable;
   const memo = String(orderCode).startsWith('MGT') ? String(orderCode) : `MGT ${orderCode}`;
 
   box.innerHTML = `
@@ -8898,8 +9024,9 @@ function renderManualBankQrInBox(box, orderCode) {
       </div>
       <div style="font-size:12.5px; color:#0f172a; line-height:1.65;">
         <div>Ngân hàng: <strong>Ngân hàng Quân Đội (MB Bank)</strong> • Chủ TK: <strong>DO QUOC THINH</strong></div>
-        <div style="margin-top:2px;">Số tiền cần chuyển: <strong style="color:#dc2626; font-size:14.5px; font-weight:900;">${formatVND(amt)}</strong></div>
+        <div style="margin-top:2px;">Số tiền cần chuyển cho Shop: <strong style="color:#dc2626; font-size:14.5px; font-weight:900;">${formatVND(amt)}</strong> ${fin.isPartialDeposit ? '<em style="font-size:11px; color:#64748b;">(Cọc 30% tiền hàng)</em>' : '<em style="font-size:11px; color:#64748b;">(100% tiền hàng, chưa gồm ship SPX)</em>'}</div>
         <div style="margin-top:2px;">Nội dung CK: <strong style="color:#1d4ed8; font-family:monospace; font-size:13.5px; background:#eff6ff; padding:2px 8px; border-radius:4px;">${escapeHtml(memo)}</strong> <button type="button" class="btn-copy-mini" style="background:#2563eb; color:#fff;" onclick="copyToClipboard('${escapeHtml(memo)}', 'Đã chép nội dung!')"><i class="fa-regular fa-copy"></i> Copy</button></div>
+        <div style="margin-top:4px; font-size:11px; color:#0369a1;">Phí ship SPX Express <strong>${formatVND(fin.shippingFee)}</strong>: Bạn thanh toán riêng cho bưu tá khi nhận xe.</div>
         <div style="margin-top:8px; font-size:11.5px; color:#64748b; font-style:italic;">Sau khi chuyển khoản, Admin sẽ kiểm tra và duyệt đơn ngay cho bạn.</div>
       </div>
     </div>
@@ -9070,22 +9197,30 @@ function printCustomerOrderInvoice(orderCode) {
     showToast('Không tìm thấy dữ liệu đơn hàng để in phiếu.', 'error');
     return;
   }
-  const subtotal = Number(ord.Subtotal || ord.subtotal || 0);
-  const shippingFee = Number(ord.ShippingFee || ord.shippingFee || 11000);
-  const total = Number(ord.Total || ord.total || (subtotal + shippingFee));
-  const depositAmount = Number(ord.DepositAmount || ord.depositAmount || 0);
+  const fin = computeCustomerOrderFinancials(ord);
   const trackingCode = ord.TrackingCode || ord.trackingCode || 'Đang cập nhật';
-  const itemsHTML = (ord.items || []).map((it, idx) => `
-    <tr>
-      <td style="padding:8px; border:1px solid #cbd5e1; text-align:center;">${idx + 1}</td>
-      <td style="padding:8px; border:1px solid #cbd5e1;"><strong>${escapeHtml(it.ProductName || it.name)}</strong></td>
-      <td style="padding:8px; border:1px solid #cbd5e1; text-align:center;">${it.Quantity || it.quantity}</td>
-      <td style="padding:8px; border:1px solid #cbd5e1; text-align:right;">${formatVND(it.UnitPrice || it.unitPrice)}</td>
-      <td style="padding:8px; border:1px solid #cbd5e1; text-align:right; font-weight:700;">${formatVND((it.UnitPrice || it.unitPrice) * (it.Quantity || it.quantity))}</td>
-    </tr>
-  `).join('');
+  const itemsHTML = (ord.items || []).map((it, idx) => {
+    const pack = String(it.packagingOption || it.PackagingOption || it.packType || 'box').toUpperCase();
+    const pSku = it.sku || it.Sku || '';
+    const uPrice = Number(it.unitPrice ?? it.UnitPrice ?? it.price ?? 0);
+    const qty = Number(it.quantity ?? it.Quantity ?? 1);
+    return `
+      <tr>
+        <td style="padding:8px; border:1px solid #cbd5e1; text-align:center;">${idx + 1}</td>
+        <td style="padding:8px; border:1px solid #cbd5e1;">
+          <strong>${escapeHtml(it.productName || it.ProductName || it.name || 'Mô hình MINI GT 1:64')}</strong>
+          <div style="font-size:11px; color:#64748b; margin-top:2px;">
+            ${pSku ? `SKU: <strong>${escapeHtml(pSku)}</strong> • ` : ''}Quy cách: <strong>${pack === 'CARD' ? '🛡️ Thẻ Blister Card' : '📦 Hộp Giấy Box'}</strong>
+          </div>
+        </td>
+        <td style="padding:8px; border:1px solid #cbd5e1; text-align:center;">${qty}</td>
+        <td style="padding:8px; border:1px solid #cbd5e1; text-align:right;">${formatVND(uPrice)}</td>
+        <td style="padding:8px; border:1px solid #cbd5e1; text-align:right; font-weight:700;">${formatVND(uPrice * qty)}</td>
+      </tr>
+    `;
+  }).join('');
 
-  const win = window.open('', '_blank', 'width=820,height=720');
+  const win = window.open('', '_blank', 'width=840,height=760');
   if (!win) {
     showToast('Trình duyệt đang chặn cửa sổ bật lên (Pop-up). Vui lòng cho phép để in hóa đơn!', 'error');
     return;
@@ -9097,54 +9232,78 @@ function printCustomerOrderInvoice(orderCode) {
       <meta charset="UTF-8">
       <title>Phiếu Đơn Hàng #${escapeHtml(orderCode)} - Săn Xe Biên Hòa</title>
       <style>
-        body { font-family: Arial, sans-serif; color: #0f172a; padding: 28px; line-height: 1.5; }
-        .header { display: flex; justify-content: space-between; border-bottom: 2px solid #0f172a; padding-bottom: 12px; margin-bottom: 18px; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; color: #0f172a; padding: 28px; line-height: 1.5; margin: 0; }
+        .header { display: flex; justify-content: space-between; border-bottom: 2.5px solid #dc2626; padding-bottom: 12px; margin-bottom: 18px; }
         table { width: 100%; border-collapse: collapse; margin: 14px 0; font-size: 13px; }
-        .summary { margin-left: auto; width: 320px; font-size: 13.5px; }
-        .summary div { display: flex; justify-content: space-between; padding: 4px 0; }
-        @media print { .no-print { display: none; } }
+        .summary { margin-left: auto; width: 360px; font-size: 13px; line-height: 1.8; }
+        .summary div { display: flex; justify-content: space-between; padding: 3px 0; }
+        .box-highlight { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 14px; margin-bottom: 14px; font-size: 12.5px; }
+        @media print { .no-print { display: none; } body { padding: 0; } }
       </style>
     </head>
     <body>
-      <div class="no-print" style="margin-bottom:16px; text-align:right;">
-        <button onclick="window.print()" style="background:#e11d48; color:#fff; border:none; padding:8px 16px; border-radius:6px; font-weight:700; cursor:pointer;">🖨️ In Phiếu / Lưu PDF</button>
+      <div class="no-print" style="margin-bottom:16px; display:flex; justify-content:space-between; align-items:center;">
+        <span style="font-size:12px; color:#64748b;">Hệ Thống Phân Phối &amp; Đặt Trước Mô Hình Tĩnh 1:64 Chính Hãng</span>
+        <button onclick="window.print()" style="background:#dc2626; color:#fff; border:none; padding:8px 18px; border-radius:6px; font-weight:700; cursor:pointer;">🖨️ In Phiếu / Lưu PDF</button>
       </div>
       <div class="header">
         <div>
-          <h2 style="margin:0; color:#e11d48;">SĂN XE BIÊN HÒA - MINI GT 1:64</h2>
-          <div style="font-size:12px; color:#475569;">Showroom Mô Hình Diecast Chính Hãng • Hotline: 0988.164.164</div>
+          <h2 style="margin:0; color:#dc2626; font-size:22px; font-weight:900;">SĂN XE BIÊN HÒA — MINI GT 1:64</h2>
+          <div style="font-size:12px; color:#475569; margin-top:2px;">Showroom: 38/2 Võ Thị Sáu, P. Quyết Thắng, Biên Hòa, Đồng Nai</div>
+          <div style="font-size:11.5px; color:#64748b;">Hotline / Zalo hỗ trợ: <strong>0981 400 400</strong> (0988.164.164)</div>
         </div>
         <div style="text-align:right;">
-          <div style="font-weight:800; font-size:16px;">PHIẾU XÁC NHẬN ĐƠN HÀNG</div>
-          <div style="font-family:monospace; font-size:14px;">#${escapeHtml(orderCode)}</div>
-          <div style="font-size:12px; color:#64748b;">Mã vận đơn SPX: <strong>${escapeHtml(trackingCode)}</strong></div>
+          <div style="font-weight:800; font-size:16px; color:#0f172a;">${fin.isPartialDeposit ? 'PHIẾU XÁC NHẬN ĐẶT CỌC' : 'HÓA ĐƠN XÁC NHẬN ĐƠN HÀNG'}</div>
+          <div style="font-family:monospace; font-size:15px; font-weight:900; color:#dc2626; margin-top:2px;">#${escapeHtml(orderCode)}</div>
+          <div style="font-size:12px; color:#64748b; margin-top:2px;">Mã vận đơn SPX: <strong style="color:#0284c7;">${escapeHtml(trackingCode)}</strong></div>
         </div>
       </div>
-      <div style="font-size:13px; margin-bottom:12px;">
-        <div><strong>Khách hàng:</strong> ${escapeHtml(ord.FullName || ord.customer?.fullName || '')} - <strong>SĐT:</strong> ${escapeHtml(ord.Phone || ord.customer?.phone || '')}</div>
-        <div><strong>Địa chỉ giao hàng:</strong> ${escapeHtml(ord.Address || ord.customer?.address || '')}</div>
-        <div><strong>Trạng thái đơn:</strong> ${escapeHtml(ord.Status || ord.status || 'PENDING')} | <strong>Phương thức:</strong> ${escapeHtml(ord.PaymentMethod || ord.paymentMethod || '')}</div>
+      <div class="box-highlight">
+        <div><strong>👤 Người nhận:</strong> ${escapeHtml(ord.FullName || ord.customer?.fullName || 'Khách hàng')} • <strong>📞 SĐT:</strong> ${escapeHtml(ord.Phone || ord.customer?.phone || '')}</div>
+        <div><strong>📍 Địa chỉ nhận hàng:</strong> ${escapeHtml(ord.Address || ord.customer?.address || '')}</div>
+        <div><strong>Hình thức:</strong> ${fin.isPartialDeposit ? 'Đặt cọc 30% giữ suất + COD còn lại' : (fin.isCOD ? 'Thanh toán Ship COD 100%' : 'Chuyển khoản VietQR 100% tiền hàng')} | <strong>Trạng thái:</strong> ${escapeHtml(ord.Status || ord.status || 'PENDING')}</div>
       </div>
       <table>
         <thead>
           <tr style="background:#f1f5f9;">
-            <th style="padding:8px; border:1px solid #cbd5e1;">STT</th>
-            <th style="padding:8px; border:1px solid #cbd5e1; text-align:left;">Mẫu xe mô hình 1:64</th>
-            <th style="padding:8px; border:1px solid #cbd5e1;">SL</th>
-            <th style="padding:8px; border:1px solid #cbd5e1; text-align:right;">Đơn giá</th>
-            <th style="padding:8px; border:1px solid #cbd5e1; text-align:right;">Thành tiền</th>
+            <th style="padding:8px; border:1px solid #cbd5e1; width:35px; text-align:center;">STT</th>
+            <th style="padding:8px; border:1px solid #cbd5e1; text-align:left;">Mẫu xe mô hình &amp; Quy cách</th>
+            <th style="padding:8px; border:1px solid #cbd5e1; width:45px; text-align:center;">SL</th>
+            <th style="padding:8px; border:1px solid #cbd5e1; width:110px; text-align:right;">Đơn giá</th>
+            <th style="padding:8px; border:1px solid #cbd5e1; width:120px; text-align:right;">Thành tiền</th>
           </tr>
         </thead>
         <tbody>${itemsHTML}</tbody>
       </table>
       <div class="summary">
-        <div><span>Tạm tính tiền xe:</span><strong>${formatVND(subtotal)}</strong></div>
-        <div><span>Phí vận chuyển SPX Express:</span><strong>${formatVND(shippingFee)}</strong></div>
-        <div style="border-top:1px solid #cbd5e1; font-size:15px;"><span>Tổng giá trị đơn:</span><strong>${formatVND(total)}</strong></div>
-        <div><span>Tiền đặt cọc (30%):</span><strong>${formatVND(depositAmount)}</strong></div>
+        <div><span>Tạm tính tiền xe:</span><strong>${formatVND(fin.subtotal)}</strong></div>
+        ${fin.protectorFee > 0 ? `<div><span>Hộp bảo vệ Protector:</span><strong>+${formatVND(fin.protectorFee)}</strong></div>` : ''}
+        ${fin.discountAmount > 0 ? `<div style="color:#16a34a;"><span>Giảm giá Voucher:</span><strong>-${formatVND(fin.discountAmount)}</strong></div>` : ''}
+        <div style="border-top:1px dashed #cbd5e1; padding-top:4px;">
+          <span>Tiền hàng trả cho Shop:</span>
+          <strong>${formatVND(fin.productPayable)}</strong>
+        </div>
+        <div style="color:#0369a1;">
+          <span>Phí vận chuyển SPX Express:</span>
+          <strong>${fin.shippingFee > 0 ? formatVND(fin.shippingFee) : '0đ (Miễn phí)'}</strong>
+        </div>
+        <div style="border-top:1.5px solid #0f172a; font-size:14.5px; font-weight:800; padding-top:5px; margin-top:4px;">
+          <span>TỔNG GIÁ TRỊ ĐƠN HÀNG:</span>
+          <span style="color:#dc2626;">${formatVND(fin.total)}</span>
+        </div>
+        ${fin.paidToShopAmount > 0 ? `
+          <div style="color:#2563eb; font-weight:700;">
+            <span>${fin.isPartialDeposit ? 'Đã cọc 30% cho Shop:' : 'Đã chuyển 100% cho Shop:'}</span>
+            <span>${formatVND(fin.paidToShopAmount)}</span>
+          </div>
+        ` : ''}
+        <div style="background:#fff1f2; border:1px solid #fecdd3; border-radius:6px; padding:6px 8px; margin-top:6px; color:#be123c; font-weight:800;">
+          <span>🚚 Bưu tá SPX thu khi phát xe:</span>
+          <span>${formatVND(fin.payableOnDelivery)}</span>
+        </div>
       </div>
-      <p style="margin-top:24px; font-size:12px; color:#64748b; text-align:center;">
-        Cảm ơn quý khách đã tin tưởng sưu tầm mô hình tại Săn Xe Biên Hòa!
+      <p style="margin-top:24px; font-size:11.5px; color:#64748b; text-align:center; border-top:1px dashed #cbd5e1; padding-top:12px;">
+        🛡️ 100% mô hình nguyên seal chính hãng, bọc chống sốc 4 lớp. Cảm ơn quý khách đã tin tưởng sưu tầm tại Săn Xe Biên Hòa!
       </p>
     </body>
     </html>
@@ -11615,19 +11774,47 @@ function toggleAiChat() {
 }
 window.toggleAiChat = toggleAiChat;
 
-function openAiChatForOrderSupport(orderCode) {
+function openOrderFromChat(orderCode) {
+  if (!orderCode) return;
+  const cleanCode = String(orderCode).replace(/^[#\[|\]]+/g, '').trim().toUpperCase();
+  if (typeof openMyOrdersModal === 'function') {
+    openMyOrdersModal();
+    setTimeout(() => {
+      const allCards = Array.from(document.querySelectorAll('.customer-order-card'));
+      const targetCard = allCards.find(el => el.textContent.includes(cleanCode));
+      if (targetCard) {
+        targetCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        targetCard.style.outline = '2.5px solid #2563eb';
+        targetCard.style.boxShadow = '0 0 20px rgba(37,99,235,0.3)';
+        setTimeout(() => {
+          targetCard.style.outline = '';
+          targetCard.style.boxShadow = '';
+        }, 2500);
+      }
+    }, 450);
+  }
+}
+window.openOrderFromChat = openOrderFromChat;
+
+async function openAiChatForOrderSupport(orderCode) {
+  if (!orderCode) return;
+  const cleanCode = String(orderCode).replace(/^[#\[|\]]+/g, '').trim().toUpperCase();
   const win = document.getElementById('aiChatWindow');
   if (!win || !win.classList.contains('active')) {
     toggleAiChat();
   }
+  // Nếu lịch sử chat chưa nạp xong, chủ động đợi nạp để không bị ghi đè race condition
+  if (typeof loadChatHistory === 'function' && !hasLoadedChatHistory) {
+    try { await loadChatHistory(false); } catch (_) {}
+  }
   const input = document.getElementById('aiChatInput');
   if (input) {
-    input.value = `Kiểm tra đơn hàng #${orderCode} và tiến trình giao SPX`;
+    input.value = `Kiểm tra chi tiết đơn hàng #${cleanCode} và tiến trình giao SPX`;
     setTimeout(() => {
       if (typeof handleSendChatMessage === 'function') {
         handleSendChatMessage();
       }
-    }, 280);
+    }, 180);
   }
 }
 window.openAiChatForOrderSupport = openAiChatForOrderSupport;
@@ -11648,7 +11835,15 @@ function formatChatText(str) {
   let escaped = escapeHtml(str);
   // Định dạng in đậm **nội dung**
   escaped = escaped.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-  // Biến mọi mã SKU dạng [MGT00550], [PR640325], [POP001]... thành nút bấm mở xem nhanh xe
+
+  // ƯU TIÊN 1: Nhận diện Mã Đơn Hàng (#MGT-20..., #ORD-..., #DH-...) thành nút bấm mở Modal Đơn hàng
+  // (Tuyệt đối không để regex SKU phía sau nuốt nhầm MGT-202611... thành mã xe không tồn tại!)
+  escaped = escaped.replace(/#(MGT[\-_ ]*20\d{6}[\-_ ]*[A-Z0-9]{2,10}|(?:ORD|DH)[\-_][A-Z0-9\-]{4,20})\b/gi, (full, ordCode) => {
+    const cleanOrd = ordCode.toUpperCase().replace(/\s+/g, '-');
+    return `<button type="button" class="ai-chat-order-link" onclick="openOrderFromChat('${cleanOrd}')" title="Bấm để mở xem đơn hàng #${cleanOrd}">📦 #${cleanOrd}</button>`;
+  });
+
+  // ƯU TIÊN 2: Biến mọi mã SKU dạng [MGT00550], [PR640325], [POP001]... thành nút bấm mở xem nhanh xe
   escaped = escaped.replace(/\[([A-Z0-9][A-Z0-9\-_]{1,22})\]/g, (full, sku) => {
     const up = String(sku).toUpperCase();
     if (up === 'SKU' || up === 'ESCALATE') return full;

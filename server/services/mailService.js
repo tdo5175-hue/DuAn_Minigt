@@ -53,10 +53,20 @@ async function sendOrderConfirmationEmail(order) {
     const fullName = order.customer?.fullName || order.fullName || order.FullName || 'Quý khách';
     const phone = order.customer?.phone || order.phone || order.Phone || '';
     const address = order.customer?.address || order.address || order.Address || '';
-    const total = Number(order.total || order.Total || 0);
+    const total = Number(order.total || order.totalAmount || order.Total || 0);
+    const shippingFee = Number(order.shippingFee ?? order.ShippingFee ?? 0);
+    const subtotal = Number(order.subtotal ?? order.Subtotal ?? Math.max(0, total - shippingFee));
+    const protectorFee = Number(order.protectorFee ?? (/PROTECT|BẢO VỆ|PVC\s*15K/i.test(String(order.note || order.Note || '')) ? 15000 : 0));
+    const productPayable = Number(order.productPayable ?? Math.max(0, total - shippingFee));
+    const discountAmount = Number(order.discountAmount ?? Math.max(0, subtotal + protectorFee - productPayable));
     const depositAmount = Number(order.depositAmount || order.DepositAmount || 0);
-    const isPreOrder = Boolean(order.wasPreOrder || order.hasPreOrder || order.HasPreOrder || depositAmount > 0);
+    const isPreOrder = Boolean(order.wasPreOrder || order.hasPreOrder || order.HasPreOrder);
     const payMethod = String(order.paymentMethod || order.PaymentMethod || 'COD').toUpperCase();
+    const payStatus = String(order.paymentStatus || order.PaymentStatus || 'UNPAID').toUpperCase();
+    const isPartialDeposit = payMethod === 'DEPOSIT' || (depositAmount > 0 && depositAmount < productPayable);
+    const qrTransferAmount = Number(order.qrTransferAmount ?? (payMethod === 'COD' ? 0 : (isPartialDeposit ? depositAmount : productPayable)));
+    const remainingProductAmount = Number(order.remainingProductAmount ?? (payStatus === 'PAID' ? 0 : (isPartialDeposit ? Math.max(0, productPayable - depositAmount) : (payMethod === 'COD' ? productPayable : 0))));
+    const payableOnDelivery = Number(order.payableOnDelivery ?? (remainingProductAmount + shippingFee));
     const items = Array.isArray(order.items) ? order.items : [];
 
     const itemsHtml = items.map(it => {
@@ -133,20 +143,48 @@ async function sendOrderConfirmationEmail(order) {
                 </tbody>
               </table>
 
-              <!-- Tổng kết tài chính -->
-              <div style="margin-top: 14px; padding-top: 10px; border-top: 2px dashed #cbd5e1; font-size: 13px;">
-                <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+              <!-- Tổng kết tài chính tách bạch Tiền hàng Shop & Phí ship SPX -->
+              <div style="margin-top: 14px; padding-top: 12px; border-top: 2px dashed #cbd5e1; font-size: 13px;">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
                   <span>Hình thức thanh toán:</span>
-                  <strong>${payMethod === 'DEPOSIT' ? 'Đặt cọc Pre-Order' : (payMethod === 'BANK_TRANSFER' ? 'Chuyển khoản VietQR' : 'Thanh toán COD khi nhận xe')}</strong>
+                  <strong>${isPartialDeposit ? (isPreOrder ? 'Đặt cọc 30% Pre-Order + COD phần còn lại' : 'Đặt cọc 30% + COD phần còn lại') : (payMethod === 'COD' ? 'Thanh toán Ship COD 100% khi nhận xe' : 'Chuyển khoản VietQR 100% tiền hàng')}</strong>
                 </div>
-                ${isPreOrder ? `
-                  <div style="display: flex; justify-content: space-between; margin-bottom: 4px; color: #7c3aed;">
-                    <span>Tiền cọc giữ suất mô hình:</span>
-                    <strong>${formatVND(depositAmount)}</strong>
+                <div style="display: flex; justify-content: space-between; margin-bottom: 4px; color: #334155;">
+                  <span>Tạm tính tiền mô hình:</span>
+                  <strong>${formatVND(subtotal)}</strong>
+                </div>
+                ${protectorFee > 0 ? `
+                  <div style="display: flex; justify-content: space-between; margin-bottom: 4px; color: #334155;">
+                    <span>Phụ phí hộp nhựa Protector PVC:</span>
+                    <strong>+${formatVND(protectorFee)}</strong>
                   </div>
                 ` : ''}
-                <div style="display: flex; justify-content: space-between; font-size: 15px; font-weight: 900; color: #dc2626; margin-top: 8px;">
-                  <span>TỔNG ĐƠN HÀNG:</span>
+                ${discountAmount > 0 ? `
+                  <div style="display: flex; justify-content: space-between; margin-bottom: 4px; color: #16a34a;">
+                    <span>Giảm giá Voucher ưu đãi:</span>
+                    <strong>-${formatVND(discountAmount)}</strong>
+                  </div>
+                ` : ''}
+                <div style="display: flex; justify-content: space-between; margin-bottom: 4px; color: #0f172a; font-weight: 700;">
+                  <span>Tiền hàng thanh toán cho Shop:</span>
+                  <span>${formatVND(productPayable)}</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; margin-bottom: 6px; color: #0369a1;">
+                  <span>Phí vận chuyển (của đơn vị SPX Express):</span>
+                  <strong>${shippingFee > 0 ? formatVND(shippingFee) : 'Miễn phí (0đ)'}</strong>
+                </div>
+                ${qrTransferAmount > 0 ? `
+                  <div style="display: flex; justify-content: space-between; margin-bottom: 4px; color: #7c3aed; background: #f5f3ff; padding: 6px 10px; border-radius: 6px;">
+                    <span>${isPartialDeposit ? '💳 Chuyển khoản cọc 30% tiền hàng cho Shop:' : '💳 Chuyển khoản 100% tiền hàng cho Shop:'}</span>
+                    <strong>${formatVND(qrTransferAmount)} ${payStatus === 'PAID' || payStatus === 'PARTIALLY_PAID' ? '(Đã nhận)' : ''}</strong>
+                  </div>
+                ` : ''}
+                <div style="display: flex; justify-content: space-between; margin-top: 6px; padding: 8px 10px; border-radius: 8px; background: #fff1f2; border: 1px solid #fecdd3; color: #be123c; font-weight: 800;">
+                  <span>🚚 Thanh toán cho bưu tá SPX khi nhận xe:</span>
+                  <span>${formatVND(payableOnDelivery)}${shippingFee > 0 ? ` (${remainingProductAmount > 0 ? `Hàng ${formatVND(remainingProductAmount)} + ` : ''}Ship SPX ${formatVND(shippingFee)})` : ''}</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; font-size: 14px; font-weight: 900; color: #0f172a; margin-top: 8px;">
+                  <span>TỔNG GIÁ TRỊ ĐƠN (Hàng + Ship SPX):</span>
                   <span>${formatVND(total)}</span>
                 </div>
               </div>

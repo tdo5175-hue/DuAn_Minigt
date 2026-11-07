@@ -9,7 +9,7 @@ const { optionalAuth, authenticate } = require('../middleware/auth');
 const orderService = require('../services/orderService');
 const mailService = require('../services/mailService');
 const aiChatService = require('../services/aiChatService');
-const { ok, badRequest, notFound } = require('../utils/http');
+const { ok, badRequest, notFound, forbidden, conflict } = require('../utils/http');
 const v = require('../utils/validate');
 
 // =====================================================================
@@ -144,16 +144,19 @@ router.get('/check-status/:code', async (req, res, next) => {
           if (match && match[1]) {
             const payosCode = Number(match[1]);
             const pInfo = await payos.getPaymentLinkInformation(payosCode);
-            if (pInfo && (pInfo.status === 'PAID' || (pInfo.amountPaid && pInfo.amountPaid > 0))) {
-              const isDeposit = o.paymentMethod === 'DEPOSIT' || (Number(o.depositAmount) > 0 && Number(o.depositAmount) < Number(o.total));
-              const targetPaymentStatus = isDeposit ? 'PARTIALLY_PAID' : 'PAID';
-              const amountPaid = pInfo.amountPaid || pInfo.amount || (isDeposit ? o.depositAmount : o.total);
-              const formattedAmount = new Intl.NumberFormat('vi-VN').format(amountPaid);
+            const fin = orderService.computeOrderFinancials(o);
+            const expectedQrAmount = Math.max(1, Number(fin.qrTransferAmount || fin.productPayable || 0));
+            const actualPaid = Number(pInfo?.amountPaid || (pInfo?.status === 'PAID' ? pInfo?.amount : 0) || 0);
+
+            if (pInfo && pInfo.status === 'PAID' && actualPaid >= expectedQrAmount) {
+              const isFullPaidNow = actualPaid >= Number(fin.productPayable || 0);
+              const targetPaymentStatus = (fin.isPartialDeposit && !isFullPaidNow) ? 'PARTIALLY_PAID' : 'PAID';
+              const formattedAmount = new Intl.NumberFormat('vi-VN').format(actualPaid);
 
               await db.query(`
                 UPDATE Orders
                 SET PaymentStatus = @pst,
-                    PaymentMethod = 'VIETQR_PAYOS',
+                    PaymentMethod = CASE WHEN PaymentMethod = 'DEPOSIT' THEN 'DEPOSIT' ELSE 'VIETQR_PAYOS' END,
                     Status = CASE WHEN Status = 'PENDING' THEN 'CONFIRMED' ELSE Status END,
                     UpdatedAt = NOW()
                 WHERE OrderId = @oid
@@ -161,10 +164,11 @@ router.get('/check-status/:code', async (req, res, next) => {
 
               await db.query(`
                 INSERT INTO OrderStatusHistory (OrderId, FromStatus, ToStatus, Note)
-                VALUES (@oid, @from, 'CONFIRMED', 'PayOS API: Xác nhận thanh toán VietQR thành công tức thì. Số tiền: ' || @amount || 'đ')
+                VALUES (@oid, @from, 'CONFIRMED', 'PayOS API: Đối soát VietQR thành công (' || @pst || '). Số tiền Shop nhận: ' || @amount || 'đ')
               `, {
                 oid,
                 from: o.status || 'PENDING',
+                pst: targetPaymentStatus,
                 amount: formattedAmount
               });
 
@@ -233,6 +237,9 @@ router.put('/:code/cancel', optionalAuth, async (req, res, next) => {
     const code = String(req.params.code).trim().toUpperCase();
     const o = await orderService.getOrderByCodeOrId(code);
     if (!o) throw notFound('Không tìm thấy đơn hàng');
+    if (o.userId && (!req.user || (Number(req.user.userId) !== Number(o.userId) && req.user.role !== 'admin'))) {
+      throw forbidden('Bạn không có quyền hủy đơn hàng của tài khoản khác');
+    }
 
     const reason = v.cleanStr(req.body.cancelReason || req.body.reason || 'Khách yêu cầu hủy đơn', 255);
     const updated = await orderService.transitionOrderStatus(o.orderId || o.id, 'CANCELLED', {
@@ -245,12 +252,24 @@ router.put('/:code/cancel', optionalAuth, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-// PUT /api/orders/:code/confirm-received — Khách xác nhận đã nhận được hàng
+// PUT /api/orders/:code/confirm-received — Khách xác nhận đã nhận được hàng (chỉ cho phép khi đang SHIPPING)
 router.put('/:code/confirm-received', optionalAuth, async (req, res, next) => {
   try {
     const code = String(req.params.code).trim().toUpperCase();
     const o = await orderService.getOrderByCodeOrId(code);
     if (!o) throw notFound('Không tìm thấy đơn hàng');
+
+    if (o.userId && (!req.user || (Number(req.user.userId) !== Number(o.userId) && req.user.role !== 'admin'))) {
+      throw forbidden('Bạn không có quyền xác nhận nhận hàng cho đơn hàng này');
+    }
+
+    const curStatus = String(o.status || '').toUpperCase();
+    if (curStatus === 'DELIVERED') {
+      return ok(res, o, { message: 'Đơn hàng đã được xác nhận giao thành công trước đó!' });
+    }
+    if (curStatus !== 'SHIPPING') {
+      throw badRequest('Chỉ có thể xác nhận đã nhận hàng khi kiện hàng đang được bưu tá vận chuyển (SHIPPING)!');
+    }
 
     const oid = o.orderId || o.id || o.OrderId;
     await db.query(`
@@ -260,9 +279,9 @@ router.put('/:code/confirm-received', optionalAuth, async (req, res, next) => {
     `, { oid });
 
     await db.query(`
-      INSERT INTO OrderStatusHistory (OrderId, FromStatus, ToStatus, Note)
-      VALUES (@oid, @from, 'DELIVERED', 'Khách hàng xác nhận đã nhận kiện hàng nguyên seal')
-    `, { oid, from: o.status });
+      INSERT INTO OrderStatusHistory (OrderId, FromStatus, ToStatus, Note, ChangedBy)
+      VALUES (@oid, @from, 'DELIVERED', 'Khách hàng xác nhận đã nhận kiện hàng nguyên seal', @by)
+    `, { oid, from: o.status, by: req.user ? req.user.userId : null });
 
     const updated = await orderService.getOrderByCodeOrId(oid);
     if (updated && (updated.email || updated.customer?.email)) {
@@ -280,6 +299,10 @@ router.put('/:code/shipping-info', optionalAuth, async (req, res, next) => {
     const code = String(req.params.code).trim().toUpperCase();
     const o = await orderService.getOrderByCodeOrId(code);
     if (!o) throw notFound('Không tìm thấy đơn hàng');
+
+    if (o.userId && (!req.user || (Number(req.user.userId) !== Number(o.userId) && req.user.role !== 'admin'))) {
+      throw forbidden('Bạn không có quyền sửa địa chỉ nhận hàng của tài khoản khác');
+    }
 
     if (['SHIPPING', 'DELIVERED', 'CANCELLED'].includes(String(o.status).toUpperCase())) {
       throw badRequest('Đơn hàng đã bàn giao vận chuyển hoặc đã đóng, không thể thay đổi địa chỉ');
@@ -323,20 +346,39 @@ router.post('/:code/receipt', optionalAuth, async (req, res, next) => {
 });
 
 // =====================================================================
-// 1. TẠO LINK THANH TOÁN PAYOS VIETQR (HỖ TRỢ CẢ ĐƠN CỌC & ĐƠN THƯỜNG)
+// 1. TẠO LINK THANH TOÁN PAYOS VIETQR (TÁCH BẠCH TIỀN HÀNG SHOP & PHÍ SHIP SPX)
 // =====================================================================
 router.post('/:code/payos-link', optionalAuth, async (req, res, next) => {
   try {
     const code = String(req.params.code).trim().toUpperCase();
     const order = await orderService.getOrderByCodeOrId(code);
-    if (!order) return notFound('Không tìm thấy đơn hàng với mã này');
+    if (!order) throw notFound('Không tìm thấy đơn hàng với mã này');
 
-    // Xác định số tiền cần thanh toán qua VietQR:
-    // Nếu là đơn đặt trước (Pre-Order) và có tiền cọc thì tạo link thanh toán đúng số tiền cọc
-    const hasPreOrder = Boolean(order.hasPreOrder || order.HasPreOrder || (order.depositAmount && Number(order.depositAmount) > 0));
-    const amountToPay = (hasPreOrder && Number(order.depositAmount) > 0)
-      ? Number(order.depositAmount)
-      : Number(order.total || order.totalAmount || 0);
+    const curStatus = String(order.status || '').toUpperCase();
+    if (curStatus === 'CANCELLED') {
+      throw badRequest('Đơn hàng đã hủy, không thể tạo mã thanh toán VietQR');
+    }
+
+    const fin = orderService.computeOrderFinancials(order);
+    const payMethod = String(order.paymentMethod || '').toUpperCase();
+    const payStatus = String(order.paymentStatus || 'UNPAID').toUpperCase();
+
+    if (payStatus === 'PAID') {
+      throw conflict('Đơn hàng này đã thanh toán đủ 100% tiền hàng cho Shop');
+    }
+    if (payMethod === 'COD' && !(req.body && req.body.switchToTransfer === true)) {
+      throw badRequest('Đơn hàng Ship COD thanh toán trực tiếp cho bưu tá SPX khi nhận xe, không cần quét mã VietQR');
+    }
+
+    const payRemaining = Boolean(req.body?.payRemaining === true || req.query?.payRemaining === '1');
+    if (payStatus === 'PARTIALLY_PAID' && !payRemaining) {
+      throw conflict('Đơn hàng đã đặt cọc 30% thành công. Phần tiền hàng còn lại sẽ thanh toán khi nhận xe.');
+    }
+
+    // TUYỆT ĐỐI CHỈ THU TIỀN HÀNG CỦA SHOP (productPayable hoặc 30% depositAmount) QUA VIETQR — KHÔNG CỘNG PHÍ SHIP SPX 11.000đ!
+    const amountToPay = (payStatus === 'PARTIALLY_PAID' && payRemaining)
+      ? Math.round(Number(fin.remainingProductAmount || 0))
+      : Math.round(Number(fin.qrTransferAmount > 0 ? fin.qrTransferAmount : fin.productPayable));
 
     if (amountToPay <= 0) {
       throw badRequest('Số tiền thanh toán không hợp lệ');
@@ -368,18 +410,18 @@ router.post('/:code/payos-link', optionalAuth, async (req, res, next) => {
 
     const paymentLink = await payos.createPaymentLink(paymentData);
 
-    // Ghi log vào OrderStatusHistory để mapping payosOrderCode với OrderId
+    // Ghi log vào OrderStatusHistory để mapping payosOrderCode với OrderId (giữ nguyên DEPOSIT nếu là đơn đặt cọc)
     const oid = order.orderId || order.id || order.OrderId;
     await db.query(`
       UPDATE Orders
-      SET PaymentMethod = 'VIETQR_PAYOS'
-      WHERE OrderId = @oid AND (PaymentMethod IS NULL OR PaymentMethod = 'BANK_TRANSFER' OR PaymentMethod = 'DEPOSIT')
+      SET PaymentMethod = CASE WHEN PaymentMethod = 'DEPOSIT' THEN 'DEPOSIT' ELSE 'VIETQR_PAYOS' END
+      WHERE OrderId = @oid AND (PaymentMethod IS NULL OR PaymentMethod = 'BANK_TRANSFER' OR PaymentMethod = 'COD')
     `, { oid }).catch(() => {});
 
     await db.query(`
       INSERT INTO OrderStatusHistory (OrderId, FromStatus, ToStatus, Note)
-      VALUES (@oid, @st, @st, 'Khởi tạo link thanh toán VietQR PayOS #' || @pCode)
-    `, { oid, st: order.status || 'PENDING', pCode: payosOrderCode }).catch(() => {});
+      VALUES (@oid, @st, @st, 'Khởi tạo link thanh toán VietQR PayOS #' || @pCode || ' (' || @amt || 'đ)')
+    `, { oid, st: order.status || 'PENDING', pCode: payosOrderCode, amt: Math.round(amountToPay) }).catch(() => {});
 
     return ok(res, {
       checkoutUrl: paymentLink.checkoutUrl,
@@ -390,7 +432,13 @@ router.post('/:code/payos-link', optionalAuth, async (req, res, next) => {
       paymentLinkId: paymentLink.paymentLinkId,
       orderCode: order.orderCode,
       payosOrderCode,
-      amount: amountToPay
+      amount: Math.round(amountToPay),
+      productPayable: fin.productPayable,
+      depositAmount: fin.depositAmount,
+      remainingProductAmount: fin.remainingProductAmount,
+      shippingFee: fin.shippingFee,
+      payableOnDelivery: fin.payableOnDelivery,
+      isPartialDeposit: fin.isPartialDeposit
     }, 'Khởi tạo cổng thanh toán PayOS VietQR thành công');
   } catch (err) {
     console.error('[PayOS createPaymentLink Error]:', err.message);
@@ -399,21 +447,40 @@ router.post('/:code/payos-link', optionalAuth, async (req, res, next) => {
 });
 
 // =====================================================================
-// 2. WEBHOOK NHẬN TIỀN TỰ ĐỘNG TỪ PAYOS (TỰ ĐỘNG PHẢN HỒI 200 KHI TEST URL)
+// 2. WEBHOOK NHẬN TIỀN TỰ ĐỘNG TỪ PAYOS (CHỐNG GIẢ MẠO CHỮ KÝ & KIỂM TRA ĐỦ TIỀN)
 // =====================================================================
 router.post('/payos-webhook', async (req, res) => {
   try {
-    // 1. Kiểm tra xác thực chữ ký Webhook (payOS verify)
+    // 1. Xác thực chữ ký Webhook PayOS bắt buộc
     let webhookData = null;
     try {
       webhookData = payos.verifyPaymentWebhookData(req.body);
     } catch (verifyErr) {
-      // Khi PayOS ping kiểm tra trạng thái URL Webhook từ trang quản trị PayOS
       console.log('[PayOS Ping/Verify Event]:', verifyErr.message);
+      // Nếu sai/thiếu chữ ký: CHỈ cho phép đối chiếu trực tiếp lên máy chủ PayOS nếu có mã giao dịch số hợp lệ
+      const rawOrderCode = req.body?.data?.orderCode;
+      if (rawOrderCode && /^\d+$/.test(String(rawOrderCode))) {
+        try {
+          const liveInfo = await payos.getPaymentLinkInformation(Number(rawOrderCode));
+          if (liveInfo && liveInfo.status === 'PAID') {
+            webhookData = {
+              code: '00',
+              status: 'PAID',
+              orderCode: Number(rawOrderCode),
+              amount: Number(liveInfo.amountPaid || liveInfo.amount || 0),
+              description: req.body?.data?.description || ''
+            };
+          }
+        } catch (_) {}
+      }
+      if (!webhookData) {
+        // Phản hồi 200 OK cho ping kiểm tra URL của PayOS Dashboard nhưng TUYỆT ĐỐI KHÔNG tự ý duyệt đơn!
+        return res.status(200).json({ success: true, message: 'Webhook ping acknowledged' });
+      }
     }
 
-    const payload = webhookData || req.body?.data || req.body;
-    const isSuccess = payload?.code === '00' || req.body?.code === '00' || payload?.status === 'PAID';
+    const payload = webhookData;
+    const isSuccess = payload && (payload.code === '00' || payload.status === 'PAID' || req.body?.code === '00');
 
     if (isSuccess && payload) {
       const desc = String(payload.description || '').toUpperCase();
@@ -436,7 +503,7 @@ router.post('/payos-webhook', async (req, res) => {
         try {
           const findByPayos = await db.query(`
             SELECT OrderId FROM OrderStatusHistory
-            WHERE Note LIKE '%' || @pCode || '%'
+            WHERE Note LIKE '%PayOS #' || @pCode || '%'
             ORDER BY HistoryId DESC LIMIT 1
           `, { pCode: String(payload.orderCode) });
           if (findByPayos.recordset.length > 0) {
@@ -445,40 +512,54 @@ router.post('/payos-webhook', async (req, res) => {
         } catch (_) {}
       }
 
-      if (order) {
+      if (order && String(order.status || '').toUpperCase() !== 'CANCELLED' && String(order.paymentStatus || '').toUpperCase() !== 'PAID') {
         const oid = order.orderId || order.id || order.OrderId;
-        const isDeposit = Boolean(order.paymentMethod === 'DEPOSIT' || (order.depositAmount && Number(order.depositAmount) > 0 && Number(order.depositAmount) < Number(order.total)));
-        const targetPaymentStatus = isDeposit ? 'PARTIALLY_PAID' : 'PAID';
-        const formattedAmount = new Intl.NumberFormat('vi-VN').format(payload.amount || (isDeposit ? order.depositAmount : order.total));
+        const fin = orderService.computeOrderFinancials(order);
+        const paidAmount = Number(payload.amount || 0);
+        const expectedMin = Math.max(1, Number(fin.qrTransferAmount || fin.productPayable || 0));
 
-        // Cập nhật trạng thái đơn hàng tự động trong database
-        await db.query(`
-          UPDATE Orders
-          SET PaymentStatus = @pst,
-              PaymentMethod = 'VIETQR_PAYOS',
-              Status = 'CONFIRMED',
-              UpdatedAt = NOW()
-          WHERE OrderId = @oid
-        `, { oid, pst: targetPaymentStatus });
+        if (paidAmount < expectedMin) {
+          await db.query(`
+            INSERT INTO OrderStatusHistory (OrderId, FromStatus, ToStatus, Note)
+            VALUES (@oid, @from, @from, 'Cảnh báo PayOS: Số tiền nhận (' || @paid || 'đ) thấp hơn mức yêu cầu (' || @req || 'đ). Chờ Admin đối soát thủ công.')
+          `, {
+            oid,
+            from: order.status || 'PENDING',
+            paid: new Intl.NumberFormat('vi-VN').format(paidAmount),
+            req: new Intl.NumberFormat('vi-VN').format(expectedMin)
+          }).catch(() => {});
+        } else {
+          const isFullPaidNow = paidAmount >= Number(fin.productPayable || 0);
+          const targetPaymentStatus = (fin.isPartialDeposit && !isFullPaidNow) ? 'PARTIALLY_PAID' : 'PAID';
+          const formattedAmount = new Intl.NumberFormat('vi-VN').format(paidAmount);
 
-        // Ghi log vào bảng OrderStatusHistory
-        await db.query(`
-          INSERT INTO OrderStatusHistory (OrderId, FromStatus, ToStatus, Note)
-          VALUES (@oid, @from, 'CONFIRMED', 'PayOS: Khách đã thanh toán tự động qua VietQR thành công. Số tiền: ' || @amount || 'đ')
-        `, {
-          oid,
-          from: order.status || 'PENDING',
-          amount: formattedAmount
-        });
+          await db.query(`
+            UPDATE Orders
+            SET PaymentStatus = @pst,
+                PaymentMethod = CASE WHEN PaymentMethod = 'DEPOSIT' THEN 'DEPOSIT' ELSE 'VIETQR_PAYOS' END,
+                Status = CASE WHEN Status = 'PENDING' THEN 'CONFIRMED' ELSE Status END,
+                UpdatedAt = NOW()
+            WHERE OrderId = @oid
+          `, { oid, pst: targetPaymentStatus });
 
-        console.log(`✅ [PayOS Webhook] Đơn hàng ${order.orderCode} đã được tự động duyệt thành công!`);
-
-        // Gửi email thông báo xác nhận đơn hàng tự động cho khách hàng qua mailService
-        const updatedOrder = await orderService.getOrderByCodeOrId(oid);
-        if (updatedOrder && (updatedOrder.email || updatedOrder.customer?.email)) {
-          mailService.sendOrderConfirmationEmail(updatedOrder).catch(err => {
-            console.warn('[MailService] Lỗi gửi email xác nhận PayOS:', err.message);
+          await db.query(`
+            INSERT INTO OrderStatusHistory (OrderId, FromStatus, ToStatus, Note)
+            VALUES (@oid, @from, 'CONFIRMED', 'PayOS: Khách đã thanh toán tự động qua VietQR thành công (' || @pst || '). Số tiền Shop nhận: ' || @amount || 'đ')
+          `, {
+            oid,
+            from: order.status || 'PENDING',
+            pst: targetPaymentStatus,
+            amount: formattedAmount
           });
+
+          console.log(`✅ [PayOS Webhook] Đơn hàng ${order.orderCode} đã được đối soát tự động (${targetPaymentStatus} - ${formattedAmount}đ)!`);
+
+          const updatedOrder = await orderService.getOrderByCodeOrId(oid);
+          if (updatedOrder && (updatedOrder.email || updatedOrder.customer?.email)) {
+            mailService.sendOrderConfirmationEmail(updatedOrder).catch(err => {
+              console.warn('[MailService] Lỗi gửi email xác nhận PayOS:', err.message);
+            });
+          }
         }
       }
     }

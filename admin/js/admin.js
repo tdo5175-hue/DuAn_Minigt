@@ -3902,7 +3902,15 @@
     const custName = (o.customer && o.customer.fullName) || o.fullName || 'Khách hàng';
     const custAddr = (o.customer && o.customer.address) || o.address || 'Tại shop';
     const custPhone = (o.customer && o.customer.phone) || o.phone || '';
-    const orderTotal = o.total ?? o.totalAmount ?? 0;
+    const shippingFee = Number(o.shippingFee ?? o.ShippingFee ?? 11000);
+    const orderTotal = Number(o.total ?? o.totalAmount ?? 0);
+    const productPayable = Number(o.productPayable ?? Math.max(0, orderTotal - shippingFee));
+    const depositPaid = Number(o.depositAmount ?? o.DepositAmount ?? 0);
+    const isPaid = o.paymentStatus === 'PAID';
+    const isPartialDeposit = o.paymentMethod === 'DEPOSIT' || (depositPaid > 0 && depositPaid < productPayable);
+    const paidToShop = Number(o.paidToShopAmount ?? (isPaid ? productPayable : (isPartialDeposit ? depositPaid : 0)));
+    const remainingProduct = (isPaid || o.status === 'DELIVERED') ? 0 : (isPartialDeposit ? Math.max(0, productPayable - depositPaid) : (o.paymentMethod === 'COD' ? productPayable : 0));
+    const payableOnDelivery = Number(o.payableOnDelivery ?? ((o.status === 'DELIVERED' || o.status === 'CANCELLED') ? 0 : (remainingProduct + shippingFee)));
     const items = o.items || [];
 
     const printWin = window.open('', '_blank', 'width=800,height=700');
@@ -3985,11 +3993,13 @@
         </table>
 
         <div class="total-box">
-          <div class="total-row"><span>Tổng giá trị hàng:</span> <strong>${formatVND(orderTotal)}</strong></div>
-          ${o.depositAmount > 0 ? `<div class="total-row" style="color:#2563eb;"><span>Đã đặt cọc trước:</span> <strong>-${formatVND(o.depositAmount)}</strong></div>` : ''}
+          <div class="total-row"><span>Tiền hàng (Shop nhận):</span> <strong>${formatVND(productPayable)}</strong></div>
+          <div class="total-row" style="color:#0284c7;"><span>Phí ship (SPX Express):</span> <strong>${shippingFee === 0 ? '0 đ (Freeship)' : formatVND(shippingFee)}</strong></div>
+          <div class="total-row" style="border-top:1px dashed #cbd5e1; padding-top:4px; font-weight:700;"><span>Tổng giá trị đơn:</span> <strong>${formatVND(orderTotal)}</strong></div>
+          ${paidToShop > 0 ? `<div class="total-row" style="color:#2563eb;"><span>${isPartialDeposit ? 'Đã cọc cho Shop:' : 'Đã chuyển khoản cho Shop:'}</span> <strong>-${formatVND(paidToShop)}</strong></div>` : ''}
           <div class="total-row total-final">
-            <span>${o.paymentStatus === 'PAID' ? 'ĐÃ THANH TOÁN ĐỦ:' : (o.paymentMethod === 'COD' || o.depositAmount > 0 ? 'SỐ TIỀN THU COD:' : 'CẦN THU:')}</span>
-            <span>${o.paymentStatus === 'PAID' ? '0 đ (Đã thanh toán)' : formatVND(Math.max(0, orderTotal - (o.depositAmount || 0)))}</span>
+            <span>${payableOnDelivery === 0 ? 'ĐÃ TẤT TOÁN:' : 'BƯU TÁ SPX THU KHI GIAO:'}</span>
+            <span>${payableOnDelivery === 0 ? '0 đ (Không thu thêm)' : formatVND(payableOnDelivery)}</span>
           </div>
         </div>
 
@@ -4218,20 +4228,41 @@
             </div>
           </td>
 
-          <!-- 4. Tài chính & Thanh toán (Gộp gọn gàng, rõ ràng, không chiếm ngang) -->
+          <!-- 4. Tài chính & Thanh toán (Gộp gọn gàng, rõ ràng, tách bạch Shop vs Ship SPX 11k) -->
           <td>
             <div style="font-size:13.5px; font-weight:800; color:#0f172a;">${formatVND(orderTotal)}</div>
-            ${o.depositAmount > 0
-              ? `<div style="font-size:11px; color:#2563eb; font-weight:700; margin-top:2px;">
-                   <i class="fa-solid fa-hand-holding-dollar"></i> Cọc: ${formatVND(o.depositAmount)}
-                 </div>
-                 <div style="font-size:10.5px; color:#64748b; margin-top:1px;">
-                   COD còn: <strong>${formatVND(Math.max(0, orderTotal - o.depositAmount))}</strong>
-                 </div>`
-              : `<div style="font-size:10.5px; color:#64748b; margin-top:1px;">
-                   ${o.paymentMethod === 'COD' ? 'Thu COD 100%' : 'Thanh toán Full'}
-                 </div>`
-            }
+            ${(() => {
+              const deposit = Number(o.depositAmount || 0);
+              const payableOnDeliv = Number(o.payableOnDelivery !== undefined ? o.payableOnDelivery : (o.codAmount !== undefined ? o.codAmount : (deposit > 0 ? Math.max(0, orderTotal - deposit) : (o.paymentMethod === 'COD' ? orderTotal : (o.shippingFee || 11000)))));
+              const isPaid = o.paymentStatus === 'PAID';
+              const isDeposit = Boolean(o.isPartialDeposit || o.paymentMethod === 'DEPOSIT' || (deposit > 0 && !isPaid));
+
+              if (isDeposit && deposit > 0) {
+                return `
+                  <div style="font-size:11px; color:#2563eb; font-weight:700; margin-top:2px;">
+                    <i class="fa-solid fa-hand-holding-dollar"></i> Cọc: ${formatVND(deposit)}
+                  </div>
+                  <div style="font-size:10.5px; color:#64748b; margin-top:1px;">
+                    Shipper thu: <strong style="color:#c2410c;">${formatVND(payableOnDeliv)}</strong>
+                  </div>
+                `;
+              }
+              if (o.paymentMethod === 'COD') {
+                return `
+                  <div style="font-size:10.5px; color:#c2410c; margin-top:1px; font-weight:700;">
+                    Thu COD: <strong>${formatVND(payableOnDeliv)}</strong>
+                  </div>
+                `;
+              }
+              return `
+                <div style="font-size:10.5px; color:#059669; margin-top:1px; font-weight:700;">
+                  ${isPaid ? 'Đã CK tiền xe cho Shop' : 'CK 100% tiền xe'}
+                </div>
+                <div style="font-size:10.5px; color:#64748b; margin-top:1px;">
+                  Shipper thu: <strong>${formatVND(payableOnDeliv)}</strong>
+                </div>
+              `;
+            })()}
             <div style="margin-top:4px;">
               ${renderPaymentBadge(o.paymentStatus, o.paymentMethod)}
             </div>
@@ -4359,35 +4390,32 @@
 
       // Tính toán các thông số tài chính đối soát minh bạch chuẩn SPX Express
       const rawSubtotal = Number(order.subtotal || 0);
-      const rawDiscount = Number(order.discount || 0);
-      const netModelTotal = Math.max(0, rawSubtotal - rawDiscount);
-      const spxShipFee = Number(order.shippingFee || 11000);
-      const orderTotal = Number(order.total || (netModelTotal + spxShipFee));
+      const rawDiscount = Number(order.discount || order.discountAmount || 0);
+      const spxShipFee = Number(order.shippingFee !== undefined ? order.shippingFee : 11000);
+      const productPayable = Number(order.productPayable !== undefined ? order.productPayable : Math.max(0, rawSubtotal - rawDiscount));
+      const orderTotal = Number(order.total || (productPayable + spxShipFee));
       const depositPaid = Number(order.depositAmount || 0);
       const isPaidFull = order.paymentStatus === 'PAID';
-      const isDepositOrder = order.paymentMethod === 'DEPOSIT' || (depositPaid > 0 && depositPaid < orderTotal);
+      const isDepositOrder = Boolean(order.isPartialDeposit || order.paymentMethod === 'DEPOSIT' || (depositPaid > 0 && depositPaid < productPayable));
+      const isFullTransfer = Boolean(order.isFullTransfer || (['VIETQR_PAYOS', 'BANK_TRANSFER', 'PAYOS'].includes(order.paymentMethod) && !isDepositOrder));
 
-      let remainingModel = 0;
-      let codToCollect = 0;
-      let spxReconcilePayout = 0;
-      let shopTotalRevenue = 0;
+      const remainingModel = order.remainingProductAmount !== undefined
+        ? Number(order.remainingProductAmount)
+        : (isDepositOrder ? Math.max(0, productPayable - depositPaid) : (isPaidFull || isFullTransfer ? 0 : productPayable));
 
-      if (isPaidFull) {
-        remainingModel = 0;
-        codToCollect = 0;
-        spxReconcilePayout = 0;
-        shopTotalRevenue = netModelTotal;
-      } else if (isDepositOrder) {
-        remainingModel = Math.max(0, netModelTotal - depositPaid);
-        codToCollect = remainingModel + spxShipFee;
-        spxReconcilePayout = remainingModel;
-        shopTotalRevenue = depositPaid + spxReconcilePayout;
-      } else {
-        remainingModel = netModelTotal;
-        codToCollect = orderTotal;
-        spxReconcilePayout = netModelTotal;
-        shopTotalRevenue = spxReconcilePayout;
-      }
+      const codToCollect = order.payableOnDelivery !== undefined
+        ? Number(order.payableOnDelivery)
+        : (order.codAmount !== undefined
+            ? Number(order.codAmount)
+            : (isPaidFull || isFullTransfer
+                ? spxShipFee
+                : (isDepositOrder ? remainingModel + spxShipFee : orderTotal)));
+
+      const spxReconcilePayout = order.spxCodForShop !== undefined
+        ? Number(order.spxCodForShop)
+        : (isPaidFull || isFullTransfer ? 0 : remainingModel);
+
+      const shopTotalRevenue = productPayable;
 
       body.innerHTML = `
         ${isDeliveredOrCompleted ? `
@@ -4555,7 +4583,7 @@
               ` : ''}
               <div style="display:flex; justify-content:space-between; margin-bottom:4px; padding-top:4px; border-top:1px dashed #e2e8f0;">
                 <span style="font-weight:700; color:#0f172a;">Tiền xe thực nhận của Shop:</span>
-                <strong style="color:#2563eb; font-size:13.5px;">${formatVND(netModelTotal)}</strong>
+                <strong style="color:#2563eb; font-size:13.5px;">${formatVND(productPayable)}</strong>
               </div>
               <div style="display:flex; justify-content:space-between; margin-bottom:4px; color:#64748b;">
                 <span>Phí ship SPX Express (11k):</span>
@@ -4583,8 +4611,10 @@
               </div>
               <div style="font-size:11px; color:#64748b; line-height:1.4; margin-bottom:8px; background:#fff; padding:6px 8px; border-radius:6px; border:1px solid #e2e8f0;">
                 ${codToCollect === 0 
-                  ? '<i class="fa-solid fa-circle-check" style="color:#059669;"></i> Khách đã thanh toán 100%. Khi giao bưu tá SPX chỉ phát kiện, không thu tiền COD.'
-                  : `<i class="fa-solid fa-circle-info" style="color:#0284c7;"></i> Shipper SPX thu từ khách <strong>${formatVND(codToCollect)}</strong> (gồm ${formatVND(remainingModel)} tiền xe + ${formatVND(spxShipFee)} ship). SPX giữ 11k tiền ship của SPX, và <strong>SPX tự động đối soát chuyển ${formatVND(spxReconcilePayout)}</strong> về STK ngân hàng Shop!`
+                  ? '<i class="fa-solid fa-circle-check" style="color:#059669;"></i> Đơn hàng Freeship và đã thanh toán đủ 100%. Khi giao bưu tá SPX chỉ phát kiện, không thu thêm tiền COD.'
+                  : (isPaidFull || isFullTransfer)
+                    ? `<i class="fa-solid fa-truck-fast" style="color:#0284c7;"></i> Khách đã thanh toán 100% tiền xe (${formatVND(productPayable)}) cho Shop. Shipper SPX khi phát hàng chỉ thu tiền cước vận chuyển <strong>${formatVND(codToCollect)}</strong> của bưu cục SPX (Shop không cần đối soát cước này).`
+                    : `<i class="fa-solid fa-circle-info" style="color:#0284c7;"></i> Shipper SPX thu từ khách <strong>${formatVND(codToCollect)}</strong> (gồm ${formatVND(remainingModel)} tiền xe + ${formatVND(spxShipFee)} ship SPX). SPX giữ 11k tiền ship của SPX, và <strong>SPX tự động đối soát chuyển ${formatVND(spxReconcilePayout)}</strong> về STK ngân hàng Shop!`
                 }
               </div>
               <div style="display:flex; justify-content:space-between; align-items:center; padding-top:4px; border-top:1.5px solid #cbd5e1; font-weight:800;">
@@ -4598,12 +4628,10 @@
         <!-- Khung đối soát VietQR PayOS Tự Động hoặc App MB Bank -->
         ${(() => {
           const isPayOS = order.paymentMethod === 'VIETQR_PAYOS' || order.paymentMethod === 'PAYOS';
-          const isDeposit = order.paymentMethod === 'DEPOSIT';
-          const isTransfer = order.paymentMethod === 'BANK_TRANSFER';
+          const isDeposit = isDepositOrder;
+          const isTransfer = isFullTransfer;
           const memoText = `MINI GT #${order.code}`;
-          const codVal = order.codAmount !== undefined 
-            ? order.codAmount 
-            : (order.paymentStatus === 'PAID' ? 0 : (order.depositAmount > 0 ? Math.max(0, order.total - order.depositAmount) : order.total));
+          const codVal = codToCollect;
 
           if (isPayOS) {
             const isPaid = order.paymentStatus === 'PAID';
@@ -4630,7 +4658,7 @@
                     <div>
                       <span style="color:#64748b;">Số tiền thực nhận qua cổng:</span>
                       <div style="font-weight:800; color:#059669; font-size:14px;">
-                        ${isPaid ? formatVND(order.total) : (isPartiallyPaid ? formatVND(order.depositAmount || 100000) : 'Chưa nhận tiền')}
+                        ${isPaid ? formatVND(productPayable) : (isPartiallyPaid ? formatVND(order.depositAmount || 0) : 'Chưa nhận tiền')}
                       </div>
                     </div>
                   </div>
@@ -4643,10 +4671,10 @@
                 </div>
 
                 <div style="font-size:12px; color:#065f46; line-height:1.5;">
-                  ${order.depositAmount > 0 && !isPaid
+                  ${isDeposit && !isPaid
                     ? `• Đơn Pre-Order đã nhận cọc qua VietQR: Khi shipper SPX giao phát hàng, tiền thu hộ COD còn lại là <strong>${formatVND(codVal)}</strong>.`
                     : (isPaid
-                        ? `• Đơn hàng đã được thanh toán 100% tự động qua PayOS. Tiền thu COD khi giao hàng là <strong>0đ</strong>.`
+                        ? `• Đơn hàng đã được thanh toán 100% tiền xe qua PayOS. Khi giao hàng, shipper SPX chỉ thu tiền ship SPX <strong>${formatVND(codVal)}</strong> (0đ nếu Freeship).`
                         : `• Hệ thống tự động đối soát Webhook PayOS. Ngay khi khách quét mã VietQR thành công, đơn sẽ tự động chuyển sang ĐÃ DUYỆT (CONFIRMED) & ĐÃ THANH TOÁN mà Admin không cần thao tác bấm xác nhận thủ công.`
                       )
                   }
@@ -4658,7 +4686,7 @@
                   <span style="font-size:11px; color:#64748b;">Can thiệp Admin:</span>
                   ${order.paymentStatus !== 'PAID' ? `
                     <button type="button" class="btn-admin btn-admin-primary" style="font-size:11.5px; padding:4px 10px; background:#059669; border-color:#059669;" onclick="confirmPaymentAction(${order.id}, 'full')">
-                      <i class="fa-solid fa-circle-check"></i> Xác nhận đã nhận đủ (${formatVND(order.total)})
+                      <i class="fa-solid fa-circle-check"></i> Xác nhận đã nhận đủ (${formatVND(order.qrTransferAmount || productPayable)})
                     </button>
                   ` : ''}
                   ${order.status === 'PENDING' ? `
@@ -4697,10 +4725,10 @@
 
               <div style="font-size:12px; color:#334155; line-height:1.5;">
                 ${isDeposit 
-                  ? `• Khách chọn <strong>Đặt cọc giữ xe</strong>: Cần nhận <strong>${formatVND(order.depositAmount || 100000)}</strong> trong App MB Bank. Khi bưu tá SPX giao xe, tiền thu hộ COD còn lại là <strong>${formatVND(codVal)}</strong>.`
+                  ? `• Khách chọn <strong>Đặt cọc 30% giữ xe</strong>: Cần nhận <strong>${formatVND(order.depositAmount || 0)}</strong> trong App MB Bank. Khi bưu tá SPX giao xe, tiền thu hộ COD còn lại là <strong>${formatVND(codVal)}</strong>.`
                   : (isTransfer 
-                    ? `• Khách chọn <strong>Thanh toán Full 100%</strong>: Cần nhận đủ <strong>${formatVND(order.total)}</strong> trong App MB Bank. Khi bưu tá SPX giao xe, tiền thu hộ COD là <strong>0đ</strong>.`
-                    : `• Khách chọn <strong>COD</strong>: Thanh toán toàn bộ <strong>${formatVND(order.total)}</strong> trực tiếp cho bưu tá SPX khi nhận kiện.`
+                    ? `• Khách chọn <strong>Thanh toán Full xe</strong>: Cần nhận đủ tiền xe <strong>${formatVND(order.qrTransferAmount || productPayable)}</strong> trong App MB Bank. Khi bưu tá SPX giao xe, khách trả cước ship SPX <strong>${formatVND(codVal)}</strong> cho shipper.`
+                    : `• Khách chọn <strong>COD</strong>: Thanh toán toàn bộ <strong>${formatVND(orderTotal)}</strong> trực tiếp cho bưu tá SPX khi nhận kiện.`
                   )
                 }
               </div>
@@ -4710,13 +4738,15 @@
                   <span style="font-size:11.5px; color:#64748b;">Sau khi check App thấy số dư:</span>
                   ${(isDeposit || (order.depositAmount > 0)) && order.paymentStatus === 'UNPAID' ? `
                     <button type="button" class="btn-admin btn-admin-primary" style="font-size:11.5px; padding:4px 10px; background:#0284c7; border-color:#0284c7;" onclick="confirmPaymentAction(${order.id}, 'deposit')">
-                      <i class="fa-solid fa-check"></i> Xác nhận nhận cọc (${formatVND(order.depositAmount || 100000)})
+                      <i class="fa-solid fa-check"></i> Xác nhận nhận cọc (${formatVND(order.depositAmount || 0)})
                     </button>
                   ` : ''}
                   <button type="button" class="btn-admin btn-admin-primary" style="font-size:11.5px; padding:4px 10px; background:#059669; border-color:#059669;" onclick="confirmPaymentAction(${order.id}, 'full')">
-                    <i class="fa-solid fa-circle-dollar-to-slot"></i> Xác nhận nhận đủ 100% (${formatVND(order.total)})
+                    <i class="fa-solid fa-circle-dollar-to-slot"></i> Xác nhận nhận đủ (${formatVND(order.qrTransferAmount || productPayable)})
                   </button>
                 </div>
+              ` : ''}
+            </div>
               ` : ''}
             </div>
           `;
@@ -4884,9 +4914,11 @@
       }
 
       if (dispatchInfo) {
-        const codAmount = currentActionOrderData.codAmount !== undefined 
-          ? currentActionOrderData.codAmount 
-          : (currentActionOrderData.paymentStatus === 'PAID' ? 0 : (currentActionOrderData.depositAmount > 0 ? Math.max(0, currentActionOrderData.total - currentActionOrderData.depositAmount) : currentActionOrderData.total));
+        const codAmount = currentActionOrderData.payableOnDelivery !== undefined
+          ? currentActionOrderData.payableOnDelivery
+          : (currentActionOrderData.codAmount !== undefined 
+              ? currentActionOrderData.codAmount 
+              : (currentActionOrderData.paymentStatus === 'PAID' ? 0 : (currentActionOrderData.depositAmount > 0 ? Math.max(0, currentActionOrderData.total - currentActionOrderData.depositAmount) : currentActionOrderData.total)));
         const isOld = currentActionOrderData.addressType === 'OLD' || currentActionOrderData.isOldAddress;
 
         dispatchInfo.innerHTML = `
@@ -4901,8 +4933,8 @@
           </div>
           ${currentActionOrderData.oldAddressNote ? `<div style="color:#c2410c; font-size:11.5px; margin-top:2px;">⚠️ Ghi chú cũ: <em>${escapeHtml(currentActionOrderData.oldAddressNote)}</em></div>` : ''}
           ${isOld ? `<div style="color:#c2410c; font-size:11.5px; margin-top:2px;">⚠️ <em>Lưu ý đối chiếu: Khách dùng địa chỉ cũ. Khi chọn danh mục trên App SPX Express, hãy chọn phường mới tương đương hoặc hỏi lại khách!</em></div>` : ''}
-          <div><strong>Hình thức:</strong> ${currentActionOrderData.paymentMethod === 'DEPOSIT' ? 'Cọc trước giữ xe' : (currentActionOrderData.paymentMethod === 'BANK_TRANSFER' ? 'Chuyển khoản 100%' : 'COD')}</div>
-          <div><strong>Tiền thu hộ Shipper (COD):</strong> <span style="color:#dc2626; font-weight:800; font-size:13.5px;">${formatVND(codAmount)}</span> ${codAmount === 0 ? '<span style="color:#059669; font-size:11px;">(Đã thanh toán đủ - Thu 0đ)</span>' : '<span style="color:#64748b; font-size:11px;">(Tiền xe còn lại + ship SPX)</span>'}</div>
+          <div><strong>Hình thức:</strong> ${currentActionOrderData.paymentMethod === 'DEPOSIT' ? 'Cọc trước 30% giữ xe' : (currentActionOrderData.paymentMethod === 'BANK_TRANSFER' ? 'Chuyển khoản Full tiền xe' : 'COD')}</div>
+          <div><strong>Tiền thu hộ Shipper SPX (COD):</strong> <span style="color:#dc2626; font-weight:800; font-size:13.5px;">${formatVND(codAmount)}</span> ${codAmount === 0 ? '<span style="color:#059669; font-size:11px;">(Đã thanh toán đủ - Thu 0đ)</span>' : '<span style="color:#64748b; font-size:11px;">(Khách trả bưu tá SPX khi nhận kiện)</span>'}</div>
         `;
       }
 
@@ -4914,9 +4946,11 @@
 
   function copyShipSpxDispatchInfo() {
     if (!currentActionOrderData) return;
-    const codAmount = currentActionOrderData.codAmount !== undefined 
-      ? currentActionOrderData.codAmount 
-      : (currentActionOrderData.paymentStatus === 'PAID' ? 0 : (currentActionOrderData.depositAmount > 0 ? Math.max(0, currentActionOrderData.total - currentActionOrderData.depositAmount) : currentActionOrderData.total));
+    const codAmount = currentActionOrderData.payableOnDelivery !== undefined 
+      ? currentActionOrderData.payableOnDelivery 
+      : (currentActionOrderData.codAmount !== undefined 
+          ? currentActionOrderData.codAmount 
+          : (currentActionOrderData.paymentStatus === 'PAID' ? 0 : (currentActionOrderData.depositAmount > 0 ? Math.max(0, currentActionOrderData.total - currentActionOrderData.depositAmount) : currentActionOrderData.total)));
 
     const isOld = currentActionOrderData.addressType === 'OLD' || currentActionOrderData.isOldAddress;
     const itemsSummary = (currentActionOrderData.items || []).map(i => `${i.name} (x${i.quantity})`).join(', ');
@@ -4938,9 +4972,11 @@ MÃ ĐƠN SHOP: #${currentActionOrderData.code}`;
       if (!res.success || !res.data) return;
       const order = res.data;
       const isOld = order.addressType === 'OLD' || order.isOldAddress;
-      const codVal = order.codAmount !== undefined 
-        ? order.codAmount 
-        : (order.paymentStatus === 'PAID' ? 0 : (order.depositAmount > 0 ? Math.max(0, order.total - order.depositAmount) : order.total));
+      const codVal = order.payableOnDelivery !== undefined 
+        ? order.payableOnDelivery 
+        : (order.codAmount !== undefined 
+            ? order.codAmount 
+            : (order.paymentStatus === 'PAID' ? 0 : (order.depositAmount > 0 ? Math.max(0, order.total - order.depositAmount) : order.total)));
 
       let addrText = order.customer.address;
       if (isOld) {
