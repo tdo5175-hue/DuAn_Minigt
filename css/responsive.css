@@ -403,17 +403,42 @@ header nav.desktop-only,
     border-radius: 999px !important;
   }
 
-  /* Mobile Navigation Drawer & Overlay - Ensure High Priority Display */
+  /* Mobile Navigation Drawer & Overlay - Ensure High Priority Display & Zero Overlap */
   .mobile-drawer-overlay {
-    z-index: 1200 !important;
-    background: rgba(15, 23, 42, 0.65) !important;
+    z-index: 100040 !important;
+    background: rgba(15, 23, 42, 0.68) !important;
     backdrop-filter: none !important;
     -webkit-backdrop-filter: none !important;
   }
 
   .mobile-nav-drawer {
-    z-index: 1210 !important;
-    box-shadow: 10px 0 32px rgba(0, 0, 0, 0.3) !important;
+    z-index: 100050 !important;
+    box-shadow: 10px 0 32px rgba(0, 0, 0, 0.35) !important;
+    display: flex !important;
+    flex-direction: column !important;
+    max-height: 100dvh !important;
+    overscroll-behavior: contain !important;
+  }
+
+  .mobile-nav-drawer .drawer-body {
+    flex: 1 1 auto !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    overscroll-behavior: contain !important;
+    padding-bottom: 16px !important;
+  }
+
+  /* Hide floating widgets when mobile menu drawer is open so nothing overlaps */
+  body.mobile-drawer-open .ai-chat-launcher,
+  body.mobile-drawer-open #aiChatLauncher,
+  body.mobile-drawer-open .back-to-top-btn,
+  body.mobile-drawer-open #backToTopBtn,
+  body.mobile-drawer-open .floating-support-btn,
+  body.mobile-drawer-open .compare-floating-bar {
+    opacity: 0 !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+    transform: scale(0.85) !important;
   }
 
   /* --- 2.3 HERO CAROUSEL: ZERO OVERFLOW ON ALL 4 SLIDES --- */
@@ -1357,5 +1382,177 @@ header nav.desktop-only,
 
   .countdown-val {
     font-size: 15px !important;
+  }
+}
+
+/* ---------------------------------------------------------------------
+   4. ENHANCED MOBILE DRAWER UI (CLOSE PILL, QUICK TOOLS GRID, STICKY FOOTER)
+   --------------------------------------------------------------------- */
+.drawer-close-pill {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 6px !important;
+  width: auto !important;
+  height: 36px !important;
+  padding: 0 14px !important;
+  border-radius: 999px !important;
+  background: #fee2e2 !important;
+  color: #dc2626 !important;
+  border: 1.5px solid #fecaca !important;
+  font-size: 12.5px !important;
+  font-weight: 800 !important;
+  cursor: pointer !important;
+  transition: transform 0.15s ease, background-color 0.15s ease !important;
+}
+
+.drawer-close-pill:active {
+  transform: scale(0.95) !important;
+  background: #fecaca !important;
+}
+
+.drawer-quick-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.drawer-quick-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px 6px;
+  border-radius: 12px;
+  background: var(--bg-surface-alt, #f8fafc);
+  border: 1px solid var(--border-subtle, #e2e8f0);
+  color: var(--text-primary, #0f172a);
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  text-align: center;
+  transition: transform 0.15s ease, border-color 0.15s ease;
+}
+
+.drawer-quick-card i {
+  font-size: 16px;
+}
+
+.drawer-quick-card:active {
+  transform: scale(0.95);
+  border-color: #e10600;
+}
+
+.drawer-sticky-footer {
+  display: grid;
+  grid-template-columns: 1fr 1.35fr;
+  gap: 10px;
+  padding: 12px 16px calc(12px + env(safe-area-inset-bottom, 0px));
+  background: var(--bg-surface, #ffffff);
+  border-top: 1px solid var(--border-subtle, #e2e8f0);
+  flex-shrink: 0;
+}
+
+.drawer-footer-call-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 11px 12px;
+  border-radius: 12px;
+  background: #f1f5f9;
+  color: #0f172a;
+  border: 1px solid #cbd5e1;
+  font-size: 12.5px;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.drawer-footer-call-btn i {
+  color: #16a34a;
+}
+
+.drawer-footer-close-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 11px 14px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+  color: #ffffff;
+  border: none;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.2);
+}
+
+.drawer-footer-close-btn:active {
+  transform: scale(0.97);
+}
+
+[data-theme="dark"] .drawer-close-pill,
+body.dark-mode .drawer-close-pill {
+  background: rgba(239, 68, 68, 0.18) !important;
+  color: #f87171 !important;
+  border-color: rgba(239, 68, 68, 0.35) !important;
+}
+
+[data-theme="dark"] .drawer-footer-call-btn,
+body.dark-mode .drawer-footer-call-btn {
+  background: #1e293b;
+  color: #f8fafc;
+  border-color: #334155;
+}
+
+[data-theme="dark"] .drawer-footer-close-btn,
+body.dark-mode .drawer-footer-close-btn {
+  background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+}
+
+@media (max-width: 768px) {
+  .gt3-paddock-header-wrap {
+    padding: 16px 14px !important;
+    border-radius: 16px !important;
+    margin-bottom: 16px !important;
+  }
+
+  .gt3-paddock-section-head {
+    margin-bottom: 14px !important;
+    padding-bottom: 14px !important;
+    gap: 12px !important;
+  }
+
+  .gt3-paddock-main-title {
+    font-size: 18px !important;
+  }
+
+  .gt3-paddock-main-sub {
+    font-size: 12.5px !important;
+  }
+
+  .gt3-explore-all-wrap {
+    padding: 14px !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    text-align: center !important;
+  }
+
+  .gt3-explore-note {
+    justify-content: center !important;
+    font-size: 12px !important;
+  }
+
+  .gt3-explore-actions {
+    width: 100% !important;
+    flex-direction: column !important;
+  }
+
+  .gt3-explore-actions .btn {
+    width: 100% !important;
+    justify-content: center !important;
   }
 }

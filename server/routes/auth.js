@@ -211,9 +211,13 @@ function normalizeUserRow(u) {
   };
 }
 
-async function getUserOrderStats(userId, email, phone = null) {
+async function getUserOrderStats(userId, email) {
   try {
-    const cleanPhone = phone ? String(phone).replace(/[\s.\-()]/g, '') : '';
+    const uid = Number(userId) || 0;
+    const cleanEmail = String(email || '').trim().toLowerCase();
+    if (uid <= 0 && !cleanEmail) {
+      return { TotalSpent: 0, TotalDeposit: 0, TotalOrders: 0 };
+    }
     const res = await db.query(`
       SELECT 
         COALESCE(SUM(CASE WHEN UPPER(Status) = 'DELIVERED' THEN Total ELSE 0 END), 0) AS "TotalSpent",
@@ -221,9 +225,8 @@ async function getUserOrderStats(userId, email, phone = null) {
         COUNT(CASE WHEN UPPER(Status) = 'DELIVERED' THEN 1 ELSE NULL END) AS "TotalOrders"
       FROM Orders
       WHERE (UserId = @uid AND @uid > 0)
-         OR (Email IS NOT NULL AND LOWER(Email) = LOWER(@email) AND @email <> '')
-         OR (Phone IS NOT NULL AND REPLACE(REPLACE(REPLACE(Phone, ' ', ''), '-', ''), '.', '') = @cleanPhone AND @cleanPhone <> '')
-    `, { uid: userId || 0, email: email || '', cleanPhone: cleanPhone || '' });
+         OR ((UserId IS NULL OR UserId = 0) AND Email IS NOT NULL AND LOWER(Email) = @email AND @email <> '')
+    `, { uid, email: cleanEmail });
     if (res.recordset && res.recordset.length > 0) {
       return res.recordset[0];
     }

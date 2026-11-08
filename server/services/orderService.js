@@ -1067,35 +1067,29 @@ async function listOrders({ status, paymentStatus, paymentMethod, q, userId, use
     }
   }
 
-  // Khớp đơn hàng thống nhất bảo đảm không bỏ sót đơn
+  // Khớp đơn hàng thống nhất & phân lập tuyệt đối theo tài khoản (không bao giờ lấy đơn của UserId khác)
   if (userId) {
     const uFilters = [];
     uFilters.push('(o.UserId = @uid AND @uid > 0)');
     params.uid = Number(userId);
 
     if (userEmail && String(userEmail).trim()) {
-      uFilters.push('(o.Email IS NOT NULL AND LOWER(o.Email) = @uEmail AND @uEmail <> \'\')');
+      uFilters.push('((o.UserId IS NULL OR o.UserId = 0) AND o.Email IS NOT NULL AND LOWER(o.Email) = @uEmail AND @uEmail <> \'\')');
       params.uEmail = String(userEmail).trim().toLowerCase();
-    }
-    if (phone) {
-      const cleanPh = String(phone).replace(/[\s.\-()]/g, '');
-      if (cleanPh) {
-        uFilters.push('(o.Phone IS NOT NULL AND REPLACE(REPLACE(REPLACE(o.Phone, \' \', \'\'), \'-\', \'\'), \'.\', \'\') = @cleanPhone AND @cleanPhone <> \'\')');
-        params.cleanPhone = cleanPh;
-      }
     }
     if (Array.isArray(codes) && codes.length > 0) {
       const safeCodes = codes.map(c => String(c).replace(/[^A-Za-z0-9_-]/g, '')).filter(Boolean);
       if (safeCodes.length > 0) {
-        uFilters.push(`o.OrderCode IN (${safeCodes.map(c => `'${c}'`).join(',')})`);
+        uFilters.push(`((o.UserId IS NULL OR o.UserId = 0 OR o.UserId = @uid) AND o.OrderCode IN (${safeCodes.map(c => `'${c}'`).join(',')}))`);
       }
     }
+    where.push('(o.UserId IS NULL OR o.UserId = 0 OR o.UserId = @uid)');
     where.push(`(${uFilters.join(' OR ')})`);
   } else {
-    // Trường hợp tra cứu khách vãng lai
+    // Trường hợp tra cứu khách vãng lai: chỉ trả về đơn vãng lai hoặc mã đơn cụ thể
     const guestFilters = [];
     if (phone) {
-      guestFilters.push('o.Phone = @phone');
+      guestFilters.push('((o.UserId IS NULL OR o.UserId = 0) AND o.Phone = @phone)');
       params.phone = v.cleanPhone(phone);
     }
     if (Array.isArray(codes) && codes.length > 0) {

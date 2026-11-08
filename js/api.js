@@ -857,14 +857,45 @@
     const sku = String(raw.sku || raw.Sku || `MGT${id}`).trim();
     const name = String(raw.name || raw.Name || 'Mô hình MINI GT 1:64').trim();
     const catId = Number(raw.categoryId || raw.CategoryId || (raw.category && raw.category.id) || 1);
+    const rawExtraCats = raw.categoryIds || raw.CategoryIds || raw.extraCategoryIds || raw.ExtraCategoryIds || (raw.category && raw.category.ids) || null;
+    const categoryIds = [catId];
+    const pushCatId = (v) => {
+      const n = parseInt(v, 10);
+      if (!Number.isNaN(n) && n > 0 && !categoryIds.includes(n)) categoryIds.push(n);
+    };
+    if (Array.isArray(rawExtraCats)) {
+      rawExtraCats.forEach(pushCatId);
+    } else if (typeof rawExtraCats === 'string' && rawExtraCats.trim()) {
+      try {
+        const parsed = JSON.parse(rawExtraCats);
+        if (Array.isArray(parsed)) parsed.forEach(pushCatId);
+        else pushCatId(parsed);
+      } catch (_) {
+        rawExtraCats.split(',').forEach(s => pushCatId(s.trim()));
+      }
+    }
     const allCats = (typeof getSharedCategories === 'function') ? getSharedCategories() : [];
+    const resolveCatInfoById = (cid) => {
+      const found = allCats.find(c => Number(c.id || c.CategoryId) === Number(cid)) || CATEGORY_MAP[cid];
+      if (found) {
+        return {
+          id: Number(found.id || found.CategoryId || cid),
+          name: found.name || found.Name || `Danh mục #${cid}`,
+          slug: found.slug || found.Slug || `cat-${cid}`
+        };
+      }
+      return { id: Number(cid), name: `Danh mục #${cid}`, slug: `cat-${cid}` };
+    };
+    const categoriesList = categoryIds.map(resolveCatInfoById);
     const foundCat = allCats.find(c => Number(c.id || c.CategoryId) === catId || (c.slug || c.Slug) === String(raw.CategorySlug || raw.categorySlug || '')) || CATEGORY_MAP[catId];
     const catInfo = foundCat ? {
       id: Number(foundCat.id || foundCat.CategoryId || catId),
+      ids: categoryIds,
       name: foundCat.name || foundCat.Name || raw.CategoryName || 'MINI GT 1:64',
       slug: foundCat.slug || foundCat.Slug || raw.CategorySlug || 'liberty-walk'
     } : {
       id: catId,
+      ids: categoryIds,
       name: raw.CategoryName || (raw.category && raw.category.name) || 'MINI GT 1:64',
       slug: raw.CategorySlug || (raw.category && raw.category.slug) || 'liberty-walk'
     };
@@ -998,6 +1029,11 @@
       Slug: raw.slug || raw.Slug || '',
       categoryId: catInfo.id,
       CategoryId: catInfo.id,
+      categoryIds,
+      CategoryIds: categoryIds,
+      ExtraCategoryIds: JSON.stringify(categoryIds),
+      categories: categoriesList,
+      Categories: categoriesList,
       CategorySlug: catInfo.slug,
       CategoryName: catInfo.name,
       category: catInfo,
@@ -1703,17 +1739,62 @@
 
     // Tự động đồng bộ sản phẩm vào bộ nhớ dùng chung khi admin thêm mới, sửa hoặc xóa
     if ((method === 'PUT' || method === 'POST') && endpoint.includes('/admin/products') && d) {
-      const all = getSharedProducts();
-      const norm = normalizeProductObject(d);
-      const pid = norm.id || norm.ProductId;
-      const idx = all.findIndex(p => Number(p.id || p.ProductId) === Number(pid));
-      if (idx >= 0) {
-        all[idx] = norm;
-      } else {
-        all.unshift(norm);
+      if (endpoint.includes('/bulk-categories') && Array.isArray(d.productIds) && Array.isArray(d.categoryIds)) {
+        const all = getSharedProducts();
+        const pids = d.productIds.map(Number);
+        const cids = d.categoryIds.map(Number).filter(n => n > 0);
+        const mode = String(d.mode || 'replace').toLowerCase();
+        for (let i = 0; i < all.length; i++) {
+          const pid = Number(all[i].id || all[i].ProductId);
+          if (!pids.includes(pid)) continue;
+          const curIds = Array.isArray(all[i].categoryIds) && all[i].categoryIds.length
+            ? all[i].categoryIds.slice()
+            : [Number(all[i].categoryId || all[i].CategoryId || 1)];
+          let nextIds = cids;
+          if (mode === 'add') nextIds = Array.from(new Set([...curIds, ...cids]));
+          else if (mode === 'remove') {
+            nextIds = curIds.filter(id => !cids.includes(id));
+            if (!nextIds.length) nextIds = [curIds[0] || 1];
+          }
+          all[i] = normalizeProductObject(Object.assign({}, all[i], {
+            categoryId: nextIds[0],
+            CategoryId: nextIds[0],
+            categoryIds: nextIds,
+            CategoryIds: nextIds,
+            ExtraCategoryIds: JSON.stringify(nextIds)
+          }));
+        }
+        saveSharedProducts(all);
+        emitRealtimeSync('PRODUCTS_UPDATED', d);
+      } else if (/\/admin\/products\/\d+\/categories/.test(endpoint) && Array.isArray(d.categoryIds)) {
+        const all = getSharedProducts();
+        const targetPid = Number(d.productId || d.id || (endpoint.match(/\/admin\/products\/(\d+)\/categories/) || [])[1]);
+        const cids = d.categoryIds.map(Number).filter(n => n > 0);
+        const idx = all.findIndex(p => Number(p.id || p.ProductId) === targetPid);
+        if (idx >= 0 && cids.length) {
+          all[idx] = normalizeProductObject(Object.assign({}, all[idx], {
+            categoryId: cids[0],
+            CategoryId: cids[0],
+            categoryIds: cids,
+            CategoryIds: cids,
+            ExtraCategoryIds: JSON.stringify(cids)
+          }));
+          saveSharedProducts(all);
+        }
+        emitRealtimeSync('PRODUCTS_UPDATED', d);
+      } else if (d.name || d.Name || d.sku || d.Sku) {
+        const all = getSharedProducts();
+        const norm = normalizeProductObject(d);
+        const pid = norm.id || norm.ProductId;
+        const idx = all.findIndex(p => Number(p.id || p.ProductId) === Number(pid));
+        if (idx >= 0) {
+          all[idx] = norm;
+        } else {
+          all.unshift(norm);
+        }
+        saveSharedProducts(all);
+        emitRealtimeSync('PRODUCTS_UPDATED', norm);
       }
-      saveSharedProducts(all);
-      emitRealtimeSync('PRODUCTS_UPDATED', norm);
     } else if (method === 'DELETE' && endpoint.includes('/admin/products/')) {
       const delMatch = endpoint.match(/\/admin\/products\/(\d+)/);
       const delId = Number((d && (d.productId || d.id)) || (delMatch && delMatch[1]) || 0);
@@ -1901,7 +1982,12 @@
         });
       }
       if (cat !== 'all') {
-        list = list.filter(p => p.CategorySlug === cat || String(p.categoryId) === cat);
+        list = list.filter(p => {
+          if (p.CategorySlug === cat || String(p.categoryId) === cat) return true;
+          if (Array.isArray(p.categories) && p.categories.some(c => String(c.slug || '').toLowerCase() === cat || String(c.id) === cat)) return true;
+          if (Array.isArray(p.categoryIds) && p.categoryIds.some(cid => String(cid) === cat)) return true;
+          return false;
+        });
       }
       if (st !== 'all') {
         list = list.filter(p => p.status === st);
@@ -1930,6 +2016,78 @@
         success: true,
         data: paged,
         pagination: { page, limit, total, totalPages }
+      };
+    }
+
+    if (method === 'PUT' && path === '/api/admin/products/bulk-categories') {
+      const rawPids = Array.isArray(body.productIds) ? body.productIds : [];
+      const rawCids = Array.isArray(body.categoryIds) ? body.categoryIds : (body.categoryId ? [body.categoryId] : []);
+      const mode = String(body.mode || 'replace').toLowerCase();
+      const pids = rawPids.map(v => parseInt(v, 10)).filter(n => !Number.isNaN(n) && n > 0);
+      const cids = rawCids.map(v => parseInt(v, 10)).filter(n => !Number.isNaN(n) && n > 0);
+      if (!pids.length || !cids.length) {
+        return { success: false, message: 'Vui lòng chọn ít nhất 1 xe và 1 danh mục!' };
+      }
+      const all = getSharedProducts();
+      let updatedCount = 0;
+      for (let i = 0; i < all.length; i++) {
+        const pid = Number(all[i].id || all[i].ProductId);
+        if (!pids.includes(pid)) continue;
+        const currentIds = Array.isArray(all[i].categoryIds) && all[i].categoryIds.length
+          ? all[i].categoryIds.slice()
+          : [Number(all[i].categoryId || all[i].CategoryId || 1)];
+        let nextIds = [];
+        if (mode === 'add') {
+          nextIds = Array.from(new Set([...currentIds, ...cids]));
+        } else if (mode === 'remove') {
+          nextIds = currentIds.filter(id => !cids.includes(id));
+          if (!nextIds.length) nextIds = [currentIds[0] || 1];
+        } else {
+          nextIds = Array.from(new Set(cids));
+        }
+        all[i] = normalizeProductObject(Object.assign({}, all[i], {
+          categoryId: nextIds[0],
+          CategoryId: nextIds[0],
+          categoryIds: nextIds,
+          CategoryIds: nextIds,
+          ExtraCategoryIds: JSON.stringify(nextIds)
+        }));
+        updatedCount++;
+      }
+      saveSharedProducts(all);
+      emitRealtimeSync('PRODUCTS_UPDATED', { bulkCategoriesUpdated: true, productIds: pids, categoryIds: cids, mode });
+      return {
+        success: true,
+        message: `Đã cập nhật danh mục cho ${updatedCount} mẫu xe thành công!`,
+        data: { updatedCount, productIds: pids, categoryIds: cids, mode }
+      };
+    }
+
+    const adminProdCatMatch = path.match(/^\/api\/admin\/products\/(\d+)\/categories$/);
+    if (method === 'PUT' && adminProdCatMatch) {
+      const pid = Number(adminProdCatMatch[1]);
+      const rawCids = Array.isArray(body.categoryIds) ? body.categoryIds : (body.categoryId ? [body.categoryId] : []);
+      const cids = Array.from(new Set(rawCids.map(v => parseInt(v, 10)).filter(n => !Number.isNaN(n) && n > 0)));
+      if (!cids.length) {
+        return { success: false, message: 'Vui lòng chọn ít nhất 1 danh mục!' };
+      }
+      const all = getSharedProducts();
+      const idx = all.findIndex(p => Number(p.id || p.ProductId) === pid);
+      if (idx < 0) return { success: false, message: 'Không tìm thấy sản phẩm' };
+      const updated = normalizeProductObject(Object.assign({}, all[idx], {
+        categoryId: cids[0],
+        CategoryId: cids[0],
+        categoryIds: cids,
+        CategoryIds: cids,
+        ExtraCategoryIds: JSON.stringify(cids)
+      }));
+      all[idx] = updated;
+      saveSharedProducts(all);
+      emitRealtimeSync('PRODUCTS_UPDATED', updated);
+      return {
+        success: true,
+        message: 'Đã cập nhật danh mục cho xe thành công!',
+        data: updated
       };
     }
 
@@ -2228,15 +2386,17 @@
       addMyOrderCode(newOrder.code);
       emitRealtimeSync('ORDER_CREATED', newOrder);
 
-      // Cập nhật thống kê khách hàng và đồng bộ danh sách khách hàng dùng chung
+      // Cập nhật thống kê khách hàng và đồng bộ danh sách khách hàng dùng chung (phân lập đúng theo UserId/Email)
       try {
         const users = getSharedUsers();
+        const oUid = Number(newOrder.userId || 0);
         const oEmail = (body.email || '').trim().toLowerCase();
-        const oPhone = (body.phone || '').replace(/\D/g, '');
+        const oPhone = (body.phone || '').trim();
         const target = users.find(u => {
+          const uId = Number(u.userId || u.id || 0);
+          if (oUid > 0 && uId > 0) return oUid === uId;
           const uEmail = (u.email || '').trim().toLowerCase();
-          const uPhone = (u.phone || '').replace(/\D/g, '');
-          return (oEmail && uEmail && oEmail === uEmail) || (oPhone && uPhone && oPhone === uPhone);
+          return Boolean(oEmail && uEmail && oEmail === uEmail);
         });
         if (target) {
           target.totalOrders = (Number(target.totalOrders) || 0) + 1;
@@ -2805,10 +2965,18 @@
       if (path.startsWith('/api/orders/my-orders')) {
         const u = getCurrentUser('');
         if (u) {
+          const myUid = Number(u.userId || u.id || 0);
+          const myEmail = String(u.email || u.Email || '').trim().toLowerCase();
           const myOrders = allOrders.filter(o => {
-            const uid = o.userId || o.UserId || (o.customer && o.customer.id);
-            const uEmail = (o.email || o.Email || (o.customer && o.customer.email) || '').toLowerCase();
-            return (uid && Number(uid) === Number(u.userId || u.id)) || (uEmail && u.email && uEmail === u.email.toLowerCase());
+            const uid = Number(o.userId || o.UserId || (o.customer && (o.customer.userId || o.customer.id)) || 0);
+            if (uid > 0 && myUid > 0) {
+              return uid === myUid;
+            }
+            if (uid > 0 && myUid > 0 && uid !== myUid) {
+              return false;
+            }
+            const uEmail = String(o.email || o.Email || (o.customer && o.customer.email) || '').trim().toLowerCase();
+            return Boolean(!uid && myEmail && uEmail && uEmail === myEmail);
           });
           return { success: true, data: myOrders };
         }
@@ -2816,9 +2984,10 @@
         const requestedCodes = params.codes ? params.codes.split(',').map(s => s.trim().toUpperCase()) : [];
         const myCodes = Array.from(new Set([...getMyOrderCodes().map(c => c.toUpperCase()), ...requestedCodes]));
         const myOrders = allOrders.filter(o => {
+          const uid = Number(o.userId || o.UserId || (o.customer && (o.customer.userId || o.customer.id)) || 0);
           const code = (o.code || o.orderCode || o.OrderCode || '').toUpperCase();
           const matchCode = myCodes.includes(code);
-          const matchPhone = params.phone && o.phone && o.phone.includes(params.phone);
+          const matchPhone = !uid && params.phone && o.phone && o.phone.includes(params.phone);
           return matchCode || matchPhone;
         });
         return { success: true, data: myOrders };

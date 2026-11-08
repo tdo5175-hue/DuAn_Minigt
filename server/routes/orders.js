@@ -213,37 +213,47 @@ router.get('/my-orders', optionalAuth, async (req, res, next) => {
     const { phone, codes } = req.query;
     const codeList = codes ? String(codes).split(',').map(c => c.trim().toUpperCase()).filter(Boolean) : [];
 
-    // 1. NẾU KHÁCH ĐÃ ĐĂNG NHẬP: Lấy toàn bộ đơn thuộc về tài khoản này (khớp theo UserId, Email, SĐT và các mã đơn đã lưu)
+    // 1. NẾU KHÁCH ĐÃ ĐĂNG NHẬP: Phân lập tuyệt đối theo UserId và Email xác thực của chính tài khoản đó
+    // Tuyệt đối không dùng SĐT từ query string hoặc gộp đơn của UserId khác (tránh rò rỉ lịch sử đơn giữa các tài khoản)
     if (req.user && req.user.userId) {
+      const authUid = Number(req.user.userId);
       let uEmail = '';
-      let uPhone = phone || '';
+      let uPhone = '';
       try {
-        const uInfo = await db.query('SELECT Email, Phone FROM Users WHERE UserId = @id', { id: Number(req.user.userId) });
+        const uInfo = await db.query('SELECT Email, Phone FROM Users WHERE UserId = @id', { id: authUid });
         if (uInfo.recordset && uInfo.recordset[0]) {
           uEmail = uInfo.recordset[0].Email || '';
-          if (!uPhone && uInfo.recordset[0].Phone) uPhone = uInfo.recordset[0].Phone;
+          uPhone = uInfo.recordset[0].Phone || '';
         }
       } catch (_) {}
 
       const r = await orderService.listOrders({
-        userId: req.user.userId,
+        userId: authUid,
         userEmail: uEmail,
-        phone: uPhone,
         codes: codeList,
         pageSize: 100
       });
-      const safeItems = await Promise.all((r.items || []).map(item => sanitizeOrderForCaller(item, req, uPhone)));
+      const strictlyOwnedItems = (r.items || []).filter(item => {
+        const itemUid = Number(item.userId ?? item.UserId ?? 0);
+        return itemUid === 0 || itemUid === authUid;
+      });
+      const safeItems = await Promise.all(strictlyOwnedItems.map(item => sanitizeOrderForCaller(item, req, uPhone)));
       return ok(res, safeItems);
     }
 
-    // 2. NẾU LÀ KHÁCH VÃNG LAI (CHƯA ĐĂNG NHẬP): Tra cứu theo các mã đơn hoặc SĐT trong phiên hiện tại
+    // 2. NẾU LÀ KHÁCH VÃNG LAI (CHƯA ĐĂNG NHẬP): Chỉ tra cứu đơn khách vãng lai theo mã đơn trong phiên hiện tại
     if (codeList.length > 0 || (phone && v.isVNPhone(phone))) {
       const r = await orderService.listOrders({
         phone: phone && v.isVNPhone(phone) ? phone : undefined,
         codes: codeList,
         pageSize: 100
       });
-      const safeItems = await Promise.all((r.items || []).map(item => sanitizeOrderForCaller(item, req, phone || '')));
+      const guestItems = (r.items || []).filter(item => {
+        const itemUid = Number(item.userId ?? item.UserId ?? 0);
+        const itemCode = String(item.orderCode || item.OrderCode || item.code || '').toUpperCase();
+        return itemUid === 0 || codeList.includes(itemCode);
+      });
+      const safeItems = await Promise.all(guestItems.map(item => sanitizeOrderForCaller(item, req, phone || '')));
       return ok(res, safeItems);
     }
 

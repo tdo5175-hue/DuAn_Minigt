@@ -10,9 +10,39 @@ async function ensureProductImagesSchema() {
   try {
     await db.query('ALTER TABLE ProductImages ALTER COLUMN ImageUrl TYPE TEXT;');
     await db.query('ALTER TABLE Products ADD COLUMN IF NOT EXISTS CardImageUrl TEXT;');
+    await db.query('ALTER TABLE Products ADD COLUMN IF NOT EXISTS ExtraCategoryIds TEXT;');
   } catch (_) {
     // Bỏ qua nếu đã tồn tại hoặc quyền đọc-only
   }
+}
+
+function normalizeCategoryIds(primaryCategoryId, rawExtra) {
+  const result = [];
+  const addId = (val) => {
+    const n = parseInt(val, 10);
+    if (!Number.isNaN(n) && n > 0 && !result.includes(n)) {
+      result.push(n);
+    }
+  };
+  if (primaryCategoryId != null) addId(primaryCategoryId);
+
+  if (Array.isArray(rawExtra)) {
+    rawExtra.forEach(addId);
+  } else if (typeof rawExtra === 'string' && rawExtra.trim()) {
+    try {
+      const parsed = JSON.parse(rawExtra);
+      if (Array.isArray(parsed)) {
+        parsed.forEach(addId);
+      } else {
+        addId(parsed);
+      }
+    } catch (_) {
+      rawExtra.split(',').forEach(s => addId(s.trim()));
+    }
+  } else if (typeof rawExtra === 'number') {
+    addId(rawExtra);
+  }
+  return result;
 }
 
 function normalizeImagesArray(primaryImageUrl, rawImages) {
@@ -148,6 +178,8 @@ function mapProduct(row) {
   const categoryId = row.CategoryId ?? row.categoryid;
   const categoryName = row.CategoryName ?? row.categoryname ?? '';
   const categorySlug = row.CategorySlug ?? row.categoryslug ?? '';
+  const rawExtraCategories = row.ExtraCategoryIds ?? row.extracategoryids ?? null;
+  const categoryIds = normalizeCategoryIds(categoryId, rawExtraCategories);
   const createdAt = row.CreatedAt ?? row.createdat;
   const updatedAt = row.UpdatedAt ?? row.updatedat;
 
@@ -193,10 +225,12 @@ function mapProduct(row) {
     isNew,
     isActive,
     categoryId,
+    categoryIds,
     categoryName,
     categorySlug,
     category: {
       id: categoryId,
+      ids: categoryIds,
       name: categoryName,
       slug: categorySlug
     },
@@ -242,6 +276,8 @@ function mapProduct(row) {
     IsNew: isNew,
     IsActive: isActive,
     CategoryId: categoryId,
+    CategoryIds: categoryIds,
+    ExtraCategoryIds: JSON.stringify(categoryIds),
     CategoryName: categoryName,
     CategorySlug: categorySlug,
     CreatedAt: createdAt,
@@ -254,7 +290,7 @@ const SELECT_PRODUCT = `
     p.ProductId, p.Sku, p.CarNumber, p.Name, p.Slug, p.Brand, p.Scale,
     p.PackagingType, p.PriceBox, p.PriceCard, p.DiscountPercent,
     p.Price, p.OldPrice, p.DepositAmount, p.DepositPercent, p.EditionNote,
-    p.PreOrderDeadline, p.StockBox, p.StockCard, p.Stock, p.ImageUrl, p.CardImageUrl, p.Description, p.Status,
+    p.PreOrderDeadline, p.StockBox, p.StockCard, p.Stock, p.ImageUrl, p.CardImageUrl, p.ExtraCategoryIds, p.Description, p.Status,
     p.ReleaseDate, p.ExpectedDelivery,
     p.IsFeatured, p.IsNew, p.IsActive, p.CreatedAt, p.UpdatedAt,
     c.CategoryId, c.Name AS CategoryName, c.Slug AS CategorySlug,
@@ -289,6 +325,7 @@ const SELECT_PRODUCT = `
  * Truy vấn danh sách sản phẩm có lọc, tìm kiếm, sắp xếp, phân trang.
  */
 async function listProducts(filters = {}, { includeInactive = false } = {}) {
+  await ensureProductImagesSchema();
   const where = [];
   const params = {};
 
@@ -301,10 +338,10 @@ async function listProducts(filters = {}, { includeInactive = false } = {}) {
 
   if (filters.category && filters.category !== 'all') {
     if (/^\d+$/.test(String(filters.category))) {
-      where.push('p.CategoryId = @catId');
+      where.push("(p.CategoryId = @catId OR COALESCE(p.ExtraCategoryIds, '') ~ ('(^|\\[|,|\\s)' || CAST(@catId AS TEXT) || '(\\]|,|\\s|$)'))");
       params.catId = parseInt(filters.category, 10);
     } else {
-      where.push('c.Slug = @catSlug');
+      where.push("(c.Slug = @catSlug OR EXISTS (SELECT 1 FROM Categories c2 WHERE c2.Slug = @catSlug AND COALESCE(p.ExtraCategoryIds, '') ~ ('(^|\\[|,|\\s)' || CAST(c2.CategoryId AS TEXT) || '(\\]|,|\\s|$)')))");
       params.catSlug = String(filters.category);
     }
   }
@@ -383,6 +420,7 @@ async function listProducts(filters = {}, { includeInactive = false } = {}) {
  * Lấy chi tiết sản phẩm theo ID, Slug hoặc SKU (kèm ảnh phụ, đánh giá và sản phẩm liên quan)
  */
 async function getProductByIdOrSlug(idOrSlug, { includeInactive = false } = {}) {
+  await ensureProductImagesSchema();
   const isNum = /^\d+$/.test(String(idOrSlug));
   const cond = isNum ? 'p.ProductId = @val' : '(p.Slug = @val OR p.Sku = @val)';
   const activeCond = includeInactive ? '' : 'AND p.IsActive = TRUE';
@@ -445,11 +483,13 @@ async function findPublic(idOrSlug) {
 }
 
 async function listCategories() {
+  await ensureProductImagesSchema();
   const res = await db.query(`
     SELECT c.CategoryId, c.Slug, c.Name, c.Description, c.ImageUrl, c.SortOrder,
            COUNT(p.ProductId) AS ProductCount
     FROM Categories c
-    LEFT JOIN Products p ON p.CategoryId = c.CategoryId AND p.IsActive = TRUE
+    LEFT JOIN Products p ON p.IsActive = TRUE
+      AND (p.CategoryId = c.CategoryId OR COALESCE(p.ExtraCategoryIds, '') ~ ('(^|\\[|,|\\s)' || CAST(c.CategoryId AS TEXT) || '(\\]|,|\\s|$)'))
     GROUP BY c.CategoryId, c.Slug, c.Name, c.Description, c.ImageUrl, c.SortOrder
     ORDER BY c.SortOrder ASC
   `);
@@ -509,6 +549,7 @@ module.exports = {
   BASE_SELECT: SELECT_PRODUCT,
   SELECT_PRODUCT,
   ensureProductImagesSchema,
+  normalizeCategoryIds,
   normalizeImagesArray,
   mapProduct,
   calcDiscountedPrice,

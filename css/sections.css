@@ -2675,7 +2675,22 @@ body.dark-mode .hero-dot.active {
   display: flex;
   flex-direction: column;
   gap: 16px;
-  justify-content: space-between;
+  justify-content: flex-start;
+}
+
+.lbwk-explore-all-wrap {
+  display: flex;
+  align-items: center;
+  margin-top: 4px;
+  width: 100%;
+}
+
+.lbwk-explore-all-wrap.lbwk-explore-right {
+  justify-content: flex-end;
+}
+
+.lbwk-explore-all-wrap .btn-lbwk-filter {
+  box-shadow: 0 6px 20px rgba(225, 6, 0, 0.25);
 }
 
 .lbwk-mini-spotlight {
@@ -3454,11 +3469,265 @@ body.dark-mode .gt3-tab-pill.active {
   }
 }
 
-/* 3 Cards Trio Layout (Rexy, Roxy, Skeleton) */
+/* 3 Cards Trio Layout (Rexy, Roxy, Skeleton) & Upgraded Paddock Header */
+.gt3-paddock-header-wrap {
+  background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+  border: 1.5px solid #e2e8f0;
+  border-radius: 20px;
+  padding: 24px 28px;
+  margin-bottom: 24px;
+  box-shadow: 0 8px 26px rgba(15, 23, 42, 0.04);
+  position: relative;
+  overflow: hidden;
+}
+
+.gt3-paddock-header-wrap::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, #16a34a 0%, #ec4899 50%, #6366f1 100%);
+}
+
+.gt3-paddock-section-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+  padding-bottom: 18px;
+  border-bottom: 1px dashed #e2e8f0;
+}
+
+.gt3-paddock-title-col {
+  flex: 1 1 520px;
+}
+
+.gt3-paddock-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #15803d;
+  background: #dcfce7;
+  border: 1px solid #bbf7d0;
+  padding: 4px 12px;
+  border-radius: 999px;
+  margin-bottom: 10px;
+}
+
+.gt3-paddock-main-title {
+  font-size: clamp(20px, 2.3vw, 28px);
+  font-weight: 900;
+  color: #0f172a;
+  margin: 0 0 8px;
+  line-height: 1.25;
+  letter-spacing: -0.015em;
+}
+
+.gt3-title-highlight {
+  background: linear-gradient(90deg, #16a34a 0%, #db2777 55%, #4f46e5 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.gt3-paddock-main-sub {
+  font-size: 13.5px;
+  color: #475569;
+  margin: 0;
+  line-height: 1.55;
+}
+
+.gt3-paddock-head-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.gt3-paddock-stat-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 13px;
+  border-radius: 10px;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  color: #1e293b;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.gt3-paddock-stat-pill i {
+  color: #16a34a;
+}
+
 .gt3-trio-banner {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 20px;
+}
+
+/* Telemetry Chips inside GT3 Dino Cards */
+.gt3-telemetry-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0 0 12px;
+}
+
+.gt3-spec-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #334155;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  padding: 4px 9px;
+  border-radius: 8px;
+}
+
+.gt3-dino-card.rexy-theme .gt3-spec-chip i {
+  color: #16a34a;
+}
+.gt3-dino-card.roxy-theme .gt3-spec-chip i {
+  color: #db2777;
+}
+.gt3-dino-card.skeleton-theme .gt3-spec-chip i {
+  color: #4f46e5;
+}
+
+.gt3-dino-img-wrap .card-car-num {
+  position: absolute;
+  left: 10px;
+  bottom: 9px;
+  z-index: 6;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(255, 255, 255, 0.94);
+  color: #0f172a;
+  border: 1px solid rgba(203, 213, 225, 0.95);
+  border-radius: 7px;
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 900;
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.08);
+}
+
+.gt3-dino-img-wrap .card-car-num .play-icon {
+  color: #e10600;
+  font-size: 9px;
+}
+
+.gt3-dino-img-wrap .card-scale-pill {
+  position: absolute;
+  right: 10px;
+  bottom: 9px;
+  z-index: 6;
+  background: rgba(255, 255, 255, 0.94);
+  color: #1e293b;
+  border: 1px solid #cbd5e1;
+  border-radius: 7px;
+  padding: 2px 8px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+
+/* Bottom Explore Bar for GT3 Paddock */
+.gt3-explore-all-wrap {
+  margin-top: 22px;
+  padding: 16px 22px;
+  border-radius: 16px;
+  background: linear-gradient(90deg, #0f172a 0%, #1e293b 100%);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  box-shadow: 0 10px 26px rgba(15, 23, 42, 0.14);
+}
+
+.gt3-explore-note {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  color: #e2e8f0;
+}
+
+.gt3-explore-note i {
+  color: #4ade80;
+  font-size: 16px;
+}
+
+.gt3-explore-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.btn-gt3-explore {
+  background: linear-gradient(135deg, #16a34a 0%, #059669 100%) !important;
+  color: #ffffff !important;
+  border: none !important;
+  border-radius: 999px !important;
+  padding: 10px 20px !important;
+  font-size: 13px !important;
+  font-weight: 800 !important;
+  box-shadow: 0 4px 14px rgba(22, 163, 74, 0.35);
+}
+
+.btn-gt3-f1-explore {
+  background: rgba(255, 255, 255, 0.1) !important;
+  color: #ffffff !important;
+  border: 1px solid rgba(255, 255, 255, 0.24) !important;
+  border-radius: 999px !important;
+  padding: 10px 18px !important;
+  font-size: 13px !important;
+  font-weight: 700 !important;
+}
+
+.btn-gt3-f1-explore:hover {
+  background: rgba(255, 255, 255, 0.2) !important;
+}
+
+html[data-theme="dark"] .gt3-paddock-header-wrap,
+html[data-theme="dark"] .gt3-dino-card {
+  background: #111827;
+  border-color: #1f2937;
+}
+
+html[data-theme="dark"] .gt3-paddock-main-title,
+html[data-theme="dark"] .gt3-dino-card h3,
+html[data-theme="dark"] .gt3-price-group strong {
+  color: #f8fafc;
+}
+
+html[data-theme="dark"] .gt3-paddock-main-sub,
+html[data-theme="dark"] .gt3-dino-card p {
+  color: #94a3b8;
+}
+
+html[data-theme="dark"] .gt3-paddock-stat-pill,
+html[data-theme="dark"] .gt3-spec-chip,
+html[data-theme="dark"] .gt3-dino-img-wrap {
+  background: #1e293b;
+  border-color: #334155;
+  color: #e2e8f0;
 }
 
 @media (max-width: 992px) {

@@ -13,6 +13,7 @@ const v = require('../utils/validators');
 router.get('/', async (req, res, next) => {
   try {
     res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    await productService.ensureProductImagesSchema();
     const { category, brand, status, search, tag, sort, minPrice, maxPrice, inStockOnly } = req.query;
 
     let queryStr = productService.BASE_SELECT + ' WHERE p.IsActive = TRUE';
@@ -21,11 +22,11 @@ router.get('/', async (req, res, next) => {
     if (category && category !== 'all') {
       const catNum = Number(category);
       if (!Number.isNaN(catNum) && String(catNum) === String(category).trim()) {
-        queryStr += ' AND (c.Slug = @category OR c.CategoryId = @catId)';
+        queryStr += " AND (c.Slug = @category OR c.CategoryId = @catId OR COALESCE(p.ExtraCategoryIds, '') ~ ('(^|\\[|,|\\s)' || CAST(@catId AS TEXT) || '(\\]|,|\\s|$)'))";
         params.category = String(category);
         params.catId = catNum;
       } else {
-        queryStr += ' AND c.Slug = @category';
+        queryStr += " AND (c.Slug = @category OR EXISTS (SELECT 1 FROM Categories c2 WHERE c2.Slug = @category AND COALESCE(p.ExtraCategoryIds, '') ~ ('(^|\\[|,|\\s)' || CAST(c2.CategoryId AS TEXT) || '(\\]|,|\\s|$)')))";
         params.category = String(category);
       }
     }

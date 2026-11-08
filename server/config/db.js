@@ -19,7 +19,7 @@ const COLUMN_MAP = {
   pricecard: 'PriceCard', discountpercent: 'DiscountPercent', price: 'Price',
   oldprice: 'OldPrice', depositamount: 'DepositAmount', editionnote: 'EditionNote',
   preorderdeadline: 'PreOrderDeadline', stockbox: 'StockBox', stockcard: 'StockCard',
-  stock: 'Stock', imageurl: 'ImageUrl', cardimageurl: 'CardImageUrl', description: 'Description', status: 'Status',
+  stock: 'Stock', imageurl: 'ImageUrl', cardimageurl: 'CardImageUrl', extracategoryids: 'ExtraCategoryIds', description: 'Description', status: 'Status',
   releasedate: 'ReleaseDate', expecteddelivery: 'ExpectedDelivery',
   depositpercent: 'DepositPercent', isfeatured: 'IsFeatured', isnew: 'IsNew',
   isactive: 'IsActive', createdat: 'CreatedAt', updatedat: 'UpdatedAt', soldcount: 'SoldCount',

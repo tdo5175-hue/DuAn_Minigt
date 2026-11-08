@@ -498,16 +498,21 @@ router.post('/products', async (req, res, next) => {
     const rawCardImg = req.body.cardImageUrl || req.body.cardImage || null;
     const cardImageUrl = rawCardImg ? ((await persistImageIfBase64(rawCardImg, `${sku}_card`)) || rawCardImg) : null;
 
+    await productService.ensureProductImagesSchema();
+    const normalizedCatIds = productService.normalizeCategoryIds(categoryId, req.body.categoryIds ?? req.body.extraCategoryIds);
+    const primaryCatId = normalizedCatIds[0] || categoryId;
+    const extraCategoryIds = JSON.stringify(normalizedCatIds.length ? normalizedCatIds : [primaryCatId]);
+
     const insertRes = await db.query(`
       INSERT INTO Products (
-        Sku, CarNumber, Name, Slug, CategoryId, Brand, Scale,
+        Sku, CarNumber, Name, Slug, CategoryId, ExtraCategoryIds, Brand, Scale,
         PackagingType, PriceBox, PriceCard, DiscountPercent,
         Price, OldPrice, DepositAmount, DepositPercent, ExpectedDelivery, EditionNote,
         PreOrderDeadline, StockBox, StockCard, Stock, ImageUrl, CardImageUrl, Description, Status,
         IsFeatured, IsNew, IsActive, CreatedAt, UpdatedAt
       )
       VALUES (
-        @sku, @carNumber, @name, @slug, @categoryId, @brand, @scale,
+        @sku, @carNumber, @name, @slug, @categoryId, @extraCategoryIds, @brand, @scale,
         @packagingType, @priceBox, @priceCard, @discountPercent,
         @price, @oldPrice, @depositAmount, @depositPercent, @expectedDelivery, @editionNote,
         @preOrderDeadline, @stockBox, @stockCard, @stock, @imageUrl, @cardImageUrl, @description, @status,
@@ -515,7 +520,7 @@ router.post('/products', async (req, res, next) => {
       )
       RETURNING ProductId
     `, {
-      sku, carNumber, name, slug, categoryId, brand, scale,
+      sku, carNumber, name, slug, categoryId: primaryCatId, extraCategoryIds, brand, scale,
       packagingType, priceBox, priceCard, discountPercent,
       price: mainPrice, oldPrice: mainOldPrice, depositAmount, depositPercent, expectedDelivery,
       editionNote, preOrderDeadline, stockBox, stockCard, stock, imageUrl, cardImageUrl, description,
@@ -528,6 +533,89 @@ router.post('/products', async (req, res, next) => {
 
     const product = await productService.getProductByIdOrSlug(newId, { includeInactive: true });
     return created(res, product, 'Thêm mô hình xe thành công!');
+  } catch (error) {
+    next(error);
+  }
+});
+
+// CẬP NHẬT HÀNG LOẠT DANH MỤC XE (MULTI-CATEGORY BULK ASSIGNMENT)
+router.put('/products/bulk-categories', async (req, res, next) => {
+  try {
+    await productService.ensureProductImagesSchema();
+    const rawProductIds = Array.isArray(req.body.productIds) ? req.body.productIds : [];
+    const productIds = rawProductIds
+      .map(id => parseInt(id, 10))
+      .filter(id => !Number.isNaN(id) && id > 0);
+
+    const normalizedCatIds = productService.normalizeCategoryIds(req.body.categoryId, req.body.categoryIds);
+    const mode = req.body.mode === 'add' ? 'add' : 'replace';
+
+    if (productIds.length === 0) {
+      throw badRequest('Vui lòng tích chọn ít nhất 1 mẫu xe để đổi danh mục!');
+    }
+    if (normalizedCatIds.length === 0) {
+      throw badRequest('Vui lòng tích chọn ít nhất 1 danh mục đích (Danh mục 1, 2, ...)!');
+    }
+
+    await db.withTransaction(async ({ query }) => {
+      for (const pid of productIds) {
+        if (mode === 'add') {
+          const exRes = await query('SELECT CategoryId, ExtraCategoryIds FROM Products WHERE ProductId = @pid', { pid });
+          if (exRes.recordset && exRes.recordset.length > 0) {
+            const row = exRes.recordset[0];
+            const existingCatIds = productService.normalizeCategoryIds(
+              row.CategoryId ?? row.categoryid,
+              row.ExtraCategoryIds ?? row.extracategoryids
+            );
+            const merged = productService.normalizeCategoryIds(existingCatIds[0] || normalizedCatIds[0], [...existingCatIds, ...normalizedCatIds]);
+            await query(
+              'UPDATE Products SET CategoryId = @primaryCatId, ExtraCategoryIds = @extraCategoryIds, UpdatedAt = NOW() WHERE ProductId = @pid',
+              { pid, primaryCatId: merged[0], extraCategoryIds: JSON.stringify(merged) }
+            );
+          }
+        } else {
+          await query(
+            'UPDATE Products SET CategoryId = @primaryCatId, ExtraCategoryIds = @extraCategoryIds, UpdatedAt = NOW() WHERE ProductId = @pid',
+            { pid, primaryCatId: normalizedCatIds[0], extraCategoryIds: JSON.stringify(normalizedCatIds) }
+          );
+        }
+      }
+    });
+
+    aiChatService.invalidateStoreCache();
+    return ok(
+      res,
+      { updatedCount: productIds.length, productIds, categoryIds: normalizedCatIds, mode },
+      `Đã cập nhật danh mục thành công cho ${productIds.length} mẫu xe!`
+    );
+  } catch (error) {
+    next(error);
+  }
+});
+
+// CẬP NHẬT NHANH DANH MỤC CHO 1 XE TRỰC TIẾP TRÊN BẢNG QUẢN LÝ
+router.put('/products/:id/categories', async (req, res, next) => {
+  try {
+    await productService.ensureProductImagesSchema();
+    const productId = parseInt(req.params.id, 10);
+    if (!productId) throw badRequest('Mã sản phẩm không hợp lệ');
+
+    const normalizedCatIds = productService.normalizeCategoryIds(req.body.categoryId, req.body.categoryIds ?? req.body.extraCategoryIds);
+    if (normalizedCatIds.length === 0) {
+      throw badRequest('Vui lòng tích chọn ít nhất 1 danh mục cho mẫu xe này!');
+    }
+
+    const primaryCatId = normalizedCatIds[0];
+    const extraCategoryIds = JSON.stringify(normalizedCatIds);
+
+    await db.query(
+      'UPDATE Products SET CategoryId = @primaryCatId, ExtraCategoryIds = @extraCategoryIds, UpdatedAt = NOW() WHERE ProductId = @productId',
+      { productId, primaryCatId, extraCategoryIds }
+    );
+
+    aiChatService.invalidateStoreCache();
+    const updated = await productService.getProductByIdOrSlug(productId, { includeInactive: true });
+    return ok(res, updated, 'Đã cập nhật danh mục xe thành công!');
   } catch (error) {
     next(error);
   }
@@ -685,12 +773,28 @@ router.put('/products/:id', async (req, res, next) => {
       if (skuCheck.recordset.length > 0) throw conflict(`Mã SKU "${sku}" đã được sử dụng bởi sản phẩm khác`);
     }
 
+    await productService.ensureProductImagesSchema();
+    const exExtraCats = existing.ExtraCategoryIds ?? existing.extracategoryids ?? null;
+    let normalizedCatIds;
+    if (req.body.categoryIds !== undefined || req.body.extraCategoryIds !== undefined) {
+      normalizedCatIds = productService.normalizeCategoryIds(categoryId, req.body.categoryIds ?? req.body.extraCategoryIds);
+    } else if (req.body.categoryId !== undefined && Number(req.body.categoryId) !== Number(exCategoryId)) {
+      const prevIds = productService.normalizeCategoryIds(exCategoryId, exExtraCats);
+      const restIds = prevIds.filter(id => Number(id) !== Number(exCategoryId));
+      normalizedCatIds = productService.normalizeCategoryIds(categoryId, restIds);
+    } else {
+      normalizedCatIds = productService.normalizeCategoryIds(categoryId, exExtraCats);
+    }
+    const primaryCatId = normalizedCatIds[0] || categoryId;
+    const extraCategoryIds = JSON.stringify(normalizedCatIds.length ? normalizedCatIds : [primaryCatId]);
+
     await db.query(`
       UPDATE Products SET
         Sku = @sku,
         CarNumber = @carNumber,
         Name = @name,
         CategoryId = @categoryId,
+        ExtraCategoryIds = @extraCategoryIds,
         Brand = @brand,
         Scale = @scale,
         PackagingType = @packagingType,
@@ -716,7 +820,7 @@ router.put('/products/:id', async (req, res, next) => {
         UpdatedAt = NOW()
       WHERE ProductId = @productId
     `, {
-      productId, sku, carNumber, name, categoryId, brand, scale,
+      productId, sku, carNumber, name, categoryId: primaryCatId, extraCategoryIds, brand, scale,
       packagingType, priceBox, priceCard, discountPercent,
       price: mainPrice, oldPrice: mainOldPrice, depositAmount,
       depositPercent,

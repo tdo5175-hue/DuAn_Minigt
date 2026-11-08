@@ -1012,12 +1012,13 @@
                 </div>
               </div>
             </div>
+
+            <div class="lbwk-explore-all-wrap lbwk-explore-right">
+              <button type="button" class="btn btn-primary" onclick="filterAndScroll(event, 'lbwk')">
+                <i class="fa-solid fa-bolt"></i> <span data-i18n="lbwk_btn_all">Xem tất cả xe LB★WORKS</span>
+              </button>
+            </div>
           </div>
-        </div>
-        <div class="lbwk-explore-all-wrap">
-          <button type="button" class="btn btn-primary" onclick="filterAndScroll(event, 'lbwk')">
-            <i class="fa-solid fa-bolt"></i> <span data-i18n="lbwk_btn_all">Xem tất cả xe LB★WORKS</span>
-          </button>
         </div>
       </div>
     </section>
@@ -1053,8 +1054,32 @@
         </div>
       </div>
 
-      <!-- Paddock Interactive Filter Tabs: Rexy, Roxy, Skeleton, All -->
-      <div class="container" style="margin-top: 18px; margin-bottom: 24px; position: relative; z-index: 5;">
+      <!-- Paddock Header & Interactive Filter Tabs: Rexy, Roxy, Skeleton, All -->
+      <div class="container gt3-paddock-header-wrap">
+        <div class="gt3-paddock-section-head">
+          <div class="gt3-paddock-head-left">
+            <span class="gt3-paddock-eyebrow">
+              <i class="fa-solid fa-flag-checkered"></i> IMSA WEATHERTECH SPORTSCAR CHAMPIONSHIP • GTD PRO CLASS
+            </span>
+            <h2 class="gt3-paddock-main-title">
+              BỘ SƯU TẬP <span>KHỦNG LONG ĐƯỜNG ĐUA</span> IMSA GTD PRO
+            </h2>
+            <p class="gt3-paddock-main-sub">
+              Trọn bộ 3 siêu phẩm Porsche 911 GT3 R (992) của đội đua <strong>AO Racing</strong> được săn đón nhất giới Diecast 1:64: Khủng long xanh <strong>Rexy #80</strong>, Khủng long hồng <strong>Roxy #77</strong> và bản giới hạn <strong>Skeleton #77</strong>.
+            </p>
+          </div>
+          <div class="gt3-paddock-head-badges">
+            <div class="gt3-paddock-stat-pill">
+              <span class="stat-num">03</span>
+              <span class="stat-txt">Phiên bản Huyền thoại</span>
+            </div>
+            <div class="gt3-paddock-stat-pill is-green">
+              <span class="stat-num">1:64</span>
+              <span class="stat-txt">Full Box &amp; Blister Card</span>
+            </div>
+          </div>
+        </div>
+
         <div class="gt3-paddock-tabs" role="tablist" aria-label="Lọc các mẫu xe đua Khủng Long IMSA">
           <button type="button" class="gt3-tab-pill active" data-dino-tab="all" onclick="filterDinoCards('all', event)">
             <i class="fa-solid fa-flag-checkered"></i> <span>Tất cả Khủng Long (3)</span>
@@ -1085,8 +1110,15 @@
             </div>
             <div class="gt3-dino-img-wrap" onclick="openQuickView(8)" style="cursor:pointer;" title="Xem chi tiết Porsche GT3 R Rexy #80">
               <img src="image/rexy.jpg" data-product-img-id="8" alt="Porsche 911 GT3 R #80 AO Racing Rexy" loading="lazy" decoding="async" onerror="this.onerror=null; this.src='image/rexy.jpg';">
+              <span class="card-car-num"><span class="play-icon">▶</span> 713</span>
+              <span class="card-scale-pill">BOX SEAL</span>
             </div>
-            <h3 onclick="openQuickView(8)" style="cursor:pointer;">Porsche 911 GT3 R #80 AO Racing "Rexy"</h3>
+            <h3 onclick="openQuickView(8)" style="cursor:pointer;">Porsche 911 GT3 R #80 AO Racing "Rexy" 2023 IMSA Sebring 12h</h3>
+            <div class="gt3-telemetry-chips">
+              <span class="gt3-spec-chip"><i class="fa-solid fa-trophy"></i> Sebring 12h</span>
+              <span class="gt3-spec-chip"><i class="fa-solid fa-flag-checkered"></i> AO Racing #80</span>
+              <span class="gt3-spec-chip"><i class="fa-solid fa-layer-group"></i> 1:64 Diecast</span>
+            </div>
             <p data-i18n="rexy_desc">
               Phiên bản khủng long xanh T-Rex vô địch Sebring 12h &amp; Daytona. Tùy chọn Hộp Giấy (Box) hoặc Vỉ Nhựa (Card Blister).
             </p>
@@ -1123,8 +1155,15 @@
             </div>
             <div class="gt3-dino-img-wrap" onclick="openQuickView(7)" style="cursor:pointer;" title="Xem chi tiết Porsche GT3 R Roxy #77">
               <img src="image/Roxy.webp" data-product-img-id="7" alt="Porsche 911 GT3 R #77 AO Racing Roxy" loading="lazy" decoding="async" onerror="this.src='image/roxy_rexy_minigt.webp'">
+              <span class="card-car-num"><span class="play-icon">▶</span> 1052</span>
+              <span class="card-scale-pill">BOX SEAL</span>
             </div>
-            <h3 onclick="openQuickView(7)" style="cursor:pointer;">Porsche 911 GT3 R #77 AO Racing "Roxy"</h3>
+            <h3 onclick="openQuickView(7)" style="cursor:pointer;">Porsche 911 GT3 R #77 AO Racing "Roxy" 2024 IMSA Road America</h3>
+            <div class="gt3-telemetry-chips">
+              <span class="gt3-spec-chip"><i class="fa-solid fa-road"></i> Road America</span>
+              <span class="gt3-spec-chip"><i class="fa-solid fa-flag-checkered"></i> AO Racing #77</span>
+              <span class="gt3-spec-chip"><i class="fa-solid fa-layer-group"></i> 1:64 Diecast</span>
+            </div>
             <p data-i18n="roxy_desc">
               Phiên bản khủng long hồng Roxy tại chặng Virginia &amp; Road America. Sơn hồng Magenta kết hợp gai lưng xanh chuẩn xác.
             </p>
@@ -1161,8 +1200,15 @@
             </div>
             <div class="gt3-dino-img-wrap" onclick="openQuickView(6)" style="cursor:pointer;" title="Xem chi tiết Porsche GT3 R Skeleton #77">
               <img src="image/ske.webp" data-product-img-id="6" alt="Porsche 911 GT3 R #77 AO Racing Skeleton" loading="lazy" decoding="async" onerror="this.src='image/roxy_rexy_minigt.webp'">
+              <span class="card-car-num"><span class="play-icon">▶</span> 1143</span>
+              <span class="card-scale-pill">BOX SEAL</span>
             </div>
-            <h3 onclick="openQuickView(6)" style="cursor:pointer;">Porsche 911 GT3 R #77 AO Racing "Skeleton"</h3>
+            <h3 onclick="openQuickView(6)" style="cursor:pointer;">Porsche 911 GT3 R #77 AO Racing "Skeleton" 2024 IMSA Petit Le Mans</h3>
+            <div class="gt3-telemetry-chips">
+              <span class="gt3-spec-chip"><i class="fa-solid fa-moon"></i> Petit Le Mans</span>
+              <span class="gt3-spec-chip"><i class="fa-solid fa-skull"></i> Limited #77</span>
+              <span class="gt3-spec-chip"><i class="fa-solid fa-layer-group"></i> 1:64 Diecast</span>
+            </div>
             <p data-i18n="ske_desc">
               Bản giới hạn Halloween Petit Le Mans với đồ họa bộ xương khủng long Rexy trên nền đen mờ. Tùy chọn Box hoặc Card.
             </p>
@@ -1187,6 +1233,15 @@
               </div>
             </div>
           </div>
+        </div>
+
+        <div class="gt3-explore-all-wrap">
+          <button type="button" class="btn btn-outline" onclick="filterAndScroll(event, 'ao_racing')">
+            <i class="fa-solid fa-dragon"></i> <span>Lọc riêng bộ 3 Khủng Long AO Racing</span>
+          </button>
+          <button type="button" class="btn btn-primary" onclick="filterAndScroll(event, 'gt3')">
+            <i class="fa-solid fa-flag-checkered"></i> <span>Xem tất cả xe đua IMSA &amp; GT3</span>
+          </button>
         </div>
       </div>
     </section>
@@ -2423,7 +2478,9 @@
         <img src="image/logo-minigt.webp" alt="MINI GT" class="drawer-logo" loading="lazy" decoding="async">
         <span class="drawer-badge">1:64 SCALE</span>
       </div>
-      <button class="drawer-close-btn" onclick="closeMobileNav()" aria-label="Đóng menu">✕</button>
+      <button type="button" class="drawer-close-btn drawer-close-pill" onclick="closeMobileNav()" aria-label="Đóng menu">
+        <i class="fa-solid fa-xmark"></i> <span>Đóng</span>
+      </button>
     </div>
 
     <div style="display:flex; flex-direction:column; gap:10px; padding:12px 16px; border-bottom:1px solid var(--border-subtle);">
@@ -2464,6 +2521,35 @@
       <!-- Mobile Drawer User Area (Đăng nhập / Hồ sơ / Đăng xuất) -->
       <div id="mobileDrawerUserArea" style="margin-bottom: 14px;"></div>
 
+      <!-- CỤM TIỆN ÍCH NHANH TRÊN ĐIỆN THOẠI (6 NÚT THAO TÁC 1 CHẠM) -->
+      <div class="drawer-section-title">THAO TÁC NHANH</div>
+      <div class="drawer-quick-grid">
+        <button type="button" class="drawer-quick-card" onclick="closeMobileNav(); scrollToSection(event, 'catalog')">
+          <i class="fa-solid fa-car-side" style="color:#e10600;"></i>
+          <span>Kho Xe 1:64</span>
+        </button>
+        <button type="button" class="drawer-quick-card" onclick="closeMobileNav(); openCartDrawer()">
+          <i class="fa-solid fa-bag-shopping" style="color:#059669;"></i>
+          <span>Giỏ Đặt Cọc</span>
+        </button>
+        <button type="button" class="drawer-quick-card" onclick="closeMobileNav(); openMyOrdersModal()">
+          <i class="fa-solid fa-box-archive" style="color:#2563eb;"></i>
+          <span>Đơn Mua SPX</span>
+        </button>
+        <button type="button" class="drawer-quick-card" onclick="closeMobileNav(); openTrackingModal()">
+          <i class="fa-solid fa-truck-fast" style="color:#ea580c;"></i>
+          <span>Tra Vận Đơn</span>
+        </button>
+        <button type="button" class="drawer-quick-card" onclick="closeMobileNav(); openWishlistModal()">
+          <i class="fa-solid fa-heart" style="color:#db2777;"></i>
+          <span>Yêu Thích</span>
+        </button>
+        <button type="button" class="drawer-quick-card" onclick="closeMobileNav(); if (typeof toggleAiChat === 'function') toggleAiChat();">
+          <i class="fa-solid fa-robot" style="color:#7c3aed;"></i>
+          <span>Chat AI 24/7</span>
+        </button>
+      </div>
+
       <div class="drawer-section-title" data-i18n="drawer_sec_explore">DANH MỤC KHÁM PHÁ</div>
       <ul class="drawer-links-list">
         <li><a href="index.html" class="drawer-link active" onclick="closeMobileNav()"><i class="fa-solid fa-house" style="margin-right:8px;"></i> <span data-i18n="nav_home">Trang chủ</span></a></li>
@@ -2474,18 +2560,20 @@
         <li><a href="#collector-hub" class="drawer-link" onclick="closeMobileNav(); scrollToSection(event, 'collector-hub')"><i class="fa-solid fa-ruler-combined" style="margin-right:8px;"></i> <span data-i18n="nav_hub">Cẩm nang 1:64 &amp; Box Saver</span></a></li>
       </ul>
 
-      <div class="drawer-section-title" data-i18n="drawer_sec_tools">TIỆN ÍCH &amp; ĐƠN MUA</div>
-      <ul class="drawer-links-list">
-        <li><a href="javascript:void(0)" class="drawer-link" onclick="closeMobileNav(); openWishlistModal()"><i class="fa-solid fa-heart" style="margin-right:8px; color:#dc2626;"></i> <span data-i18n="drawer_wishlist">Danh sách yêu thích</span></a></li>
-        <li><a href="javascript:void(0)" class="drawer-link" onclick="closeMobileNav(); openMyOrdersModal()"><i class="fa-solid fa-box-archive" style="margin-right:8px; color:#2563eb;"></i> <span data-i18n="topbarOrdersBtn">Đơn hàng của tôi (SPX)</span></a></li>
-        <li><a href="javascript:void(0)" class="drawer-link" onclick="closeMobileNav(); openTrackingModal()"><i class="fa-solid fa-truck-fast" style="margin-right:8px; color:#ea580c;"></i> <span data-i18n="nav_track">Tra cứu đơn hàng</span></a></li>
-      </ul>
-
       <div class="drawer-section-title" data-i18n="drawer_sec_support">HỖ TRỢ TRỰC TIẾP</div>
       <div style="padding:8px 12px; font-size:12px; color:#64748b; line-height:1.6;">
         <div>Hotline: <a href="tel:0981903400" class="hotline-link" style="color:var(--color-primary); font-weight:700;">0981.903.400</a></div>
         <div>Vận chuyển chính thức: <strong>SPX Express</strong> (Đồng giá 11k)</div>
       </div>
+    </div>
+
+    <div class="drawer-sticky-footer">
+      <a href="tel:0981903400" class="drawer-footer-call-btn" title="Gọi Hotline MINI GT">
+        <i class="fa-solid fa-phone-volume"></i> <span>Hotline</span>
+      </a>
+      <button type="button" class="drawer-footer-close-btn" onclick="closeMobileNav()">
+        <i class="fa-solid fa-xmark"></i> <span>Đóng Menu</span>
+      </button>
     </div>
   </aside>
 
