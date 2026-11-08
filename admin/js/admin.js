@@ -2213,16 +2213,12 @@
     if (!tbody) return;
 
     if (!products.length) {
-      tbody.innerHTML = '<tr><td colspan="10" style="text-align:center; padding:2rem; color:#64748b;">Không tìm thấy mô hình nào phù hợp với bộ lọc</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="9" style="text-align:center; padding:2rem; color:#64748b;">Không tìm thấy mô hình nào phù hợp với bộ lọc</td></tr>';
       return;
     }
 
-    const activeCats = getAvailableAdminCategories();
-
     tbody.innerHTML = products.map(rawP => {
       const p = api.normalizeProductObject ? api.normalizeProductObject(rawP) : rawP;
-      const pid = Number(p.id || p.ProductId || 0);
-      const isRowSelected = selectedProductIdsForBulk.has(pid);
       const imgPath = resolveAdminImageUrl(p.image || p.imageUrl || p.ImageUrl);
       const statusBadge = p.status === 'pre_order'
         ? '<span class="status-badge" style="background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe;">Pre-Order</span>'
@@ -2290,30 +2286,8 @@
       if (p.isFeatured) tags.push('<span style="background:#fef3c7; color:#b45309; padding:1px 6px; border-radius:4px; font-size:10px; font-weight:700;">Featured</span>');
       if (p.isNew) tags.push('<span style="background:#dbeafe; color:#1d4ed8; padding:1px 6px; border-radius:4px; font-size:10px; font-weight:700;">New</span>');
 
-      const prodCatIds = getProductAssignedCategoryIds(p);
-      const catBadgesHtml = prodCatIds.map((cid, idx) => {
-        const foundCat = activeCats.find(c => Number(c.id || c.CategoryId) === Number(cid));
-        const cName = foundCat ? (foundCat.name || foundCat.Name) : (idx === 0 && p.category && p.category.name ? p.category.name : `Danh mục #${cid}`);
-        return `<span style="display:inline-flex; align-items:center; gap:3px; background:${idx === 0 ? '#eff6ff' : '#f1f5f9'}; color:${idx === 0 ? '#1d4ed8' : '#334155'}; border:1px solid ${idx === 0 ? '#bfdbfe' : '#cbd5e1'}; border-radius:5px; padding:1px 6px; font-size:10.5px; font-weight:700;">${escapeHtml(cName)}</span>`;
-      }).join(' ');
-
-      const rowCatCheckboxesHtml = activeCats.map(c => {
-        const cid = Number(c.id || c.CategoryId);
-        const cName = c.name || c.Name || `Danh mục #${cid}`;
-        const checked = prodCatIds.includes(cid);
-        return `
-          <label style="display:flex; align-items:center; gap:6px; font-size:11.5px; font-weight:600; color:#1e293b; cursor:pointer; padding:3px 6px; border-radius:5px; background:${checked ? '#eff6ff' : '#fff'}; border:1px solid ${checked ? '#93c5fd' : '#e2e8f0'};">
-            <input type="checkbox" class="row-quick-cat-cb-${pid}" value="${cid}" ${checked ? 'checked' : ''} style="width:13.5px; height:13.5px; accent-color:#2563eb; cursor:pointer;">
-            <span>${cid}. ${escapeHtml(cName)}</span>
-          </label>
-        `;
-      }).join('');
-
       return `
-        <tr style="${isRowSelected ? 'background:#eff6ff;' : ''}">
-          <td style="text-align:center;">
-            <input type="checkbox" class="prod-row-select-cb" value="${pid}" ${isRowSelected ? 'checked' : ''} style="width:15px; height:15px; accent-color:#2563eb; cursor:pointer;" onchange="toggleSelectProductRow(${pid}, this.checked)">
-          </td>
+        <tr>
           <td>
             <img src="${imgPath}" alt="${escapeHtml(p.name)}" style="width:50px; height:50px; object-fit:contain; border-radius:6px; background:#fff; border:1px solid #e2e8f0;">
           </td>
@@ -2324,28 +2298,9 @@
               ${p.editionNote ? escapeHtml(p.editionNote) : 'Bản tiêu chuẩn'}
             </div>
           </td>
-          <td style="min-width:195px; position:relative;">
-            <div style="display:flex; flex-wrap:wrap; gap:4px; margin-bottom:3px;">${catBadgesHtml}</div>
-            <div style="display:flex; align-items:center; justify-content:space-between; gap:6px; flex-wrap:wrap;">
-              <span style="font-size:11px; color:#64748b;">${escapeHtml(p.brand)} (${p.scale})</span>
-              <button type="button" class="btn-admin btn-admin-outline" style="padding:1px 6px; font-size:10px; color:#2563eb; border-color:#93c5fd; background:#f8fafc;" onclick="toggleRowCategoryQuickEditor(${pid}, event)" title="Tích chọn đổi/thêm danh mục 1, 2, 3... cho xe này">
-                <i class="fa-solid fa-list-check"></i> Tích danh mục
-              </button>
-            </div>
-            <div id="rowCatQuickEditor_${pid}" style="display:none; margin-top:6px; padding:8px; background:#f8fafc; border:1.5px solid #93c5fd; border-radius:8px; box-shadow:0 6px 16px rgba(15,23,42,0.12);">
-              <div style="font-size:11px; font-weight:800; color:#1e3a8a; margin-bottom:5px;">
-                <i class="fa-solid fa-tags"></i> Tích chọn danh mục cho #${escapeHtml(p.sku)}:
-              </div>
-              <div style="display:flex; flex-direction:column; gap:4px; margin-bottom:7px;">
-                ${rowCatCheckboxesHtml}
-              </div>
-              <div style="display:flex; gap:5px; justify-content:flex-end;">
-                <button type="button" class="btn-admin btn-admin-outline" style="padding:3px 8px; font-size:10.5px;" onclick="toggleRowCategoryQuickEditor(${pid}, event, false)">Đóng</button>
-                <button type="button" class="btn-admin btn-admin-primary" style="padding:3px 9px; font-size:10.5px; background:#2563eb; border-color:#2563eb;" onclick="saveRowQuickCategories(${pid})">
-                  <i class="fa-solid fa-check"></i> Lưu
-                </button>
-              </div>
-            </div>
+          <td>
+            <div style="font-weight:600; color:#334155; font-size:12.5px;">${escapeHtml(p.category.name)}</div>
+            <div style="font-size:11px; color:#64748b;">${escapeHtml(p.brand)} (${p.scale})</div>
           </td>
           <td>
             <div style="font-size:12px; line-height:1.45;">
@@ -2381,8 +2336,6 @@
         </tr>
       `;
     }).join('');
-
-    updateBulkCategoryBarUI();
   }
 
   function renderProductsPagination(pagination) {
@@ -2416,51 +2369,9 @@
   }
 
   // =====================================================================
-  // QUẢN LÝ DANH MỤC ĐỘNG, ĐA DANH MỤC (CHECKBOXES) & GÁN DANH MỤC HÀNG LOẠT
+  // QUẢN LÝ DANH MỤC ĐỘNG & TẠO DANH MỤC MỚI INLINE
   // =====================================================================
   let cachedCategories = [];
-  const selectedProductIdsForBulk = new Set();
-
-  const DEFAULT_ADMIN_CATEGORIES = [
-    { id: 1, name: 'Liberty Walk LBWK', slug: 'liberty-walk' },
-    { id: 2, name: 'Formula 1 Racing', slug: 'f1-racing' },
-    { id: 3, name: 'IMSA & GT3 Racing', slug: 'gt-racing' },
-    { id: 4, name: 'Box Sets & Combo', slug: 'box-sets' },
-    { id: 5, name: 'Pop Race & Collab', slug: 'partner' }
-  ];
-
-  function getAvailableAdminCategories() {
-    if (Array.isArray(cachedCategories) && cachedCategories.length > 0) {
-      return cachedCategories;
-    }
-    return DEFAULT_ADMIN_CATEGORIES;
-  }
-
-  function getProductAssignedCategoryIds(p) {
-    if (!p) return [1];
-    const primaryId = Number(p.categoryId || p.CategoryId || (p.category && p.category.id) || 1);
-    const ids = [primaryId];
-    const pushId = (v) => {
-      const n = parseInt(v, 10);
-      if (!Number.isNaN(n) && n > 0 && !ids.includes(n)) ids.push(n);
-    };
-    const rawList = p.categoryIds || p.CategoryIds || (p.category && p.category.ids) || p.extraCategoryIds || p.ExtraCategoryIds;
-    if (Array.isArray(rawList)) {
-      rawList.forEach(pushId);
-    } else if (typeof rawList === 'string' && rawList.trim()) {
-      try {
-        const parsed = JSON.parse(rawList);
-        if (Array.isArray(parsed)) parsed.forEach(pushId);
-        else pushId(parsed);
-      } catch (_) {
-        rawList.split(',').forEach(s => pushId(s.trim()));
-      }
-    }
-    if (Array.isArray(p.categories)) {
-      p.categories.forEach(c => pushId(c && (c.id || c.CategoryId)));
-    }
-    return ids.length ? ids : [1];
-  }
 
   async function loadCategories() {
     try {
@@ -2468,26 +2379,23 @@
       if (res && res.success && Array.isArray(res.data)) {
         cachedCategories = res.data;
         renderCategoryOptions(cachedCategories);
-      } else {
-        renderCategoryOptions(getAvailableAdminCategories());
       }
     } catch (e) {
       console.warn('Không thể tải danh mục từ API:', e);
-      renderCategoryOptions(getAvailableAdminCategories());
     }
   }
 
   function renderCategoryOptions(categories) {
-    const list = (Array.isArray(categories) && categories.length) ? categories : getAvailableAdminCategories();
+    if (!Array.isArray(categories) || !categories.length) return;
 
     // 1. Dropdown trong Modal Thêm/Sửa sản phẩm
     const prodCatSelect = document.getElementById('prodCategory');
     if (prodCatSelect) {
       const currentVal = prodCatSelect.value;
-      prodCatSelect.innerHTML = list.map(c => `
-        <option value="${c.id || c.CategoryId}">${c.id || c.CategoryId}. ${escapeHtml(c.name || c.Name)}</option>
+      prodCatSelect.innerHTML = categories.map(c => `
+        <option value="${c.id || c.CategoryId}">${escapeHtml(c.name || c.Name)}</option>
       `).join('');
-      if (currentVal && list.some(c => String(c.id || c.CategoryId) === String(currentVal))) {
+      if (currentVal && categories.some(c => String(c.id || c.CategoryId) === String(currentVal))) {
         prodCatSelect.value = currentVal;
       }
     }
@@ -2498,244 +2406,9 @@
       const currentFilterVal = filterSelect.value;
       filterSelect.innerHTML = `
         <option value="all">-- Tất cả danh mục --</option>
-        ${list.map(c => `<option value="${escapeHtml(c.slug || c.Slug)}">${c.id || c.CategoryId}. ${escapeHtml(c.name || c.Name)}</option>`).join('')}
+        ${categories.map(c => `<option value="${escapeHtml(c.slug || c.Slug)}">${escapeHtml(c.name || c.Name)}</option>`).join('')}
       `;
       if (currentFilterVal) filterSelect.value = currentFilterVal;
-    }
-
-    // 3. Render danh sách Checkboxes trong thanh Bulk Action Bar
-    renderBulkCategoryCheckboxes(list);
-
-    // 4. Render danh sách Checkboxes trong Modal Thêm/Sửa sản phẩm
-    const currentModalChecked = getSelectedModalCategoryIds();
-    renderModalCategoryCheckboxes(currentModalChecked.length ? currentModalChecked : [Number(prodCatSelect?.value || 1)]);
-  }
-
-  function renderModalCategoryCheckboxes(selectedIds = [1]) {
-    const grid = document.getElementById('prodCategoryCheckboxesGrid');
-    if (!grid) return;
-    const list = getAvailableAdminCategories();
-    const normSelected = Array.from(new Set((selectedIds || []).map(v => parseInt(v, 10)).filter(n => !Number.isNaN(n) && n > 0)));
-    if (!normSelected.length) normSelected.push(1);
-
-    const primaryId = normSelected[0];
-    grid.innerHTML = list.map(c => {
-      const cid = Number(c.id || c.CategoryId);
-      const cName = c.name || c.Name || `Danh mục #${cid}`;
-      const isChecked = normSelected.includes(cid);
-      const isPrimary = cid === primaryId;
-      return `
-        <label style="display:flex; align-items:center; gap:7px; padding:6px 10px; border-radius:7px; cursor:pointer; user-select:none; font-size:12px; font-weight:${isChecked ? '700' : '600'}; color:${isChecked ? '#1d4ed8' : '#334155'}; background:${isChecked ? '#eff6ff' : '#ffffff'}; border:1.5px solid ${isChecked ? '#60a5fa' : '#e2e8f0'}; transition:all 0.15s;">
-          <input type="checkbox" class="modal-prod-cat-cb" value="${cid}" ${isChecked ? 'checked' : ''} style="width:15px; height:15px; accent-color:#2563eb; cursor:pointer;" onchange="handleModalCategoryCheckboxChange(${cid}, this.checked)">
-          <span style="flex:1; line-height:1.25;">${cid}. ${escapeHtml(cName)}</span>
-          ${isPrimary ? '<span style="font-size:9.5px; background:#dbeafe; color:#1e40af; padding:1px 5px; border-radius:4px; font-weight:800;">Chính</span>' : ''}
-        </label>
-      `;
-    }).join('');
-  }
-
-  function getSelectedModalCategoryIds() {
-    const cbs = document.querySelectorAll('.modal-prod-cat-cb:checked');
-    const selected = [];
-    cbs.forEach(cb => {
-      const val = parseInt(cb.value, 10);
-      if (!Number.isNaN(val) && val > 0 && !selected.includes(val)) selected.push(val);
-    });
-    const prodCatSelect = document.getElementById('prodCategory');
-    const primaryVal = parseInt(prodCatSelect?.value, 10) || 1;
-    if (selected.includes(primaryVal)) {
-      return [primaryVal, ...selected.filter(id => id !== primaryVal)];
-    }
-    return selected;
-  }
-
-  function handlePrimaryCategorySelectChange(val) {
-    const primaryId = parseInt(val, 10) || 1;
-    const current = getSelectedModalCategoryIds();
-    const merged = [primaryId, ...current.filter(id => id !== primaryId)];
-    renderModalCategoryCheckboxes(merged);
-  }
-
-  function handleModalCategoryCheckboxChange(catId, isChecked) {
-    const prodCatSelect = document.getElementById('prodCategory');
-    let selected = getSelectedModalCategoryIds();
-    if (!selected.length) {
-      // Không cho phép bỏ tích hết sạch các danh mục
-      const fallbackId = parseInt(prodCatSelect?.value, 10) || Number(catId) || 1;
-      selected = [fallbackId];
-      adminToast('Mô hình phải thuộc ít nhất 1 danh mục!', 'warning');
-    } else if (prodCatSelect) {
-      const currentPrimary = parseInt(prodCatSelect.value, 10) || 1;
-      if (!selected.includes(currentPrimary)) {
-        prodCatSelect.value = String(selected[0]);
-      } else {
-        selected = [currentPrimary, ...selected.filter(id => id !== currentPrimary)];
-      }
-    }
-    renderModalCategoryCheckboxes(selected);
-  }
-
-  function renderBulkCategoryCheckboxes(categories) {
-    const container = document.getElementById('bulkCategoryCheckboxesList');
-    if (!container) return;
-    const list = (Array.isArray(categories) && categories.length) ? categories : getAvailableAdminCategories();
-    const prevChecked = Array.from(container.querySelectorAll('.bulk-cat-cb:checked')).map(el => Number(el.value));
-
-    container.innerHTML = list.map(c => {
-      const cid = Number(c.id || c.CategoryId);
-      const cName = c.name || c.Name || `Danh mục #${cid}`;
-      const isChecked = prevChecked.includes(cid);
-      return `
-        <label style="display:inline-flex; align-items:center; gap:6px; padding:6px 11px; border-radius:8px; background:${isChecked ? '#dbeafe' : '#ffffff'}; border:1.5px solid ${isChecked ? '#2563eb' : '#cbd5e1'}; color:#0f172a; font-size:12px; font-weight:700; cursor:pointer; user-select:none; box-shadow:0 1px 2px rgba(0,0,0,0.03);">
-          <input type="checkbox" class="bulk-cat-cb" value="${cid}" ${isChecked ? 'checked' : ''} style="width:15px; height:15px; accent-color:#2563eb; cursor:pointer;" onchange="this.parentElement.style.background=this.checked?'#dbeafe':'#ffffff'; this.parentElement.style.borderColor=this.checked?'#2563eb':'#cbd5e1';">
-          <span>Danh mục ${cid}: ${escapeHtml(cName)}</span>
-        </label>
-      `;
-    }).join('');
-  }
-
-  function toggleBulkCategoryBar(forceShow) {
-    const bar = document.getElementById('bulkCategoryActionBar');
-    if (!bar) return;
-    const isHidden = bar.style.display === 'none' || !bar.style.display;
-    const nextShow = forceShow !== undefined ? Boolean(forceShow) : isHidden;
-    bar.style.display = nextShow ? 'block' : 'none';
-    if (nextShow) {
-      renderBulkCategoryCheckboxes(getAvailableAdminCategories());
-    }
-  }
-
-  function updateBulkCategoryBarUI() {
-    const countEl = document.getElementById('bulkSelectedProductsCount');
-    if (countEl) countEl.textContent = String(selectedProductIdsForBulk.size);
-
-    const bar = document.getElementById('bulkCategoryActionBar');
-    if (bar && selectedProductIdsForBulk.size > 0) {
-      bar.style.display = 'block';
-      const container = document.getElementById('bulkCategoryCheckboxesList');
-      if (container && !container.children.length) {
-        renderBulkCategoryCheckboxes(getAvailableAdminCategories());
-      }
-    }
-
-    const selectAllCb = document.getElementById('prodSelectAllCb');
-    if (selectAllCb && Array.isArray(cachedProducts) && cachedProducts.length > 0) {
-      const allOnPageSelected = cachedProducts.every(p => selectedProductIdsForBulk.has(Number(p.id || p.ProductId)));
-      selectAllCb.checked = allOnPageSelected;
-    } else if (selectAllCb) {
-      selectAllCb.checked = false;
-    }
-  }
-
-  function toggleSelectProductRow(productId, isChecked) {
-    const pid = Number(productId);
-    if (!pid) return;
-    if (isChecked) selectedProductIdsForBulk.add(pid);
-    else selectedProductIdsForBulk.delete(pid);
-    updateBulkCategoryBarUI();
-  }
-
-  function toggleSelectAllProducts(isChecked) {
-    if (Array.isArray(cachedProducts)) {
-      cachedProducts.forEach(p => {
-        const pid = Number(p.id || p.ProductId);
-        if (!pid) return;
-        if (isChecked) selectedProductIdsForBulk.add(pid);
-        else selectedProductIdsForBulk.delete(pid);
-      });
-    }
-    renderProductsTable(cachedProducts || []);
-  }
-
-  function clearBulkProductSelection() {
-    selectedProductIdsForBulk.clear();
-    renderProductsTable(cachedProducts || []);
-  }
-
-  async function applyBulkProductCategories() {
-    const productIds = Array.from(selectedProductIdsForBulk);
-    if (!productIds.length) {
-      adminToast('Vui lòng tích chọn ít nhất 1 mẫu xe trong bảng trước khi áp dụng!', 'warning');
-      return;
-    }
-    const checkedCbs = document.querySelectorAll('#bulkCategoryCheckboxesList .bulk-cat-cb:checked');
-    const categoryIds = Array.from(checkedCbs).map(cb => parseInt(cb.value, 10)).filter(n => !Number.isNaN(n) && n > 0);
-    if (!categoryIds.length) {
-      adminToast('Vui lòng tích chọn ít nhất 1 danh mục cần gán!', 'warning');
-      return;
-    }
-    const mode = document.getElementById('bulkCategoryAssignMode')?.value || 'replace';
-    const btn = document.getElementById('btnApplyBulkCategories');
-    const oldHtml = btn ? btn.innerHTML : '';
-    if (btn) {
-      btn.disabled = true;
-      btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Đang đồng bộ...';
-    }
-    try {
-      const res = await api.put('/api/admin/products/bulk-categories', {
-        productIds,
-        categoryIds,
-        mode
-      });
-      if (!res || res.success === false) {
-        throw new Error(res?.message || 'Không thể cập nhật danh mục hàng loạt');
-      }
-      adminToast(res.message || `Đã cập nhật danh mục cho ${productIds.length} mẫu xe!`, 'success');
-      if (api && typeof api.emitRealtimeSync === 'function') {
-        api.emitRealtimeSync('PRODUCTS_UPDATED', res.data || { productIds, categoryIds, mode });
-      }
-      await loadProducts();
-      await loadCategories();
-    } catch (err) {
-      adminToast('Lỗi cập nhật danh mục: ' + err.message, 'error');
-    } finally {
-      if (btn) {
-        btn.disabled = false;
-        btn.innerHTML = oldHtml;
-      }
-    }
-  }
-
-  function toggleRowCategoryQuickEditor(productId, event, forceShow) {
-    if (event && typeof event.stopPropagation === 'function') event.stopPropagation();
-    const pid = Number(productId);
-    const panel = document.getElementById(`rowCatQuickEditor_${pid}`);
-    if (!panel) return;
-    const isHidden = panel.style.display === 'none' || !panel.style.display;
-    const shouldShow = forceShow !== undefined ? Boolean(forceShow) : isHidden;
-
-    // Đóng các quick editor khác đang mở
-    document.querySelectorAll('[id^="rowCatQuickEditor_"]').forEach(el => {
-      if (el.id !== `rowCatQuickEditor_${pid}`) el.style.display = 'none';
-    });
-
-    panel.style.display = shouldShow ? 'block' : 'none';
-  }
-
-  async function saveRowQuickCategories(productId) {
-    const pid = Number(productId);
-    if (!pid) return;
-    const cbs = document.querySelectorAll(`.row-quick-cat-cb-${pid}:checked`);
-    const categoryIds = Array.from(cbs).map(cb => parseInt(cb.value, 10)).filter(n => !Number.isNaN(n) && n > 0);
-    if (!categoryIds.length) {
-      adminToast('Vui lòng tích chọn ít nhất 1 danh mục cho mẫu xe này!', 'warning');
-      return;
-    }
-    try {
-      const res = await api.put(`/api/admin/products/${pid}/categories`, {
-        categoryIds
-      });
-      if (!res || res.success === false) {
-        throw new Error(res?.message || 'Lỗi cập nhật danh mục cho xe');
-      }
-      adminToast(res.message || 'Đã cập nhật & đồng bộ danh mục xe thành công!', 'success');
-      if (api && typeof api.emitRealtimeSync === 'function') {
-        api.emitRealtimeSync('PRODUCTS_UPDATED', res.data || { productId: pid, categoryIds });
-      }
-      await loadProducts();
-      await loadCategories();
-    } catch (err) {
-      adminToast('Không thể lưu danh mục: ' + err.message, 'error');
     }
   }
 
@@ -2920,7 +2593,6 @@
 
     const catSelect = document.getElementById('prodCategory');
     if (catSelect) catSelect.value = '1';
-    renderModalCategoryCheckboxes([1]);
 
     const brandEl = document.getElementById('prodBrand');
     if (brandEl) brandEl.value = 'MINI GT';
@@ -2989,14 +2661,12 @@
       }
       document.getElementById('prodName').value = p.name || p.Name || '';
 
-      // Xử lý danh mục an toàn 100% (hỗ trợ cả đa danh mục 1, 2, 3...)
-      const assignedCatIds = getProductAssignedCategoryIds(p);
-      const catVal = assignedCatIds[0] || p.category?.id || p.categoryId || p.CategoryId || 1;
+      // Xử lý danh mục an toàn 100%
+      const catVal = p.category?.id || p.categoryId || p.CategoryId || 1;
       const catSelect = document.getElementById('prodCategory');
       if (catSelect) {
         catSelect.value = String(catVal);
       }
-      renderModalCategoryCheckboxes(assignedCatIds);
 
       // Xử lý Thương hiệu
       const brandVal = p.brand || p.Brand || 'MINI GT';
@@ -3774,16 +3444,11 @@
         return;
       }
 
-      const selectedCatIds = getSelectedModalCategoryIds();
-      const primaryCategoryId = selectedCatIds[0] || parseInt(document.getElementById('prodCategory').value, 10) || 1;
-      const finalCategoryIds = selectedCatIds.length ? selectedCatIds : [primaryCategoryId];
-
       const payload = {
         sku: skuVal,
         carNumber: carVal,
         name: nameVal,
-        categoryId: primaryCategoryId,
-        categoryIds: finalCategoryIds,
+        categoryId: parseInt(document.getElementById('prodCategory').value, 10) || 1,
         brand: brandVal,
         scale: document.getElementById('prodScale').value.trim() || '1:64',
         packagingType,
@@ -7637,16 +7302,5 @@ Anh/chị phản hồi giúp shop để kiện xe được đóng gói gửi đi
   window.handleAdminSendReply = handleAdminSendReply;
   window.setAdminConversationStatus = setAdminConversationStatus;
   window.deleteAdminConversationAction = deleteAdminConversationAction;
-
-  // Export Multi-Category & Bulk Category Assignment handlers
-  window.handlePrimaryCategorySelectChange = handlePrimaryCategorySelectChange;
-  window.handleModalCategoryCheckboxChange = handleModalCategoryCheckboxChange;
-  window.toggleBulkCategoryBar = toggleBulkCategoryBar;
-  window.toggleSelectProductRow = toggleSelectProductRow;
-  window.toggleSelectAllProducts = toggleSelectAllProducts;
-  window.clearBulkProductSelection = clearBulkProductSelection;
-  window.applyBulkProductCategories = applyBulkProductCategories;
-  window.toggleRowCategoryQuickEditor = toggleRowCategoryQuickEditor;
-  window.saveRowQuickCategories = saveRowQuickCategories;
 
 })();

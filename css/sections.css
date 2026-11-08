@@ -3082,6 +3082,30 @@ body.dark-mode .gt3-tab-pill.active {
   background: #ffffff;
 }
 
+.hero-trio-card.trio-card-rexy {
+  border-top: 3.5px solid #16a34a !important;
+}
+.hero-trio-card.trio-card-rexy:hover {
+  border-top-color: #15803d !important;
+  border-color: #86efac;
+}
+
+.hero-trio-card.trio-card-roxy {
+  border-top: 3.5px solid #ec4899 !important;
+}
+.hero-trio-card.trio-card-roxy:hover {
+  border-top-color: #db2777 !important;
+  border-color: #f472b6;
+}
+
+.hero-trio-card.trio-card-ske {
+  border-top: 3.5px solid #0f172a !important;
+}
+.hero-trio-card.trio-card-ske:hover {
+  border-top-color: #0f172a !important;
+  border-color: #475569;
+}
+
 .trio-img-wrap {
   width: 100%;
   height: 70px;
@@ -3139,8 +3163,8 @@ body.dark-mode .gt3-tab-pill.active {
 }
 
 .trio-ske {
-  background: #f1f5f9;
-  color: #334155;
+  background: #0f172a;
+  color: #ffffff;
 }
 
 .trio-title {
@@ -3756,27 +3780,28 @@ html[data-theme="dark"] .gt3-dino-img-wrap {
 }
 
 .gt3-dino-card.rexy-theme {
-  border-top: 4px solid #16a34a;
+  border-top: 5px solid #16a34a !important;
 }
 .gt3-dino-card.rexy-theme:hover {
   border-color: #86efac;
-  border-top-color: #16a34a;
+  border-top-color: #16a34a !important;
 }
 
 .gt3-dino-card.roxy-theme {
-  border-top: 4px solid #ec4899;
+  border-top: 5px solid #ec4899 !important;
 }
 .gt3-dino-card.roxy-theme:hover {
   border-color: #f472b6;
-  border-top-color: #ec4899;
+  border-top-color: #ec4899 !important;
 }
 
 .gt3-dino-card.skeleton-theme {
-  border-top: 4px solid #6366f1;
+  border-top: 5px solid #0f172a !important;
 }
 .gt3-dino-card.skeleton-theme:hover {
-  border-color: #a5b4fc;
-  border-top-color: #6366f1;
+  border-color: #475569;
+  border-top-color: #0f172a !important;
+  box-shadow: 0 16px 36px rgba(15, 23, 42, 0.2);
 }
 
 /* Top Badge & Status Row */
@@ -3807,8 +3832,9 @@ html[data-theme="dark"] .gt3-dino-img-wrap {
   color: #be185d;
 }
 .gt3-sku-tag.skeleton-tag {
-  background: #ede9fe;
-  color: #6d28d9;
+  background: #0f172a;
+  color: #ffffff;
+  border: 1px solid #1e293b;
 }
 
 .gt3-status-pill {
@@ -4274,9 +4300,34 @@ body.dark-mode .gt3-dino-card.roxy-theme:hover {
   border-color: #ec4899 !important;
 }
 
+[data-theme="dark"] .gt3-dino-card.skeleton-theme,
+body.dark-mode .gt3-dino-card.skeleton-theme {
+  border-top: 5px solid #f8fafc !important;
+}
+
 [data-theme="dark"] .gt3-dino-card.skeleton-theme:hover,
 body.dark-mode .gt3-dino-card.skeleton-theme:hover {
-  border-color: #f59e0b !important;
+  border-color: #cbd5e1 !important;
+  border-top-color: #ffffff !important;
+}
+
+[data-theme="dark"] .gt3-sku-tag.skeleton-tag,
+body.dark-mode .gt3-sku-tag.skeleton-tag {
+  background: #1e293b !important;
+  color: #f8fafc !important;
+  border: 1px solid #475569 !important;
+}
+
+[data-theme="dark"] .hero-trio-card.trio-card-ske,
+body.dark-mode .hero-trio-card.trio-card-ske {
+  border-top-color: #f8fafc !important;
+}
+
+[data-theme="dark"] .trio-ske,
+body.dark-mode .trio-ske {
+  background: #1e293b !important;
+  color: #f8fafc !important;
+  border: 1px solid #475569 !important;
 }
 
 /* Studio-lit stage so Skeleton #77 (matte black car) and Rexy/Roxy stand out vividly */

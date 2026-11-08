@@ -735,7 +735,7 @@
       PriceBox: 350000, PriceCard: 350000, DiscountPercent: 0, PackagingType: 'box_only',
       DepositAmount: 105000, QuotaPercent: 90, EditionNote: 'Bản Độ KUHL Metallic Pink',
       PreOrderDeadline: '2026-12-31', Stock: 10,
-      ImageUrl: '/api/images/71',
+      ImageUrl: 'image/1391.webp',
       Description: 'Mẫu xe độ Toyota Vellfire 40 phong cách KUHL Racing màu hồng Metallic Pink cực kỳ cuốn hút.',
       Status: 'pre_order', IsFeatured: 1, IsNew: 1, soldCount: 0
     },
@@ -747,7 +747,7 @@
       PriceBox: 2399999, PriceCard: 2399999, DiscountPercent: 0, PackagingType: 'box_only',
       DepositAmount: 720000, QuotaPercent: 95, EditionNote: 'Xe Đầu Kéo Cẩu Sàn Trượt B8x4NA',
       PreOrderDeadline: '2026-12-31', Stock: 5,
-      ImageUrl: '/api/images/73',
+      ImageUrl: 'image/1392.webp',
       Description: 'Siêu phẩm xe đầu kéo Scania 770S sàn trượt Hooklift màu cam rực rỡ, chi tiết cơ khí kim loại tinh xảo.',
       Status: 'pre_order', IsFeatured: 1, IsNew: 1, soldCount: 0
     },
@@ -759,7 +759,7 @@
       PriceBox: 350000, PriceCard: 350000, DiscountPercent: 0, PackagingType: 'box_only',
       DepositAmount: 105000, QuotaPercent: 92, EditionNote: 'Winner 1977 US GP West - Mario Andretti #5',
       PreOrderDeadline: '2026-12-31', Stock: 5,
-      ImageUrl: '/api/images/78',
+      ImageUrl: 'image/1393.webp',
       Description: 'Huyền thoại xe đua F1 Team Lotus 78 số #5 cùng tay đua Mario Andretti vô địch chặng US GP West 1977.',
       Status: 'pre_order', IsFeatured: 1, IsNew: 1, soldCount: 0
     },
@@ -771,7 +771,7 @@
       PriceBox: 350000, PriceCard: 350000, DiscountPercent: 0, PackagingType: 'box_only',
       DepositAmount: 105000, QuotaPercent: 88, EditionNote: 'Siêu Xe Mới Nhất Lamborghini Temerario',
       PreOrderDeadline: '2026-12-31', Stock: 3,
-      ImageUrl: '/api/images/80',
+      ImageUrl: 'image/1394.webp',
       Description: 'Mẫu siêu xe hybrid thế hệ mới Lamborghini Temerario trong màu áo tím huyền bí Viola Pasifae.',
       Status: 'pre_order', IsFeatured: 1, IsNew: 1, soldCount: 0
     },
@@ -783,7 +783,7 @@
       PriceBox: 320000, PriceCard: 320000, DiscountPercent: 0, PackagingType: 'box_only',
       DepositAmount: 96000, QuotaPercent: 85, EditionNote: 'Triển lãm Mondial de l\'Automobile 1992',
       PreOrderDeadline: '2026-12-31', Stock: 6,
-      ImageUrl: '/api/images/82',
+      ImageUrl: 'image/1395.webp',
       Description: 'Kiệt tác siêu xe thập niên 90 Bugatti EB110 GT màu xanh Azzurro Metallizzato tại triển lãm Paris 1992.',
       Status: 'pre_order', IsFeatured: 1, IsNew: 1, soldCount: 0
     }

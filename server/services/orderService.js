@@ -151,24 +151,22 @@ async function createOrder(payload, authUser = null) {
         throw conflict(`Mẫu xe "${p.Name}" (${packLabel}) chỉ còn ${availableForPack} ${slotWord} khả dụng (bạn đặt ${quantity}).`);
       }
 
+      const nextBox = effectivePack === 'box' ? Math.max(0, sBox - quantity) : sBox;
+      const nextCard = effectivePack === 'card' ? Math.max(0, sCard - quantity) : sCard;
+      const nextTotal = Math.max(0, nextBox + nextCard);
+
       await q(`
         UPDATE Products
-        SET StockBox = CASE WHEN @pack = 'box' THEN GREATEST(0, COALESCE(StockBox, 0) - @qty) ELSE COALESCE(StockBox, 0) END,
-            StockCard = CASE WHEN @pack = 'card' THEN GREATEST(0, COALESCE(StockCard, 0) - @qty) ELSE COALESCE(StockCard, 0) END,
-            Stock = GREATEST(0, 
-              (CASE WHEN @pack = 'box' THEN GREATEST(0, COALESCE(StockBox, 0) - @qty) ELSE COALESCE(StockBox, 0) END) +
-              (CASE WHEN @pack = 'card' THEN GREATEST(0, COALESCE(StockCard, 0) - @qty) ELSE COALESCE(StockCard, 0) END)
-            ),
+        SET StockBox = @nBox,
+            StockCard = @nCard,
+            Stock = @nTot,
             Status = CASE 
-              WHEN (
-                (CASE WHEN @pack = 'box' THEN GREATEST(0, COALESCE(StockBox, 0) - @qty) ELSE COALESCE(StockBox, 0) END) +
-                (CASE WHEN @pack = 'card' THEN GREATEST(0, COALESCE(StockCard, 0) - @qty) ELSE COALESCE(StockCard, 0) END)
-              ) <= 0 THEN 'sold_out' 
+              WHEN @nTot <= 0 THEN 'sold_out' 
               ELSE Status 
             END,
             UpdatedAt = NOW()
         WHERE ProductId = @pid
-      `, { pid: productId, qty: quantity, pack: effectivePack });
+      `, { pid: productId, nBox: nextBox, nCard: nextCard, nTot: nextTotal });
 
       const disc = Math.min(80, Math.max(0, Number(p.DiscountPercent || 0)));
       const baseBox = Number(p.PriceBox || 0) > 0 ? Number(p.PriceBox) : Number(p.Price);
@@ -494,7 +492,7 @@ async function transitionOrderStatus(orderIdOrCode, toStatus, { note, cancelReas
               ),
               Status = CASE 
                 WHEN Status = 'sold_out' THEN 
-                  (CASE WHEN COALESCE(DepositPercent, 0) > 0 OR Name ILIKE '%preorder%' OR Name ILIKE '%pre-order%' OR (ReleaseDate IS NOT NULL AND ReleaseDate > NOW()) THEN 'pre_order' ELSE 'in_stock' END)
+                  (CASE WHEN COALESCE(DepositPercent, 0) > 0 OR COALESCE(DepositAmount, 0) > 0 OR PreOrderDeadline IS NOT NULL OR Name ILIKE '%preorder%' OR Name ILIKE '%pre-order%' OR (ReleaseDate IS NOT NULL AND ReleaseDate > NOW()) THEN 'pre_order' ELSE 'in_stock' END)
                 ELSE Status 
               END,
               UpdatedAt = NOW()

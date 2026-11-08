@@ -754,6 +754,18 @@ header nav.desktop-only,
     border-radius: 10px !important;
   }
 
+  .hero-trio-card.trio-card-rexy {
+    border-top: 3.5px solid #16a34a !important;
+  }
+
+  .hero-trio-card.trio-card-roxy {
+    border-top: 3.5px solid #ec4899 !important;
+  }
+
+  .hero-trio-card.trio-card-ske {
+    border-top: 3.5px solid #0f172a !important;
+  }
+
   .trio-img-wrap {
     height: 52px !important;
     margin-bottom: 3px !important;
