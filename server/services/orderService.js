@@ -1,6 +1,7 @@
 /**
  * ORDER SERVICE — MÁY TRẠNG THÁI ĐƠN HÀNG & QUẢN LÝ TỒN KHO TRANSACTIONAL (SUPABASE POSTGRESQL)
  */
+const crypto = require('crypto');
 const db = require('../config/db');
 const { getSettings } = require('./settingsService');
 const { calcDiscountedPrice } = require('./productService');
@@ -17,13 +18,19 @@ const ALLOWED_TRANSITIONS = {
   CANCELLED: []
 };
 
+const ORDER_CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+
 function generateOrderCode() {
   const d = new Date();
   const ymd = d.getFullYear().toString()
     + String(d.getMonth() + 1).padStart(2, '0')
     + String(d.getDate()).padStart(2, '0');
-  const rnd = Math.floor(1000 + Math.random() * 9000);
-  return `MGT-${ymd}-${rnd}`;
+  const bytes = crypto.randomBytes(6);
+  let suffix = '';
+  for (let i = 0; i < 6; i++) {
+    suffix += ORDER_CODE_ALPHABET[bytes[i] % ORDER_CODE_ALPHABET.length];
+  }
+  return `MGT-${ymd}-${suffix}`;
 }
 
 async function createOrder(payload, authUser = null) {
@@ -296,7 +303,12 @@ async function createOrder(payload, authUser = null) {
       }
     }
 
-    const orderCode = generateOrderCode();
+    let orderCode = generateOrderCode();
+    for (let attempt = 0; attempt < 5; attempt++) {
+      const existingCode = await q('SELECT 1 FROM Orders WHERE OrderCode = @code LIMIT 1', { code: orderCode });
+      if (!existingCode.recordset || existingCode.recordset.length === 0) break;
+      orderCode = generateOrderCode();
+    }
     let oIns;
     try {
       oIns = await q(`
@@ -391,7 +403,7 @@ async function createOrder(payload, authUser = null) {
     if (voucherCode && voucherDiscount > 0) {
       try {
         const couponService = require('./couponService');
-        await couponService.recordCouponUsage(voucherCode, order.OrderId, order.OrderCode, authUser, phone, email);
+        await couponService.recordCouponUsage(voucherCode, order.OrderId, order.OrderCode, authUser, phone, email, q);
       } catch (cErr) {
         console.warn('[ORDER] recordCouponUsage error:', cErr.message);
       }
@@ -420,6 +432,7 @@ async function transitionOrderStatus(orderIdOrCode, toStatus, { note, cancelReas
     const oRes = await q(`
       SELECT * FROM Orders
       WHERE ${isNum ? 'OrderId = @val' : 'OrderCode = @val'}
+      FOR UPDATE
     `, { val: isNum ? parseInt(orderIdOrCode, 10) : String(orderIdOrCode) });
 
     if (oRes.recordset.length === 0) throw notFound('Không tìm thấy đơn hàng');
@@ -435,8 +448,8 @@ async function transitionOrderStatus(orderIdOrCode, toStatus, { note, cancelReas
       throw conflict(`Không thể chuyển đơn từ "${fromStatus}" sang "${target}"`);
     }
 
-    if (!isAdmin && !(fromStatus === 'PENDING' && target === 'CANCELLED')) {
-      throw conflict('Bạn chỉ có thể hủy đơn khi đơn đang ở trạng thái Chờ xác nhận');
+    if (!isAdmin && !(fromStatus === 'PENDING' && target === 'CANCELLED') && !(fromStatus === 'SHIPPING' && target === 'DELIVERED')) {
+      throw conflict('Bạn chỉ có thể hủy đơn khi đơn đang ở trạng thái Chờ xác nhận hoặc xác nhận nhận hàng khi đơn đang giao');
     }
 
     // RÀNG BUỘC VÒNG ĐỜI TRẠNG THÁI (STATE MACHINE) CHO ĐƠN PRE-ORDER (HÀNG ĐẶT TRƯỚC TỪ HÃNG):
@@ -575,7 +588,7 @@ async function transitionOrderStatus(orderIdOrCode, toStatus, { note, cancelReas
     if (target === 'CANCELLED') {
       try {
         const couponService = require('./couponService');
-        await couponService.restoreCouponUsage(order.OrderCode);
+        await couponService.restoreCouponUsage(order.OrderCode, q);
       } catch (cErr) {
         console.warn('[ORDER] restoreCouponUsage error:', cErr.message);
       }
@@ -600,68 +613,75 @@ async function updatePaymentStatus(orderId, paymentStatus, { actorId = null, not
   const target = String(paymentStatus || '').toUpperCase();
   if (!allowed.includes(target)) throw badRequest('Trạng thái thanh toán không hợp lệ');
 
-  const cur = await db.query('SELECT OrderId, Status, PaymentStatus, StockReserved FROM Orders WHERE OrderId = @id', { id: Number(orderId) });
-  if (!cur.recordset.length) throw notFound('Không tìm thấy đơn hàng');
+  await db.withTransaction(async (q) => {
+    const cur = await q(
+      'SELECT OrderId, OrderCode, Status, PaymentStatus, StockReserved, CancelReason FROM Orders WHERE OrderId = @id FOR UPDATE',
+      { id: Number(orderId) }
+    );
+    if (!cur.recordset.length) throw notFound('Không tìm thấy đơn hàng');
 
-  const row = cur.recordset[0];
-  const currentStatus = String(row.Status || row.status || 'PENDING').toUpperCase();
+    const row = cur.recordset[0];
+    const currentStatus = String(row.Status || row.status || 'PENDING').toUpperCase();
+    const isAlreadyReserved = Boolean(row.StockReserved ?? row.stockreserved);
 
-  // NẾU ĐƠN ĐANG Ở PENDING HOẶC TỪNG BỊ CANCELLED MÀ TIỀN THỰC TẾ ĐÃ VÀO:
-  // TỰ ĐỘNG CHUYỂN SANG CONFIRMED, ĐÁNH DẤU RESERVED VÀ KHÔI PHỤC TỒN KHO!
-  const isPaidTarget = target === 'PAID' || target === 'PARTIALLY_PAID';
-  const nextStatus = (['PENDING', 'CANCELLED'].includes(currentStatus) && isPaidTarget)
-    ? 'CONFIRMED'
-    : currentStatus;
+    // NẾU ĐƠN ĐANG Ở PENDING HOẶC TỪNG BỊ CANCELLED MÀ TIỀN THỰC TẾ ĐÃ VÀO:
+    // TỰ ĐỘNG CHUYỂN SANG CONFIRMED, ĐÁNH DẤU RESERVED VÀ KHÔI PHỤC TỒN KHO!
+    const isPaidTarget = target === 'PAID' || target === 'PARTIALLY_PAID';
+    const nextStatus = (['PENDING', 'CANCELLED'].includes(currentStatus) && isPaidTarget)
+      ? 'CONFIRMED'
+      : currentStatus;
 
-  // Nếu đơn từng bị CANCELLED và được khôi phục khi nhận tiền: Trừ lại tồn kho tương ứng
-  if (currentStatus === 'CANCELLED' && isPaidTarget) {
-    const itemsRes = await db.query('SELECT ProductId, Quantity, PackagingOption FROM OrderItems WHERE OrderId = @oid', { oid: Number(orderId) });
-    for (const it of (itemsRes.recordset || [])) {
-      const itemPack = String(it.PackagingOption || it.packagingoption || 'box').toLowerCase() === 'card' ? 'card' : 'box';
-      await db.query(`
-        UPDATE Products 
-        SET StockBox = CASE WHEN @pack = 'box' THEN GREATEST(0, COALESCE(StockBox, 0) - @qty) ELSE COALESCE(StockBox, 0) END,
-            StockCard = CASE WHEN @pack = 'card' THEN GREATEST(0, COALESCE(StockCard, 0) - @qty) ELSE COALESCE(StockCard, 0) END,
-            Stock = GREATEST(0, 
-              (CASE WHEN @pack = 'box' THEN GREATEST(0, COALESCE(StockBox, 0) - @qty) ELSE COALESCE(StockBox, 0) END) +
-              (CASE WHEN @pack = 'card' THEN GREATEST(0, COALESCE(StockCard, 0) - @qty) ELSE COALESCE(StockCard, 0) END)
-            ),
-            Status = CASE 
-              WHEN (
+    // Chỉ trừ lại tồn kho nếu đơn đang chưa giữ kho (!isAlreadyReserved) và được khôi phục sang trạng thái đã thanh toán
+    if (!isAlreadyReserved && isPaidTarget && nextStatus !== 'CANCELLED') {
+      const itemsRes = await q('SELECT ProductId, Quantity, PackagingOption FROM OrderItems WHERE OrderId = @oid', { oid: Number(orderId) });
+      for (const it of (itemsRes.recordset || [])) {
+        const itemPack = String(it.PackagingOption || it.packagingoption || 'box').toLowerCase() === 'card' ? 'card' : 'box';
+        await q(`
+          UPDATE Products 
+          SET StockBox = CASE WHEN @pack = 'box' THEN GREATEST(0, COALESCE(StockBox, 0) - @qty) ELSE COALESCE(StockBox, 0) END,
+              StockCard = CASE WHEN @pack = 'card' THEN GREATEST(0, COALESCE(StockCard, 0) - @qty) ELSE COALESCE(StockCard, 0) END,
+              Stock = GREATEST(0, 
                 (CASE WHEN @pack = 'box' THEN GREATEST(0, COALESCE(StockBox, 0) - @qty) ELSE COALESCE(StockBox, 0) END) +
                 (CASE WHEN @pack = 'card' THEN GREATEST(0, COALESCE(StockCard, 0) - @qty) ELSE COALESCE(StockCard, 0) END)
-              ) <= 0 THEN 'sold_out' 
-              ELSE Status 
-            END,
-            UpdatedAt = NOW()
-        WHERE ProductId = @pid
-      `, { pid: it.ProductId || it.productid, qty: it.Quantity || it.quantity, pack: itemPack });
+              ),
+              Status = CASE 
+                WHEN (
+                  (CASE WHEN @pack = 'box' THEN GREATEST(0, COALESCE(StockBox, 0) - @qty) ELSE COALESCE(StockBox, 0) END) +
+                  (CASE WHEN @pack = 'card' THEN GREATEST(0, COALESCE(StockCard, 0) - @qty) ELSE COALESCE(StockCard, 0) END)
+                ) <= 0 THEN 'sold_out' 
+                ELSE Status 
+              END,
+              UpdatedAt = NOW()
+          WHERE ProductId = @pid
+        `, { pid: it.ProductId || it.productid, qty: it.Quantity || it.quantity, pack: itemPack });
+      }
     }
-  }
 
-  const cancelReasonVal = nextStatus === 'CONFIRMED' ? null : (row.CancelReason || row.cancelreason || null);
+    const cancelReasonVal = nextStatus === 'CONFIRMED' ? null : (row.CancelReason || row.cancelreason || null);
+    const nextReserved = nextStatus === 'CANCELLED' ? false : true;
 
-  await db.query(`
-    UPDATE Orders
-    SET PaymentStatus = @pst,
-        Status = @st,
-        StockReserved = TRUE,
-        CancelReason = @cr,
-        UpdatedAt = NOW()
-    WHERE OrderId = @id
-  `, { id: Number(orderId), pst: target, st: nextStatus, cr: cancelReasonVal });
+    await q(`
+      UPDATE Orders
+      SET PaymentStatus = @pst,
+          Status = @st,
+          StockReserved = @res,
+          CancelReason = @cr,
+          UpdatedAt = NOW()
+      WHERE OrderId = @id
+    `, { id: Number(orderId), pst: target, st: nextStatus, res: nextReserved, cr: cancelReasonVal });
 
-  await db.query(`
-    INSERT INTO OrderStatusHistory (OrderId, FromStatus, ToStatus, Note, ChangedBy)
-    VALUES (@id, @st, @nextSt, @note, @by)
-  `, {
-    id: Number(orderId),
-    st: currentStatus,
-    nextSt: nextStatus,
-    note: note || (currentStatus === 'CANCELLED' && isPaidTarget
-      ? `Khôi phục đơn & xác nhận thanh toán → ${target}`
-      : `Cập nhật thanh toán → ${target}`),
-    by: actorId
+    await q(`
+      INSERT INTO OrderStatusHistory (OrderId, FromStatus, ToStatus, Note, ChangedBy)
+      VALUES (@id, @st, @nextSt, @note, @by)
+    `, {
+      id: Number(orderId),
+      st: currentStatus,
+      nextSt: nextStatus,
+      note: note || (currentStatus === 'CANCELLED' && isPaidTarget
+        ? `Khôi phục đơn & xác nhận thanh toán → ${target}`
+        : `Cập nhật thanh toán → ${target}`),
+      by: actorId
+    });
   });
 
   return getOrderByCodeOrId(orderId, { skipAutoCancel: true });

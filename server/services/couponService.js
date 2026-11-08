@@ -483,8 +483,8 @@ async function validateAndApplyCoupon(rawCode, subtotal = 0, user = null, contex
 
   // Kiểm tra khách hàng đã từng dùng mã này chưa (Mỗi khách hàng / số điện thoại / tài khoản chỉ áp dụng 1 lần)
   const uid = user ? (user.userId || user.id) : null;
-  const phone = customerContext?.phone || user?.phone || null;
-  const email = customerContext?.email || user?.email || null;
+  const phone = context?.phone || user?.phone || null;
+  const email = context?.email || user?.email || null;
 
   if (uid || phone || email) {
     try {
@@ -549,23 +549,24 @@ async function validateAndApplyCoupon(rawCode, subtotal = 0, user = null, contex
   };
 }
 
-async function recordCouponUsage(rawCode, orderId, orderCode, authUser = null, phone = null, email = null) {
+async function recordCouponUsage(rawCode, orderId, orderCode, authUser = null, phone = null, email = null, qFn = null) {
   const code = String(rawCode || '').trim().toUpperCase();
   if (!code || VIP_TIER_COUPONS[code]) return;
+  const runQuery = typeof qFn === 'function' ? qFn : db.query;
   try {
     const coupon = await getCouponByCode(code);
     const cid = coupon ? coupon.couponId : null;
     const uid = authUser ? (authUser.userId || authUser.id) : null;
 
     // 1. Tăng usedCount trong Coupons
-    await db.query(`
+    await runQuery(`
       UPDATE Coupons 
       SET UsedCount = COALESCE(UsedCount, 0) + 1 
       WHERE UPPER(Code) = @code
     `, { code });
 
     // 2. Ghi nhật ký vào coupon_usages để khóa không cho cùng 1 user/phone/email dùng lại
-    await db.query(`
+    await runQuery(`
       INSERT INTO coupon_usages (coupon_id, code, order_id, order_code, user_id, phone, email)
       VALUES (@cid, @code, @oid, @ocode, @uid, @phone, @email)
     `, {
@@ -585,18 +586,19 @@ async function recordCouponUsage(rawCode, orderId, orderCode, authUser = null, p
   }
 }
 
-async function restoreCouponUsage(orderCode) {
+async function restoreCouponUsage(orderCode, qFn = null) {
   if (!orderCode) return;
+  const runQuery = typeof qFn === 'function' ? qFn : db.query;
   try {
-    const res = await db.query(`
+    const res = await runQuery(`
       SELECT code FROM coupon_usages WHERE order_code = @ocode LIMIT 1
     `, { ocode: orderCode });
     if (res.recordset && res.recordset.length > 0) {
       const code = res.recordset[0].code.toUpperCase();
-      await db.query(`
+      await runQuery(`
         UPDATE Coupons SET UsedCount = GREATEST(0, COALESCE(UsedCount, 0) - 1) WHERE UPPER(Code) = @code
       `, { code });
-      await db.query(`
+      await runQuery(`
         DELETE FROM coupon_usages WHERE order_code = @ocode
       `, { ocode: orderCode });
       const mem = inMemoryCoupons.find(c => c.code.toUpperCase() === code);

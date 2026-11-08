@@ -1700,50 +1700,16 @@ function findImageIndexInGallery(gallery, targetUrl) {
 window.findImageIndexInGallery = findImageIndexInGallery;
 
 // =====================================================================
-// BỘ TIỀN TẢI HÌNH ẢNH NGẦM (BACKGROUND IMAGE PRELOADER)
-// Tự động tải trước toàn bộ ảnh Card & ảnh chi tiết vào Browser Cache,
-// đảm bảo khi khách bấm sang Card là ảnh hiện ra NGAY LẬP TỨC (0s delay)
+// BỘ TIỀN TẢI HÌNH ẢNH THÔNG MINH (ON-DEMAND / SPECULATIVE PRELOADER)
+// Không tải trước toàn bộ gallery của cả catalog khi mở trang để ưu tiên
+// băng thông cho các ảnh đang hiển thị (lazy loading). Chỉ tải dự đoán
+// khi người dùng rê chuột/chạm vào thẻ sản phẩm hoặc mở chi tiết sản phẩm.
 // =====================================================================
 const preloadedImageUrls = new Set();
 function preloadStorefrontImages(products) {
+  // Đã tắt việc tải trước hàng loạt toàn bộ catalog & gallery khi khởi tạo trang
+  // để tối ưu tốc độ tải trang (LCP) và tiết kiệm băng thông.
   if (!Array.isArray(products) || typeof window === 'undefined') return;
-  const doPreload = () => {
-    products.forEach(p => {
-      // 1. Ưu tiên cao nhất: Tải trước toàn bộ ảnh bản Card
-      const rawCard = p.cardImageUrl || p.CardImageUrl;
-      if (rawCard) {
-        const cardUrl = resolveStorefrontImageUrl(rawCard);
-        if (cardUrl && !preloadedImageUrls.has(cardUrl)) {
-          preloadedImageUrls.add(cardUrl);
-          const img = new Image();
-          img.src = cardUrl;
-          if (typeof img.decode === 'function') {
-            img.decode().catch(() => {});
-          }
-        }
-      }
-      // 2. Tải trước 2-3 ảnh tiếp theo trong bộ sưu tập
-      const gallery = getProductGalleryImages(p);
-      if (Array.isArray(gallery)) {
-        gallery.slice(0, 3).forEach(gUrl => {
-          if (gUrl && !preloadedImageUrls.has(gUrl)) {
-            preloadedImageUrls.add(gUrl);
-            const img = new Image();
-            img.src = gUrl;
-            if (typeof img.decode === 'function') {
-              img.decode().catch(() => {});
-            }
-          }
-        });
-      }
-    });
-  };
-
-  if (typeof window.requestIdleCallback === 'function') {
-    window.requestIdleCallback(doPreload, { timeout: 1200 });
-  } else {
-    setTimeout(doPreload, 150);
-  }
 }
 window.preloadStorefrontImages = preloadStorefrontImages;
 
@@ -7009,6 +6975,22 @@ function handleOrderSuccess(order) {
   renderCheckoutStep4(order);
 }
 
+function getOrderVerificationPhone(orderCode) {
+  const ord = typeof findOrderInCustomerMemory === 'function' ? findOrderInCustomerMemory(orderCode) : null;
+  const ordPhone = ord?.Phone || ord?.phone || ord?.customer?.phone || '';
+  if (ordPhone && !String(ordPhone).includes('*')) return String(ordPhone).trim();
+  if (currentUser?.phone) return String(currentUser.phone).trim();
+  try {
+    return (
+      localStorage.getItem('minigt_customer_phone') ||
+      localStorage.getItem('minigt_last_phone') ||
+      ''
+    ).trim();
+  } catch (_) {
+    return '';
+  }
+}
+
 async function uploadUserReceipt(orderCode) {
   const input = document.getElementById(`receiptInput_${orderCode}`) || document.getElementById('userReceiptInput');
   const receiptImage = input ? input.value.trim() : '';
@@ -7018,19 +7000,23 @@ async function uploadUserReceipt(orderCode) {
   }
 
   try {
+    const verifyPhone = getOrderVerificationPhone(orderCode);
+    const headers = { 'Content-Type': 'application/json' };
+    if (currentToken) headers['Authorization'] = `Bearer ${currentToken}`;
+
     const json = await safeFetch('/api/orders/upload-receipt', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ orderCode, receiptImage })
+      headers,
+      body: JSON.stringify({ orderCode, receiptImage, verifyPhone })
     });
-    if (json.success) {
+    if (json && json.success) {
       showToast(json.message || 'Đã gửi biên lai thành công!', 'success');
       if (input) input.disabled = true;
     } else {
-      showToast(json.message || 'Không thể gửi biên lai', 'error');
+      showToast(json?.message || 'Không thể gửi biên lai lên máy chủ. Vui lòng thử lại!', 'error');
     }
   } catch (err) {
-    showToast('Đã ghi nhận thông tin biên lai chuyển khoản cho đơn #' + orderCode, 'success');
+    showToast(err?.message || 'Mất kết nối máy chủ: Biên lai chưa được đồng bộ. Vui lòng thử lại khi có mạng!', 'error');
   }
 }
 
@@ -7478,14 +7464,14 @@ async function handleForgotPassword(e) {
     if (json && json.success) {
       showToast('✅ Đặt lại mật khẩu thành công! Giờ đây bạn có thể đăng nhập bằng mật khẩu mới.', 'success');
 
-      // Đồng bộ vào Shared Users & LocalStorage
+      // Đồng bộ trạng thái đã cài mật khẩu vào Shared Users (không lưu mật khẩu dạng rõ)
       try {
         if (api && typeof api.getSharedUsers === 'function' && typeof api.saveSharedUsers === 'function') {
           const uList = api.getSharedUsers();
           const cleanIdent = email.replace(/\s+/g, '');
           const uItem = uList.find(u => (u.email && u.email.toLowerCase() === email.toLowerCase()) || (u.phone && u.phone.replace(/\D/g, '') === cleanIdent.replace(/\D/g, '')));
           if (uItem) {
-            uItem.password = newPassword;
+            delete uItem.password;
             uItem.hasPassword = true;
             if (uItem.authProvider === 'google') uItem.authProvider = 'google+local';
             api.saveSharedUsers(uList);
@@ -7793,18 +7779,22 @@ function loginSuccess(user, token, rememberMe = true, rawPassword = '') {
     hasPassword,
     avatarUrl: (!user?.avatarUrl || user.avatarUrl.includes('DoQuocThinh_anhthe')) ? DEFAULT_USER_AVATAR : user.avatarUrl
   });
+  delete cleanUser.password;
+  delete cleanUser.PasswordHash;
+  delete cleanUser.passwordhash;
+
   currentUser = cleanUser;
   currentToken = token;
   api.setAuthSession(token, cleanUser);
 
-  // Đảm bảo thông tin người dùng và mật khẩu đồng bộ chắc chắn vào Shared Users
+  // Đảm bảo thông tin người dùng đồng bộ vào Shared Users (tuyệt đối không lưu mật khẩu dạng rõ)
   try {
     if (api && typeof api.getSharedUsers === 'function' && typeof api.saveSharedUsers === 'function') {
       const uList = api.getSharedUsers();
       const uItem = uList.find(u => (u.userId == cleanUser.userId || u.id == cleanUser.id || (cleanUser.email && u.email && u.email.toLowerCase() === cleanUser.email.toLowerCase())));
       if (uItem) {
-        if (rawPassword) {
-          uItem.password = rawPassword;
+        delete uItem.password;
+        if (hasPassword || rawPassword) {
           uItem.hasPassword = true;
         }
         api.saveSharedUsers(uList);
@@ -8667,22 +8657,17 @@ async function handleUpdateUserProfile(e) {
     btnSave.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> ĐANG LƯU DỮ LIỆU...';
   }
 
-  currentUser.fullName = fullName;
-  currentUser.phone = phone;
-  currentUser.address = address;
   const addressTypeRadio = document.querySelector('input[name="profileAddressType"]:checked');
   const addressType = addressTypeRadio ? addressTypeRadio.value : 'NEW';
   const oldWardNote = document.getElementById('profileOldWardNote')?.value.trim() || '';
-  currentUser.addressType = addressType;
-  currentUser.oldAddressNote = oldWardNote;
-  if (city) currentUser.city = city;
-  if (deliveryNote) currentUser.deliveryNote = deliveryNote;
-  if (newPassword) currentUser.hasPassword = true;
 
   try {
+    const headers = { 'Content-Type': 'application/json' };
+    if (currentToken) headers['Authorization'] = `Bearer ${currentToken}`;
+
     const updateRes = await safeFetch('/api/auth/profile', {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify({
         userId: currentUser.userId || currentUser.id,
         email: currentUser.email,
@@ -8699,21 +8684,33 @@ async function handleUpdateUserProfile(e) {
       })
     });
 
-    if (updateRes && updateRes.success === false) {
+    if (!updateRes || updateRes.success === false) {
       if (btnSave) {
         btnSave.disabled = false;
         btnSave.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> LƯU THAY ĐỔI HỒ SƠ';
       }
-      showToast(updateRes.message || 'Không thể lưu thông tin hồ sơ. Vui lòng kiểm tra lại!', 'error');
-      if (updateRes.message && (updateRes.message.includes('Mật khẩu cũ') || updateRes.message.includes('mật khẩu cũ'))) {
+      showToast(updateRes?.message || 'Không thể lưu thông tin hồ sơ lên máy chủ. Vui lòng kiểm tra lại!', 'error');
+      if (updateRes?.message && (updateRes.message.includes('Mật khẩu cũ') || updateRes.message.includes('mật khẩu cũ'))) {
         document.getElementById('profileOldPassword')?.focus();
       }
       return;
     }
 
-    if (updateRes && (updateRes.user || updateRes.data)) {
+    currentUser.fullName = fullName;
+    currentUser.phone = phone;
+    currentUser.address = address;
+    currentUser.addressType = addressType;
+    currentUser.oldAddressNote = oldWardNote;
+    if (city) currentUser.city = city;
+    if (deliveryNote) currentUser.deliveryNote = deliveryNote;
+    if (newPassword) currentUser.hasPassword = true;
+
+    if (updateRes.user || updateRes.data) {
       const updatedData = updateRes.user || updateRes.data;
       currentUser = Object.assign({}, currentUser, updatedData);
+      delete currentUser.password;
+      delete currentUser.PasswordHash;
+      delete currentUser.passwordhash;
       if (newPassword) {
         currentUser.hasPassword = true;
         if (currentUser.authProvider === 'google') currentUser.authProvider = 'google+local';
@@ -8724,10 +8721,16 @@ async function handleUpdateUserProfile(e) {
       }
     }
   } catch (err) {
-    console.warn('Lưu profile offline fallback:', err);
+    console.warn('Lỗi kết nối khi lưu profile:', err);
+    if (btnSave) {
+      btnSave.disabled = false;
+      btnSave.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> LƯU THAY ĐỔI HỒ SƠ';
+    }
+    showToast(err?.message || 'Mất kết nối máy chủ: Thay đổi hồ sơ/mật khẩu chưa được đồng bộ. Vui lòng thử lại khi có mạng!', 'error');
+    return;
   }
 
-  // Đảm bảo đồng bộ thông tin mật khẩu vào Shared Users & LocalStorage
+  // Đồng bộ thông tin hồ sơ vào Shared Users & LocalStorage sau khi máy chủ đã xác nhận lưu thành công
   try {
     if (api && typeof api.getSharedUsers === 'function' && typeof api.saveSharedUsers === 'function') {
       const uList = api.getSharedUsers();
@@ -8740,8 +8743,8 @@ async function handleUpdateUserProfile(e) {
         uItem.oldAddressNote = oldWardNote;
         uItem.city = city;
         uItem.deliveryNote = deliveryNote;
+        delete uItem.password;
         if (newPassword) {
-          uItem.password = newPassword;
           uItem.hasPassword = true;
           if (uItem.authProvider === 'google') uItem.authProvider = 'google+local';
         }
@@ -9846,13 +9849,14 @@ async function submitCustomerEditShipping(event) {
   }
 
   try {
+    const verifyPhone = getOrderVerificationPhone(orderCode) || phone;
     const headers = { 'Content-Type': 'application/json' };
     if (currentToken) headers['Authorization'] = `Bearer ${currentToken}`;
 
     const json = await safeFetch(`/api/orders/${encodeURIComponent(orderCode)}/shipping-info`, {
       method: 'PUT',
       headers,
-      body: JSON.stringify({ fullName, phone, address, note, addressType, oldAddressNote })
+      body: JSON.stringify({ fullName, phone, address, note, addressType, oldAddressNote, verifyPhone })
     });
 
     if (json.success) {
@@ -9874,12 +9878,14 @@ async function submitCustomerEditShipping(event) {
 // Chức năng 2: Khách hàng xác nhận đã nhận được kiện xe mô hình nguyên vẹn
 async function customerConfirmOrderReceived(orderCode) {
   try {
+    const verifyPhone = getOrderVerificationPhone(orderCode);
     const headers = { 'Content-Type': 'application/json' };
     if (currentToken) headers['Authorization'] = `Bearer ${currentToken}`;
 
     const json = await safeFetch(`/api/orders/${encodeURIComponent(orderCode)}/confirm-received`, {
       method: 'PUT',
-      headers
+      headers,
+      body: JSON.stringify({ verifyPhone })
     });
 
     if (json.success) {
@@ -10073,13 +10079,14 @@ function printCustomerOrderInvoice(orderCode) {
 // Chức năng 5: Hủy đơn hàng khi đang PENDING
 async function cancelMyOrder(orderCode) {
   try {
+    const verifyPhone = getOrderVerificationPhone(orderCode);
     const headers = { 'Content-Type': 'application/json' };
     if (currentToken) headers['Authorization'] = `Bearer ${currentToken}`;
 
     const json = await safeFetch(`/api/orders/${encodeURIComponent(orderCode)}/cancel`, {
       method: 'PUT',
       headers,
-      body: JSON.stringify({ reason: 'Khách hàng chủ động hủy đơn trên giao diện' })
+      body: JSON.stringify({ reason: 'Khách hàng chủ động hủy đơn trên giao diện', verifyPhone })
     });
 
     if (json.success) {

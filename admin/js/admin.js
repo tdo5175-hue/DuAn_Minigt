@@ -1412,20 +1412,6 @@
         return;
       }
 
-      // Nếu server backend offline hoàn toàn (Network error) và đã lưu phiên offline admin hợp lệ
-      const savedUser = (typeof api.getCurrentUser === 'function') ? api.getCurrentUser('/api/admin') : null;
-      if (
-        savedUser &&
-        String(savedUser.role || savedUser.Role || '').toLowerCase() === 'admin' &&
-        (token.startsWith('offline-') || token.startsWith('admin_tok_') || token.startsWith('local-'))
-      ) {
-        currentAdminUser = savedUser;
-        updateAdminProfileUI();
-        hideLoginModal();
-        initDashboard();
-        return;
-      }
-
       api.clearAuthSession();
       currentAdminUser = null;
       showLoginModal(false);
@@ -1481,7 +1467,10 @@
           return;
         }
 
-        const token = res.data.token || res.token || ('admin_tok_' + Date.now());
+        const token = res.data.token || res.token;
+        if (!token) {
+          throw new Error('Máy chủ không trả về mã phiên xác thực (JWT) hợp lệ');
+        }
         api.setAuthSession(token, user);
         currentAdminUser = user;
         adminToast(`Chào mừng Quản trị viên ${user.fullName || 'Đỗ Quốc Thịnh'}!`, 'success');
@@ -1493,35 +1482,7 @@
         throw new Error(res.message || 'Email hoặc mật khẩu không chính xác');
       }
     } catch (err) {
-      // Local/Offline Fallback cho phép admin đăng nhập khi backend tạm ngắt kết nối
-      const normalizedEmail = email.toLowerCase();
-      const isAdminAccount = (
-        normalizedEmail === 'quocthinh.admin@minigt.vn' ||
-        normalizedEmail === 'admin@minigt.com' ||
-        normalizedEmail === 'dinhnam.admin@minigt.vn' ||
-        normalizedEmail.includes('admin')
-      );
-      const isAllowedAdminPw = ['admin', 'admin@2026!', 'admin@2026', 'admin123', 'admin@123', '123456', 'quocthinh', 'quocthinh123', 'doquocthinh123'].includes(password.toLowerCase());
-
-      if (api.isLocalEnvironment() && isAdminAccount && isAllowedAdminPw) {
-        const fallbackAdmin = {
-          id: 3,
-          userId: 3,
-          fullName: normalizedEmail.includes('nam') ? 'Nguyễn Đình Nam' : 'Đỗ Quốc Thịnh (Admin)',
-          email: email,
-          role: 'admin',
-          avatarUrl: normalizedEmail.includes('nam') ? 'image/Anh_The_Dinh_Nam.jpg' : 'image/DoQuocThinh_anhthe.jpg'
-        };
-        const offlineToken = 'offline-admin-token-' + Date.now();
-        api.setAuthSession(offlineToken, fallbackAdmin);
-        currentAdminUser = fallbackAdmin;
-        adminToast('Đăng nhập Quản trị viên (Chế độ Local/Offline)!', 'success');
-        updateAdminProfileUI();
-        hideLoginModal();
-        initDashboard();
-      } else {
-        adminToast(err.message || 'Email hoặc mật khẩu không chính xác', 'error');
-      }
+      adminToast(err.message || 'Không thể xác thực tài khoản quản trị trên máy chủ. Vui lòng kiểm tra kết nối hoặc mật khẩu!', 'error');
     } finally {
       if (btn) {
         btn.disabled = false;
@@ -3115,6 +3076,11 @@
       return;
     }
     url = url.replace(/^["']|["']$/g, '').trim();
+    if (url.startsWith('data:')) {
+      adminToast('Không cho phép dán trực tiếp chuỗi Base64! Vui lòng dùng nút "Tải ảnh từ máy" để máy chủ lưu trữ ảnh.', 'error');
+      input.value = '';
+      return;
+    }
     if (currentProductGallery.includes(url)) {
       adminToast('Đường dẫn ảnh này đã có trong bộ sưu tập!', 'info');
       input.value = '';
@@ -3228,28 +3194,24 @@
 
       try {
         const dataUrl = await compressImageClientSide(file);
-        let finalUrl = dataUrl;
-        try {
-          const res = await api.post('/api/admin/upload-product-image', {
-            filename: file.name,
-            data: dataUrl
-          });
-          if (res && res.success && res.data && res.data.url) {
-            finalUrl = res.data.url;
-          }
-        } catch (serverErr) {
-          console.warn('[IMAGE UPLOAD] Server upload error, using local fallback:', serverErr);
+        const res = await api.post('/api/admin/upload-product-image', {
+          filename: file.name,
+          data: dataUrl
+        });
+        const serverUrl = res && res.success && res.data && res.data.url ? String(res.data.url).trim() : '';
+        if (!serverUrl || serverUrl.startsWith('data:')) {
+          throw new Error(res?.message || 'Máy chủ không trả về đường dẫn ảnh hợp lệ. Ảnh chưa được lưu!');
         }
 
-        if (!currentProductGallery.includes(finalUrl)) {
-          currentProductGallery.push(finalUrl);
+        if (!currentProductGallery.includes(serverUrl)) {
+          currentProductGallery.push(serverUrl);
         }
         successCount++;
         adminGalleryActiveIdx = currentProductGallery.length - 1;
         renderAdminProductGallery();
       } catch (err) {
         console.error('[IMAGE UPLOAD ERROR]', err);
-        adminToast(`Lỗi xử lý ảnh "${file.name}": ${err.message}`, 'error');
+        adminToast(`Tải ảnh "${file.name}" lên máy chủ thất bại: ${err.message}`, 'error');
       }
     }
 
@@ -3473,6 +3435,11 @@
       const allImages = currentProductGallery && currentProductGallery.length
         ? currentProductGallery
         : [primaryImage];
+
+      if (primaryImage.startsWith('data:') || allImages.some(u => String(u || '').startsWith('data:')) || String(currentProductCardImage || '').startsWith('data:')) {
+        adminToast('Phát hiện ảnh Base64 chưa được lưu lên máy chủ! Vui lòng xóa ảnh lỗi và tải lại ảnh khi có kết nối mạng.', 'error');
+        return;
+      }
 
       const payload = {
         sku: skuVal,

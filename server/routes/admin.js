@@ -264,8 +264,7 @@ router.post('/upload-product-image', async (req, res, next) => {
       .slice(0, 40);
     const safeFilename = `${cleanName}_${Date.now()}.${ext}`;
 
-    // Lưu vào bảng UploadedImages trong database Supabase
-    // TUYỆT ĐỐI KHÔNG ghi file ra đĩa workspace (image/uploads/) vì sẽ kích hoạt Live Server / nodemon auto-reload trang!
+    // Lưu vào bảng UploadedImages trong database Supabase và trả về URL ổn định /api/images/:id
     let imageId = null;
     try {
       const dbRes = await db.query(`
@@ -282,18 +281,22 @@ router.post('/upload-product-image', async (req, res, next) => {
         imageId = Number(dbRes.recordset[0].ImageId ?? dbRes.recordset[0].imageid);
       }
     } catch (dbErr) {
-      console.warn('[ADMIN UPLOAD] Lưu DB UploadedImages lỗi:', dbErr.message);
+      console.error('[ADMIN UPLOAD] Lưu DB UploadedImages lỗi:', dbErr.message);
+      throw badRequest('Không thể lưu trữ ảnh lên máy chủ cơ sở dữ liệu: ' + dbErr.message);
     }
 
-    // Trả về URL /api/images/:id nếu lưu database thành công, hoặc fallback rawData (base64)
-    const finalUrl = imageId ? `/api/images/${imageId}` : rawData;
+    if (!imageId) {
+      throw badRequest('Tải ảnh thất bại: Máy chủ không tạo được ID lưu trữ ảnh hợp lệ.');
+    }
+
+    const finalUrl = `/api/images/${imageId}`;
 
     return ok(res, {
       url: finalUrl,
       imageId,
       filename: safeFilename,
       size: fileBuffer.length,
-      storage: imageId ? 'database' : 'inline_base64'
+      storage: 'database'
     }, 'Tải ảnh mô hình lên thành công!');
   } catch (error) {
     next(error);
@@ -309,10 +312,18 @@ async function persistImageIfBase64(rawUrl, skuPrefix = 'car') {
   }
   if (!clean.startsWith('data:')) return clean;
 
+  let mimeType = 'image/webp';
+  const matches = clean.match(/^data:([a-zA-Z0-9\/+.-]+);base64,(.+)$/);
+  if (!matches) {
+    throw badRequest('Định dạng dữ liệu ảnh tải lên không hợp lệ.');
+  }
+  mimeType = matches[1].toLowerCase();
+  const estimatedSize = Math.round(matches[2].length * 0.75);
+  if (estimatedSize > 8 * 1024 * 1024) {
+    throw badRequest('Dung lượng ảnh tải lên vượt quá 8MB. Vui lòng chọn ảnh nhỏ hơn.');
+  }
+
   try {
-    let mimeType = 'image/webp';
-    const matches = clean.match(/^data:([a-zA-Z0-9\/+.-]+);base64,(.+)$/);
-    if (matches) mimeType = matches[1].toLowerCase();
     const dbRes = await db.query(`
       INSERT INTO UploadedImages (Filename, MimeType, Data, FileSize, CreatedAt)
       VALUES (@fn, @mime, @data, @sz, NOW())
@@ -321,16 +332,17 @@ async function persistImageIfBase64(rawUrl, skuPrefix = 'car') {
       fn: `${skuPrefix || 'car'}_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
       mime: mimeType,
       data: clean,
-      sz: Math.round(clean.length * 0.75)
+      sz: estimatedSize
     });
     if (dbRes.recordset && dbRes.recordset.length > 0) {
       const imgId = Number(dbRes.recordset[0].ImageId ?? dbRes.recordset[0].imageid);
       if (imgId) return `/api/images/${imgId}`;
     }
   } catch (upErr) {
-    console.warn('[PRODUCT IMAGE] Auto-save base64 error:', upErr.message);
+    console.error('[PRODUCT IMAGE] Auto-save base64 error:', upErr.message);
+    throw badRequest('Không thể lưu ảnh lên máy chủ. Hệ thống từ chối lưu trực tiếp chuỗi Base64 vào sản phẩm.');
   }
-  return clean;
+  throw badRequest('Không thể tạo URL lưu trữ cho ảnh tải lên. Vui lòng thử lại!');
 }
 
 async function prepareProductGalleryInput(body = {}, fallbackUrl = 'image/hero-banner.jpg', skuPrefix = 'car') {

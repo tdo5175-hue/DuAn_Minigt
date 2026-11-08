@@ -21,6 +21,150 @@ const payos = new PayOS(
   process.env.PAYOS_CHECKSUM_KEY || ''
 );
 
+// =====================================================================
+// BẢO MẬT QUYỀN TRUY CẬP ĐƠN HÀNG & CHỐNG LỘ THÔNG TIN CÁ NHÂN (PII)
+// =====================================================================
+function cleanPhoneDigits(p) {
+  return String(p || '').replace(/\D/g, '');
+}
+
+function maskPhoneStr(phone) {
+  const digits = cleanPhoneDigits(phone);
+  if (!digits) return '';
+  if (digits.length <= 6) return '***' + digits.slice(-2);
+  return `${digits.slice(0, 3)}****${digits.slice(-3)}`;
+}
+
+function maskEmailStr(email) {
+  const str = String(email || '').trim();
+  if (!str || !str.includes('@')) return '';
+  const [local, domain] = str.split('@');
+  if (local.length <= 2) return `${local[0] || '*'}***@${domain}`;
+  return `${local.slice(0, 2)}***@${domain}`;
+}
+
+function maskAddressStr(addr) {
+  const str = String(addr || '').trim();
+  if (!str) return '';
+  const parts = str.split(',').map(s => s.trim()).filter(Boolean);
+  if (parts.length >= 2) {
+    return `***, ${parts.slice(-2).join(', ')}`;
+  }
+  return str.length > 10 ? `***${str.slice(-8)}` : '***';
+}
+
+function maskOrderPII(order) {
+  if (!order || typeof order !== 'object') return order;
+  const maskedPhone = maskPhoneStr(order.phone || order.Phone || order.customer?.phone);
+  const maskedEmail = maskEmailStr(order.email || order.Email || order.customer?.email);
+  const maskedAddress = maskAddressStr(order.address || order.Address || order.customer?.address);
+  const rawName = String(order.fullName || order.FullName || order.customer?.fullName || '');
+  const nameParts = rawName.trim().split(/\s+/).filter(Boolean);
+  const maskedName = nameParts.length > 1
+    ? `${nameParts[0]} *** ${nameParts[nameParts.length - 1]}`
+    : rawName;
+
+  const clone = {
+    ...order,
+    fullName: maskedName,
+    FullName: maskedName,
+    phone: maskedPhone,
+    Phone: maskedPhone,
+    email: maskedEmail,
+    Email: maskedEmail,
+    address: maskedAddress,
+    Address: maskedAddress,
+    piiMasked: true
+  };
+  if (clone.customer && typeof clone.customer === 'object') {
+    clone.customer = {
+      ...clone.customer,
+      fullName: maskedName,
+      phone: maskedPhone,
+      email: maskedEmail,
+      address: maskedAddress
+    };
+  }
+  return clone;
+}
+
+async function canViewFullOrderPII(order, req, extraQuery = '') {
+  if (!order) return false;
+  if (req.user && req.user.role === 'admin') return true;
+
+  const orderUid = Number(order.userId || order.UserId || 0);
+  if (req.user && req.user.userId && orderUid > 0 && Number(req.user.userId) === orderUid) {
+    return true;
+  }
+
+  const orderPhone = cleanPhoneDigits(order.phone || order.Phone || order.customer?.phone);
+  const orderEmail = String(order.email || order.Email || order.customer?.email || '').trim().toLowerCase();
+
+  const candidatePhones = [
+    req.query?.phone,
+    req.query?.verifyPhone,
+    req.body?.phone,
+    req.body?.verifyPhone,
+    req.headers?.['x-order-phone'],
+    extraQuery
+  ].map(cleanPhoneDigits).filter(d => d.length >= 9);
+
+  if (orderPhone && candidatePhones.includes(orderPhone)) {
+    return true;
+  }
+
+  const candidateEmails = [
+    req.query?.email,
+    req.body?.email,
+    extraQuery
+  ].map(e => String(e || '').trim().toLowerCase()).filter(e => e.includes('@'));
+
+  if (orderEmail && candidateEmails.includes(orderEmail)) {
+    return true;
+  }
+
+  if (req.user && req.user.userId) {
+    try {
+      const uRes = await db.query('SELECT Email, Phone FROM Users WHERE UserId = @id', { id: Number(req.user.userId) });
+      const uRow = uRes.recordset && uRes.recordset[0];
+      if (uRow) {
+        const uPhone = cleanPhoneDigits(uRow.Phone || uRow.phone);
+        const uEmail = String(uRow.Email || uRow.email || '').trim().toLowerCase();
+        if (orderPhone && uPhone && orderPhone === uPhone) return true;
+        if (orderEmail && uEmail && orderEmail === uEmail) return true;
+      }
+    } catch (_) {}
+  }
+
+  return false;
+}
+
+async function sanitizeOrderForCaller(order, req, extraQuery = '') {
+  if (!order) return null;
+  const fullAllowed = await canViewFullOrderPII(order, req, extraQuery);
+  return fullAllowed ? order : maskOrderPII(order);
+}
+
+async function assertCanModifyOrder(order, req) {
+  if (!order) throw notFound('Không tìm thấy đơn hàng');
+  if (req.user && req.user.role === 'admin') return true;
+
+  const orderUid = Number(order.userId || order.UserId || 0);
+  if (orderUid > 0) {
+    if (req.user && Number(req.user.userId) === orderUid) {
+      return true;
+    }
+    throw forbidden('Bạn không có quyền thao tác trên đơn hàng của tài khoản khác');
+  }
+
+  // Đơn khách vãng lai (userId == null): Yêu cầu xác minh SĐT hoặc Email đặt hàng
+  const isVerified = await canViewFullOrderPII(order, req);
+  if (!isVerified) {
+    throw forbidden('Vui lòng đăng nhập hoặc cung cấp đúng số điện thoại/email đặt hàng để xác minh quyền thao tác đơn hàng này');
+  }
+  return true;
+}
+
 // POST /api/orders — Tạo đơn hàng / đơn cọc
 router.post('/', optionalAuth, async (req, res, next) => {
   try {
@@ -41,12 +185,15 @@ router.get('/', optionalAuth, async (req, res, next) => {
     const { code, phone, page, pageSize } = req.query;
     if (code) {
       const o = await orderService.getOrderByCodeOrId(String(code).trim().toUpperCase());
-      return ok(res, o ? [o] : []);
+      if (!o) return ok(res, []);
+      const safeOrder = await sanitizeOrderForCaller(o, req, phone || '');
+      return ok(res, [safeOrder]);
     }
     if (phone) {
       if (!v.isVNPhone(phone)) throw badRequest('Số điện thoại tra cứu không hợp lệ');
       const r = await orderService.listOrders({ phone, page, pageSize });
-      return ok(res, r.items, { meta: { total: r.total, page: r.page, pageSize: r.pageSize, totalPages: r.totalPages } });
+      const safeItems = await Promise.all((r.items || []).map(item => sanitizeOrderForCaller(item, req, phone)));
+      return ok(res, safeItems, { meta: { total: r.total, page: r.page, pageSize: r.pageSize, totalPages: r.totalPages } });
     }
     if (req.user) {
       if (req.user.role === 'admin') {
@@ -85,7 +232,8 @@ router.get('/my-orders', optionalAuth, async (req, res, next) => {
         codes: codeList,
         pageSize: 100
       });
-      return ok(res, r.items || []);
+      const safeItems = await Promise.all((r.items || []).map(item => sanitizeOrderForCaller(item, req, uPhone)));
+      return ok(res, safeItems);
     }
 
     // 2. NẾU LÀ KHÁCH VÃNG LAI (CHƯA ĐĂNG NHẬP): Tra cứu theo các mã đơn hoặc SĐT trong phiên hiện tại
@@ -95,7 +243,8 @@ router.get('/my-orders', optionalAuth, async (req, res, next) => {
         codes: codeList,
         pageSize: 100
       });
-      return ok(res, r.items || []);
+      const safeItems = await Promise.all((r.items || []).map(item => sanitizeOrderForCaller(item, req, phone || '')));
+      return ok(res, safeItems);
     }
 
     // Mặc định trả về mảng rỗng [] nếu khách chưa có dữ liệu tra cứu
@@ -121,7 +270,7 @@ router.get('/my', authenticate, async (req, res, next) => {
 });
 
 // GET /api/orders/check-status/:code — Polling kiểm tra trạng thái đơn real-time & tự động kiểm tra PayOS API trực tiếp
-router.get('/check-status/:code', async (req, res, next) => {
+router.get('/check-status/:code', optionalAuth, async (req, res, next) => {
   try {
     const q = decodeURIComponent(req.params.code).trim().toUpperCase();
     let o = await orderService.getOrderByCodeOrId(q, { skipAutoCancel: true });
@@ -173,7 +322,8 @@ router.get('/check-status/:code', async (req, res, next) => {
       }
     }
 
-    return ok(res, o);
+    const safeOrder = await sanitizeOrderForCaller(o, req);
+    return ok(res, safeOrder);
   } catch (err) { next(err); }
 });
 
@@ -225,14 +375,18 @@ router.post('/notify-transfer', async (req, res, next) => {
 });
 
 // GET /api/orders/track/:query — Tra cứu theo Mã đơn / SĐT / Mã vận đơn SPX
-router.get('/track/:query', async (req, res, next) => {
+router.get('/track/:query', optionalAuth, async (req, res, next) => {
   try {
     const q = decodeURIComponent(req.params.query).trim();
     if (!q) throw badRequest('Vui lòng nhập thông tin tra cứu');
     const byCode = await orderService.getOrderByCodeOrId(q.toUpperCase());
-    if (byCode) return ok(res, [byCode]);
+    if (byCode) {
+      const safeOrder = await sanitizeOrderForCaller(byCode, req, q);
+      return ok(res, [safeOrder]);
+    }
     const list = await orderService.listOrders({ q, pageSize: 20 });
-    return ok(res, list.items);
+    const safeItems = await Promise.all((list.items || []).map(item => sanitizeOrderForCaller(item, req, q)));
+    return ok(res, safeItems);
   } catch (err) { next(err); }
 });
 
@@ -241,7 +395,8 @@ router.get('/:code', optionalAuth, async (req, res, next) => {
   try {
     const o = await orderService.getOrderByCodeOrId(String(req.params.code).trim().toUpperCase());
     if (!o) throw notFound('Không tìm thấy đơn hàng với mã này');
-    return ok(res, o);
+    const safeOrder = await sanitizeOrderForCaller(o, req);
+    return ok(res, safeOrder);
   } catch (err) { next(err); }
 });
 
@@ -251,15 +406,13 @@ router.put('/:code/cancel', optionalAuth, async (req, res, next) => {
     const code = String(req.params.code).trim().toUpperCase();
     const o = await orderService.getOrderByCodeOrId(code);
     if (!o) throw notFound('Không tìm thấy đơn hàng');
-    if (o.userId && (!req.user || (Number(req.user.userId) !== Number(o.userId) && req.user.role !== 'admin'))) {
-      throw forbidden('Bạn không có quyền hủy đơn hàng của tài khoản khác');
-    }
+    await assertCanModifyOrder(o, req);
 
     const reason = v.cleanStr(req.body.cancelReason || req.body.reason || 'Khách yêu cầu hủy đơn', 255);
     const updated = await orderService.transitionOrderStatus(o.orderId || o.id, 'CANCELLED', {
       cancelReason: reason,
       actorId: req.user ? req.user.userId : null,
-      isAdmin: false
+      isAdmin: req.user?.role === 'admin'
     });
     aiChatService.invalidateStoreCache();
     return ok(res, updated, { message: 'Đã hủy đơn hàng và hoàn tồn kho' });
@@ -272,10 +425,7 @@ router.put('/:code/confirm-received', optionalAuth, async (req, res, next) => {
     const code = String(req.params.code).trim().toUpperCase();
     const o = await orderService.getOrderByCodeOrId(code);
     if (!o) throw notFound('Không tìm thấy đơn hàng');
-
-    if (o.userId && (!req.user || (Number(req.user.userId) !== Number(o.userId) && req.user.role !== 'admin'))) {
-      throw forbidden('Bạn không có quyền xác nhận nhận hàng cho đơn hàng này');
-    }
+    await assertCanModifyOrder(o, req);
 
     const curStatus = String(o.status || '').toUpperCase();
     if (curStatus === 'DELIVERED') {
@@ -286,23 +436,12 @@ router.put('/:code/confirm-received', optionalAuth, async (req, res, next) => {
     }
 
     const oid = o.orderId || o.id || o.OrderId;
-    await db.query(`
-      UPDATE Orders
-      SET Status = 'DELIVERED', PaymentStatus = 'PAID', UpdatedAt = NOW()
-      WHERE OrderId = @oid
-    `, { oid });
-
-    await db.query(`
-      INSERT INTO OrderStatusHistory (OrderId, FromStatus, ToStatus, Note, ChangedBy)
-      VALUES (@oid, @from, 'DELIVERED', 'Khách hàng xác nhận đã nhận kiện hàng nguyên seal', @by)
-    `, { oid, from: o.status, by: req.user ? req.user.userId : null });
-
-    const updated = await orderService.getOrderByCodeOrId(oid);
-    if (updated && (updated.email || updated.customer?.email)) {
-      mailService.sendOrderDeliveredEmail(updated).catch(err => {
-        console.warn('[MailService] Failed to send order delivered email:', err.message);
-      });
-    }
+    const updated = await orderService.transitionOrderStatus(oid, 'DELIVERED', {
+      note: 'Khách hàng xác nhận đã nhận kiện hàng nguyên seal',
+      actorId: req.user ? req.user.userId : null,
+      isAdmin: req.user?.role === 'admin'
+    });
+    aiChatService.invalidateStoreCache();
     return ok(res, updated, { message: 'Cảm ơn bạn đã xác nhận nhận hàng thành công!' });
   } catch (err) { next(err); }
 });
@@ -313,18 +452,18 @@ router.put('/:code/shipping-info', optionalAuth, async (req, res, next) => {
     const code = String(req.params.code).trim().toUpperCase();
     const o = await orderService.getOrderByCodeOrId(code);
     if (!o) throw notFound('Không tìm thấy đơn hàng');
+    await assertCanModifyOrder(o, req);
 
-    if (o.userId && (!req.user || (Number(req.user.userId) !== Number(o.userId) && req.user.role !== 'admin'))) {
-      throw forbidden('Bạn không có quyền sửa địa chỉ nhận hàng của tài khoản khác');
-    }
-
-    if (['SHIPPING', 'DELIVERED', 'CANCELLED'].includes(String(o.status).toUpperCase())) {
+    if (['SHIPPING', 'DELIVERED', 'CANCELLED'].includes(String(o.status).toUpperCase()) || (o.trackingCode && String(o.trackingCode).trim())) {
       throw badRequest('Đơn hàng đã bàn giao vận chuyển hoặc đã đóng, không thể thay đổi địa chỉ');
     }
 
     const oid = o.orderId || o.id || o.OrderId;
     const fullName = v.cleanStr(req.body.fullName, 100) || o.fullName;
     const phone = v.cleanStr(req.body.phone, 20) || o.phone;
+    if (phone && !v.isVNPhone(phone)) {
+      throw badRequest('Số điện thoại nhận hàng không hợp lệ');
+    }
     const address = v.cleanStr(req.body.address, 255) || o.address;
     const note = req.body.note !== undefined ? v.cleanStr(req.body.note, 500) : o.note;
 
@@ -339,15 +478,17 @@ router.put('/:code/shipping-info', optionalAuth, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-// POST /api/orders/:code/receipt — Khách gửi biên lai chuyển khoản
-router.post('/:code/receipt', optionalAuth, async (req, res, next) => {
+// POST /api/orders/upload-receipt & POST /api/orders/:code/receipt — Khách gửi biên lai chuyển khoản
+async function handleUploadReceipt(req, res, next) {
   try {
-    const code = String(req.params.code).trim().toUpperCase();
+    const code = String(req.params.code || req.body.orderCode || '').trim().toUpperCase();
+    if (!code) throw badRequest('Thiếu mã đơn hàng');
     const receiptImage = v.cleanStr(req.body.receiptImage, 500);
-    if (!receiptImage) throw badRequest('Thiếu đường dẫn ảnh biên lai');
+    if (!receiptImage) throw badRequest('Thiếu đường dẫn ảnh hoặc mã giao dịch biên lai');
 
     const o = await orderService.getOrderByCodeOrId(code);
     if (!o) throw notFound('Không tìm thấy đơn hàng');
+    await assertCanModifyOrder(o, req);
 
     const oid = o.orderId || o.id || o.OrderId;
     await db.query(
@@ -357,7 +498,10 @@ router.post('/:code/receipt', optionalAuth, async (req, res, next) => {
     const updated = await orderService.getOrderByCodeOrId(oid);
     return ok(res, updated, { message: 'Đã gửi biên lai chuyển khoản, cửa hàng sẽ xác nhận sớm' });
   } catch (err) { next(err); }
-});
+}
+
+router.post('/upload-receipt', optionalAuth, handleUploadReceipt);
+router.post('/:code/receipt', optionalAuth, handleUploadReceipt);
 
 // =====================================================================
 // 1. TẠO LINK THANH TOÁN PAYOS VIETQR (TÁCH BẠCH TIỀN HÀNG SHOP & PHÍ SHIP SPX)

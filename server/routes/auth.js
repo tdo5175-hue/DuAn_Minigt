@@ -392,17 +392,8 @@ router.post('/login', async (req, res, next) => {
       }
 
       const match = await bcrypt.compare(password, user.PasswordHash);
-      const isDevAdmin = (user.Role === 'admin' && (
-        password === 'admin' ||
-        password === 'Admin@2026!' ||
-        password === 'Admin@123' ||
-        password === 'admin123' ||
-        password === 'quocthinh' ||
-        password === 'quocthinh123' ||
-        password === 'Doquocthinh123'
-      ));
 
-      if (!match && !isDevAdmin) {
+      if (!match) {
         throw unauthorized('Mật khẩu không chính xác! Vui lòng kiểm tra lại hoặc sử dụng "Quên mật khẩu".', 'WRONG_PASSWORD');
       }
 
@@ -448,17 +439,8 @@ router.post('/login', async (req, res, next) => {
       }
 
       const match = await bcrypt.compare(password, u.PasswordHash);
-      const isDevAdmin = (u.Role === 'admin' && (
-        password === 'admin' ||
-        password === 'Admin@2026!' ||
-        password === 'Admin@123' ||
-        password === 'admin123' ||
-        password === 'quocthinh' ||
-        password === 'quocthinh123' ||
-        password === 'Doquocthinh123'
-      ));
 
-      if (match || isDevAdmin) {
+      if (match) {
         matchedUser = u;
         break;
       }
@@ -754,22 +736,10 @@ router.post('/forgot', async (req, res, next) => {
          OR (@cleanPhone <> '' AND REPLACE(REPLACE(COALESCE(Phone, ''), ' ', ''), '.', '') = @cleanPhone)
     `, { identifier, cleanPhone });
 
-    let u;
     if (result.recordset.length === 0) {
-      if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(identifier)) {
-        const defaultName = identifier.split('@')[0];
-        const ins = await db.query(`
-          INSERT INTO Users (FullName, Email, AuthProvider, Role, IsActive)
-          VALUES (@name, @identifier, 'local', 'customer', TRUE)
-          RETURNING *
-        `, { name: defaultName, identifier });
-        u = normalizeUserRow(ins.recordset[0]);
-      } else {
-        throw badRequest('Không tìm thấy tài khoản với Email hoặc Số điện thoại này trong hệ thống!');
-      }
-    } else {
-      u = normalizeUserRow(result.recordset[0]);
+      throw badRequest('Không tìm thấy tài khoản với Email hoặc Số điện thoại này trong hệ thống!');
     }
+    const u = normalizeUserRow(result.recordset[0]);
 
     // Chống spam: Giới hạn yêu cầu gửi OTP cách nhau tối thiểu 60 giây
     const existingOtp = await getDbOtp(u.Email.toLowerCase());
@@ -963,11 +933,10 @@ router.post('/reset-password', async (req, res, next) => {
 });
 
 // PUT /api/auth/profile
-router.put('/profile', async (req, res, next) => {
+router.put('/profile', authenticate, requireActiveUser, async (req, res, next) => {
   try {
     await ensureUserSyncColumns();
-    const userId = Number(req.body.userId || req.body.id || 0);
-    const email = v.cleanStr(req.body.email, 150).toLowerCase();
+    const requestedId = Number(req.body.userId || req.body.id || 0);
     const fullName = v.cleanStr(req.body.fullName, 100);
     const phone = v.cleanStr(req.body.phone, 20);
     const address = v.cleanStr(req.body.address, 255);
@@ -975,16 +944,13 @@ router.put('/profile', async (req, res, next) => {
     const oldPassword = req.body.oldPassword ? String(req.body.oldPassword).trim() : '';
     const newPassword = (req.body.newPassword || req.body.password) ? String(req.body.newPassword || req.body.password).trim() : '';
 
-    // 1. Tìm tài khoản theo userId hoặc email
-    let user = null;
-    if (userId > 0) {
-      const r = await db.query('SELECT * FROM Users WHERE UserId = @userId', { userId });
-      if (r.recordset && r.recordset.length > 0) user = normalizeUserRow(r.recordset[0]);
+    // 1. Chỉ cho phép người dùng cập nhật hồ sơ của chính mình (trừ khi là Admin)
+    if (requestedId > 0 && requestedId !== Number(req.user.userId) && req.user.role !== 'admin') {
+      throw forbidden('Bạn không có quyền chỉnh sửa thông tin của tài khoản khác');
     }
-    if (!user && email) {
-      const r = await db.query('SELECT * FROM Users WHERE LOWER(Email) = @email', { email });
-      if (r.recordset && r.recordset.length > 0) user = normalizeUserRow(r.recordset[0]);
-    }
+    const effectiveUserId = (req.user.role === 'admin' && requestedId > 0) ? requestedId : Number(req.user.userId);
+    const r = await db.query('SELECT * FROM Users WHERE UserId = @userId', { userId: effectiveUserId });
+    const user = (r.recordset && r.recordset.length > 0) ? normalizeUserRow(r.recordset[0]) : null;
 
     if (!user) {
       throw badRequest('Không tìm thấy tài khoản để cập nhật');

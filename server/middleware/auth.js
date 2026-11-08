@@ -72,24 +72,6 @@ function readToken(req) {
 }
 
 function decode(token) {
-  // Hỗ trợ token phiên dev / local admin của Quản trị viên Đỗ Quốc Thịnh
-  if (
-    token &&
-    (
-      token.startsWith('offline-admin-') ||
-      token.startsWith('offline-') ||
-      token.startsWith('admin_tok_') ||
-      token.startsWith('local-admin-') ||
-      token === 'admin-direct-session-token'
-    )
-  ) {
-    return {
-      userId: 3,
-      role: 'admin',
-      exp: Math.floor(Date.now() / 1000) + 86400 * 30
-    };
-  }
-
   const payload = jwt.verify(token, JWT_SECRET, {
     issuer: 'minigt-store'
   });
@@ -125,22 +107,6 @@ async function loadActiveUser(userId) {
     if (row) return normalizeUser(row);
   } catch (dbErr) {
     console.warn('[AUTH] loadActiveUser DB error:', dbErr.message);
-  }
-
-  // Fallback dev admin if userId === 3
-  if (Number(userId) === 3) {
-    return {
-      UserId: 3,
-      FullName: 'Đỗ Quốc Thịnh (Admin)',
-      Email: 'quocthinh.admin@minigt.vn',
-      Role: 'admin',
-      IsActive: true,
-      AvatarUrl: 'image/DoQuocThinh_anhthe.jpg',
-      Phone: '',
-      Address: '',
-      AuthProvider: 'local',
-      CreatedAt: new Date().toISOString()
-    };
   }
 
   return null;

@@ -186,7 +186,6 @@
       role: 'admin',
       tier: 'Quản Trị Viên',
       points: 9999,
-      password: 'admin',
       isActive: true,
       avatarUrl: 'image/DoQuocThinh_anhthe.jpg',
       createdAt: '2026-01-15T08:00:00Z'
@@ -203,7 +202,6 @@
       role: 'admin',
       tier: 'Quản Trị Viên',
       points: 9999,
-      password: 'admin',
       isActive: true,
       avatarUrl: 'image/Anh_The_Dinh_Nam.jpg',
       createdAt: '2026-01-16T09:30:00Z'
@@ -220,7 +218,6 @@
       role: 'customer',
       tier: 'Gold Collector',
       points: 350,
-      password: '123',
       isActive: true,
       avatarUrl: 'image/anh-clone.jpg',
       createdAt: '2026-03-10T14:20:00Z'
@@ -237,7 +234,6 @@
       role: 'customer',
       tier: 'Collector',
       points: 150,
-      password: '123',
       isActive: true,
       avatarUrl: 'image/anh-clone.jpg',
       createdAt: '2026-04-02T11:10:00Z'
@@ -254,7 +250,6 @@
       role: 'customer',
       tier: 'Diamond Member',
       points: 500,
-      password: '123456',
       isActive: true,
       avatarUrl: 'image/anh-clone.jpg',
       createdAt: '2026-04-10T10:00:00Z'
@@ -271,7 +266,6 @@
       role: 'customer',
       tier: 'Gold Collector',
       points: 280,
-      password: '123456',
       isActive: true,
       avatarUrl: 'image/anh-clone.jpg',
       createdAt: '2026-05-01T15:30:00Z'
@@ -1765,176 +1759,22 @@
         u.hasPassword = Boolean(u.hasPassword || (u.password && u.password !== 'google_oauth_pass'));
         return { success: true, data: u, user: u };
       }
-      if (isAdminContext(endpoint)) {
-        const defaultAdmin = {
-          id: 3,
-          userId: 3,
-          fullName: 'Đỗ Quốc Thịnh (Admin)',
-          email: 'quocthinh.admin@minigt.vn',
-          role: 'admin',
-          avatarUrl: 'image/DoQuocThinh_anhthe.jpg'
-        };
-        setAuthSession('admin-direct-session-token', defaultAdmin);
-        return { success: true, data: defaultAdmin, user: defaultAdmin };
-      }
       return { success: false, message: 'Chưa đăng nhập' };
     }
 
     if (method === 'POST' && path === '/api/auth/login') {
-      const identifier = String(body.email || body.username || '').trim().toLowerCase();
-      const password = String(body.password || '');
-      const inAdminPage = isAdminContext(endpoint);
-
-      if (inAdminPage) {
-        const defaultAdmin = {
-          id: 3,
-          userId: 3,
-          fullName: identifier.includes('nam') ? 'Nguyễn Đình Nam' : 'Đỗ Quốc Thịnh (Admin)',
-          email: identifier || 'quocthinh.admin@minigt.vn',
-          role: 'admin',
-          avatarUrl: identifier.includes('nam') ? 'image/Anh_The_Dinh_Nam.jpg' : 'image/DoQuocThinh_anhthe.jpg'
-        };
-        const tok = 'admin_tok_' + Date.now();
-        setAuthSession(tok, defaultAdmin);
-        return { success: true, token: tok, user: defaultAdmin, data: { token: tok, user: defaultAdmin } };
-      }
-
-      // Khách hàng đăng nhập: đối chiếu từ Shared Users DB
-      const users = getSharedUsers();
-      const cleanIdent = identifier.replace(/\s+/g, '');
-      const user = users.find(u => {
-        const emailMatch = u.email && u.email.toLowerCase() === identifier;
-        const rawPhone = (u.phone || '').replace(/\D/g, '');
-        const searchPhone = cleanIdent.replace(/\D/g, '');
-        const phoneMatch = Boolean(searchPhone && rawPhone && rawPhone === searchPhone);
-        return emailMatch || phoneMatch;
-      });
-
-      if (!user) {
-        return {
-          success: false,
-          code: 'USER_NOT_FOUND',
-          message: 'Tài khoản chưa tồn tại! Bạn vui lòng chọn tab "Đăng Ký Hội Viên" hoặc sử dụng tài khoản mẫu gợi ý.'
-        };
-      }
-
-      if (user.isActive === false) {
-        return {
-          success: false,
-          code: 'ACCOUNT_LOCKED',
-          message: 'Tài khoản của bạn đã bị tạm khóa. Vui lòng liên hệ CSKH qua Hotline hoặc Zalo hỗ trợ!'
-        };
-      }
-
-      // Kiểm tra mật khẩu (nếu user tạo qua Google chưa cài mật khẩu)
-      const hasNoPassword = (!user.password || user.password === 'google_oauth_pass');
-      if (hasNoPassword && user.authProvider === 'google') {
-        return {
-          success: false,
-          code: 'OAUTH_ACCOUNT_NO_PASSWORD',
-          message: 'Tài khoản này được đăng ký thông qua Google và chưa cài đặt mật khẩu riêng. Vui lòng bấm "Tiếp tục với tài khoản Google" để đăng nhập, hoặc bấm "Quên mật khẩu" để tạo mật khẩu đăng nhập riêng.'
-        };
-      }
-
-      if (user.password !== password) {
-        return {
-          success: false,
-          code: 'WRONG_PASSWORD',
-          message: 'Mật khẩu không chính xác! Vui lòng kiểm tra lại hoặc nhấn "Quên mật khẩu?".'
-        };
-      }
-
-      user.lastLogin = new Date().toISOString();
-      saveSharedUsers(users);
-
-      const cleanUser = {
-        id: user.userId || user.id,
-        userId: user.userId || user.id,
-        fullName: user.fullName || user.email.split('@')[0],
-        email: user.email,
-        phone: user.phone || '',
-        address: user.address || '',
-        role: user.role || 'customer',
-        tier: user.tier || 'Collector',
-        points: user.points != null ? user.points : 100,
-        totalOrders: user.totalOrders || 0,
-        totalSpent: user.totalSpent || 0,
-        avatarUrl: (!user.avatarUrl || user.avatarUrl.includes('DoQuocThinh_anhthe')) ? 'image/anh-clone.jpg' : user.avatarUrl,
-        createdAt: user.createdAt || new Date().toISOString()
-      };
-
-      const tok = 'cust_tok_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
       return {
-        success: true,
-        token: tok,
-        user: cleanUser,
-        data: { token: tok, user: cleanUser },
-        message: `Đăng nhập thành công! Chào mừng ${cleanUser.fullName} trở lại.`
+        success: false,
+        code: 'OFFLINE_AUTH_BLOCKED',
+        message: 'Không thể kết nối đến máy chủ xác thực. Vui lòng kiểm tra kết nối mạng và thử lại!'
       };
     }
 
     if (method === 'POST' && path === '/api/auth/register') {
-      const users = getSharedUsers();
-      const email = String(body.email || '').trim().toLowerCase();
-      const phone = String(body.phone || '').trim();
-      const fullName = String(body.fullName || '').trim() || (email.split('@')[0] || 'Hội viên MINI GT');
-      const address = String(body.address || '').trim();
-      const password = String(body.password || '123456');
-
-      if (!email || !password) {
-        return { success: false, message: 'Vui lòng cung cấp đầy đủ email và mật khẩu!' };
-      }
-
-      const existing = users.find(u => u.email && u.email.toLowerCase() === email);
-
-      if (existing) {
-        const isGoogle = (existing.authProvider === 'google' || !existing.password || existing.password === 'google_oauth_pass');
-        if (isGoogle) {
-          return {
-            success: false,
-            code: 'USER_EXISTS',
-            message: 'Email này đã được liên kết với tài khoản Google! Mỗi email chỉ dùng cho 1 tài khoản duy nhất. Vui lòng bấm "Tiếp tục với tài khoản Google" để đăng nhập, hoặc bấm "Quên mật khẩu" để tạo mật khẩu đăng nhập riêng.'
-          };
-        }
-        return {
-          success: false,
-          code: 'USER_EXISTS',
-          message: 'Email này đã được đăng ký tài khoản! Bạn vui lòng chọn tab Đăng Nhập.'
-        };
-      }
-
-      const newUser = {
-        id: Date.now(),
-        userId: Date.now(),
-        fullName,
-        email,
-        phone,
-        address,
-        addressType: String(body.addressType || 'NEW').toUpperCase(),
-        oldAddressNote: body.oldAddressNote || body.oldWardNote || '',
-        password,
-        role: 'customer',
-        tier: 'Collector',
-        points: 100, // Tặng ngay 100 điểm thưởng chào mừng hội viên mới!
-        totalOrders: 0,
-        totalSpent: 0,
-        avatarUrl: 'image/anh-clone.jpg',
-        isActive: true,
-        createdAt: new Date().toISOString(),
-        lastLogin: new Date().toISOString()
-      };
-
-      users.unshift(newUser);
-      saveSharedUsers(users);
-      emitRealtimeSync('USER_REGISTERED', newUser);
-
-      const tok = 'cust_tok_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
       return {
-        success: true,
-        token: tok,
-        user: newUser,
-        data: { token: tok, user: newUser },
-        message: 'Đăng ký tài khoản thành công! Tặng bạn 100 điểm thưởng hội viên chào mừng.'
+        success: false,
+        code: 'OFFLINE_AUTH_BLOCKED',
+        message: 'Không thể kết nối đến máy chủ để đăng ký tài khoản. Vui lòng kiểm tra kết nối mạng và thử lại!'
       };
     }
 
@@ -1946,252 +1786,51 @@
     }
 
     if (method === 'POST' && path === '/api/auth/google') {
-      const users = getSharedUsers();
-      let info = body.userInfo || body;
-      if (body.credential && (!info || !info.email)) {
-        try {
-          const parts = String(body.credential).split('.');
-          if (parts.length === 3) {
-            info = JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')));
-          }
-        } catch (e) {}
-      }
-      if (!info || !info.email) {
-        return { success: false, message: 'Chưa nhận được thông tin xác thực từ tài khoản Google thật.' };
-      }
-      const email = String(info.email).trim().toLowerCase();
-      const fullName = String(info.name || info.fullName || email.split('@')[0].toUpperCase()).trim();
-      const avatarUrl = String(info.picture || info.avatarUrl || 'image/anh-clone.jpg').trim();
-
-      let user = users.find(u => u.email && u.email.toLowerCase() === email);
-      if (!user) {
-        user = {
-          id: Date.now(),
-          userId: Date.now(),
-          fullName,
-          email,
-          phone: '',
-          address: '',
-          password: body.candidatePassword ? String(body.candidatePassword).trim() : null,
-          hasPassword: Boolean(body.candidatePassword && String(body.candidatePassword).trim().length >= 6),
-          authProvider: body.candidatePassword ? 'google+local' : 'google',
-          role: 'customer',
-          tier: 'Collector',
-          points: 100,
-          totalOrders: 0,
-          totalSpent: 0,
-          avatarUrl: avatarUrl || 'image/anh-clone.jpg',
-          isActive: true,
-          createdAt: new Date().toISOString(),
-          lastLogin: new Date().toISOString()
-        };
-        users.unshift(user);
-        saveSharedUsers(users);
-      } else {
-        user.lastLogin = new Date().toISOString();
-        if (avatarUrl && (!user.avatarUrl || user.avatarUrl === 'image/anh-clone.jpg')) {
-          user.avatarUrl = avatarUrl;
-        }
-        if (body.candidatePassword && String(body.candidatePassword).trim().length >= 6 && (!user.password || user.password === 'google_oauth_pass')) {
-          user.password = String(body.candidatePassword).trim();
-          user.authProvider = 'google+local';
-          user.hasPassword = true;
-        } else {
-          user.hasPassword = Boolean(user.hasPassword || (user.password && user.password !== 'google_oauth_pass'));
-        }
-        saveSharedUsers(users);
-      }
-
-      const tok = 'google_tok_' + Date.now();
       return {
-        success: true,
-        token: tok,
-        user,
-        data: { token: tok, user },
-        message: 'Đăng nhập Google thành công!'
+        success: false,
+        code: 'OFFLINE_AUTH_BLOCKED',
+        message: 'Không thể kết nối đến máy chủ để xác thực tài khoản Google. Vui lòng thử lại!'
       };
     }
 
     if (method === 'POST' && path === '/api/auth/send-login-otp') {
-      const email = String(body.email || '').trim().toLowerCase();
       return {
-        success: true,
-        emailSent: true,
-        email,
-        message: `Mã xác thực OTP gồm 6 chữ số đã được gửi tự động tới hộp thư Gmail (${email})! Vui lòng mở Gmail để lấy mã.`
+        success: false,
+        code: 'SERVER_UNAVAILABLE',
+        message: 'Không thể kết nối máy chủ để gửi mã OTP xác thực. Vui lòng thử lại!'
       };
     }
 
     if (method === 'POST' && path === '/api/auth/login-otp') {
-      const email = String(body.email || '').trim().toLowerCase();
-      const otp = String(body.otp || '').trim();
-      const users = getSharedUsers();
-      let user = users.find(u => u.email && u.email.toLowerCase() === email);
-      if (!user) {
-        user = {
-          userId: Date.now(),
-          id: Date.now(),
-          fullName: email.split('@')[0],
-          email,
-          role: 'customer',
-          tier: 'Collector VIP',
-          points: 100,
-          isActive: true
-        };
-        users.push(user);
-        saveSharedUsers(users);
-      }
       return {
-        success: true,
-        token: 'local-token-' + Date.now(),
-        user,
-        data: { token: 'local-token-' + Date.now(), user },
-        message: `Đăng nhập thành công! Chào mừng ${user.fullName} trở lại.`
+        success: false,
+        code: 'SERVER_UNAVAILABLE',
+        message: 'Không thể kết nối máy chủ để xác thực mã OTP. Vui lòng thử lại!'
       };
     }
 
     if (method === 'POST' && path === '/api/auth/forgot') {
-      const identifier = String(body.email || body.phone || '').trim().toLowerCase();
-      const users = getSharedUsers();
-      const cleanIdent = identifier.replace(/\s+/g, '');
-      let user = users.find(u => {
-        const emailMatch = u.email && u.email.toLowerCase() === identifier;
-        const rawPhone = (u.phone || '').replace(/\D/g, '');
-        const searchPhone = cleanIdent.replace(/\D/g, '');
-        return emailMatch || (searchPhone && rawPhone === searchPhone);
-      });
-
-      const targetEmail = (user && user.email) ? user.email : (identifier.includes('@') ? identifier : 'khachhang@minigt.vn');
-      const otpCode = String(Math.floor(100000 + Math.random() * 900000));
-      try {
-        sessionStorage.setItem('minigt_mock_otp_' + targetEmail.toLowerCase(), otpCode);
-        if (cleanIdent) sessionStorage.setItem('minigt_mock_otp_' + cleanIdent, otpCode);
-      } catch (_) {}
-
       return {
-        success: true,
-        emailSent: true,
-        email: targetEmail,
-        message: `Mã OTP xác thực gồm 6 chữ số đã được gửi tới hộp thư Gmail (${targetEmail}). Vui lòng kiểm tra Gmail để lấy mã xác thực!`
+        success: false,
+        code: 'SERVER_UNAVAILABLE',
+        message: 'Không thể kết nối máy chủ để gửi mã OTP xác thực qua Gmail. Vui lòng kiểm tra kết nối mạng và thử lại.'
       };
     }
 
     if (method === 'POST' && path === '/api/auth/reset-password') {
-      const identifier = String(body.email || body.phone || '').trim().toLowerCase();
-      const otp = String(body.otp || '').trim();
-      const newPassword = String(body.newPassword || '').trim();
-
-      const cleanIdent = identifier.replace(/\s+/g, '');
-      let storedOtp = null;
-      try {
-        storedOtp = sessionStorage.getItem('minigt_mock_otp_' + identifier) || (cleanIdent ? sessionStorage.getItem('minigt_mock_otp_' + cleanIdent) : null);
-      } catch (_) {}
-
-      const isMatch = (storedOtp && otp === storedOtp) || (!storedOtp && /^\d{6}$/.test(otp));
-      if (!isMatch) {
-        return { success: false, message: 'Mã xác thực OTP không chính xác! Vui lòng kiểm tra lại mã 6 chữ số trong hộp thư Gmail.' };
-      }
-      if (!newPassword || newPassword.length < 6) {
-        return { success: false, message: 'Mật khẩu mới phải có tối thiểu 6 ký tự!' };
-      }
-
-      const users = getSharedUsers();
-      const user = users.find(u => {
-        const emailMatch = u.email && u.email.toLowerCase() === identifier;
-        const rawPhone = (u.phone || '').replace(/\D/g, '');
-        const searchPhone = cleanIdent.replace(/\D/g, '');
-        return emailMatch || (searchPhone && rawPhone === searchPhone);
-      });
-
-      if (!user) {
-        return { success: false, message: 'Không tìm thấy tài khoản để cập nhật mật khẩu mới!' };
-      }
-
-      user.password = newPassword;
-      user.hasPassword = true;
-      if (user.authProvider === 'google') user.authProvider = 'google+local';
-      saveSharedUsers(users);
-
-      try {
-        sessionStorage.removeItem('minigt_mock_otp_' + identifier);
-        if (cleanIdent) sessionStorage.removeItem('minigt_mock_otp_' + cleanIdent);
-      } catch (_) {}
-
       return {
-        success: true,
-        message: 'Đặt lại mật khẩu thành công! Bạn có thể đăng nhập ngay với mật khẩu mới.'
+        success: false,
+        code: 'SERVER_UNAVAILABLE',
+        message: 'Không thể kết nối máy chủ để xác thực OTP và đặt lại mật khẩu. Vui lòng thử lại khi có kết nối mạng.'
       };
     }
 
     if (method === 'PUT' && path === '/api/auth/profile') {
-      const users = getSharedUsers();
-      const userId = body.userId || body.id;
-      let user = users.find(u => (u.userId == userId || u.id == userId || (body.email && u.email && u.email.toLowerCase() === body.email.toLowerCase())));
-
-      const oldPass = String(body.oldPassword || '').trim();
-      const newPass = String(body.newPassword || body.password || '').trim();
-
-      if (user) {
-        if (newPass) {
-          if (user.hasPassword && user.password && user.password !== 'google_oauth_pass') {
-            if (!oldPass) {
-              return { success: false, code: 'WRONG_OLD_PASSWORD', message: 'Vui lòng nhập mật khẩu cũ (hiện tại) để xác thực thay đổi!' };
-            }
-            const isMatch = (user.password === oldPass) || (oldPass === '123456' || oldPass === '12345678');
-            if (!isMatch) {
-              return { success: false, code: 'WRONG_OLD_PASSWORD', message: 'Mật khẩu cũ (hiện tại) không chính xác! Vui lòng kiểm tra lại.' };
-            }
-          }
-          user.password = newPass;
-          user.hasPassword = true;
-          if (user.authProvider === 'google') {
-            user.authProvider = 'google+local';
-          }
-        }
-
-        if (body.fullName) user.fullName = body.fullName.trim();
-        if (body.phone) user.phone = body.phone.trim();
-        if (body.address) user.address = body.address.trim();
-        if (body.addressType) user.addressType = String(body.addressType).toUpperCase();
-        if (body.oldAddressNote !== undefined) user.oldAddressNote = body.oldAddressNote;
-        if (body.deliveryNote !== undefined) user.deliveryNote = body.deliveryNote;
-        if (body.city) user.city = body.city;
-
-        saveSharedUsers(users);
-        return {
-          success: true,
-          user,
-          data: { user },
-          message: newPass ? 'Cập nhật hồ sơ và đổi mật khẩu thành công!' : 'Cập nhật thông tin tài khoản thành công!'
-        };
-      }
-
-      // Tự động khôi phục / tạo mới nếu user chưa nằm trong mảng users
-      const fallbackUser = {
-        id: userId || Date.now(),
-        userId: userId || Date.now(),
-        fullName: (body.fullName || '').trim() || 'Hội viên MINI GT',
-        email: (body.email || '').trim().toLowerCase(),
-        phone: (body.phone || '').trim(),
-        address: (body.address || '').trim(),
-        addressType: String(body.addressType || 'NEW').toUpperCase(),
-        oldAddressNote: body.oldAddressNote || '',
-        deliveryNote: body.deliveryNote || '',
-        city: body.city || '',
-        hasPassword: Boolean(body.password),
-        password: body.password ? String(body.password).trim() : '',
-        role: 'customer',
-        tier: 'Collector',
-        points: 100,
-        totalOrders: 0,
-        totalSpent: 0,
-        avatarUrl: 'image/anh-clone.jpg',
-        isActive: true,
-        createdAt: new Date().toISOString()
+      return {
+        success: false,
+        code: 'SERVER_UNAVAILABLE',
+        message: 'Không thể kết nối máy chủ để lưu thay đổi hồ sơ/mật khẩu. Thao tác chưa được đồng bộ.'
       };
-      users.unshift(fallbackUser);
-      saveSharedUsers(users);
-      return { success: true, user: fallbackUser, message: 'Cập nhật hồ sơ tài khoản thành công!' };
     }
 
     // 1. DANH SÁCH SẢN PHẨM KHÁCH HÀNG & ADMIN (GET /api/products, GET /api/admin/products, POST/PUT/DELETE)
@@ -2303,15 +1942,9 @@
     }
 
     if (method === 'POST' && path === '/api/admin/upload-product-image') {
-      const dataUri = body.data || body.base64 || '';
       return {
-        success: true,
-        data: {
-          url: dataUri,
-          filename: body.filename || 'uploaded_image.jpg',
-          storage: 'offline_local'
-        },
-        message: 'Tải ảnh lên thành công (chế độ cục bộ)'
+        success: false,
+        message: 'Mất kết nối máy chủ: Không thể tải ảnh lên CSDL. Hệ thống không lưu chuỗi Base64 trực tiếp vào sản phẩm.'
       };
     }
 
@@ -3270,14 +2903,24 @@
     return null;
   };
 
+  function isServerAuthoritativeMutation(method, endpoint) {
+    const m = String(method || 'GET').toUpperCase();
+    if (m === 'GET' || m === 'HEAD' || m === 'OPTIONS') return false;
+    const cleanPath = String(endpoint || '').split('?')[0].toLowerCase();
+    // Cho phép đồng bộ giỏ hàng/wishlist tạm hoặc chat AI khi offline, nhưng CHẶN báo thành công giả cho mọi thao tác nghiệp vụ quan trọng
+    if (cleanPath.endsWith('/api/auth/sync-state') || cleanPath.endsWith('/api/chat')) {
+      return false;
+    }
+    return true;
+  }
+
   async function request(endpoint, options = {}) {
     const method = (options.method || 'GET').toUpperCase();
     const rawBody = options.body;
-    const isPasswordAuthEndpoint = (endpoint === '/api/auth/login' || endpoint === '/api/auth/register');
+    const isCriticalWrite = isServerAuthoritativeMutation(method, endpoint);
 
-    // Chỉ dùng offline fallback tức thời nếu người dùng chủ động ép offline (minigt_offline_force)
-    // Và KHÔNG áp dụng cho xác thực login/register để tránh lệch mật khẩu với Supabase
-    if (!isPasswordAuthEndpoint && (isLocalEnvironment() && localStorage.getItem('minigt_offline_force') === 'true')) {
+    // Chỉ dùng offline fallback tức thời cho các truy vấn ĐỌC (GET) nếu người dùng chủ động bật minigt_offline_force
+    if (!isCriticalWrite && (isLocalEnvironment() && localStorage.getItem('minigt_offline_force') === 'true')) {
       const fallbackResult = handleOfflineFallback(endpoint, { method, body: rawBody });
       if (fallbackResult) return fallbackResult;
     }
@@ -3333,7 +2976,7 @@
       }
 
       if (!response) {
-        if (isLocalEnvironment() && !isPasswordAuthEndpoint) {
+        if (!isCriticalWrite && isLocalEnvironment()) {
           localServerOffline = true;
           try { sessionStorage.setItem('minigt_local_offline', 'true'); } catch (_) {}
           const fallbackResult = handleOfflineFallback(endpoint, {
@@ -3347,7 +2990,9 @@
 
         console.warn('[API ERROR]:', endpoint, netErr);
         throw new ApiError(
-          'Không thể kết nối đến máy chủ. Vui lòng kiểm tra kết nối mạng!',
+          isCriticalWrite
+            ? 'Mất kết nối tới máy chủ! Thao tác chưa được lưu hoặc đồng bộ lên hệ thống, vui lòng kiểm tra mạng và thử lại.'
+            : 'Không thể kết nối đến máy chủ. Vui lòng kiểm tra kết nối mạng!',
           0,
           'NETWORK_ERROR'
         );
@@ -3364,12 +3009,16 @@
         data = { success: false, message: 'Dữ liệu máy chủ trả về không đúng định dạng JSON' };
       }
     } else {
-      const fallbackResult = handleOfflineFallback(endpoint, { method, body: rawBody });
-      if (fallbackResult) return fallbackResult;
+      if (!isCriticalWrite) {
+        const fallbackResult = handleOfflineFallback(endpoint, { method, body: rawBody });
+        if (fallbackResult) return fallbackResult;
+      }
       const text = await response.text();
       data = {
-        success: response.ok,
-        message: text.slice(0, 300) || (response.ok ? 'Thành công' : `Lỗi HTTP: ${response.status}`),
+        success: false,
+        message: isCriticalWrite
+          ? 'Máy chủ không phản hồi dữ liệu hợp lệ (thao tác chưa được đồng bộ). Vui lòng thử lại!'
+          : (text.slice(0, 300) || `Lỗi HTTP: ${response.status}`),
         data: null
       };
     }
