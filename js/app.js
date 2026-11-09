@@ -347,7 +347,7 @@ let currentBrandFilter = 'all';
 // Cấu hình động cửa hàng (Đồng bộ trực tiếp từ SQL Server Settings table)
 let storeSettings = {
   store_name: "MINI GT STORE BIÊN HÒA",
-  store_hotline: "0981 400 400",
+  store_hotline: "0981.903.400",
   store_email: "quocthinh.admin@minigt.vn",
   store_address: "38/2 Võ Thị Sáu, P. Quyết Thắng, TP. Biên Hòa, Đồng Nai",
   shipping_fee: 11000,
@@ -2256,50 +2256,176 @@ function syncStaticShowcaseProducts() {
   if (preOrderGrid) {
     const preOrderList = source.filter(p => String(p.Status || p.status || '').toLowerCase() === 'pre_order');
     if (preOrderList.length > 0) {
-      const topPre = preOrderList.slice(0, 3);
+      // Ưu tiên hiển thị 3 mẫu xe pre-order đắt giá và tiêu biểu nhất: Scania 770S (#57), Lotus 78 (#58), Temerario (#59)
+      const preferredPreOrderIds = [57, 58, 59, 56, 60];
+      const sortedPre = [...preOrderList].sort((a, b) => {
+        const idxA = preferredPreOrderIds.indexOf(Number(a.ProductId || a.id));
+        const idxB = preferredPreOrderIds.indexOf(Number(b.ProductId || b.id));
+        return (idxA !== -1 ? idxA : 99) - (idxB !== -1 ? idxB : 99);
+      });
+      const topPre = sortedPre.slice(0, 3);
+
       preOrderGrid.innerHTML = topPre.map(p => {
         const pid = p.ProductId || p.id;
         const pSku = p.Sku || p.sku || 'MGT';
         const pName = p.Name || p.name || '';
         const pricing = getProductBoxCardPricing(p);
         const img = getProductGalleryImages(p)[0] || p.ImageUrl || p.imageUrl || 'image/placeholder-car.svg';
-        const edition = p.EditionNote || p.editionNote || (p.Brand || 'MINI GT 1:64');
         const depPct = Number(p.DepositPercent || p.depositPercent || 30);
         const depAmt = Number(p.DepositAmount || p.depositAmount || Math.round((pricing.finalPriceBox * (depPct / 100)) / 1000) * 1000);
+
         let badgeText = 'PRE-ORDER';
         let badgeBg = '#ea580c';
-        if (pName.toLowerCase().includes('scania') || pSku.includes('1392')) {
+        let shortTitle = pName;
+        let shortSub = p.EditionNote || p.editionNote || 'Mở đặt cọc 2026';
+
+        if (pid === 57 || pSku.includes('1392') || pName.toLowerCase().includes('scania')) {
           badgeText = 'XE TẢI HOOKLIFT';
           badgeBg = '#ea580c';
-        } else if (pName.toLowerCase().includes('lotus') || pSku.includes('1393')) {
+          shortTitle = 'Scania 770S Orange';
+          shortSub = 'Xe Đầu Kéo Cẩu Sàn Trượt';
+        } else if (pid === 58 || pSku.includes('1393') || pName.toLowerCase().includes('lotus')) {
           badgeText = 'F1 CLASSIC 1977';
           badgeBg = '#0284c7';
-        } else if (pName.toLowerCase().includes('temerario') || pSku.includes('1394')) {
+          shortTitle = 'Lotus 78 #5 Mario Andretti';
+          shortSub = 'F1 US GP West Winner 1977';
+        } else if (pid === 59 || pSku.includes('1394') || pName.toLowerCase().includes('temerario')) {
           badgeText = 'HYBRID V8 2025';
           badgeBg = '#7c3aed';
-        } else if (pName.toLowerCase().includes('kuhl') || pName.toLowerCase().includes('vellfire') || pSku.includes('1391')) {
+          shortTitle = 'Lamborghini Temerario';
+          shortSub = 'Siêu Xe Hybrid Viola Pasifae';
+        } else if (pid === 56 || pSku.includes('1391') || pName.toLowerCase().includes('vellfire')) {
           badgeText = 'KUHL METALLIC';
           badgeBg = '#db2777';
-        } else if (pName.toLowerCase().includes('bugatti') || pSku.includes('1395')) {
+          shortTitle = 'Vellfire 40 KUHL Pink';
+          shortSub = 'Bản Độ Thân Rộng KUHL';
+        } else if (pid === 60 || pSku.includes('1395') || pName.toLowerCase().includes('bugatti')) {
           badgeText = 'PARIS 1992';
           badgeBg = '#2563eb';
+          shortTitle = 'Bugatti EB110 GT';
+          shortSub = 'Mondial de l\'Automobile';
         }
-
-        const cleanDisplayName = pName
-          .replace(/^\(?\s*(pre-?order|đặt cọc)\s*\)?\s*[:\-•]?\s*/i, '')
-          .replace(/^\[?\s*(pre-?order)\s*\]?\s*[:\-•]?\s*/i, '')
-          .replace(/^Mini GT\s*(1:64)?\s*[:\-•]?\s*/i, '')
-          .trim();
 
         return `
           <div class="nav-mega-card" onclick="openQuickView(${pid})">
             <div class="nav-card-badge" style="background:${badgeBg}; color:#fff;">${badgeText}</div>
             <img src="${escapeHtml(img)}" alt="${escapeHtml(pName)}" loading="lazy" onerror="this.src='image/placeholder-car.svg'">
             <div class="nav-card-info">
-              <strong>#${escapeHtml(pSku)} ${escapeHtml(cleanDisplayName)}</strong>
-              <span>${escapeHtml(edition)}</span>
+              <strong title="${escapeHtml(pName)}">#${escapeHtml(pSku)} ${escapeHtml(shortTitle)}</strong>
+              <span title="${escapeHtml(shortSub)}">${escapeHtml(shortSub)}</span>
               <div class="nav-card-price">
                 <span>Cọc ${depPct}%: ${formatCompactPrice(depAmt)}</span>
+                <strong>${formatVND(pricing.finalPriceBox)}</strong>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+  }
+
+  // 10. Đồng bộ thẻ xe trong Mega Menu Liberty Walk (#navMegaLbwkGrid)
+  const lbwkGrid = document.getElementById('navMegaLbwkGrid');
+  if (lbwkGrid) {
+    const lbwkList = source.filter(p => matchesProductFilter(p, 'liberty-walk'));
+    if (lbwkList.length > 0) {
+      // 3 mẫu xe đặc trưng: S15 Presentation (#10), Huracán Gravity (#5), S15 Goodwood (#11)
+      const targetLbwkIds = [10, 5, 11];
+      const topLbwk = targetLbwkIds.map(id => lbwkList.find(p => Number(p.ProductId || p.id) === id)).filter(Boolean);
+      if (topLbwk.length === 3) {
+        lbwkGrid.innerHTML = topLbwk.map(p => {
+          const pid = p.ProductId || p.id;
+          const pSku = p.Sku || p.sku || 'MGT';
+          const pName = p.Name || p.name || '';
+          const pricing = getProductBoxCardPricing(p);
+          const img = getProductGalleryImages(p)[0] || p.ImageUrl || p.imageUrl || 'image/placeholder-car.svg';
+          let badgeText = 'LB★WORKS';
+          let badgeBg = '#0f172a';
+          let shortTitle = pName;
+          let shortSub = p.EditionNote || p.editionNote || 'Liberty Walk Widebody';
+
+          if (pid === 10) {
+            badgeText = 'SILVIA S15';
+            shortTitle = 'S15 Presentation';
+            shortSub = 'Bản Box & Vỉ Card Trưng Bày';
+          } else if (pid === 5) {
+            badgeText = 'HURACÁN GT';
+            shortTitle = 'Huracán Gravity';
+            shortSub = 'Bodykit tán đinh + Cánh Swan-Neck';
+          } else if (pid === 11) {
+            badgeText = 'GOODWOOD #23';
+            shortTitle = 'S15 Goodwood #23';
+            shortSub = 'Festival of Speed Limited Edition';
+          }
+
+          return `
+            <div class="nav-mega-card" onclick="openQuickView(${pid})">
+              <div class="nav-card-badge" style="background:${badgeBg}; color:#fff;">${badgeText}</div>
+              <img src="${escapeHtml(img)}" alt="${escapeHtml(pName)}" loading="lazy" onerror="this.src='image/placeholder-car.svg'">
+              <div class="nav-card-info">
+                <strong title="${escapeHtml(pName)}">#${escapeHtml(pSku)} ${escapeHtml(shortTitle)}</strong>
+                <span title="${escapeHtml(shortSub)}">${escapeHtml(shortSub)}</span>
+                <div class="nav-card-price">
+                  <span>${pricing.hasDiscount ? `Giảm -${pricing.discountPercent}%` : 'Sẵn hàng'}</span>
+                  <strong>${formatVND(pricing.finalPriceBox)}</strong>
+                </div>
+              </div>
+            </div>
+          `;
+        }).join('');
+      }
+    }
+  }
+
+  // 11. Đồng bộ thẻ xe trong Mega Menu GT3 & F1 (#navMegaGt3Grid)
+  const gt3Grid = document.getElementById('navMegaGt3Grid');
+  if (gt3Grid) {
+    const targetIds = [8, 7, 6, 4];
+    const topGt3 = targetIds.map(id => source.find(p => Number(p.ProductId || p.id) === id)).filter(Boolean);
+    if (topGt3.length === 4) {
+      gt3Grid.innerHTML = topGt3.map(p => {
+        const pid = Number(p.ProductId || p.id);
+        const pSku = p.Sku || p.sku || 'MGT';
+        const pName = p.Name || p.name || '';
+        const pricing = getProductBoxCardPricing(p);
+        const img = getProductGalleryImages(p)[0] || p.ImageUrl || p.imageUrl || 'image/placeholder-car.svg';
+
+        let badgeText = 'GT3';
+        let badgeBg = '#16a34a';
+        let shortTitle = pName;
+        let shortSub = p.EditionNote || p.editionNote || '';
+
+        if (pid === 8) {
+          badgeText = 'REXY #80';
+          badgeBg = '#16a34a';
+          shortTitle = 'Porsche 911 GT3 R Rexy #80';
+          shortSub = 'Khủng Long Xanh Vô Địch Sebring';
+        } else if (pid === 7) {
+          badgeText = 'ROXY #77';
+          badgeBg = '#ec4899';
+          shortTitle = 'Porsche 911 GT3 R Roxy #77';
+          shortSub = 'Khủng Long Hồng Road America';
+        } else if (pid === 6) {
+          badgeText = 'SKELETON #77';
+          badgeBg = '#0f172a';
+          shortTitle = 'Porsche GT3 R Skeleton #77';
+          shortSub = 'Bản Xương Halloween Petit Le Mans';
+        } else if (pid === 4) {
+          badgeText = 'F1 RED BULL';
+          badgeBg = '#e10600';
+          shortTitle = 'Red Bull RB18 #1 Verstappen';
+          shortSub = 'Vô Địch F1 Monaco Grand Prix';
+        }
+
+        return `
+          <div class="nav-mega-card" onclick="openQuickView(${pid})">
+            <div class="nav-card-badge" style="background:${badgeBg}; color:#fff;">${badgeText}</div>
+            <img src="${escapeHtml(img)}" alt="${escapeHtml(pName)}" loading="lazy" onerror="this.src='image/placeholder-car.svg'">
+            <div class="nav-card-info">
+              <strong title="${escapeHtml(pName)}">${escapeHtml(shortTitle)}</strong>
+              <span title="${escapeHtml(shortSub)}">${escapeHtml(shortSub)}</span>
+              <div class="nav-card-price">
+                <span>${pricing.hasDiscount ? `Giảm -${pricing.discountPercent}%` : 'Sẵn kho'}</span>
                 <strong>${formatVND(pricing.finalPriceBox)}</strong>
               </div>
             </div>
@@ -7033,13 +7159,13 @@ function updateLiveStep4OrderStatus(rawOrd) {
             <strong>Lý do hủy đơn:</strong> <span style="color:${isCustCancel ? '#b45309' : '#dc2626'}; font-weight:700;">${escapeHtml(cancelReason)}</span>
           </div>
           <div style="margin-top:10px; font-size:12.5px; color:#4b5563; line-height:1.5;">
-            Quý khách có nhu cầu đặt lại mẫu xe hoặc cần hỗ trợ, vui lòng liên hệ Hotline / Zalo: <strong style="color:#dc2626; font-size:13px;">0981 400 400</strong>.
+            Quý khách có nhu cầu đặt lại mẫu xe hoặc cần hỗ trợ, vui lòng liên hệ Hotline / Zalo: <strong style="color:#dc2626; font-size:13px;">0981.903.400</strong>.
           </div>
           <div style="margin-top:12px; display:flex; gap:8px; flex-wrap:wrap;">
-            <a href="tel:0981400400" class="btn btn-sm" style="background:#dc2626; color:#ffffff; border:none; padding:7px 14px; border-radius:6px; font-size:12px; font-weight:700; text-decoration:none; display:inline-flex; align-items:center; gap:6px;">
-              <i class="fa-solid fa-phone"></i> Gọi Hotline 0981 400 400
+            <a href="tel:0981903400" class="btn btn-sm" style="background:#dc2626; color:#ffffff; border:none; padding:7px 14px; border-radius:6px; font-size:12px; font-weight:700; text-decoration:none; display:inline-flex; align-items:center; gap:6px;">
+              <i class="fa-solid fa-phone"></i> Gọi Hotline 0981.903.400
             </a>
-            <a href="https://zalo.me/0981400400" target="_blank" class="btn btn-sm" style="background:#ffffff; color:#0284c7; border:1px solid #0284c7; padding:7px 14px; border-radius:6px; font-size:12px; font-weight:700; text-decoration:none; display:inline-flex; align-items:center; gap:6px;">
+            <a href="https://zalo.me/0981903400" target="_blank" class="btn btn-sm" style="background:#ffffff; color:#0284c7; border:1px solid #0284c7; padding:7px 14px; border-radius:6px; font-size:12px; font-weight:700; text-decoration:none; display:inline-flex; align-items:center; gap:6px;">
               <i class="fa-solid fa-comments"></i> Nhắn Zalo Hỗ Trợ
             </a>
           </div>
@@ -9776,13 +9902,13 @@ function buildUnifiedCustomerOrderCardHTML(ord) {
                 <strong>Lý do:</strong> <span style="color:${titleColor}; font-weight:700;">${escapeHtml(cancelReason)}</span>
               </div>
               <div style="margin-top:10px; font-size:12.5px; color:#4b5563; line-height:1.5;">
-                Quý khách có nhu cầu đặt lại mẫu xe hoặc cần hỗ trợ, vui lòng liên hệ Hotline / Zalo: <strong style="color:#dc2626; font-size:13px;">0981 400 400</strong>.
+                Quý khách có nhu cầu đặt lại mẫu xe hoặc cần hỗ trợ, vui lòng liên hệ Hotline / Zalo: <strong style="color:#dc2626; font-size:13px;">0981.903.400</strong>.
               </div>
               <div style="margin-top:12px; display:flex; gap:8px; flex-wrap:wrap;">
-                <a href="tel:0981400400" class="btn btn-sm" style="background:#dc2626; color:#ffffff; border:none; padding:7px 14px; border-radius:6px; font-size:12px; font-weight:700; text-decoration:none; display:inline-flex; align-items:center; gap:6px;">
-                  <i class="fa-solid fa-phone"></i> Gọi Hotline 0981 400 400
+                <a href="tel:0981903400" class="btn btn-sm" style="background:#dc2626; color:#ffffff; border:none; padding:7px 14px; border-radius:6px; font-size:12px; font-weight:700; text-decoration:none; display:inline-flex; align-items:center; gap:6px;">
+                  <i class="fa-solid fa-phone"></i> Gọi Hotline 0981.903.400
                 </a>
-                <a href="https://zalo.me/0981400400" target="_blank" class="btn btn-sm" style="background:#ffffff; color:#0284c7; border:1px solid #0284c7; padding:7px 14px; border-radius:6px; font-size:12px; font-weight:700; text-decoration:none; display:inline-flex; align-items:center; gap:6px;">
+                <a href="https://zalo.me/0981903400" target="_blank" class="btn btn-sm" style="background:#ffffff; color:#0284c7; border:1px solid #0284c7; padding:7px 14px; border-radius:6px; font-size:12px; font-weight:700; text-decoration:none; display:inline-flex; align-items:center; gap:6px;">
                   <i class="fa-solid fa-comments"></i> Nhắn Zalo Hỗ Trợ
                 </a>
               </div>
@@ -10432,7 +10558,7 @@ function printCustomerOrderInvoice(orderCode) {
         <div>
           <h2 style="margin:0; color:#dc2626; font-size:22px; font-weight:900;">SĂN XE BIÊN HÒA — MINI GT 1:64</h2>
           <div style="font-size:12px; color:#475569; margin-top:2px;">Showroom: 38/2 Võ Thị Sáu, P. Quyết Thắng, Biên Hòa, Đồng Nai</div>
-          <div style="font-size:11.5px; color:#64748b;">Hotline / Zalo hỗ trợ: <strong>0981 400 400</strong> (0988.164.164)</div>
+          <div style="font-size:11.5px; color:#64748b;">Hotline / Zalo hỗ trợ: <strong>0981.903.400</strong></div>
         </div>
         <div style="text-align:right;">
           <div style="font-weight:800; font-size:16px; color:#0f172a;">${fin.isPartialDeposit ? 'PHIẾU XÁC NHẬN ĐẶT CỌC' : 'HÓA ĐƠN XÁC NHẬN ĐƠN HÀNG'}</div>
@@ -10707,13 +10833,13 @@ function showCustomerOrderRealtimeBanner(orderCode, status, trackingCode, cancel
             <strong>Lý do hủy đơn:</strong> <span style="color:#dc2626; font-weight:700;">${escapeHtml(cancelReason || 'Admin đã xử lý hủy đơn')}</span>
           </div>
           <div style="margin-top:8px; font-size:11.5px; color:#4b5563; line-height:1.45;">
-            Quý khách vui lòng liên hệ Hotline / Zalo: <strong style="color:#dc2626;">0981 400 400</strong> để được hỗ trợ tốt nhất.
+            Quý khách vui lòng liên hệ Hotline / Zalo: <strong style="color:#dc2626;">0981.903.400</strong> để được hỗ trợ tốt nhất.
           </div>
           <div style="display:flex; gap:8px; margin-top:12px; flex-wrap:wrap;">
-            <a href="tel:0981400400" style="background:#dc2626; color:#ffffff; border:none; border-radius:8px; padding:7px 12px; font-size:11.5px; font-weight:700; text-decoration:none; display:inline-flex; align-items:center; gap:4px;">
-              <i class="fa-solid fa-phone"></i> Gọi 0981 400 400
+            <a href="tel:0981903400" style="background:#dc2626; color:#ffffff; border:none; border-radius:8px; padding:7px 12px; font-size:11.5px; font-weight:700; text-decoration:none; display:inline-flex; align-items:center; gap:4px;">
+              <i class="fa-solid fa-phone"></i> Gọi 0981.903.400
             </a>
-            <a href="https://zalo.me/0981400400" target="_blank" style="background:#ffffff; color:#0284c7; border:1px solid #0284c7; border-radius:8px; padding:7px 12px; font-size:11.5px; font-weight:700; text-decoration:none; display:inline-flex; align-items:center; gap:4px;">
+            <a href="https://zalo.me/0981903400" target="_blank" style="background:#ffffff; color:#0284c7; border:1px solid #0284c7; border-radius:8px; padding:7px 12px; font-size:11.5px; font-weight:700; text-decoration:none; display:inline-flex; align-items:center; gap:4px;">
               <i class="fa-solid fa-comments"></i> Nhắn Zalo
             </a>
             <button type="button" onclick="document.getElementById('customerRealtimeOrderAlert')?.remove(); openMyOrdersModal();" style="background:#f1f5f9; color:#475569; border:1px solid #cbd5e1; border-radius:8px; padding:7px 10px; font-size:11.5px; font-weight:600; cursor:pointer;">

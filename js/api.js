@@ -2681,7 +2681,7 @@
     if (method === 'GET' && (path === '/api/settings' || path === '/api/admin/settings')) {
       const defaultSet = {
         store_name: 'MINI GT STORE BIÊN HÒA',
-        store_hotline: '0981 400 400',
+        store_hotline: '0981.903.400',
         store_email: 'quocthinh.admin@minigt.vn',
         store_address: '38/2 Võ Thị Sáu, P. Quyết Thắng, TP. Biên Hòa, Đồng Nai',
         shipping_fee: 11000,
