@@ -29,7 +29,7 @@ const SHOP = {
   name: 'MINI GT STORE BIÊN HÒA',
   address: '38/2 Võ Thị Sáu, P. Quyết Thắng, TP. Biên Hòa, Đồng Nai',
   hotline: '0981.903.400',
-  storeHotline: '0988.164.164',
+  storeHotline: '0981.903.400',
   zalo: '0981903400',
   email: 'quocthinh.admin@minigt.vn',
   hours: '8:00 – 21:00 hằng ngày (kể cả Thứ 7 & Chủ Nhật)',
@@ -138,7 +138,8 @@ const TAG_RULES = [
   [/skeleton/, 'xuong khung long den mau den raw carbon ao racing petit le mans halloween'],
   [/ao racing/, 'khung long bao chua imsa gt3 porsche'],
   [/porsche|911/, 'porsche 911 gt3 gt3r duc'],
-  [/formula|(^|\s)f1(\s|$)|amr24|rb18/, 'f1 formula dua cong thuc 1 grand prix xe dua f1'],
+  // Chỉ gắn nhãn F1 cho xe đua Công thức 1 thật (không nhầm "Formula Drift" của S15 #555)
+  [/formula\s*(1|one)\b|(^|\s)f1(\s|$)|amr24|rb18|rb19|grand prix|lotus 78/, 'f1 formula dua cong thuc 1 grand prix xe dua f1'],
   [/red bull|rb18/, 'redbull red bull bo tot verstappen monaco xanh den'],
   [/verstappen/, 'max verstappen nha vo dich so 1'],
   [/alonso/, 'fernando alonso tay dua 14'],
@@ -150,7 +151,20 @@ const TAG_RULES = [
   [/top secret.+red chrome|mg1132/, 'top secret mau do red chrome crom supra do'],
   [/silver chrome|pr640325/, 'top secret mau bac silver chrome crom sang bong supra bac'],
   [/skyline|(^|\s)gt r(\s|$)|r32|r34|r35/, 'gtr gt-r nissan skyline r32 godzilla jdm nhat ban'],
-  [/silvia|s15/, 'nissan silvia s15 presentation drift xe truot jdm trang vang'],
+  // Không gắn "presentation" cho mọi S15 — chỉ mẫu Presentation thật mới chứa từ này trong tên
+  [/silvia|s15/, 'nissan silvia s15 drift xe truot jdm'],
+  [/goodwood|618/, 'goodwood 23 festival of speed s15 drift'],
+  [/halloween|1185/, 'halloween special s15 555 team mini gt formula drift'],
+  [/scania|hooklift|xe tai/, 'xe tai dau keo scania 770s hooklift flatbed cam orange'],
+  [/temerario/, 'lamborghini temerario hybrid v8 viola pasifae tim'],
+  [/eb110|bugatti/, 'bugatti eb110 gt azzurro xanh mondial'],
+  [/vellfire|kuhl/, 'toyota vellfire 40 kuhl metallic pink mau hong do than rong'],
+  [/lotus\s*78/, 'lotus 78 mario andretti f1 classic 1977'],
+  [/countach/, 'lamborghini countach lbwk lb-works'],
+  [/pink|mau hong/i, 'mau hong pink roxy vellfire'],
+  [/orange|mau cam/i, 'mau cam orange scania supra brian'],
+  [/purple|viola|mau tim/i, 'mau tim purple viola pasifae temerario'],
+  [/blue|azzurro|mau xanh duong/i, 'mau xanh duong blue azzurro bugatti eb110'],
   [/huracan sto|pr101/, 'huracan sto pop race sieu xe'],
   [/gravity/, 'huracan gt gravity tim xam'],
   [/pop race|poprace|^pr/, 'poprace pop race mo nap capo'],
@@ -392,7 +406,11 @@ async function getStoreData(force = false) {
       const baseBox = rawBox > 0 ? rawBox : (rawOldPrice > rawPrice ? rawOldPrice : rawPrice);
       const baseCard = rawCard > 0 ? rawCard : (packagingType === 'box_only' ? baseBox : baseBox + 60000);
 
-      const finalBox = discountPercent > 0 ? calcDiscountedPrice(baseBox, discountPercent) : (rawPrice > 0 && packagingType !== 'card_only' ? rawPrice : baseBox);
+      // Ưu tiên tuyệt đối cột PriceBox (giá Admin nhập). Chỉ dùng cột Price cũ khi sản phẩm chưa có PriceBox,
+      // tránh lỗi Bot báo giá cũ (VD: Price = 320.000đ còn PriceBox thật = 999.999đ).
+      const finalBox = discountPercent > 0
+        ? calcDiscountedPrice(baseBox, discountPercent)
+        : (rawBox > 0 ? rawBox : (rawPrice > 0 && packagingType !== 'card_only' ? rawPrice : baseBox));
       const finalCard = discountPercent > 0 ? calcDiscountedPrice(baseCard, discountPercent) : baseCard;
 
       const rawStock = Number(r.Stock ?? r.stock ?? 0);
@@ -938,13 +956,18 @@ const ESC = {
 const OTHER_CAR_BRANDS = [
   'hot wheels', 'hotwheels', 'hotwheel', 'tomica', 'majorette', 'tarmac', 'tarmac works', 'inno64', 'inno',
   'autoart', 'bburago', 'maisto', 'greenlight', 'johnny lightning', 'minichamps', 'kyosho', 'spark',
-  'bugatti', 'ferrari', 'mclaren', 'mercedes', 'amg', 'audi', 'bentley', 'rolls royce', 'honda', 'civic',
+  'ferrari', 'mclaren', 'mercedes', 'amg', 'audi', 'bentley', 'rolls royce', 'honda', 'civic',
   'mazda', 'rx7', 'mitsubishi', 'evo', 'subaru', 'ford', 'mustang', 'chevrolet', 'corvette', 'camaro',
-  'dodge', 'tesla', 'koenigsegg', 'pagani', 'hyundai', 'kia', 'vinfast', 'lexus', 'volkswagen', 'scania', 'alphard'
+  'dodge', 'tesla', 'koenigsegg', 'pagani', 'hyundai', 'kia', 'vinfast', 'lexus', 'volkswagen', 'alphard'
 ];
 
+const COLOR_WORDS = new Set([
+  'hong', 'do', 'xanh', 'vang', 'den', 'trang', 'cam', 'tim', 'bac', 'xam',
+  'pink', 'red', 'green', 'blue', 'yellow', 'black', 'white', 'orange', 'purple', 'silver', 'grey', 'gray', 'viola', 'azzurro'
+]);
+
 const STOPWORDS = new Set((
-  'shop co khong ko k kh hok hong xe mau mo hinh san pham cho minh toi tui em anh chi ban gia bao nhieu bn con hang nao la gi vay a ah oi nhe nha nhi voi va hay the nay do muon mua tim hoi xem cai chiec ve dang duoc can san het ton kho tien coc dat truoc khi du kien so sanh nen chon tong tinh lay chot giup di roi thi ma de len cua o tai sao lam bao gio ngay nua them mot hai ba bon nam vi hop box card blister pre order preorder ship phi giao dia chi zalo hotline ty le scale gt mini minigt racing team edition model dong loai nhung cac sieu pham hot re dat nhat it nhieu tam khoang duoi tren tu den toi da qua tang goi y tu van ok oke uh um nhu vs thu so dau cuoi kia ay bot chat quay lai tro chuyen sang ai nguoi tao web trang sale giam khuyen mai ap voucher coupon admin nhan vien chuyen khoan freeship vip cod thanh toan chinh sach dac quyen hoi vien cap bac tich luy bao hanh doi tra tai khoan mat khau quen van chuyen spx vietqr'
+  'shop co khong ko k kh hok xe mo hinh san pham cho minh toi tui em anh chi ban gia bao nhieu bn con hang nao la gi vay a ah oi nhe nha nhi voi va hay the nay do muon mua tim hoi xem cai chiec ve dang duoc can san het ton kho tien coc dat truoc khi du kien so sanh nen chon tong tinh lay chot giup di roi thi ma de len cua o tai sao lam bao gio ngay nua them mot hai ba bon nam vi hop box card blister pre order preorder ship phi giao dia chi zalo hotline ty le scale gt mini minigt racing team edition model dong loai nhung cac sieu pham hot re dat nhat it nhieu tam khoang duoi tren tu den toi da qua tang goi y tu van ok oke uh um nhu vs thu so dau cuoi kia ay bot chat quay lai tro chuyen sang ai nguoi tao web trang sale giam khuyen mai ap voucher coupon admin nhan vien chuyen khoan freeship vip cod thanh toan chinh sach dac quyen hoi vien cap bac tich luy bao hanh doi tra tai khoan mat khau quen van chuyen spx vietqr'
 ).split(' '));
 
 function analyze(raw) {
@@ -1084,7 +1107,7 @@ function buildEscalationMessage(reason, rawQuestion, relatedOrderCode = null) {
 // =====================================================================
 function searchProducts(searchText, products) {
   if (!products.length || !searchText) return [];
-  const qTokens = searchText.split(/[\s.,]+/).filter(t => t.length >= 2 && !STOPWORDS.has(t));
+  const qTokens = searchText.split(/[\s.,]+/).filter(t => t.length >= 2 && (!STOPWORDS.has(t) || COLOR_WORDS.has(t)));
   const compact = searchText.replace(/[^a-z0-9]/g, '');
   if (!qTokens.length && compact.length < 4) return [];
 
@@ -1918,7 +1941,7 @@ function answerCoupons(coupons, userCtx = null) {
   }
   const lines = coupons.map(c => {
     const benefit = c.discountType === 'percent'
-      ? `Giảm **${c.discountValue}%** (tối đa **${formatVnd(c.maxDiscount)}**)`
+      ? `Giảm **${c.discountValue}%**${c.maxDiscount > 0 ? ` (tối đa **${formatVnd(c.maxDiscount)}**)` : ''}`
       : `Giảm trực tiếp **${formatVnd(c.discountValue)}**`;
     return `• 🎟️ Mã **${c.code}** — ${benefit} cho đơn từ **${formatVnd(c.minOrderAmount)}**\n  _(${c.description})_`;
   });
@@ -2719,44 +2742,107 @@ async function runEngine(ctx, history, opts) {
 }
 
 // =====================================================================
-// 8. MICRO-RAG GEMINI API (CHỈ NẠP TOP 4 XE LIÊN QUAN — TIẾT KIỆM 90% TOKEN)
+// 8. GEMINI RAG (DỰ PHÒNG KHI BỘ MÁY NỘI BỘ CHƯA HIỂU) — NẠP TOÀN BỘ CATALOG GỌN NHẸ
+// ---------------------------------------------------------------------
+// - Bộ máy nội bộ (SQL + RAM, ~0ms) luôn trả lời trước => nhanh & đúng dữ liệu 100%.
+// - Gemini chỉ được gọi khi bộ máy nội bộ chưa hiểu câu hỏi, và được cung cấp TOÀN BỘ
+//   danh sách xe đang bán (giá sau giảm, tồn kho Box/Card, danh mục) để không bịa số liệu.
 // =====================================================================
-function buildMicroRagContext(ctx, history, products, coupons, userCtx = null) {
-  const matched = searchProducts(ctx.searchText, products);
-  const mem = getContextProducts(history, products);
-  const pool = [];
-  for (const p of [...matched, ...mem]) {
-    if (p && !pool.includes(p) && pool.length < 4) pool.push(p);
+const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
+const GEMINI_TIMEOUT_MS = Math.max(2000, Number(process.env.GEMINI_TIMEOUT_MS) || 7000);
+const GEMINI_MAX_CATALOG = 80;
+
+function statusLabelVi(p) {
+  if (p.Status === 'pre_order') return 'Pre-Order (đặt cọc)';
+  if ((p.StockBox + p.StockCard) <= 0 || p.Status === 'out_of_stock') return 'Hết hàng';
+  return 'Sẵn hàng';
+}
+
+function catalogLine(p) {
+  const parts = [`[${p.Sku}] ${p.Name}`];
+  if (p.PackagingType !== 'card_only') {
+    parts.push(`Box ${formatVnd(p.PriceBox)}${p.DiscountPercent > 0 ? ` (gốc ${formatVnd(p.BasePriceBox)}, -${p.DiscountPercent}%)` : ''} kho ${p.StockBox}`);
   }
-  if (pool.length === 0) {
-    const hot = products.filter(isOrderable).slice(0, 4);
-    pool.push(...hot);
+  if (p.PackagingType !== 'box_only') {
+    parts.push(`Card ${formatVnd(p.PriceCard)}${p.DiscountPercent > 0 ? ` (gốc ${formatVnd(p.BasePriceCard)}, -${p.DiscountPercent}%)` : ''} kho ${p.StockCard}`);
   }
-  const prodLines = pool.map(p =>
-    `• [${p.Sku}] ${p.Name} | ${p.Brand} | Box: ${formatVnd(p.PriceBox)} (kho ${p.StockBox}) | Card: ${formatVnd(p.PriceCard)} (kho ${p.StockCard})${p.DiscountPercent > 0 ? ` | Sale -${p.DiscountPercent}%` : ''} | ${statusTag(p)}`
-  ).join('\n');
+  parts.push(statusLabelVi(p));
+  if (p.Status === 'pre_order') {
+    const dep = p.DepositAmount > 0 ? p.DepositAmount : roundK(p.PriceBox * (p.DepositPercent / 100));
+    parts.push(`cọc ${formatVnd(dep)}`);
+  }
+  if (p.SoldCount > 0) parts.push(`đã bán ${p.SoldCount}`);
+  return `• ${parts.join(' | ')}`;
+}
+
+function buildGeminiCatalogContext(ctx, history, products, coupons, userCtx = null) {
+  // Mẫu khách đang nhắc tới (tìm kiếm + bộ nhớ hội thoại) được đưa lên đầu để Gemini tập trung
+  const focus = [];
+  for (const p of [...searchProducts(ctx.searchText, products), ...getContextProducts(history, products)]) {
+    if (p && !focus.includes(p) && focus.length < 5) focus.push(p);
+  }
+
+  // Gom toàn bộ catalog theo danh mục (giới hạn an toàn để giữ prompt gọn và phản hồi nhanh)
+  const groups = new Map();
+  for (const p of products.slice(0, GEMINI_MAX_CATALOG)) {
+    const key = p.CategoryName || 'Khác';
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(p);
+  }
+  const catalogText = [...groups.entries()]
+    .map(([cat, list]) => `## ${cat} (${list.length} mẫu)\n${list.map(catalogLine).join('\n')}`)
+    .join('\n');
+
   const coupLines = coupons.map(c =>
-    `• ${c.code}: ${c.discountType === 'percent' ? `-${c.discountValue}%` : `-${formatVnd(c.discountValue)}`} (đơn từ ${formatVnd(c.minOrderAmount)})`
+    `• ${c.code}: ${c.discountType === 'percent' ? `-${c.discountValue}%${c.maxDiscount ? ` (tối đa ${formatVnd(c.maxDiscount)})` : ''}` : `-${formatVnd(c.discountValue)}`} cho đơn từ ${formatVnd(c.minOrderAmount)}`
   ).join('\n');
 
   const kHit = searchKnowledge(ctx.text);
   let knowledgeSnippet = '';
   if (kHit && kHit.doc) {
     const docText = docPlainText(kHit.doc, SHOP, formatVnd, { products, coupons });
-    if (docText) {
-      knowledgeSnippet = `\nTri thức web liên quan [${kHit.doc.title}]: ${docText}`;
-    }
+    if (docText) knowledgeSnippet = `\nTRI THỨC WEB LIÊN QUAN [${kHit.doc.title}]: ${docText}`;
   }
 
   let userSnippet = '';
   if (userCtx && userCtx.isLoggedIn) {
-    const latestOrd = userCtx.orders && userCtx.orders[0]
-      ? ` · Đơn mới nhất: #${userCtx.orders[0].OrderCode || userCtx.orders[0].ordercode} (${userCtx.orders[0].Status || userCtx.orders[0].status})`
-      : '';
-    userSnippet = `\nKhách đang đăng nhập: ${userCtx.fullName || 'Hội viên'} · ${userCtx.vip.name} (đã mua ${formatVnd(userCtx.totalSpent)})${latestOrd}`;
+    const o = userCtx.orders && userCtx.orders[0];
+    const latestOrd = o ? ` · Đơn mới nhất: #${o.OrderCode || o.ordercode} (${o.Status || o.status})` : '';
+    userSnippet = `\nKHÁCH ĐANG ĐĂNG NHẬP: ${userCtx.fullName || 'Hội viên'} · ${userCtx.vip.name} (đã mua ${formatVnd(userCtx.totalSpent)})${latestOrd}`;
   }
 
-  return `Tổng kho: ${products.length} mẫu.\nMẫu liên quan nhất:\n${prodLines}${coupLines ? `\nVoucher:\n${coupLines}` : ''}${knowledgeSnippet}${userSnippet}`;
+  return [
+    `TỔNG KHO: ${products.length} mẫu đang kinh doanh.`,
+    focus.length ? `MẪU KHÁCH ĐANG HỎI / VỪA NHẮC:\n${focus.map(catalogLine).join('\n')}` : '',
+    `TOÀN BỘ CATALOG:\n${catalogText}`,
+    coupLines ? `VOUCHER ĐANG HIỆU LỰC:\n${coupLines}` : 'VOUCHER: hiện chưa có mã nào đang hiệu lực.',
+    knowledgeSnippet,
+    userSnippet
+  ].filter(Boolean).join('\n');
+}
+
+// Chuẩn hóa lịch sử hội thoại theo đúng định dạng Gemini: luân phiên user/model, bắt đầu bằng user
+function buildGeminiContents(history, userMessage) {
+  const past = (Array.isArray(history) ? history : []).slice(-10);
+  const last = past[past.length - 1];
+  if (last && last.sender_type === 'user' && String(last.message || '').trim() === String(userMessage || '').trim()) past.pop();
+
+  const contents = [];
+  for (const h of past) {
+    const text = String(h.message || '').trim().slice(0, 500);
+    if (!text) continue;
+    const role = h.sender_type === 'user' ? 'user' : 'model';
+    const piece = h.sender_type === 'admin' ? `[Admin trả lời]: ${text}` : text;
+    const prev = contents[contents.length - 1];
+    if (prev && prev.role === role) prev.parts[0].text += `\n${piece}`;
+    else contents.push({ role, parts: [{ text: piece }] });
+  }
+  while (contents.length && contents[0].role !== 'user') contents.shift();
+
+  const prev = contents[contents.length - 1];
+  if (prev && prev.role === 'user') prev.parts[0].text += `\n${userMessage}`;
+  else contents.push({ role: 'user', parts: [{ text: String(userMessage || '') }] });
+  return contents;
 }
 
 async function callGeminiApi(ctx, userMessage, history, opts) {
@@ -2764,38 +2850,71 @@ async function callGeminiApi(ctx, userMessage, history, opts) {
   if (!apiKey) return null;
   const [{ products, coupons }, userCtx] = await Promise.all([
     getStoreData(),
-    getLoggedInAccountContext(opts)
+    getLoggedInAccountContext(opts).catch(() => null)
   ]);
-  const microContext = buildMicroRagContext(ctx, history, products, coupons, userCtx);
+  const catalogContext = buildGeminiCatalogContext(ctx, history, products, coupons, userCtx);
 
-  const systemInstruction = `Bạn là "Bé Bot Săn Xe 1:64" của "${SHOP.name}".
-Tác giả web: Đỗ Quốc Thịnh & Nguyễn Đình Nam (${CREATORS.university}), Zalo ${SHOP.hotline}.
-Địa chỉ: ${SHOP.address} · Ship SPX ${formatVnd(SHOP.shippingFee)} (Nam 1-2 ngày, Trung 2-3 ngày, Bắc 3-4 ngày + 1 ngày bọc 4 lớp), Freeship từ ${formatVnd(SHOP.freeShipThreshold)}. VietQR PayOS tự động (${SHOP.bankName}), cọc Pre-Order ${Math.round(SHOP.depositRate * 100)}%, hoặc COD cho VIP 4+ (từ 1tr). Giỏ hàng, Yêu thích & Lịch sử Chat đồng bộ 100% đa thiết bị theo tài khoản.
-DỮ LIỆU THỰC TẾ:
-${microContext}
-QUY TẮC: Xưng "em/Bé Bot", gọi "anh/chị". Nhắc xe phải ghi [MGT...] đúng mã thật, không tự bịa giá/tồn kho. Nếu ngoài phạm vi hoặc khiếu nại/mua sỉ >5 xe/gặp người thật thì thêm [ESCALATE] ở cuối.`;
+  const systemInstruction = `Bạn là "Bé Bot Săn Xe 1:64" — trợ lý bán hàng của "${SHOP.name}" (mô hình die-cast 1:64 chính hãng MINI GT, Pop Race...).
+THÔNG TIN SHOP: Địa chỉ ${SHOP.address} · Hotline/Zalo ${SHOP.hotline} · Giờ mở cửa ${SHOP.hours}.
+Ship SPX ${formatVnd(SHOP.shippingFee)} (Nam 1-2 ngày, Trung 2-3 ngày, Bắc 3-4 ngày), Freeship đơn từ ${formatVnd(SHOP.freeShipThreshold)}. Thanh toán VietQR (${SHOP.bankName}); Pre-Order cọc ${Math.round(SHOP.depositRate * 100)}%. Tác giả web: Đỗ Quốc Thịnh & Nguyễn Đình Nam (${CREATORS.university}).
 
-  const past = history.slice(-6);
-  if (past.length && past[past.length - 1].sender_type === 'user' && past[past.length - 1].message === userMessage) past.pop();
-  const contents = past.map(h => ({ role: h.sender_type === 'user' ? 'user' : 'model', parts: [{ text: String(h.message || '').slice(0, 400) }] }));
-  contents.push({ role: 'user', parts: [{ text: userMessage }] });
+DỮ LIỆU THỰC TẾ (đồng bộ trực tiếp từ CSDL, là nguồn sự thật duy nhất):
+${catalogContext}
 
+QUY TẮC BẮT BUỘC:
+1. Chỉ dùng giá, tồn kho, trạng thái, voucher có trong DỮ LIỆU THỰC TẾ. Tuyệt đối không bịa mẫu xe, giá hay mã giảm giá. Giá ghi trong dữ liệu là giá ĐÃ GIẢM.
+2. Khi nhắc tới một mẫu xe, luôn ghi kèm mã trong ngoặc vuông đúng như dữ liệu, ví dụ [MGT00465], để hệ thống hiện thẻ sản phẩm.
+3. Nếu khách hỏi mẫu/hãng không có trong dữ liệu: nói rõ shop chưa có, rồi gợi ý 1-3 mẫu gần giống nhất đang có.
+4. Khi tính tiền: cộng đúng giá, cộng phí ship ${formatVnd(SHOP.shippingFee)} nếu đơn dưới ${formatVnd(SHOP.freeShipThreshold)}, trình bày phép tính ngắn gọn.
+5. Trả lời bằng tiếng Việt, xưng "em", gọi "anh/chị", ngắn gọn (tối đa ~8 dòng), dùng **in đậm** cho giá và tên xe, gạch đầu dòng khi liệt kê.
+6. Nếu câu hỏi là khiếu nại, hoàn tiền, mua sỉ trên ${SHOP.wholesaleQty} xe, đòi gặp người thật, hoặc hoàn toàn ngoài phạm vi shop thì trả lời lịch sự ngắn gọn và thêm [ESCALATE] ở cuối.`;
+
+  const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+  const timer = controller ? setTimeout(() => controller.abort(), GEMINI_TIMEOUT_MS) : null;
   try {
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
+    const generationConfig = { temperature: 0.2, topP: 0.9, maxOutputTokens: 800 };
+    // Tắt chế độ "suy nghĩ" của dòng 2.5 Flash để phản hồi nhanh và không bị cắt cụt câu trả lời
+    if (/2\.5-flash/.test(GEMINI_MODEL)) generationConfig.thinkingConfig = { thinkingBudget: 0 };
+
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      signal: controller ? controller.signal : undefined,
       body: JSON.stringify({
         systemInstruction: { parts: [{ text: systemInstruction }] },
-        contents,
-        generationConfig: { temperature: 0.2, maxOutputTokens: 550 }
+        contents: buildGeminiContents(history, userMessage),
+        generationConfig
       })
     });
-    if (!response.ok) return null;
+    if (!response.ok) {
+      console.warn(`[AI CHAT] Gemini HTTP ${response.status}`);
+      return null;
+    }
     const data = await response.json();
-    return data.candidates?.[0]?.content?.parts?.[0]?.text || null;
-  } catch (_) {
+    const cand = data.candidates && data.candidates[0];
+    if (!cand || cand.finishReason === 'SAFETY') return null;
+    const text = ((cand.content && cand.content.parts) || [])
+      .filter(part => part && typeof part.text === 'string' && !part.thought)
+      .map(part => part.text)
+      .join('')
+      .trim();
+    return text || null;
+  } catch (err) {
+    console.warn('[AI CHAT] Gemini lỗi/timeout:', err.name === 'AbortError' ? `quá ${GEMINI_TIMEOUT_MS}ms` : err.message);
     return null;
+  } finally {
+    if (timer) clearTimeout(timer);
   }
+}
+
+// Gỡ các mã [SKU] Gemini nhắc tới nhưng không tồn tại trong kho (tránh hiển thị mã bịa)
+function sanitizeGeminiSkus(message) {
+  const known = new Set(cachedProducts.map(p => String(p.Sku || '').toUpperCase()));
+  return String(message || '').replace(/\[([A-Z0-9][A-Z0-9\-_]{1,22})\]/gi, (m, sku) => {
+    const key = sku.toUpperCase();
+    if (key === 'ESCALATE') return m;
+    return known.has(key) ? `[${key}]` : sku;
+  });
 }
 
 // =====================================================================
@@ -2836,44 +2955,42 @@ async function generateBotReply(userMessage, conversationHistory = [], opts = {}
     });
   }
 
-  // B2. Gemini Micro-RAG (nếu có key) — các câu hỏi tra cứu dữ liệu cá nhân (đơn hàng, giỏ hàng, VIP, voucher, tác giả) ưu tiên bộ máy SQL chuẩn xác 100%
-  const preferSqlEngine = ctx.intents.creatorAsk || ctx.intents.orderTracking || ctx.intents.myOrderAsk ||
-                          ctx.intents.myCartAsk || ctx.intents.vipAsk || ctx.intents.couponAsk ||
-                          ctx.intents.howToOrder || Boolean(extractOrderCodeFromText(ctx.raw, cachedProducts)) ||
-                          Boolean(activeOrderCode && isOrderFollowUpQuestion(ctx, cachedProducts)) ||
-                          wasLastTopicCreators(conversationHistory);
-  if (!preferSqlEngine) {
-    const gemini = await callGeminiApi(ctx, userMessage, conversationHistory, opts);
-    if (gemini) {
-      const isEscalated = gemini.includes('[ESCALATE]');
-      const cleanGeminiMsg = gemini.replace(/\[ESCALATE\]/g, '').trim();
-      const geminiSkus = isEscalated ? [] : extractSkusFromText(cleanGeminiMsg);
-      return finalizeBotResult({
-        message: isEscalated ? buildEscalationMessage('not_understood', ctx.raw) : cleanGeminiMsg,
-        isEscalated,
-        confident: !isEscalated,
-        suggestions: ['Xe nào đang giảm giá?', 'Shop có mã giảm giá không?', 'Ai là người tạo web này?'],
-        matchedProducts: geminiSkus,
-        reason: isEscalated ? 'not_understood' : undefined
-      });
-    }
-  }
-
-  // B3. Bộ máy suy luận ngữ nghĩa nội bộ v5
+  // B2. Bộ máy suy luận nội bộ (SQL + RAM) chạy TRƯỚC: phản hồi tức thì, số liệu khớp 100% CSDL
+  let engineRes = null;
   try {
-    const engineRes = await runEngine(ctx, conversationHistory, opts);
-    return finalizeBotResult(engineRes);
+    engineRes = await runEngine(ctx, conversationHistory, opts);
   } catch (err) {
-    console.warn('[AI CHAT v5] Lỗi bộ máy suy luận:', err.message);
+    console.warn('[AI CHAT] Lỗi bộ máy suy luận:', err.message);
+  }
+  const engineUnderstood = engineRes && !(engineRes.isEscalated && engineRes.reason === 'not_understood');
+  if (engineUnderstood) return finalizeBotResult(engineRes);
+
+  // B3. Bộ máy nội bộ chưa hiểu -> nhờ Gemini (đã nạp toàn bộ catalog thật) trả lời trước khi phải chuyển Admin
+  const gemini = await callGeminiApi(ctx, userMessage, conversationHistory, opts);
+  if (gemini) {
+    const isEscalated = gemini.includes('[ESCALATE]');
+    const cleanGeminiMsg = sanitizeGeminiSkus(gemini.replace(/\[ESCALATE\]/g, '').trim());
     return finalizeBotResult({
-      message: buildEscalationMessage('not_understood', ctx.raw),
-      isEscalated: true,
-      confident: false,
-      suggestions: ['Xe nào đang có sẵn?'],
-      matchedProducts: [],
-      reason: 'not_understood'
+      message: isEscalated
+        ? `${cleanGeminiMsg}\n\n${buildEscalationMessage('not_understood', ctx.raw, activeOrderCode)}`.trim()
+        : cleanGeminiMsg,
+      isEscalated,
+      confident: !isEscalated,
+      suggestions: ['Xe nào đang giảm giá?', 'Xe nào đang có sẵn?', 'Shop có mã giảm giá không?'],
+      matchedProducts: isEscalated ? [] : extractSkusFromText(cleanGeminiMsg),
+      reason: isEscalated ? 'not_understood' : undefined
     });
   }
+
+  // B4. Không có Gemini / Gemini lỗi -> chuyển câu hỏi lên Admin kèm ngữ cảnh
+  return finalizeBotResult(engineRes || {
+    message: buildEscalationMessage('not_understood', ctx.raw, activeOrderCode),
+    isEscalated: true,
+    confident: false,
+    suggestions: ['Xe nào đang có sẵn?'],
+    matchedProducts: [],
+    reason: 'not_understood'
+  });
 }
 
 module.exports = {
