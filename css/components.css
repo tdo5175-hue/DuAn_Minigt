@@ -569,8 +569,9 @@
 .nav-mega-dropdown {
   position: absolute;
   top: 100%;
-  left: 0;
-  width: 680px;
+  left: 50%;
+  transform: translateX(-50%) translateY(12px);
+  width: 640px;
   max-width: calc(100vw - 32px);
   background: #ffffff;
   border: 1px solid #e2e8f0;
@@ -580,7 +581,7 @@
   opacity: 0;
   visibility: hidden;
   pointer-events: none;
-  transform: translateY(12px);
+  transform-origin: top center;
   transition: opacity 0.22s ease, transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), visibility 0.22s;
   z-index: 1000;
   box-sizing: border-box;
@@ -591,12 +592,7 @@
   opacity: 1;
   visibility: visible;
   pointer-events: auto;
-  transform: translateY(4px);
-}
-
-.header-nav-item:nth-last-child(-n+2) .nav-mega-dropdown {
-  left: auto;
-  right: 0;
+  transform: translateX(-50%) translateY(4px);
 }
 
 .nav-mega-header {

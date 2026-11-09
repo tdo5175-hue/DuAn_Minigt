@@ -9589,6 +9589,42 @@ function rememberCustomerOrderCode(code) {
   }
 }
 
+function openCustomerTrackingModal() {
+  window.open('https://spx.vn/vi', '_blank', 'noopener,noreferrer');
+}
+window.openCustomerTrackingModal = openCustomerTrackingModal;
+
+// Căn giữa thông minh Mega Dropdown và chống tràn viền màn hình (Edge-Safe Centering)
+function setupMegaDropdownPositioning() {
+  const navDropdownItems = document.querySelectorAll('.header-nav-item.has-dropdown');
+  navDropdownItems.forEach(item => {
+    const dropdown = item.querySelector('.nav-mega-dropdown');
+    if (!dropdown) return;
+
+    const alignDropdown = () => {
+      dropdown.style.left = '50%';
+      dropdown.style.right = 'auto';
+      dropdown.style.transform = 'translateX(-50%) translateY(4px)';
+
+      const rect = dropdown.getBoundingClientRect();
+      const pad = 16;
+      const vw = window.innerWidth || document.documentElement.clientWidth;
+
+      if (rect.left < pad) {
+        const offset = pad - rect.left;
+        dropdown.style.left = `calc(50% + ${Math.round(offset)}px)`;
+      } else if (rect.right > vw - pad) {
+        const offset = rect.right - (vw - pad);
+        dropdown.style.left = `calc(50% - ${Math.round(offset)}px)`;
+      }
+    };
+
+    item.addEventListener('mouseenter', alignDropdown);
+    item.addEventListener('focusin', alignDropdown);
+  });
+}
+window.setupMegaDropdownPositioning = setupMegaDropdownPositioning;
+
 function openTrackingModal() {
   const modal = document.getElementById('trackingModal');
   if (modal) modal.classList.add('active');
@@ -13124,6 +13160,7 @@ document.addEventListener('DOMContentLoaded', () => {
   setupShortcuts();
   initHeroSlider();
   initMagneticNavGlider();
+  setupMegaDropdownPositioning();
   initScrollProgressBar();
   initInteractiveCounters();
   initShowroomCounters();
