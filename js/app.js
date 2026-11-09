@@ -14,7 +14,7 @@ const FALLBACK_PRODUCTS = (typeof window !== 'undefined' && window.api && typeof
     ProductId: 1, id: 1, Sku: 'MGTS0026', CarNumber: 'S026',
     Name: 'Lamborghini Huracán Sterrato All-Terrain Set (Box 4 xe)',
     Slug: 'lamborghini-huracan-sterrato-box-4-xe',
-    CategoryId: 4, CategorySlug: 'undefined', CategoryName: 'undefined',
+    CategoryId: 4, CategorySlug: 'box-sets', CategoryName: 'Box Sets & Combo',
     Brand: 'MINI GT', Scale: '1:64',
     PriceBox: 1850000, PriceCard: 1850000, Price: 1850000, OldPrice: 2100000,
     DiscountPercent: 0, PackagingType: 'box_only',
@@ -28,7 +28,7 @@ const FALLBACK_PRODUCTS = (typeof window !== 'undefined' && window.api && typeof
     ProductId: 2, id: 2, Sku: 'MGT01413', CarNumber: '1413',
     Name: 'Aston Martin AMR24 #18 Lance Stroll 2024 F1 Las Vegas GP',
     Slug: 'aston-martin-amr24-18-lance-stroll-las-vegas-gp',
-    CategoryId: 2, CategorySlug: 'undefined', CategoryName: 'undefined',
+    CategoryId: 2, CategorySlug: 'f1-racing', CategoryName: 'Formula 1 Racing',
     Brand: 'MINI GT', Scale: '1:64',
     PriceBox: 420000, PriceCard: 480000, Price: 378000, OldPrice: 420000,
     DiscountPercent: 10, PackagingType: 'both',
@@ -42,7 +42,7 @@ const FALLBACK_PRODUCTS = (typeof window !== 'undefined' && window.api && typeof
     ProductId: 3, id: 3, Sku: 'MGT01396', CarNumber: '1396',
     Name: 'Aston Martin AMR24 #14 Fernando Alonso 2024 F1 Las Vegas GP',
     Slug: 'aston-martin-amr24-14-fernando-alonso-las-vegas-gp',
-    CategoryId: 2, CategorySlug: 'undefined', CategoryName: 'undefined',
+    CategoryId: 2, CategorySlug: 'f1-racing', CategoryName: 'Formula 1 Racing',
     Brand: 'MINI GT', Scale: '1:64',
     PriceBox: 420000, PriceCard: 480000, Price: 420000, OldPrice: null,
     DiscountPercent: 0, PackagingType: 'both',
@@ -56,7 +56,7 @@ const FALLBACK_PRODUCTS = (typeof window !== 'undefined' && window.api && typeof
     ProductId: 4, id: 4, Sku: 'MGT00550', CarNumber: '550',
     Name: 'Oracle Red Bull Racing RB18 #1 Max Verstappen 2022 Monaco GP',
     Slug: 'oracle-red-bull-racing-rb18-1-max-verstappen-monaco-gp',
-    CategoryId: 2, CategorySlug: 'undefined', CategoryName: 'undefined',
+    CategoryId: 2, CategorySlug: 'f1-racing', CategoryName: 'Formula 1 Racing',
     Brand: 'MINI GT', Scale: '1:64',
     PriceBox: 420000, PriceCard: 480000, Price: 378000, OldPrice: 420000,
     DiscountPercent: 10, PackagingType: 'both',
@@ -70,7 +70,7 @@ const FALLBACK_PRODUCTS = (typeof window !== 'undefined' && window.api && typeof
     ProductId: 5, id: 5, Sku: 'MGT01055', CarNumber: '1055',
     Name: 'LB★WORKS Lamborghini Huracán GT Gravity Racing #5',
     Slug: 'lb-works-lamborghini-huracan-gt-gravity-racing-5',
-    CategoryId: 1, CategorySlug: 'undefined', CategoryName: 'undefined',
+    CategoryId: 1, CategorySlug: 'liberty-walk', CategoryName: 'Liberty Walk LBWK',
     Brand: 'MINI GT', Scale: '1:64',
     PriceBox: 350000, PriceCard: 410000, Price: 350000, OldPrice: null,
     DiscountPercent: 0, PackagingType: 'both',
@@ -84,7 +84,7 @@ const FALLBACK_PRODUCTS = (typeof window !== 'undefined' && window.api && typeof
     ProductId: 6, id: 6, Sku: 'MGT01143', CarNumber: '1143',
     Name: 'Porsche 911 GT3 R #77 AO Racing "Skeleton" 2024 IMSA Petit Le Mans',
     Slug: 'porsche-911-gt3-r-77-ao-racing-skeleton-2024-imsa',
-    CategoryId: 3, CategorySlug: 'undefined', CategoryName: 'undefined',
+    CategoryId: 3, CategorySlug: 'gt-racing', CategoryName: 'IMSA & GT3 Racing',
     Brand: 'MINI GT', Scale: '1:64',
     PriceBox: 390000, PriceCard: 470000, Price: 390000, OldPrice: null,
     DiscountPercent: 0, PackagingType: 'both',
@@ -98,7 +98,7 @@ const FALLBACK_PRODUCTS = (typeof window !== 'undefined' && window.api && typeof
     ProductId: 7, id: 7, Sku: 'MGT01093', CarNumber: '1093',
     Name: 'Porsche 911 GT3 R #77 AO Racing "Roxy" 2024 IMSA Road America',
     Slug: 'porsche-911-gt3-r-77-ao-racing-roxy-2024-imsa',
-    CategoryId: 3, CategorySlug: 'undefined', CategoryName: 'undefined',
+    CategoryId: 3, CategorySlug: 'gt-racing', CategoryName: 'IMSA & GT3 Racing',
     Brand: 'MINI GT', Scale: '1:64',
     PriceBox: 360000, PriceCard: 420000, Price: 342000, OldPrice: 360000,
     DiscountPercent: 5, PackagingType: 'both',
@@ -112,7 +112,7 @@ const FALLBACK_PRODUCTS = (typeof window !== 'undefined' && window.api && typeof
     ProductId: 8, id: 8, Sku: 'MGT00782', CarNumber: '782',
     Name: 'Porsche 911 GT3 R #80 AO Racing "Rexy" 2023 IMSA Sebring 12h',
     Slug: 'porsche-911-gt3-r-80-ao-racing-rexy-2024-imsa',
-    CategoryId: 3, CategorySlug: 'undefined', CategoryName: 'undefined',
+    CategoryId: 3, CategorySlug: 'gt-racing', CategoryName: 'IMSA & GT3 Racing',
     Brand: 'MINI GT', Scale: '1:64',
     PriceBox: 380000, PriceCard: 450000, Price: 380000, OldPrice: 420000,
     DiscountPercent: 0, PackagingType: 'both',
@@ -126,7 +126,7 @@ const FALLBACK_PRODUCTS = (typeof window !== 'undefined' && window.api && typeof
     ProductId: 9, id: 9, Sku: 'MGT01129', CarNumber: '1129',
     Name: 'Lamborghini Huracán GT3 EVO2 #45 DEX Imaging 2024 IMSA Daytona 24h',
     Slug: 'lamborghini-huracan-gt3-evo2-45-dex-imaging-daytona-24h',
-    CategoryId: 3, CategorySlug: 'undefined', CategoryName: 'undefined',
+    CategoryId: 3, CategorySlug: 'gt-racing', CategoryName: 'IMSA & GT3 Racing',
     Brand: 'MINI GT', Scale: '1:64',
     PriceBox: 330000, PriceCard: 390000, Price: 330000, OldPrice: null,
     DiscountPercent: 0, PackagingType: 'both',
@@ -140,7 +140,7 @@ const FALLBACK_PRODUCTS = (typeof window !== 'undefined' && window.api && typeof
     ProductId: 10, id: 10, Sku: 'MGT00465', CarNumber: '465',
     Name: 'LB-Super Silhouette Nissan S15 Silvia Presentation',
     Slug: 'lb-super-silhouette-nissan-s15-silvia-presentation',
-    CategoryId: 1, CategorySlug: 'undefined', CategoryName: 'undefined',
+    CategoryId: 1, CategorySlug: 'liberty-walk', CategoryName: 'Liberty Walk LBWK',
     Brand: 'MINI GT', Scale: '1:64',
     PriceBox: 320000, PriceCard: 370000, Price: 320000, OldPrice: 350000,
     DiscountPercent: 0, PackagingType: 'both',
@@ -154,7 +154,7 @@ const FALLBACK_PRODUCTS = (typeof window !== 'undefined' && window.api && typeof
     ProductId: 11, id: 11, Sku: 'MGT00618', CarNumber: '618',
     Name: 'LB-Super Silhouette Nissan S15 Silvia #23 2022 Goodwood Festival of Speed',
     Slug: 'lb-super-silhouette-nissan-s15-silvia-23-goodwood-fos',
-    CategoryId: 1, CategorySlug: 'undefined', CategoryName: 'undefined',
+    CategoryId: 1, CategorySlug: 'liberty-walk', CategoryName: 'Liberty Walk LBWK',
     Brand: 'MINI GT', Scale: '1:64',
     PriceBox: 340000, PriceCard: 400000, Price: 340000, OldPrice: 380000,
     DiscountPercent: 0, PackagingType: 'both',
@@ -168,7 +168,7 @@ const FALLBACK_PRODUCTS = (typeof window !== 'undefined' && window.api && typeof
     ProductId: 12, id: 12, Sku: 'PR640325', CarNumber: '325',
     Name: 'Pop Race Top Secret GT300 Toyota Supra (A80) Silver Chrome',
     Slug: 'pop-race-toyota-supra-top-secret-gt300-silver-chrome',
-    CategoryId: 5, CategorySlug: 'undefined', CategoryName: 'undefined',
+    CategoryId: 5, CategorySlug: 'partner', CategoryName: 'Pop Race & Secret Chase',
     Brand: 'Pop Race', Scale: '1:64',
     PriceBox: 480000, PriceCard: 480000, Price: 480000, OldPrice: 550000,
     DiscountPercent: 0, PackagingType: 'box_only',
@@ -182,7 +182,7 @@ const FALLBACK_PRODUCTS = (typeof window !== 'undefined' && window.api && typeof
     ProductId: 13, id: 13, Sku: 'PR640118', CarNumber: '118',
     Name: 'Pop Race Nissan Skyline GT-R V8 Drift (Hakosuka) Red Metallic',
     Slug: 'pop-race-nissan-skyline-gt-r-v8-drift-hakosuka-red',
-    CategoryId: 5, CategorySlug: 'undefined', CategoryName: 'undefined',
+    CategoryId: 5, CategorySlug: 'partner', CategoryName: 'Pop Race & Secret Chase',
     Brand: 'Pop Race', Scale: '1:64',
     PriceBox: 450000, PriceCard: 450000, Price: 450000, OldPrice: 490000,
     DiscountPercent: 0, PackagingType: 'box_only',
@@ -196,7 +196,7 @@ const FALLBACK_PRODUCTS = (typeof window !== 'undefined' && window.api && typeof
     ProductId: 14, id: 14, Sku: 'TH640012', CarNumber: 'KH12',
     Name: 'Toyota Yaris WRC #18 Katsuta Takamoto Rally Japan Acrylic Case',
     Slug: 'toyota-yaris-wrc-18-katsuta-takamoto-rally-japan',
-    CategoryId: 5, CategorySlug: 'undefined', CategoryName: 'undefined',
+    CategoryId: 5, CategorySlug: 'partner', CategoryName: 'Pop Race & Secret Chase',
     Brand: 'Kaido House', Scale: '1:64',
     PriceBox: 500000, PriceCard: 500000, Price: 450000, OldPrice: 500000,
     DiscountPercent: 10, PackagingType: 'box_only',
@@ -210,7 +210,7 @@ const FALLBACK_PRODUCTS = (typeof window !== 'undefined' && window.api && typeof
     ProductId: 15, id: 15, Sku: 'MGTS0019', CarNumber: 'S019',
     Name: 'Combo 2 Xe Porsche 911 GT3 R AO Racing Rexy #80 & Roxy #77 Twin Pack',
     Slug: 'combo-2-xe-porsche-911-gt3-r-ao-racing-rexy-roxy',
-    CategoryId: 4, CategorySlug: 'undefined', CategoryName: 'undefined',
+    CategoryId: 4, CategorySlug: 'box-sets', CategoryName: 'Box Sets & Combo',
     Brand: 'MINI GT', Scale: '1:64',
     PriceBox: 750000, PriceCard: 870000, Price: 713000, OldPrice: 750000,
     DiscountPercent: 5, PackagingType: 'both',
@@ -224,7 +224,7 @@ const FALLBACK_PRODUCTS = (typeof window !== 'undefined' && window.api && typeof
     ProductId: 16, id: 16, Sku: 'MGT00642', CarNumber: '642',
     Name: 'Red Bull RB18 #11 Sergio Perez & RB18 #1 Verstappen Pit Crew Box Set',
     Slug: 'red-bull-rb18-verstappen-perez-pit-crew-box-set',
-    CategoryId: 4, CategorySlug: 'undefined', CategoryName: 'undefined',
+    CategoryId: 4, CategorySlug: 'box-sets', CategoryName: 'Box Sets & Combo',
     Brand: 'TSM-Model', Scale: '1:64',
     PriceBox: 1150000, PriceCard: 1150000, Price: 1150000, OldPrice: 1290000,
     DiscountPercent: 0, PackagingType: 'box_only',
@@ -238,7 +238,7 @@ const FALLBACK_PRODUCTS = (typeof window !== 'undefined' && window.api && typeof
     ProductId: 17, id: 17, Sku: 'MGT01055-LW', CarNumber: '1055C',
     Name: 'LB★WORKS Lamborghini Huracán GT Gravity (Bản Vỉ Blister Card)',
     Slug: 'lb-works-lamborghini-huracan-gt-gravity-blister-card',
-    CategoryId: 1, CategorySlug: 'undefined', CategoryName: 'undefined',
+    CategoryId: 1, CategorySlug: 'liberty-walk', CategoryName: 'Liberty Walk LBWK',
     Brand: 'MINI GT', Scale: '1:64',
     PriceBox: 410000, PriceCard: 410000, Price: 410000, OldPrice: 450000,
     DiscountPercent: 0, PackagingType: 'card_only',
@@ -252,7 +252,7 @@ const FALLBACK_PRODUCTS = (typeof window !== 'undefined' && window.api && typeof
     ProductId: 18, id: 18, Sku: 'MGT00688', CarNumber: '688',
     Name: 'LB★WORKS Lamborghini Aventador Limited Edition Matte Black',
     Slug: 'lb-works-lamborghini-aventador-limited-edition-matte-black',
-    CategoryId: 1, CategorySlug: 'undefined', CategoryName: 'undefined',
+    CategoryId: 1, CategorySlug: 'liberty-walk', CategoryName: 'Liberty Walk LBWK',
     Brand: 'MINI GT', Scale: '1:64',
     PriceBox: 380000, PriceCard: 440000, Price: 380000, OldPrice: 420000,
     DiscountPercent: 0, PackagingType: 'both',
@@ -261,13 +261,85 @@ const FALLBACK_PRODUCTS = (typeof window !== 'undefined' && window.api && typeof
     ImageUrl: 'image/Minigt_Lambo_LBWK.jpg',
     Description: 'Siêu bò Lamborghini Aventador độ thân rộng LB★WORKS màu đen nhám kết hợp cánh gió GT cỡ lớn.',
     Status: 'in_stock', IsFeatured: 1, IsNew: 0, soldCount: 0
+  },
+  {
+    ProductId: 56, id: 56, Sku: 'MGT01391', CarNumber: '1391',
+    Name: 'Mini GT - Toyota Vellfire 40 KUHL Metallic Pink 2025',
+    Slug: 'mini-gt-toyota-vellfire-40-kuhl-metallic-pink-2025',
+    CategoryId: 6, CategorySlug: 'minigt', CategoryName: 'MiniGT',
+    Brand: 'MINI GT', Scale: '1:64',
+    PriceBox: 350000, PriceCard: 350000, Price: 350000, OldPrice: null,
+    DiscountPercent: 0, PackagingType: 'box_only',
+    DepositAmount: 105000, QuotaPercent: 90, EditionNote: 'Bản Độ KUHL Metallic Pink',
+    PreOrderDeadline: '2026-12-31', Stock: 10,
+    ImageUrl: 'image/1391.webp',
+    Description: 'Mẫu xe độ Toyota Vellfire 40 phong cách KUHL Racing màu hồng Metallic Pink cực kỳ cuốn hút.',
+    Status: 'pre_order', IsFeatured: 1, IsNew: 1, soldCount: 0
+  },
+  {
+    ProductId: 57, id: 57, Sku: 'MGT01392', CarNumber: '1392',
+    Name: '(PRE-ORDER) Mini GT 1:64 Scania 770S Hooklift Flatbed Orange',
+    Slug: 'pre-order-mini-gt-1-64-scania-770s-hooklift-flatbed-orange',
+    CategoryId: 6, CategorySlug: 'minigt', CategoryName: 'MiniGT',
+    Brand: 'MINI GT', Scale: '1:64',
+    PriceBox: 2399999, PriceCard: 2399999, Price: 2399999, OldPrice: null,
+    DiscountPercent: 0, PackagingType: 'box_only',
+    DepositAmount: 720000, QuotaPercent: 95, EditionNote: 'Xe Đầu Kéo Cẩu Sàn Trượt B8x4NA',
+    PreOrderDeadline: '2026-12-31', Stock: 5,
+    ImageUrl: 'image/1392.webp',
+    Description: 'Siêu phẩm xe đầu kéo Scania 770S sàn trượt Hooklift màu cam rực rỡ, chi tiết cơ khí kim loại tinh xảo.',
+    Status: 'pre_order', IsFeatured: 1, IsNew: 1, soldCount: 0
+  },
+  {
+    ProductId: 58, id: 58, Sku: 'MGT01393', CarNumber: '1393',
+    Name: '(Preorder) Mini GT 1:64 Lotus 78 #5 Mario Andretti 1977 US GP West Winner',
+    Slug: 'preorder-mini-gt-1-64-lotus-78-5-mario-andretti-1977-us-gp-west-winner',
+    CategoryId: 2, CategorySlug: 'f1-racing', CategoryName: 'Formula 1 Racing',
+    Brand: 'MINI GT', Scale: '1:64',
+    PriceBox: 350000, PriceCard: 350000, Price: 350000, OldPrice: null,
+    DiscountPercent: 0, PackagingType: 'box_only',
+    DepositAmount: 105000, QuotaPercent: 92, EditionNote: 'Winner 1977 US GP West - Mario Andretti #5',
+    PreOrderDeadline: '2026-12-31', Stock: 5,
+    ImageUrl: 'image/1393.webp',
+    Description: 'Huyền thoại xe đua F1 Team Lotus 78 số #5 cùng tay đua Mario Andretti vô địch chặng US GP West 1977.',
+    Status: 'pre_order', IsFeatured: 1, IsNew: 1, soldCount: 0
+  },
+  {
+    ProductId: 59, id: 59, Sku: 'MGT01394', CarNumber: '1394',
+    Name: '[Preorder] Mini GT 1:64 Lamborghini Temerario Viola Pasifae',
+    Slug: 'preorder-mini-gt-1-64-lamborghini-temerario-viola-pasifae',
+    CategoryId: 6, CategorySlug: 'minigt', CategoryName: 'MiniGT',
+    Brand: 'MINI GT', Scale: '1:64',
+    PriceBox: 350000, PriceCard: 350000, Price: 350000, OldPrice: null,
+    DiscountPercent: 0, PackagingType: 'box_only',
+    DepositAmount: 105000, QuotaPercent: 88, EditionNote: 'Siêu Xe Mới Nhất Lamborghini Temerario',
+    PreOrderDeadline: '2026-12-31', Stock: 3,
+    ImageUrl: 'image/1394.webp',
+    Description: 'Mẫu siêu xe hybrid thế hệ mới Lamborghini Temerario trong màu áo tím huyền bí Viola Pasifae.',
+    Status: 'pre_order', IsFeatured: 1, IsNew: 1, soldCount: 0
+  },
+  {
+    ProductId: 60, id: 60, Sku: 'MGT01395', CarNumber: '1395',
+    Name: '[Preorder] Mini GT 1:64 Bugatti EB110 GT Azzurro Metallizzato Mondial de l’Automobile 1992',
+    Slug: 'preorder-mini-gt-1-64-bugatti-eb110-gt-azzurro-metallizzato-mondial-de-l-automobile-1992',
+    CategoryId: 6, CategorySlug: 'minigt', CategoryName: 'MiniGT',
+    Brand: 'MINI GT', Scale: '1:64',
+    PriceBox: 320000, PriceCard: 320000, Price: 320000, OldPrice: null,
+    DiscountPercent: 0, PackagingType: 'box_only',
+    DepositAmount: 96000, QuotaPercent: 85, EditionNote: 'Triển lãm Mondial de l\'Automobile 1992',
+    PreOrderDeadline: '2026-12-31', Stock: 6,
+    ImageUrl: 'image/1395.webp',
+    Description: 'Kiệt tác siêu xe thập niên 90 Bugatti EB110 GT màu xanh Azzurro Metallizzato tại triển lãm Paris 1992.',
+    Status: 'pre_order', IsFeatured: 1, IsNew: 1, soldCount: 0
   }
 ];
 
 // =====================================================================
 // 2. BIẾN TRẠNG THÁI ỨNG DỤNG (STATE)
 // =====================================================================
-let allProducts = [];
+let allProducts = (Array.isArray(FALLBACK_PRODUCTS) && FALLBACK_PRODUCTS.length > 0)
+  ? FALLBACK_PRODUCTS.map(p => (window.api && window.api.normalizeProductObject) ? window.api.normalizeProductObject(p) : p)
+  : [];
 let currentFilter = 'all';
 let currentSort = 'default';
 let currentBrandFilter = 'all';
@@ -2742,7 +2814,9 @@ function matchesProductFilter(p, filterKey) {
     2: 'f1-racing',
     3: 'gt-racing',
     4: 'box-sets',
-    5: 'partner'
+    5: 'partner',
+    6: 'minigt',
+    7: 'fast-furious'
   };
 
   const assignedSlugs = new Set();
@@ -2774,7 +2848,9 @@ function matchesProductFilter(p, filterKey) {
     'box_sets': 'box-sets',
     'box-sets': 'box-sets',
     'chase': 'partner',
-    'partner': 'partner'
+    'partner': 'partner',
+    'minigt': 'minigt',
+    'fast-furious': 'fast-furious'
   };
   const canonicalSlug = aliasToSlug[targetKey] || targetKey;
 
@@ -2815,6 +2891,8 @@ function matchesProductFilter(p, filterKey) {
 
   return false;
 }
+window.matchesProductFilter = matchesProductFilter;
+window.productBelongsToCategory = matchesProductFilter;
 
 let catalogCurrentSearch = '';
 
@@ -2830,16 +2908,21 @@ function stripVietnameseTones(str) {
 window.stripVietnameseTones = stripVietnameseTones;
 
 const SEARCH_SYNONYMS = {
-  'cam': 'orange',
-  'orange': 'cam',
-  'tim': 'viola purple',
-  'viola': 'tim',
-  'hong': 'pink',
-  'pink': 'hong',
-  'xe tai': 'scania hooklift flatbed truck',
-  'scania': 'xe tai',
-  'xanh': 'blue azzurro green',
-  'azzurro': 'xanh blue'
+  'f1': ['formula 1', 'formula-1', 'formula1', 'f1-racing'],
+  'formula': ['f1', 'formula 1', 'formula-1'],
+  'lbwk': ['liberty walk', 'lbworks', 'lb-works', 'silhouette'],
+  'lb': ['liberty walk', 'lbwk'],
+  'liberty': ['lbwk', 'liberty walk'],
+  'cam': ['orange'],
+  'orange': ['cam'],
+  'tim': ['viola', 'purple'],
+  'viola': ['tim'],
+  'hong': ['pink'],
+  'pink': ['hong'],
+  'xe tai': ['scania', 'hooklift', 'flatbed'],
+  'scania': ['xe tai', 'hooklift', 'flatbed'],
+  'xanh': ['blue', 'azzurro', 'green'],
+  'azzurro': ['xanh', 'blue']
 };
 
 function isProductSearchMatch(product, searchQuery) {
@@ -2856,10 +2939,12 @@ function isProductSearchMatch(product, searchQuery) {
   const carNum = String(product.CarNumber || product.carNumber || '');
   const brand = String(product.Brand || product.brand || '');
   const catName = String(product.CategoryName || product.categoryName || (product.category && product.category.name) || '');
+  const catSlug = String(product.CategorySlug || product.categorySlug || (product.category && product.category.slug) || '');
+  const catId = Number(product.CategoryId || product.categoryId || (product.category && product.category.id) || 0);
   const edition = String(product.EditionNote || product.editionNote || '');
   const desc = String(product.Description || product.description || '');
 
-  const rawHaystack = `${name} ${sku} ${carNum} ${brand} ${catName} ${edition} ${desc}`.toLowerCase();
+  const rawHaystack = `${name} ${sku} ${carNum} ${brand} ${catName} ${catSlug} ${edition} ${desc}`.toLowerCase();
   const normHaystack = stripVietnameseTones(rawHaystack);
 
   const numOnlySku = sku.replace(/\D/g, '').replace(/^0+/, '');
@@ -2869,9 +2954,17 @@ function isProductSearchMatch(product, searchQuery) {
   }
 
   return qTokens.every(tok => {
+    if (tok === 'f1') {
+      if (catId === 2 || catSlug === 'f1-racing' || catName.toLowerCase().includes('formula 1')) return true;
+      if (/\bf1\b/i.test(name) || /\bf1\b/i.test(edition) || rawHaystack.includes('f1-racing')) return true;
+      return false;
+    }
     if (normHaystack.includes(tok) || rawHaystack.includes(tok)) return true;
     const syn = SEARCH_SYNONYMS[tok];
-    if (syn && syn.split(/\s+/).some(s => normHaystack.includes(s) || rawHaystack.includes(s))) return true;
+    if (syn) {
+      const synList = Array.isArray(syn) ? syn : [syn];
+      if (synList.some(s => normHaystack.includes(s) || rawHaystack.includes(s))) return true;
+    }
     return false;
   });
 }
@@ -3115,7 +3208,7 @@ function goToCatalogPage(page) {
 function renderF1Section() {
   const container = document.getElementById('f1ProductGrid');
   if (!container) return;
-  const f1List = allProducts.filter(p => p.CategorySlug === 'f1-racing' || p.Name.toLowerCase().includes('f1') || p.Name.toLowerCase().includes('amr24'));
+  const f1List = allProducts.filter(p => matchesProductFilter(p, 'f1-racing') || p.CategorySlug === 'f1-racing' || p.Name.toLowerCase().includes('f1') || p.Name.toLowerCase().includes('amr24'));
   container.innerHTML = f1List.map((p, idx) => createProductCardHTML(p, idx)).join('');
   refreshScrollReveal();
 }
@@ -3123,12 +3216,14 @@ function renderF1Section() {
 function renderBoxSetsSection() {
   const container = document.getElementById('boxSetsProductGrid');
   if (!container) return;
-  const boxList = allProducts.filter(p => p.CategorySlug === 'box-sets' || p.Name.toLowerCase().includes('box') || p.Name.toLowerCase().includes('combo'));
+  const boxList = allProducts.filter(p => matchesProductFilter(p, 'box-sets') || p.CategorySlug === 'box-sets' || p.Name.toLowerCase().includes('box') || p.Name.toLowerCase().includes('combo'));
   container.innerHTML = boxList.map((p, idx) => createProductCardHTML(p, idx)).join('');
   refreshScrollReveal();
 }
 
-let appCategories = [];
+let appCategories = (typeof window !== 'undefined' && window.api && typeof window.api.getSharedCategories === 'function')
+  ? window.api.getSharedCategories()
+  : [];
 
 async function loadAppCategories() {
   try {
@@ -12588,6 +12683,15 @@ document.addEventListener('DOMContentLoaded', () => {
   initInteractiveCounters();
   initShowroomCounters();
   init3DParallaxTilt();
+  // Hiển thị giao diện ngay lập tức với 0ms trễ từ bộ nhớ đệm sản phẩm chuẩn
+  if (Array.isArray(allProducts) && allProducts.length > 0) {
+    try {
+      renderProductsGrid();
+      renderPreOrderQuickRow();
+      syncStaticShowcaseProducts();
+      updateFilterCounts();
+    } catch (_) {}
+  }
   loadProducts().then(() => {
     renderCompareFloatingBar();
     checkUrlHashProduct();

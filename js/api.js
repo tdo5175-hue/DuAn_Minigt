@@ -62,7 +62,10 @@
   const API_BASE = getApiBase();
   let localServerOffline = false;
   try {
-    localServerOffline = typeof sessionStorage !== 'undefined' && sessionStorage.getItem('minigt_local_offline') === 'true';
+    const sessionOff = typeof sessionStorage !== 'undefined' && sessionStorage.getItem('minigt_local_offline') === 'true';
+    const localTs = typeof localStorage !== 'undefined' ? Number(localStorage.getItem('minigt_local_offline_timestamp') || 0) : 0;
+    // Nhớ trạng thái server 5000 offline trong 1 tiếng để mở tab mới không bị nghẽn mạng chờ timeout
+    localServerOffline = sessionOff || (Date.now() - localTs < 60 * 60 * 1000);
   } catch (_) {}
   const SHARED_ORDERS_KEY = 'minigt_shared_orders_v3';
   const SHARED_PRODUCTS_KEY = 'minigt_products_catalog_v5_canonical';
@@ -411,7 +414,9 @@
     { id: 2, CategoryId: 2, slug: 'f1-racing', Slug: 'f1-racing', name: 'Formula 1 Racing', Name: 'Formula 1 Racing', description: 'Xe đua Công thức 1 bản quyền chính thức các đội đua hàng đầu', sortOrder: 2, SortOrder: 2, imageUrl: 'image/f1_redbull.jpg' },
     { id: 3, CategoryId: 3, slug: 'gt-racing', Slug: 'gt-racing', name: 'IMSA & GT3 Racing', Name: 'IMSA & GT3 Racing', description: 'Những chiến binh đường đua sức bền 24h & AO Racing', sortOrder: 3, SortOrder: 3, imageUrl: 'image/roxy_rexy_minigt.webp' },
     { id: 4, CategoryId: 4, slug: 'box-sets', Slug: 'box-sets', name: 'Box Sets & Combo', Name: 'Box Sets & Combo', description: 'Bộ sưu tập nhiều xe và hộp quà giới hạn đặc biệt', sortOrder: 4, SortOrder: 4, imageUrl: 'image/huracan.webp' },
-    { id: 5, CategoryId: 5, slug: 'partner', Slug: 'partner', name: 'Pop Race & Secret Chase', Name: 'Pop Race & Secret Chase', description: 'Thương hiệu đối tác: Pop Race, Kaido House & Secret Chase 1/24', sortOrder: 5, SortOrder: 5, imageUrl: 'image/Poprace_Supra_Secret.webp' }
+    { id: 5, CategoryId: 5, slug: 'partner', Slug: 'partner', name: 'Pop Race & Secret Chase', Name: 'Pop Race & Secret Chase', description: 'Thương hiệu đối tác: Pop Race, Kaido House & Secret Chase 1/24', sortOrder: 5, SortOrder: 5, imageUrl: 'image/Poprace_Supra_Secret.webp' },
+    { id: 6, CategoryId: 6, slug: 'minigt', Slug: 'minigt', name: 'MiniGT', Name: 'MiniGT', description: 'Mô hình xe Mini GT 1:64 chính hãng', sortOrder: 6, SortOrder: 6, imageUrl: 'image/1391.webp' },
+    { id: 7, CategoryId: 7, slug: 'fast-furious', Slug: 'fast-furious', name: 'FAST & THE FURIOUS', Name: 'FAST & THE FURIOUS', description: 'Bộ sưu tập xe Fast & Furious hành động đỉnh cao', sortOrder: 7, SortOrder: 7, imageUrl: 'image/Poprace_Skyline_Chase.webp' }
   ];
 
   const getSharedCategories = () => {
@@ -507,7 +512,9 @@
     2: { id: 2, name: 'Formula 1 Racing', slug: 'f1-racing' },
     3: { id: 3, name: 'IMSA & GT3 Racing', slug: 'gt-racing' },
     4: { id: 4, name: 'Box Sets & Combo', slug: 'box-sets' },
-    5: { id: 5, name: 'Pop Race & Secret Chase', slug: 'partner' }
+    5: { id: 5, name: 'Pop Race & Secret Chase', slug: 'partner' },
+    6: { id: 6, name: 'MiniGT', slug: 'minigt' },
+    7: { id: 7, name: 'FAST & THE FURIOUS', slug: 'fast-furious' }
   };
 
   const DEFAULT_CATALOG_PRODUCTS = [
@@ -730,7 +737,7 @@
     {
       id: 56, ProductId: 56, Sku: 'MGT01391', CarNumber: '1391',
       Name: 'Mini GT - Toyota Vellfire 40 KUHL Metallic Pink 2025',
-      CategoryId: 1, CategorySlug: 'liberty-walk', CategoryName: 'Diecast Collection',
+      CategoryId: 6, CategorySlug: 'minigt', CategoryName: 'MiniGT',
       Brand: 'MINI GT', Scale: '1:64',
       PriceBox: 350000, PriceCard: 350000, DiscountPercent: 0, PackagingType: 'box_only',
       DepositAmount: 105000, QuotaPercent: 90, EditionNote: 'Bản Độ KUHL Metallic Pink',
@@ -742,7 +749,7 @@
     {
       id: 57, ProductId: 57, Sku: 'MGT01392', CarNumber: '1392',
       Name: '(PRE-ORDER) Mini GT 1:64 Scania 770S Hooklift Flatbed Orange',
-      CategoryId: 4, CategorySlug: 'box-sets', CategoryName: 'Xe Tải & Xe Chở Hàng',
+      CategoryId: 6, CategorySlug: 'minigt', CategoryName: 'MiniGT',
       Brand: 'MINI GT', Scale: '1:64',
       PriceBox: 2399999, PriceCard: 2399999, DiscountPercent: 0, PackagingType: 'box_only',
       DepositAmount: 720000, QuotaPercent: 95, EditionNote: 'Xe Đầu Kéo Cẩu Sàn Trượt B8x4NA',
@@ -766,7 +773,7 @@
     {
       id: 59, ProductId: 59, Sku: 'MGT01394', CarNumber: '1394',
       Name: '[Preorder] Mini GT 1:64 Lamborghini Temerario Viola Pasifae',
-      CategoryId: 1, CategorySlug: 'liberty-walk', CategoryName: 'Supercar Diecast',
+      CategoryId: 6, CategorySlug: 'minigt', CategoryName: 'MiniGT',
       Brand: 'MINI GT', Scale: '1:64',
       PriceBox: 350000, PriceCard: 350000, DiscountPercent: 0, PackagingType: 'box_only',
       DepositAmount: 105000, QuotaPercent: 88, EditionNote: 'Siêu Xe Mới Nhất Lamborghini Temerario',
@@ -778,7 +785,7 @@
     {
       id: 60, ProductId: 60, Sku: 'MGT01395', CarNumber: '1395',
       Name: '[Preorder] Mini GT 1:64 Bugatti EB110 GT Azzurro Metallizzato Mondial de l’Automobile 1992',
-      CategoryId: 1, CategorySlug: 'liberty-walk', CategoryName: 'Supercar Diecast',
+      CategoryId: 6, CategorySlug: 'minigt', CategoryName: 'MiniGT',
       Brand: 'MINI GT', Scale: '1:64',
       PriceBox: 320000, PriceCard: 320000, DiscountPercent: 0, PackagingType: 'box_only',
       DepositAmount: 96000, QuotaPercent: 85, EditionNote: 'Triển lãm Mondial de l\'Automobile 1992',
@@ -892,12 +899,12 @@
       id: Number(foundCat.id || foundCat.CategoryId || catId),
       ids: categoryIds,
       name: foundCat.name || foundCat.Name || raw.CategoryName || 'MINI GT 1:64',
-      slug: foundCat.slug || foundCat.Slug || raw.CategorySlug || 'liberty-walk'
+      slug: foundCat.slug || foundCat.Slug || raw.CategorySlug || 'minigt'
     } : {
       id: catId,
       ids: categoryIds,
       name: raw.CategoryName || (raw.category && raw.category.name) || 'MINI GT 1:64',
-      slug: raw.CategorySlug || (raw.category && raw.category.slug) || 'liberty-walk'
+      slug: raw.CategorySlug || (raw.category && raw.category.slug) || 'minigt'
     };
 
     const packagingType = raw.packagingType || raw.PackagingType || 'both';
@@ -1129,6 +1136,44 @@
               p.ImageUrl = 'image/Toyota_Yaris_TrendsHobby.webp';
               p.imageUrl = 'image/Toyota_Yaris_TrendsHobby.webp';
               p.image = 'image/Toyota_Yaris_TrendsHobby.webp';
+            }
+            // Sửa lỗi danh mục LBWK bị gán nhầm cho Vellfire KUHL, Scania, Temerario, Bugatti trong LocalStorage cũ
+            if (pid === 56 || pid === 57 || pid === 59 || pid === 60) {
+              if (p.CategoryId === 1 || p.categoryId === 1 || p.CategorySlug === 'liberty-walk' || p.categorySlug === 'liberty-walk') {
+                p.CategoryId = 6;
+                p.categoryId = 6;
+                p.CategorySlug = 'minigt';
+                p.categorySlug = 'minigt';
+                p.CategoryName = 'MiniGT';
+                p.categoryName = 'MiniGT';
+              }
+            }
+            // Chuẩn hóa Lotus 78 #5 Mario Andretti về đúng danh mục Formula 1 Racing
+            if (pid === 58) {
+              p.CategoryId = 2;
+              p.categoryId = 2;
+              p.CategorySlug = 'f1-racing';
+              p.categorySlug = 'f1-racing';
+              p.CategoryName = 'Formula 1 Racing';
+              p.categoryName = 'Formula 1 Racing';
+            }
+            // Chuẩn hóa Red Bull RB18 Max Verstappen về đúng Formula 1 Racing
+            if (pid === 4) {
+              p.CategoryId = 2;
+              p.categoryId = 2;
+              p.CategorySlug = 'f1-racing';
+              p.categorySlug = 'f1-racing';
+              p.CategoryName = 'Formula 1 Racing';
+              p.categoryName = 'Formula 1 Racing';
+            }
+            // Khắc phục triệt để chuỗi 'undefined' ở CategorySlug/CategoryName
+            if (p.CategorySlug === 'undefined' || p.categorySlug === 'undefined') {
+              const catMap = { 1: { s: 'liberty-walk', n: 'Liberty Walk LBWK' }, 2: { s: 'f1-racing', n: 'Formula 1 Racing' }, 3: { s: 'gt-racing', n: 'IMSA & GT3 Racing' }, 4: { s: 'box-sets', n: 'Box Sets & Combo' }, 5: { s: 'partner', n: 'Pop Race & Secret Chase' }, 6: { s: 'minigt', n: 'MiniGT' } };
+              const cInfo = catMap[p.CategoryId || p.categoryId] || { s: 'minigt', n: 'MiniGT' };
+              p.CategorySlug = cInfo.s;
+              p.categorySlug = cInfo.s;
+              p.CategoryName = cInfo.n;
+              p.categoryName = cInfo.n;
             }
             return normalizeProductObject(p);
           });
@@ -3121,17 +3166,37 @@
     }
 
     let response;
+    const isTargetingLocalDev = isLocalEnvironment() && !shouldUseCloudFirst && !isHttp && primaryUrl.includes(':5000');
     try {
-      response = await fetch(primaryUrl, config);
+      if (isTargetingLocalDev) {
+        // Tối ưu tốc độ: Khi gọi port 5000 nội bộ, đặt timeout nhanh 1500ms để nếu server chưa bật thì lập tức failover sang Vercel Cloud, không để trình duyệt bị treo 1-2 phút (120s TCP SYN timeout)
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 1500);
+        const localConfig = Object.assign({}, config, { signal: controller.signal });
+        try {
+          response = await fetch(primaryUrl, localConfig);
+        } finally {
+          clearTimeout(timeoutId);
+        }
+      } else {
+        response = await fetch(primaryUrl, config);
+      }
+
       if (response && response.ok && !shouldUseCloudFirst && isLocalEnvironment()) {
         localServerOffline = false;
-        try { sessionStorage.removeItem('minigt_local_offline'); } catch (_) {}
+        try {
+          sessionStorage.removeItem('minigt_local_offline');
+          localStorage.removeItem('minigt_local_offline_timestamp');
+        } catch (_) {}
       }
     } catch (netErr) {
-      // Nếu gọi port 5000 thất bại (server local chưa chạy), tự động chuyển tiếp lên Cloud Backend Vercel
+      // Nếu gọi port 5000 thất bại hoặc timeout (server local chưa chạy), tự động chuyển tiếp lên Cloud Backend Vercel
       if (isLocalEnvironment() && !isHttp && API_BASE && API_BASE !== CLOUD_BACKEND_URL && !shouldUseCloudFirst) {
         localServerOffline = true;
-        try { sessionStorage.setItem('minigt_local_offline', 'true'); } catch (_) {}
+        try {
+          sessionStorage.setItem('minigt_local_offline', 'true');
+          localStorage.setItem('minigt_local_offline_timestamp', String(Date.now()));
+        } catch (_) {}
         try {
           const cloudUrl = CLOUD_BACKEND_URL + endpoint;
           response = await fetch(cloudUrl, config);

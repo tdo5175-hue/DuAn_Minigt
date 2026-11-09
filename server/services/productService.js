@@ -325,7 +325,6 @@ const SELECT_PRODUCT = `
  * Truy vấn danh sách sản phẩm có lọc, tìm kiếm, sắp xếp, phân trang.
  */
 async function listProducts(filters = {}, { includeInactive = false } = {}) {
-  await ensureProductImagesSchema();
   const where = [];
   const params = {};
 
@@ -420,7 +419,6 @@ async function listProducts(filters = {}, { includeInactive = false } = {}) {
  * Lấy chi tiết sản phẩm theo ID, Slug hoặc SKU (kèm ảnh phụ, đánh giá và sản phẩm liên quan)
  */
 async function getProductByIdOrSlug(idOrSlug, { includeInactive = false } = {}) {
-  await ensureProductImagesSchema();
   const isNum = /^\d+$/.test(String(idOrSlug));
   const cond = isNum ? 'p.ProductId = @val' : '(p.Slug = @val OR p.Sku = @val)';
   const activeCond = includeInactive ? '' : 'AND p.IsActive = TRUE';
@@ -483,7 +481,6 @@ async function findPublic(idOrSlug) {
 }
 
 async function listCategories() {
-  await ensureProductImagesSchema();
   const res = await db.query(`
     SELECT c.CategoryId, c.Slug, c.Name, c.Description, c.ImageUrl, c.SortOrder,
            COUNT(p.ProductId) AS ProductCount

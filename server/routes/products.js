@@ -13,7 +13,6 @@ const v = require('../utils/validators');
 router.get('/', async (req, res, next) => {
   try {
     res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
-    await productService.ensureProductImagesSchema();
     const { category, brand, status, search, tag, sort, minPrice, maxPrice, inStockOnly } = req.query;
 
     let queryStr = productService.BASE_SELECT + ' WHERE p.IsActive = TRUE';
