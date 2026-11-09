@@ -10,357 +10,507 @@
 const FALLBACK_PRODUCTS = (typeof window !== 'undefined' && window.api && typeof window.api.getSharedProducts === 'function')
   ? window.api.getSharedProducts()
   : [
-  {
-    ProductId: 1, id: 1, Sku: 'MGTS0026', CarNumber: 'S026',
-    Name: 'Lamborghini Huracán Sterrato All-Terrain Set (Box 4 xe)',
-    Slug: 'lamborghini-huracan-sterrato-box-4-xe',
-    CategoryId: 4, CategorySlug: 'box-sets', CategoryName: 'Box Sets & Combo',
-    Brand: 'MINI GT', Scale: '1:64',
-    PriceBox: 1850000, PriceCard: 1850000, Price: 1850000, OldPrice: 2100000,
-    DiscountPercent: 0, PackagingType: 'box_only',
-    DepositAmount: 500000, QuotaPercent: 92, EditionNote: 'Box Set Đặc Biệt (Giới hạn 3000 bộ)',
-    PreOrderDeadline: '2026-10-30', Stock: 15,
-    ImageUrl: 'image/lambo-sterrato-set.png',
-    Description: 'Bộ 4 xe Lamborghini Huracán Sterrato địa hình kèm hộp trưng bày Collector Box cao cấp chính hãng TSM-Model.',
-    Status: 'pre_order', IsFeatured: 1, IsNew: 1, soldCount: 0
-  },
-  {
-    ProductId: 2, id: 2, Sku: 'MGT01413', CarNumber: '1413',
-    Name: 'Aston Martin AMR24 #18 Lance Stroll 2024 F1 Las Vegas GP',
-    Slug: 'aston-martin-amr24-18-lance-stroll-las-vegas-gp',
-    CategoryId: 2, CategorySlug: 'f1-racing', CategoryName: 'Formula 1 Racing',
-    Brand: 'MINI GT', Scale: '1:64',
-    PriceBox: 420000, PriceCard: 480000, Price: 378000, OldPrice: 420000,
-    DiscountPercent: 10, PackagingType: 'both',
-    DepositAmount: 150000, QuotaPercent: 88, EditionNote: 'Kèm Figure Tay Đua F1 Las Vegas',
-    PreOrderDeadline: '2026-10-30', Stock: 25,
-    ImageUrl: 'image/aston-amr24-stroll.png',
-    Description: 'Mô hình xe đua F1 Aston Martin AMR24 #18 chặng Las Vegas GP 2024, sơn xanh Racing Green ánh kim tuyệt đẹp.',
-    Status: 'pre_order', IsFeatured: 1, IsNew: 1, soldCount: 0
-  },
-  {
-    ProductId: 3, id: 3, Sku: 'MGT01396', CarNumber: '1396',
-    Name: 'Aston Martin AMR24 #14 Fernando Alonso 2024 F1 Las Vegas GP',
-    Slug: 'aston-martin-amr24-14-fernando-alonso-las-vegas-gp',
-    CategoryId: 2, CategorySlug: 'f1-racing', CategoryName: 'Formula 1 Racing',
-    Brand: 'MINI GT', Scale: '1:64',
-    PriceBox: 420000, PriceCard: 480000, Price: 420000, OldPrice: null,
-    DiscountPercent: 0, PackagingType: 'both',
-    DepositAmount: 150000, QuotaPercent: 95, EditionNote: 'Bản Đua Đêm Las Vegas GP',
-    PreOrderDeadline: '2026-10-30', Stock: 18,
-    ImageUrl: 'image/aston-amr24-alonso.png',
-    Description: 'Phiên bản xe đua F1 của huyền thoại Fernando Alonso #14 tại chặng đua đêm Las Vegas 2024.',
-    Status: 'pre_order', IsFeatured: 1, IsNew: 1, soldCount: 0
-  },
-  {
-    ProductId: 4, id: 4, Sku: 'MGT00550', CarNumber: '550',
-    Name: 'Oracle Red Bull Racing RB18 #1 Max Verstappen 2022 Monaco GP',
-    Slug: 'oracle-red-bull-racing-rb18-1-max-verstappen-monaco-gp',
-    CategoryId: 2, CategorySlug: 'f1-racing', CategoryName: 'Formula 1 Racing',
-    Brand: 'MINI GT', Scale: '1:64',
-    PriceBox: 820000, PriceCard: 1080000, Price: 738000, OldPrice: 820000,
-    DiscountPercent: 10, PackagingType: 'both',
-    DepositAmount: 0, QuotaPercent: 100, EditionNote: 'World Champion Edition • Box & Card',
-    PreOrderDeadline: null, Stock: 14,
-    ImageUrl: 'image/f1_redbull.jpg',
-    Description: 'Chiếc xe vô địch thế giới F1 Red Bull RB18 #1 của Max Verstappen với chi tiết khí động học tỉ lệ 1:64 sắc nét.',
-    Status: 'in_stock', IsFeatured: 1, IsNew: 1, soldCount: 0
-  },
-  {
-    ProductId: 5, id: 5, Sku: 'MGT01055', CarNumber: '1055',
-    Name: 'LB★WORKS Lamborghini Huracán GT Gravity Racing #5',
-    Slug: 'lb-works-lamborghini-huracan-gt-gravity-racing-5',
-    CategoryId: 1, CategorySlug: 'liberty-walk', CategoryName: 'Liberty Walk LBWK',
-    Brand: 'MINI GT', Scale: '1:64',
-    PriceBox: 350000, PriceCard: 410000, Price: 333000, OldPrice: 350000,
-    DiscountPercent: 5, PackagingType: 'both',
-    DepositAmount: 0, QuotaPercent: 82, EditionNote: 'Liberty Walk Widebody #5',
-    PreOrderDeadline: null, Stock: 22,
-    ImageUrl: 'image/mgt01055.webp',
-    Description: 'Siêu phẩm độ thân rộng Liberty Walk Lamborghini Huracán GT màu tím xanh Gravity Racing cực kỳ nổi bật.',
-    Status: 'in_stock', IsFeatured: 1, IsNew: 1, soldCount: 0
-  },
-  {
-    ProductId: 6, id: 6, Sku: 'MGT01143', CarNumber: '1143',
-    Name: 'Porsche 911 GT3 R #77 AO Racing "Skeleton" 2024 IMSA Petit Le Mans',
-    Slug: 'porsche-911-gt3-r-77-ao-racing-skeleton-2024-imsa',
-    CategoryId: 3, CategorySlug: 'gt-racing', CategoryName: 'IMSA & GT3 Racing',
-    Brand: 'MINI GT', Scale: '1:64',
-    PriceBox: 390000, PriceCard: 470000, Price: 390000, OldPrice: null,
-    DiscountPercent: 0, PackagingType: 'both',
-    DepositAmount: 150000, QuotaPercent: 89, EditionNote: 'Bản Giới Hạn Halloween Skeleton #77',
-    PreOrderDeadline: '2026-10-30', Stock: 20,
-    ImageUrl: 'image/ske.webp',
-    Description: 'Phiên bản giới hạn Halloween Petit Le Mans với đồ họa bộ xương khủng long Rexy trên nền đen mờ.',
-    Status: 'pre_order', IsFeatured: 1, IsNew: 1, soldCount: 0
-  },
-  {
-    ProductId: 7, id: 7, Sku: 'MGT01093', CarNumber: '1093',
-    Name: 'Porsche 911 GT3 R #77 AO Racing "Roxy" 2024 IMSA Road America',
-    Slug: 'porsche-911-gt3-r-77-ao-racing-roxy-2024-imsa',
-    CategoryId: 3, CategorySlug: 'gt-racing', CategoryName: 'IMSA & GT3 Racing',
-    Brand: 'MINI GT', Scale: '1:64',
-    PriceBox: 360000, PriceCard: 420000, Price: 342000, OldPrice: 360000,
-    DiscountPercent: 5, PackagingType: 'both',
-    DepositAmount: 0, QuotaPercent: 94, EditionNote: 'Khủng Long Hồng Roxy #77',
-    PreOrderDeadline: null, Stock: 12,
-    ImageUrl: 'image/Roxy.webp',
-    Description: 'Mẫu Porsche 911 GT3 R khủng long hồng Roxy #77 siêu hot của đội đua AO Racing tại giải IMSA.',
-    Status: 'in_stock', IsFeatured: 1, IsNew: 1, soldCount: 0
-  },
-  {
-    ProductId: 8, id: 8, Sku: 'MGT00713', CarNumber: '713',
-    Name: 'Porsche 911 GT3 R #80 AO Racing "Rexy" 2023 IMSA Sebring 12h',
-    Slug: 'porsche-911-gt3-r-80-ao-racing-rexy-2024-imsa',
-    CategoryId: 3, CategorySlug: 'gt-racing', CategoryName: 'IMSA & GT3 Racing',
-    Brand: 'MINI GT', Scale: '1:64',
-    PriceBox: 2000000, PriceCard: 2300000, Price: 2000000, OldPrice: null,
-    DiscountPercent: 0, PackagingType: 'both',
-    DepositAmount: 0, QuotaPercent: 96, EditionNote: 'Khủng Long Xanh Rexy #80 • Sebring Winner',
-    PreOrderDeadline: null, Stock: 8,
-    ImageUrl: 'image/rexy.jpg',
-    Description: 'Huyền thoại khủng long xanh Rexy #80 AO Racing được săn đón nhất trong giới sưu tầm MINI GT 1:64.',
-    Status: 'in_stock', IsFeatured: 1, IsNew: 0, soldCount: 0
-  },
-  {
-    ProductId: 9, id: 9, Sku: 'MGT01129', CarNumber: '1129',
-    Name: 'Lamborghini Huracán GT3 EVO2 #45 DEX Imaging 2024 IMSA Daytona 24h',
-    Slug: 'lamborghini-huracan-gt3-evo2-45-dex-imaging-daytona-24h',
-    CategoryId: 3, CategorySlug: 'gt-racing', CategoryName: 'IMSA & GT3 Racing',
-    Brand: 'MINI GT', Scale: '1:64',
-    PriceBox: 330000, PriceCard: 390000, Price: 330000, OldPrice: null,
-    DiscountPercent: 0, PackagingType: 'both',
-    DepositAmount: 0, QuotaPercent: 75, EditionNote: 'Đua Sức Bền Daytona 24 Hours',
-    PreOrderDeadline: null, Stock: 19,
-    ImageUrl: 'image/Minigt_Lambo_GT3.jpg',
-    Description: 'Mẫu xe đua Lamborghini Huracán GT3 EVO2 tham chiến giải đua sức bền 24 Giờ Daytona 2024.',
-    Status: 'in_stock', IsFeatured: 0, IsNew: 1, soldCount: 0
-  },
-  {
-    ProductId: 10, id: 10, Sku: 'MGT00465', CarNumber: '465',
-    Name: 'LB-Super Silhouette Nissan S15 Silvia Presentation',
-    Slug: 'lb-super-silhouette-nissan-s15-silvia-presentation',
-    CategoryId: 1, CategorySlug: 'liberty-walk', CategoryName: 'Liberty Walk LBWK',
-    Brand: 'MINI GT', Scale: '1:64',
-    PriceBox: 999999, PriceCard: 1700000, Price: 999999, OldPrice: null,
-    DiscountPercent: 0, PackagingType: 'both',
-    DepositAmount: 0, QuotaPercent: 90, EditionNote: 'Liberty Walk Group 5 Silhouette • Box & Card',
-    PreOrderDeadline: null, Stock: 16,
-    ImageUrl: 'image/Minigt_s15chop_lbwk.jpg',
-    Description: 'Biểu tượng JDM Nissan Silvia S15 độ bodykit Super Silhouette hầm hố từ nhà độ Liberty Walk Nhật Bản.',
-    Status: 'in_stock', IsFeatured: 1, IsNew: 0, soldCount: 0
-  },
-  {
-    ProductId: 11, id: 11, Sku: 'MGT00618', CarNumber: '618',
-    Name: 'LB-Super Silhouette Nissan S15 Silvia #23 2022 Goodwood Festival of Speed',
-    Slug: 'lb-super-silhouette-nissan-s15-silvia-23-goodwood-fos',
-    CategoryId: 1, CategorySlug: 'liberty-walk', CategoryName: 'Liberty Walk LBWK',
-    Brand: 'MINI GT', Scale: '1:64',
-    PriceBox: 550000, PriceCard: 788888, Price: 495000, OldPrice: 550000,
-    DiscountPercent: 10, PackagingType: 'both',
-    DepositAmount: 0, QuotaPercent: 95, EditionNote: 'Festival of Speed Limited Edition',
-    PreOrderDeadline: null, Stock: 9,
-    ImageUrl: 'image/minigt_618.jpg',
-    Description: 'Phiên bản kỷ niệm màn trình diễn drift của chiếc S15 #23 tại lễ hội tốc độ Goodwood Vương Quốc Anh.',
-    Status: 'in_stock', IsFeatured: 1, IsNew: 0, soldCount: 0
-  },
-  {
-    ProductId: 12, id: 12, Sku: 'PR640325', CarNumber: '325',
-    Name: 'Pop Race Top Secret GT300 Toyota Supra (A80) Silver Chrome',
-    Slug: 'pop-race-toyota-supra-top-secret-gt300-silver-chrome',
-    CategoryId: 5, CategorySlug: 'partner', CategoryName: 'Pop Race & Secret Chase',
-    Brand: 'Pop Race', Scale: '1:64',
-    PriceBox: 480000, PriceCard: 480000, Price: 480000, OldPrice: 550000,
-    DiscountPercent: 0, PackagingType: 'box_only',
-    DepositAmount: 0, QuotaPercent: 92, EditionNote: 'Secret Chase 1/24 • Mở Nắp Ca-pô Động Cơ 2JZ',
-    PreOrderDeadline: null, Stock: 11,
-    ImageUrl: 'image/Poprace_Supra_Secret.webp',
-    Description: 'Phiên bản mạ Chrome bạc đặc biệt của Top Secret Supra GT300, mở được nắp ca-pô chiêm ngưỡng khối động cơ 2JZ.',
-    Status: 'in_stock', IsFeatured: 1, IsNew: 1, soldCount: 0
-  },
-  {
-    ProductId: 13, id: 13, Sku: 'PR640118', CarNumber: '118',
-    Name: 'Pop Race Nissan Skyline GT-R V8 Drift (Hakosuka) Red Metallic',
-    Slug: 'pop-race-nissan-skyline-gt-r-v8-drift-hakosuka-red',
-    CategoryId: 5, CategorySlug: 'partner', CategoryName: 'Pop Race & Secret Chase',
-    Brand: 'Pop Race', Scale: '1:64',
-    PriceBox: 450000, PriceCard: 450000, Price: 450000, OldPrice: 490000,
-    DiscountPercent: 0, PackagingType: 'box_only',
-    DepositAmount: 0, QuotaPercent: 86, EditionNote: 'Tháo Rời Nắp Máy Động Cơ V8',
-    PreOrderDeadline: null, Stock: 14,
-    ImageUrl: 'image/Poprace_Skyline.webp',
-    Description: 'Huyền thoại Hakosuka độ Drift động cơ V8 của Pop Race với sơn đỏ Metallic và bánh lốp cao su thật.',
-    Status: 'in_stock', IsFeatured: 0, IsNew: 1, soldCount: 0
-  },
-  {
-    ProductId: 14, id: 14, Sku: 'TH640012', CarNumber: 'KH12',
-    Name: 'Toyota Yaris WRC #18 Katsuta Takamoto Rally Japan Acrylic Case',
-    Slug: 'toyota-yaris-wrc-18-katsuta-takamoto-rally-japan',
-    CategoryId: 5, CategorySlug: 'partner', CategoryName: 'Pop Race & Secret Chase',
-    Brand: 'Kaido House', Scale: '1:64',
-    PriceBox: 500000, PriceCard: 500000, Price: 450000, OldPrice: 500000,
-    DiscountPercent: 10, PackagingType: 'box_only',
-    DepositAmount: 0, QuotaPercent: 80, EditionNote: 'Kèm Đế Da & Hộp Mica Trưng Bày',
-    PreOrderDeadline: null, Stock: 10,
-    ImageUrl: 'image/Toyota_Yaris_TrendsHobby.webp',
-    Description: 'Mô hình xe đua địa hình WRC Toyota Yaris kèm đế trưng bày và hộp chống bụi Acrylic sang trọng.',
-    Status: 'in_stock', IsFeatured: 0, IsNew: 1, soldCount: 0
-  },
-  {
-    ProductId: 15, id: 15, Sku: 'MGTS0019', CarNumber: 'S019',
-    Name: 'Combo 2 Xe Porsche 911 GT3 R AO Racing Rexy #80 & Roxy #77 Twin Pack',
-    Slug: 'combo-2-xe-porsche-911-gt3-r-ao-racing-rexy-roxy',
-    CategoryId: 4, CategorySlug: 'box-sets', CategoryName: 'Box Sets & Combo',
-    Brand: 'MINI GT', Scale: '1:64',
-    PriceBox: 750000, PriceCard: 870000, Price: 713000, OldPrice: 750000,
-    DiscountPercent: 5, PackagingType: 'both',
-    DepositAmount: 0, QuotaPercent: 95, EditionNote: 'Combo Rexy + Roxy Tiết Kiệm',
-    PreOrderDeadline: null, Stock: 6,
-    ImageUrl: 'image/roxy-rexy-2.webp',
-    Description: 'Bộ đôi khủng long đường đua Rexy #80 (Xanh) và Roxy #77 (Hồng) đóng gói Combo 2 xe ưu đãi.',
-    Status: 'in_stock', IsFeatured: 1, IsNew: 1, soldCount: 0
-  },
-  {
-    ProductId: 16, id: 16, Sku: 'MGT00642', CarNumber: '642',
-    Name: 'Red Bull RB18 #11 Sergio Perez & RB18 #1 Verstappen Pit Crew Box Set',
-    Slug: 'red-bull-rb18-verstappen-perez-pit-crew-box-set',
-    CategoryId: 4, CategorySlug: 'box-sets', CategoryName: 'Box Sets & Combo',
-    Brand: 'TSM-Model', Scale: '1:64',
-    PriceBox: 1150000, PriceCard: 1150000, Price: 1150000, OldPrice: 1290000,
-    DiscountPercent: 0, PackagingType: 'box_only',
-    DepositAmount: 0, QuotaPercent: 88, EditionNote: 'Set 2 Xe F1 + Đội Kỹ Thuật Pit Stop',
-    PreOrderDeadline: null, Stock: 7,
-    ImageUrl: 'image/f1-redbull-live.webp',
-    Description: 'Hộp sa bàn Pit Stop Red Bull Racing gồm 2 xe F1 RB18 và dàn nhân vật kỹ thuật viên thay lốp.',
-    Status: 'in_stock', IsFeatured: 1, IsNew: 0, soldCount: 0
-  },
-  {
-    ProductId: 17, id: 17, Sku: 'MGT01055-LW', CarNumber: '1055C',
-    Name: 'LB★WORKS Lamborghini Huracán GT Gravity (Bản Vỉ Blister Card)',
-    Slug: 'lb-works-lamborghini-huracan-gt-gravity-blister-card',
-    CategoryId: 1, CategorySlug: 'liberty-walk', CategoryName: 'Liberty Walk LBWK',
-    Brand: 'MINI GT', Scale: '1:64',
-    PriceBox: 410000, PriceCard: 410000, Price: 410000, OldPrice: 450000,
-    DiscountPercent: 0, PackagingType: 'card_only',
-    DepositAmount: 0, QuotaPercent: 91, EditionNote: 'Vỉ Nhựa Blister Card Art Nguyên Seal',
-    PreOrderDeadline: null, Stock: 12,
-    ImageUrl: 'image/minig_lambo_lbwk.webp',
-    Description: 'Phiên bản đóng gói Vỉ nhựa cứng Blister Card cao cấp kèm ảnh bìa nghệ thuật Liberty Walk chống cấn góc 100%.',
-    Status: 'in_stock', IsFeatured: 0, IsNew: 1, soldCount: 0
-  },
-  {
-    ProductId: 18, id: 18, Sku: 'MGT00688', CarNumber: '688',
-    Name: 'LB★WORKS Lamborghini Aventador Limited Edition Matte Black',
-    Slug: 'lb-works-lamborghini-aventador-limited-edition-matte-black',
-    CategoryId: 1, CategorySlug: 'liberty-walk', CategoryName: 'Liberty Walk LBWK',
-    Brand: 'MINI GT', Scale: '1:64',
-    PriceBox: 380000, PriceCard: 440000, Price: 380000, OldPrice: 420000,
-    DiscountPercent: 0, PackagingType: 'both',
-    DepositAmount: 0, QuotaPercent: 89, EditionNote: 'Siêu Bò Aventador Widebody Đen Nhám',
-    PreOrderDeadline: null, Stock: 10,
-    ImageUrl: 'image/Minigt_Lambo_LBWK.jpg',
-    Description: 'Siêu bò Lamborghini Aventador độ thân rộng LB★WORKS màu đen nhám kết hợp cánh gió GT cỡ lớn.',
-    Status: 'in_stock', IsFeatured: 1, IsNew: 0, soldCount: 0
-  },
-  {
-    ProductId: 56, id: 56, Sku: 'MGT01391', CarNumber: '1391',
-    Name: 'Mini GT - Toyota Vellfire 40 KUHL Metallic Pink 2025',
-    Slug: 'mini-gt-toyota-vellfire-40-kuhl-metallic-pink-2025',
-    CategoryId: 6, CategorySlug: 'minigt', CategoryName: 'MiniGT',
-    Brand: 'MINI GT', Scale: '1:64',
-    PriceBox: 350000, PriceCard: 350000, Price: 350000, OldPrice: null,
-    DiscountPercent: 0, PackagingType: 'box_only',
-    DepositAmount: 105000, QuotaPercent: 90, EditionNote: 'Bản Độ KUHL Metallic Pink',
-    PreOrderDeadline: '2026-12-31', Stock: 10,
-    ImageUrl: 'image/1391.webp',
-    Description: 'Mẫu xe độ Toyota Vellfire 40 phong cách KUHL Racing màu hồng Metallic Pink cực kỳ cuốn hút.',
-    Status: 'pre_order', IsFeatured: 1, IsNew: 1, soldCount: 0
-  },
-  {
-    ProductId: 57, id: 57, Sku: 'MGT01392', CarNumber: '1392',
-    Name: '(PRE-ORDER) Mini GT 1:64 Scania 770S Hooklift Flatbed Orange',
-    Slug: 'pre-order-mini-gt-1-64-scania-770s-hooklift-flatbed-orange',
-    CategoryId: 6, CategorySlug: 'minigt', CategoryName: 'MiniGT',
-    Brand: 'MINI GT', Scale: '1:64',
-    PriceBox: 2399999, PriceCard: 2399999, Price: 2399999, OldPrice: null,
-    DiscountPercent: 0, PackagingType: 'box_only',
-    DepositAmount: 720000, QuotaPercent: 95, EditionNote: 'Xe Đầu Kéo Cẩu Sàn Trượt B8x4NA',
-    PreOrderDeadline: '2026-12-31', Stock: 5,
-    ImageUrl: 'image/1392.webp',
-    Description: 'Siêu phẩm xe đầu kéo Scania 770S sàn trượt Hooklift màu cam rực rỡ, chi tiết cơ khí kim loại tinh xảo.',
-    Status: 'pre_order', IsFeatured: 1, IsNew: 1, soldCount: 0
-  },
-  {
-    ProductId: 58, id: 58, Sku: 'MGT01393', CarNumber: '1393',
-    Name: '(Preorder) Mini GT 1:64 Lotus 78 #5 Mario Andretti 1977 US GP West Winner',
-    Slug: 'preorder-mini-gt-1-64-lotus-78-5-mario-andretti-1977-us-gp-west-winner',
-    CategoryId: 2, CategorySlug: 'f1-racing', CategoryName: 'Formula 1 Racing',
-    Brand: 'MINI GT', Scale: '1:64',
-    PriceBox: 350000, PriceCard: 350000, Price: 350000, OldPrice: null,
-    DiscountPercent: 0, PackagingType: 'box_only',
-    DepositAmount: 105000, QuotaPercent: 92, EditionNote: 'Winner 1977 US GP West - Mario Andretti #5',
-    PreOrderDeadline: '2026-12-31', Stock: 5,
-    ImageUrl: 'image/1393.webp',
-    Description: 'Huyền thoại xe đua F1 Team Lotus 78 số #5 cùng tay đua Mario Andretti vô địch chặng US GP West 1977.',
-    Status: 'pre_order', IsFeatured: 1, IsNew: 1, soldCount: 0
-  },
-  {
-    ProductId: 59, id: 59, Sku: 'MGT01394', CarNumber: '1394',
-    Name: '[Preorder] Mini GT 1:64 Lamborghini Temerario Viola Pasifae',
-    Slug: 'preorder-mini-gt-1-64-lamborghini-temerario-viola-pasifae',
-    CategoryId: 6, CategorySlug: 'minigt', CategoryName: 'MiniGT',
-    Brand: 'MINI GT', Scale: '1:64',
-    PriceBox: 350000, PriceCard: 350000, Price: 350000, OldPrice: null,
-    DiscountPercent: 0, PackagingType: 'box_only',
-    DepositAmount: 105000, QuotaPercent: 88, EditionNote: 'Siêu Xe Mới Nhất Lamborghini Temerario',
-    PreOrderDeadline: '2026-12-31', Stock: 3,
-    ImageUrl: 'image/1394.webp',
-    Description: 'Mẫu siêu xe hybrid thế hệ mới Lamborghini Temerario trong màu áo tím huyền bí Viola Pasifae.',
-    Status: 'pre_order', IsFeatured: 1, IsNew: 1, soldCount: 0
-  },
-  {
-    ProductId: 60, id: 60, Sku: 'MGT01395', CarNumber: '1395',
-    Name: '[Preorder] Mini GT 1:64 Bugatti EB110 GT Azzurro Metallizzato Mondial de l’Automobile 1992',
-    Slug: 'preorder-mini-gt-1-64-bugatti-eb110-gt-azzurro-metallizzato-mondial-de-l-automobile-1992',
-    CategoryId: 6, CategorySlug: 'minigt', CategoryName: 'MiniGT',
-    Brand: 'MINI GT', Scale: '1:64',
-    PriceBox: 320000, PriceCard: 320000, Price: 320000, OldPrice: null,
-    DiscountPercent: 0, PackagingType: 'box_only',
-    DepositAmount: 96000, QuotaPercent: 85, EditionNote: 'Triển lãm Mondial de l\'Automobile 1992',
-    PreOrderDeadline: '2026-12-31', Stock: 6,
-    ImageUrl: 'image/1395.webp',
-    Description: 'Kiệt tác siêu xe thập niên 90 Bugatti EB110 GT màu xanh Azzurro Metallizzato tại triển lãm Paris 1992.',
-    Status: 'pre_order', IsFeatured: 1, IsNew: 1, soldCount: 0
-  },
-  {
-    ProductId: 52, id: 52, Sku: 'MGT1185', CarNumber: '1185',
-    Name: 'Nissan LB-Super Silhouette S15 SILVIA #555 Team MINI GT Liberty Walk 2025 Formula Drift Halloween Special',
-    Slug: 'nissan-lb-super-silhouette-s15-silvia-555-drift-halloween',
-    CategoryId: 1, CategorySlug: 'liberty-walk', CategoryName: 'Liberty Walk LBWK',
-    Brand: 'MINI GT', Scale: '1:64',
-    PriceBox: 240000, PriceCard: 320000, Price: 204000, OldPrice: 240000,
-    DiscountPercent: 15, PackagingType: 'both',
-    DepositAmount: 0, QuotaPercent: 85, EditionNote: 'Formula Drift Team 2025 Halloween Special',
-    PreOrderDeadline: null, Stock: 14,
-    ImageUrl: 'image/s15_1185.jpg',
-    Description: 'Mẫu xe drift Nissan S15 SILVIA #555 Team MINI GT Liberty Walk độc quyền mùa Halloween 2025, màu sơn vàng đen nổi bật.',
-    Status: 'in_stock', IsFeatured: 1, IsNew: 1, soldCount: 3
-  },
-  {
-    ProductId: 55, id: 55, Sku: 'MGT0618', CarNumber: '618',
-    Name: 'Nissan S15 Silvia LB-Super Silhouette #23 2022 Goodwood Festival of Speed Limited Edition',
-    Slug: 'nissan-s15-silvia-lb-super-silhouette-23-goodwood-fos',
-    CategoryId: 1, CategorySlug: 'liberty-walk', CategoryName: 'Liberty Walk LBWK',
-    Brand: 'MINI GT', Scale: '1:64',
-    PriceBox: 550000, PriceCard: 788888, Price: 495000, OldPrice: 550000,
-    DiscountPercent: 10, PackagingType: 'both',
-    DepositAmount: 0, QuotaPercent: 95, EditionNote: 'Festival of Speed Limited Edition',
-    PreOrderDeadline: null, Stock: 9,
-    ImageUrl: 'image/minigt_618.jpg',
-    Description: 'Phiên bản kỷ niệm màn trình diễn drift của chiếc S15 #23 tại lễ hội tốc độ Goodwood Vương Quốc Anh.',
-    Status: 'in_stock', IsFeatured: 1, IsNew: 0, soldCount: 1
-  }
-];
+    {
+      id: 2, ProductId: 2, Sku: "MGT01413", CarNumber: "1413",
+      Name: "Aston Martin AMR24 #18 Lance Stroll F1 Las Vegas GP",
+      Slug: "aston-martin-amr24-18-lance-stroll-las-vegas-gp",
+      CategoryId: 2, CategorySlug: "f1-racing", CategoryName: "Formula 1 Racing",
+      Brand: "MINI GT", Scale: "1:64", PackagingType: "both",
+      PriceBox: 380000, PriceCard: 440000, DiscountPercent: 10,
+      Price: 342000, OldPrice: 380000,
+      DepositAmount: 0, DepositPercent: 0,
+      ExpectedDelivery: "Tháng 11/2026",
+      EditionNote: "LHD Edition (Verified 2026)",
+      PreOrderDeadline: null,
+      Stock: 22, StockBox: 13, StockCard: 9,
+      ImageUrl: "/api/images/86",
+      CardImageUrl: "/api/images/85",
+      Images: ["/api/images/86","/api/images/85","/api/images/23","/api/images/25"],
+      Description: "Bản quyền Aston Martin F1 Team chính hãng TSM-Model\nLưu ý bản Card sẽ là mã MGT1114",
+      Status: "in_stock", IsFeatured: 1, IsNew: 1,
+      soldCount: 3, soldBox: 2, soldCard: 1
+    },
+    {
+      id: 3, ProductId: 3, Sku: "MGT01396", CarNumber: "1396",
+      Name: "Aston Martin AMR24 #14 Fernando Alonso 2024 F1 Las Vegas GP",
+      Slug: "aston-martin-amr24-14-fernando-alonso-las-vegas-gp",
+      CategoryId: 2, CategorySlug: "f1-racing", CategoryName: "Formula 1 Racing",
+      Brand: "MINI GT", Scale: "1:64", PackagingType: "both",
+      PriceBox: 420000, PriceCard: 480000, DiscountPercent: 0,
+      Price: 420000, OldPrice: null,
+      DepositAmount: 0, DepositPercent: 0,
+      ExpectedDelivery: "Tháng 11/2026",
+      EditionNote: "Bản Đua Đêm Las Vegas GP",
+      PreOrderDeadline: null,
+      Stock: 19, StockBox: 12, StockCard: 7,
+      ImageUrl: "/api/images/26",
+      CardImageUrl: "/api/images/84",
+      Images: ["/api/images/26","/api/images/27","/api/images/84"],
+      Description: "Phiên bản xe đua F1 của huyền thoại Fernando Alonso #14 tại chặng đua đêm Las Vegas 2024.\nLưu ý bản Card sẽ là Mã MGT1113",
+      Status: "in_stock", IsFeatured: 1, IsNew: 1,
+      soldCount: 6, soldBox: 6, soldCard: 0
+    },
+    {
+      id: 4, ProductId: 4, Sku: "MGT00550", CarNumber: "550",
+      Name: "Oracle Red Bull Racing RB18 #1 Max Verstappen 2022 Monaco GP",
+      Slug: "oracle-red-bull-racing-rb18-1-max-verstappen-monaco-gp",
+      CategoryId: 2, CategorySlug: "f1-racing", CategoryName: "Formula 1 Racing",
+      Brand: "MINI GT", Scale: "1:64", PackagingType: "both",
+      PriceBox: 820000, PriceCard: 1080000, DiscountPercent: 10,
+      Price: 738000, OldPrice: 820000,
+      DepositAmount: 0, DepositPercent: 0,
+      ExpectedDelivery: "Tháng 5/2025",
+      EditionNote: "World Champion Edition • Box & Card",
+      PreOrderDeadline: null,
+      Stock: 10, StockBox: 6, StockCard: 4,
+      ImageUrl: "image/f1_redbull.jpg",
+      CardImageUrl: "/api/images/54",
+      Images: ["image/f1_redbull.jpg","/api/images/54"],
+      Description: "Chiếc xe vô địch thế giới F1 Red Bull RB18 #1 của Max Verstappen với chi tiết khí động học tỉ lệ 1:64 sắc nét.",
+      Status: "in_stock", IsFeatured: 1, IsNew: 1,
+      soldCount: 9, soldBox: 8, soldCard: 1
+    },
+    {
+      id: 5, ProductId: 5, Sku: "MGT01055", CarNumber: "1055",
+      Name: "LB★WORKS Lamborghini Huracán GT Gravity Racing",
+      Slug: "lb-works-lamborghini-huracan-gt-gravity-racing-5",
+      CategoryId: 1, CategorySlug: "liberty-walk", CategoryName: "Liberty Walk LBWK",
+      Brand: "MINI GT", Scale: "1:64", PackagingType: "both",
+      PriceBox: 350000, PriceCard: 410000, DiscountPercent: 5,
+      Price: 333000, OldPrice: 350000,
+      DepositAmount: 0, DepositPercent: 0,
+      ExpectedDelivery: "Tháng 8/2025",
+      EditionNote: "Liberty Walk Widebody #5",
+      PreOrderDeadline: null,
+      Stock: 13, StockBox: 5, StockCard: 8,
+      ImageUrl: "image/mgt01055.webp",
+      CardImageUrl: "/api/images/55",
+      Images: ["image/mgt01055.webp","/api/images/55"],
+      Description: "Siêu phẩm độ thân rộng Liberty Walk Lamborghini Huracán GT màu tím xanh Gravity Racing cực kỳ nổi bật.",
+      Status: "in_stock", IsFeatured: 1, IsNew: 1,
+      soldCount: 4, soldBox: 3, soldCard: 1
+    },
+    {
+      id: 6, ProductId: 6, Sku: "MGT01143", CarNumber: "1143",
+      Name: "Porsche 911 GT3 R #77 AO Racing \"Skeleton\" 2024 IMSA Petit Le Mans",
+      Slug: "porsche-911-gt3-r-77-ao-racing-skeleton-2024-imsa",
+      CategoryId: 3, CategorySlug: "gt-racing", CategoryName: "IMSA & GT3 Racing",
+      Brand: "MINI GT", Scale: "1:64", PackagingType: "both",
+      PriceBox: 390000, PriceCard: 470000, DiscountPercent: 0,
+      Price: 390000, OldPrice: null,
+      DepositAmount: 117000, DepositPercent: 30,
+      ExpectedDelivery: "Tháng 11/2026 (Có thể trễ hơn dự kiến)",
+      EditionNote: "Bản Giới Hạn Halloween Skeleton #77",
+      PreOrderDeadline: null,
+      Stock: 27, StockBox: 19, StockCard: 8,
+      ImageUrl: "/api/images/31",
+      CardImageUrl: "/api/images/56",
+      Images: ["/api/images/31","/api/images/32","/api/images/56"],
+      Description: "Phiên bản giới hạn Halloween Petit Le Mans với đồ họa bộ xương khủng long Rexy trên nền đen mờ.",
+      Status: "in_stock", IsFeatured: 1, IsNew: 1,
+      soldCount: 1, soldBox: 1, soldCard: 0
+    },
+    {
+      id: 7, ProductId: 7, Sku: "MGT01052", CarNumber: "1052",
+      Name: "Porsche 911 GT3 R #77 AO Racing \"Roxy\" 2024 IMSA Road America",
+      Slug: "porsche-911-gt3-r-77-ao-racing-roxy-2024-imsa",
+      CategoryId: 3, CategorySlug: "gt-racing", CategoryName: "IMSA & GT3 Racing",
+      Brand: "MINI GT", Scale: "1:64", PackagingType: "both",
+      PriceBox: 360000, PriceCard: 420000, DiscountPercent: 5,
+      Price: 342000, OldPrice: 360000,
+      DepositAmount: 0, DepositPercent: 0,
+      ExpectedDelivery: "Tháng 9/2025",
+      EditionNote: "Khủng Long Hồng Roxy #77",
+      PreOrderDeadline: null,
+      Stock: 11, StockBox: 6, StockCard: 5,
+      ImageUrl: "/api/images/28",
+      CardImageUrl: "/api/images/57",
+      Images: ["/api/images/28","/api/images/29","/api/images/57"],
+      Description: "Mẫu Porsche 911 GT3 R khủng long hồng Roxy #77 siêu hot của đội đua AO Racing tại giải IMSA.",
+      Status: "in_stock", IsFeatured: 1, IsNew: 1,
+      soldCount: 9, soldBox: 9, soldCard: 0
+    },
+    {
+      id: 8, ProductId: 8, Sku: "MGT00713", CarNumber: "713",
+      Name: "Porsche 911 GT3 R #80 AO Racing \"Rexy\" 2023 IMSA Sebring 12h",
+      Slug: "porsche-911-gt3-r-80-ao-racing-rexy-2024-imsa",
+      CategoryId: 3, CategorySlug: "gt-racing", CategoryName: "IMSA & GT3 Racing",
+      Brand: "MINI GT", Scale: "1:64", PackagingType: "both",
+      PriceBox: 2000000, PriceCard: 2300000, DiscountPercent: 0,
+      Price: 2000000, OldPrice: null,
+      DepositAmount: 0, DepositPercent: 0,
+      ExpectedDelivery: "Tháng 3/2025",
+      EditionNote: "Khủng Long Xanh Rexy #80 Best-Seller",
+      PreOrderDeadline: null,
+      Stock: 5, StockBox: 2, StockCard: 3,
+      ImageUrl: "/api/images/30",
+      CardImageUrl: "/api/images/58",
+      Images: ["/api/images/30","/api/images/58"],
+      Description: "Huyền thoại khủng long xanh Rexy #80 AO Racing được săn đón nhất trong giới sưu tầm MINI GT 1:64.",
+      Status: "in_stock", IsFeatured: 1, IsNew: 0,
+      soldCount: 6, soldBox: 6, soldCard: 0
+    },
+    {
+      id: 10, ProductId: 10, Sku: "MGT00465", CarNumber: "465",
+      Name: "LB-Super Silhouette Nissan S15 Silvia Presentation",
+      Slug: "lb-super-silhouette-nissan-s15-silvia-presentation",
+      CategoryId: 1, CategorySlug: "liberty-walk", CategoryName: "Liberty Walk LBWK",
+      Brand: "MINI GT", Scale: "1:64", PackagingType: "both",
+      PriceBox: 999999, PriceCard: 1700000, DiscountPercent: 0,
+      Price: 999999, OldPrice: null,
+      DepositAmount: 0, DepositPercent: 0,
+      ExpectedDelivery: "Tháng 11/2024",
+      EditionNote: "Liberty Walk Group 5 Silhouette",
+      PreOrderDeadline: null,
+      Stock: 8, StockBox: 6, StockCard: 2,
+      ImageUrl: "image/Minigt_s15chop_lbwk.jpg",
+      CardImageUrl: "/api/images/70",
+      Images: ["image/Minigt_s15chop_lbwk.jpg","/api/images/70"],
+      Description: "Biểu tượng JDM Nissan Silvia S15 độ bodykit Super Silhouette hầm hố từ nhà độ Liberty Walk Nhật Bản và Card Nhật LIMITED CỰC HIẾM.",
+      Status: "in_stock", IsFeatured: 1, IsNew: 1,
+      soldCount: 2, soldBox: 2, soldCard: 0
+    },
+    {
+      id: 12, ProductId: 12, Sku: "PR640325", CarNumber: "325",
+      Name: "Pop Race Top Secret GT300 Toyota Supra (A80) Silver Chrome",
+      Slug: "pop-race-toyota-supra-top-secret-gt300-silver-chrome",
+      CategoryId: 5, CategorySlug: "partner", CategoryName: "Pop Race & Secret Chase",
+      Brand: "Pop Race", Scale: "1:64", PackagingType: "box_only",
+      PriceBox: 480000, PriceCard: 480000, DiscountPercent: 0,
+      Price: 480000, OldPrice: null,
+      DepositAmount: 0, DepositPercent: 30,
+      ExpectedDelivery: "Tháng 7/2025",
+      EditionNote: "Secret Chase 1/24 • Mở Nắp Ca-pô Động Cơ 2JZ",
+      PreOrderDeadline: null,
+      Stock: 10, StockBox: 10, StockCard: 0,
+      ImageUrl: "image/Poprace_Supra_Secret.webp",
+      CardImageUrl: null,
+      Images: ["image/Poprace_Supra_Secret.webp"],
+      Description: "Phiên bản mạ Chrome bạc đặc biệt của Top Secret Supra GT300, mở được nắp ca-pô chiêm ngưỡng khối động cơ 2JZ.",
+      Status: "in_stock", IsFeatured: 1, IsNew: 1,
+      soldCount: 1, soldBox: 1, soldCard: 0
+    },
+    {
+      id: 17, ProductId: 17, Sku: "MGT01055-JP", CarNumber: "1055",
+      Name: "LB★WORKS Lamborghini Huracán GT Gravity (Card Nhật)",
+      Slug: "lb-works-lamborghini-huracan-gt-gravity-blister-card",
+      CategoryId: 1, CategorySlug: "liberty-walk", CategoryName: "Liberty Walk LBWK",
+      Brand: "MINI GT", Scale: "1:64", PackagingType: "card_only",
+      PriceBox: 410000, PriceCard: 410000, DiscountPercent: 0,
+      Price: 410000, OldPrice: null,
+      DepositAmount: 0, DepositPercent: 0,
+      ExpectedDelivery: "Tháng 8/2025",
+      EditionNote: "Vỉ Nhựa Blister Card Art Nguyên Seal",
+      PreOrderDeadline: null,
+      Stock: 5, StockBox: 0, StockCard: 5,
+      ImageUrl: "image/minig_lambo_lbwk.webp",
+      CardImageUrl: null,
+      Images: ["image/minig_lambo_lbwk.webp"],
+      Description: "Phiên bản đóng gói Vỉ nhựa cứng Blister Card cao cấp kèm ảnh bìa nghệ thuật Liberty Walk chống cấn góc 100%. Bản độc quyền chỉ bán ở Nhật Bản",
+      Status: "in_stock", IsFeatured: 1, IsNew: 1,
+      soldCount: 1, soldBox: 0, soldCard: 1
+    },
+    {
+      id: 34, ProductId: 34, Sku: "MGT1215", CarNumber: "1215",
+      Name: "BMW M4 GT3 EVO #90 FIST Team AAI 2025 China GT",
+      Slug: "bmw-m4-gt3-evo-90-fist-team-aai-2025-china-gt",
+      CategoryId: 3, CategorySlug: "gt-racing", CategoryName: "IMSA & GT3 Racing",
+      Brand: "MINI GT", Scale: "1:64", PackagingType: "box_only",
+      PriceBox: 200000, PriceCard: 200000, DiscountPercent: 5,
+      Price: 190000, OldPrice: 200000,
+      DepositAmount: 0, DepositPercent: 0,
+      ExpectedDelivery: null,
+      EditionNote: "RHD Edition",
+      PreOrderDeadline: null,
+      Stock: 0, StockBox: 0, StockCard: 0,
+      ImageUrl: "/api/images/10",
+      CardImageUrl: null,
+      Images: ["/api/images/10","/api/images/16","/api/images/17","/api/images/19","/api/images/18"],
+      Description: "BMW M4 GT3 EVO #90 FIST Team AAI 2025 China GT, với phối màu xanh đổi màu cực đẹp và chi tiết",
+      Status: "sold_out", IsFeatured: 1, IsNew: 1,
+      soldCount: 6, soldBox: 6, soldCard: 0
+    },
+    {
+      id: 35, ProductId: 35, Sku: "PR101", CarNumber: "1201",
+      Name: "POPRACE 1:64 LAMBORGHINI HURACÁN STO",
+      Slug: "poprace-1-64-lamborghini-huracan-sto",
+      CategoryId: 5, CategorySlug: "partner", CategoryName: "Pop Race & Secret Chase",
+      Brand: "Pop Race", Scale: "1:64", PackagingType: "box_only",
+      PriceBox: 380000, PriceCard: 380000, DiscountPercent: 5,
+      Price: 361000, OldPrice: 380000,
+      DepositAmount: 0, DepositPercent: 0,
+      ExpectedDelivery: null,
+      EditionNote: "Nguyên Seal Nhà Máy",
+      PreOrderDeadline: null,
+      Stock: 9, StockBox: 9, StockCard: 0,
+      ImageUrl: "image/Poprace_Lambo_Secret.webp",
+      CardImageUrl: null,
+      Images: ["image/Poprace_Lambo_Secret.webp"],
+      Description: "POPRACE 1:64 LAMBORGHINI HURACÁN STO BLU LAUFEY/ARANCIO XANTO PR01201",
+      Status: "in_stock", IsFeatured: 1, IsNew: 1,
+      soldCount: 1, soldBox: 1, soldCard: 0
+    },
+    {
+      id: 36, ProductId: 36, Sku: "MGT1250", CarNumber: "1250",
+      Name: "Toyota Supra BOMEX \" The Fast and the Furious\" Brian O'Conner",
+      Slug: "toyota-supra-bomex-the-fast-and-the-furious-brian-o-conner",
+      CategoryId: 7, CategorySlug: "fast-the-furious", CategoryName: "FAST & THE FURIOUS",
+      Brand: "MINI GT", Scale: "1:64", PackagingType: "card_only",
+      PriceBox: 1000000, PriceCard: 1000000, DiscountPercent: 0,
+      Price: 1000000, OldPrice: null,
+      DepositAmount: 0, DepositPercent: 0,
+      ExpectedDelivery: null,
+      EditionNote: "Box & Blister",
+      PreOrderDeadline: null,
+      Stock: 8, StockBox: 0, StockCard: 8,
+      ImageUrl: "/api/images/68",
+      CardImageUrl: "/api/images/68",
+      Images: ["/api/images/68","/api/images/69","/api/images/11"],
+      Description: "Toyota Supra BOMEX \" The Fast and the Furious\" Brian O'Conner",
+      Status: "in_stock", IsFeatured: 1, IsNew: 1,
+      soldCount: 0, soldBox: 0, soldCard: 0
+    },
+    {
+      id: 37, ProductId: 37, Sku: "MG1132", CarNumber: "1132",
+      Name: "Toyota Supra (A80) Top Secret GT-300 Top Secret Red Chrome",
+      Slug: "toyota-supra-a80-top-secret-gt-300-top-secret-red-chrome",
+      CategoryId: 6, CategorySlug: "minigt", CategoryName: "MiniGT",
+      Brand: "MINI GT", Scale: "1:64", PackagingType: "both",
+      PriceBox: 300000, PriceCard: 350000, DiscountPercent: 10,
+      Price: 270000, OldPrice: 300000,
+      DepositAmount: 0, DepositPercent: 0,
+      ExpectedDelivery: null,
+      EditionNote: "Box & Blister",
+      PreOrderDeadline: null,
+      Stock: 8, StockBox: 4, StockCard: 4,
+      ImageUrl: "/api/images/12",
+      CardImageUrl: "/api/images/62",
+      Images: ["/api/images/12","/api/images/62"],
+      Description: "Toyota Supra (A80) Top Secret GT-300 Top Secret Red Chrome",
+      Status: "in_stock", IsFeatured: 1, IsNew: 1,
+      soldCount: 1, soldBox: 1, soldCard: 0
+    },
+    {
+      id: 38, ProductId: 38, Sku: "PR102", CarNumber: "102",
+      Name: "Mô hình xe Nissan Skyline GT-R R32 1:64 POP RACE",
+      Slug: "mo-hinh-xe-nissan-skyline-gt-r-r32-1-64-pop-race",
+      CategoryId: 5, CategorySlug: "partner", CategoryName: "Pop Race & Secret Chase",
+      Brand: "Pop Race", Scale: "1:64", PackagingType: "box_only",
+      PriceBox: 350000, PriceCard: 350000, DiscountPercent: 10,
+      Price: 315000, OldPrice: 350000,
+      DepositAmount: 0, DepositPercent: 0,
+      ExpectedDelivery: null,
+      EditionNote: "",
+      PreOrderDeadline: null,
+      Stock: 10, StockBox: 10, StockCard: 0,
+      ImageUrl: "/api/images/13",
+      CardImageUrl: null,
+      Images: ["/api/images/13"],
+      Description: "Mô hình xe Nissan Skyline GT-R R32 1:64 POP RACE",
+      Status: "in_stock", IsFeatured: 1, IsNew: 1,
+      soldCount: 8, soldBox: 8, soldCard: 0
+    },
+    {
+      id: 49, ProductId: 49, Sku: "MGT363", CarNumber: "363",
+      Name: "Lamborghini Aventador SVJ Roadster",
+      Slug: "lamborghini-aventador-svj-roadster",
+      CategoryId: 6, CategorySlug: "minigt", CategoryName: "MiniGT",
+      Brand: "MINI GT", Scale: "1:64", PackagingType: "both",
+      PriceBox: 350000, PriceCard: 570000, DiscountPercent: 10,
+      Price: 315000, OldPrice: 350000,
+      DepositAmount: 0, DepositPercent: 0,
+      ExpectedDelivery: null,
+      EditionNote: "Box & Card",
+      PreOrderDeadline: null,
+      Stock: 5, StockBox: 3, StockCard: 2,
+      ImageUrl: "/api/images/36",
+      CardImageUrl: "/api/images/63",
+      Images: ["/api/images/36","/api/images/37","/api/images/38","/api/images/63"],
+      Description: "Mô hình xe ô tô Lamborghini Aventador SVJ Roadster 2019 1:64 của MiniGT là một tác phẩm nghệ thuật mini hoàn hảo dành cho những người yêu thích xe hơi và các mô hình thu nhỏ. Với tỷ lệ 1:64, mô hình này mang đến một bản sao chi tiết và chính xác của chiếc Lamborghini Aventador SVJ Roadster, nổi bật với thiết kế sắc sảo và những đặc điểm độc đáo của mẫu xe thể thao này.",
+      Status: "in_stock", IsFeatured: 1, IsNew: 0,
+      soldCount: 0, soldBox: 0, soldCard: 0
+    },
+    {
+      id: 50, ProductId: 50, Sku: "MGT1060", CarNumber: "1060",
+      Name: "Xe Mini GT CARD Ver MGT01060 Porsche 911 (992) GT3 RS Weissach Package Guards Red",
+      Slug: "porsche-911-gt3-rs",
+      CategoryId: 6, CategorySlug: "minigt", CategoryName: "MiniGT",
+      Brand: "MINI GT", Scale: "1:64", PackagingType: "both",
+      PriceBox: 350000, PriceCard: 400000, DiscountPercent: 0,
+      Price: 350000, OldPrice: null,
+      DepositAmount: 0, DepositPercent: 0,
+      ExpectedDelivery: null,
+      EditionNote: "Box & Blister",
+      PreOrderDeadline: null,
+      Stock: 6, StockBox: 4, StockCard: 2,
+      ImageUrl: "/api/images/39",
+      CardImageUrl: "/api/images/64",
+      Images: ["/api/images/39","/api/images/40","/api/images/41","/api/images/64"],
+      Description: "Xe Mini GT CARD Ver MGT01060 Porsche 911 (992) GT3 RS Weissach Package Guards Red",
+      Status: "in_stock", IsFeatured: 1, IsNew: 1,
+      soldCount: 0, soldBox: 0, soldCard: 0
+    },
+    {
+      id: 51, ProductId: 51, Sku: "MGT1100", CarNumber: "1100",
+      Name: "Lamborghini Countach LB-WORKS",
+      Slug: "lamborghini-countach-lb-works",
+      CategoryId: 1, CategorySlug: "liberty-walk", CategoryName: "Liberty Walk LBWK",
+      Brand: "MINI GT", Scale: "1:64", PackagingType: "both",
+      PriceBox: 250000, PriceCard: 330000, DiscountPercent: 10,
+      Price: 225000, OldPrice: 250000,
+      DepositAmount: 0, DepositPercent: 0,
+      ExpectedDelivery: null,
+      EditionNote: "Widebody Aero",
+      PreOrderDeadline: null,
+      Stock: 10, StockBox: 5, StockCard: 5,
+      ImageUrl: "/api/images/42",
+      CardImageUrl: "/api/images/65",
+      Images: ["/api/images/42","/api/images/43","/api/images/44","/api/images/65"],
+      Description: "Lamborghini Countach LB-WORKS RED 2024 Tokyo Auto Salon. Lamborghini Countach LB-WORKS RED 2024 Tokyo Auto Salon",
+      Status: "in_stock", IsFeatured: 0, IsNew: 0,
+      soldCount: 0, soldBox: 0, soldCard: 0
+    },
+    {
+      id: 52, ProductId: 52, Sku: "MGT1185", CarNumber: "1185",
+      Name: "Nissan LB-Super Silhouette S15 SILVIA #555 Team MINI GT Liberty Walk 2025 Formula Drift Halloween Special",
+      Slug: "nissan-lb-super-silhouette-s15-silvia-555-team-mini-gt-liberty-walk-2025-formula-drift-halloween-special",
+      CategoryId: 1, CategorySlug: "liberty-walk", CategoryName: "Liberty Walk LBWK",
+      Brand: "MINI GT", Scale: "1:64", PackagingType: "both",
+      PriceBox: 240000, PriceCard: 320000, DiscountPercent: 15,
+      Price: 204000, OldPrice: 240000,
+      DepositAmount: 0, DepositPercent: 0,
+      ExpectedDelivery: null,
+      EditionNote: "Box & Blister",
+      PreOrderDeadline: null,
+      Stock: 9, StockBox: 4, StockCard: 5,
+      ImageUrl: "/api/images/45",
+      CardImageUrl: "/api/images/48",
+      Images: ["/api/images/45","/api/images/46","/api/images/47","/api/images/48"],
+      Description: "Nissan LB-Super Silhouette S15 SILVIA #555 Team MINI GT Liberty Walk 2025 Formula Drift Halloween Special",
+      Status: "in_stock", IsFeatured: 1, IsNew: 1,
+      soldCount: 3, soldBox: 0, soldCard: 3
+    },
+    {
+      id: 55, ProductId: 55, Sku: "MGT0618", CarNumber: "618",
+      Name: "Nissan S15 Silvia LB-Super Silhouette #23 2022 Goodwood Festival of Speed Limited Edition",
+      Slug: "nissan-s15-silvia-lb-super-silhouette-23-2022-goodwood-festival-of-speed-limited-edition",
+      CategoryId: 1, CategorySlug: "liberty-walk", CategoryName: "Liberty Walk LBWK",
+      Brand: "MINI GT", Scale: "1:64", PackagingType: "both",
+      PriceBox: 550000, PriceCard: 788888, DiscountPercent: 10,
+      Price: 495000, OldPrice: 550000,
+      DepositAmount: 0, DepositPercent: 0,
+      ExpectedDelivery: null,
+      EditionNote: "",
+      PreOrderDeadline: null,
+      Stock: 20, StockBox: 10, StockCard: 10,
+      ImageUrl: "/api/images/60",
+      CardImageUrl: "/api/images/61",
+      Images: ["/api/images/60","/api/images/61"],
+      Description: "True Scale Miniatures Model Car Compatible with Nissan S15 Silvia LB-Super Silhouette #23 2022 Goodwood Festival of Speed Limited Edition 1/64 Diecast Model Car MGT00618",
+      Status: "in_stock", IsFeatured: 1, IsNew: 1,
+      soldCount: 0, soldBox: 0, soldCard: 0
+    },
+    {
+      id: 56, ProductId: 56, Sku: "MGT01391", CarNumber: "01391",
+      Name: "Mini GT - Toyota Vellfire 40 KUHL Metallic Pink 2025",
+      Slug: "mini-gt-toyota-vellfire-40-kuhl-metallic-pink-2025",
+      CategoryId: 6, CategorySlug: "minigt", CategoryName: "MiniGT",
+      Brand: "MINI GT", Scale: "1:64", PackagingType: "box_only",
+      PriceBox: 350000, PriceCard: 350000, DiscountPercent: 0,
+      Price: 350000, OldPrice: null,
+      DepositAmount: 105000, DepositPercent: 30,
+      ExpectedDelivery: "Tháng 03/2027 (Có thể trễ hơn dự kiến)",
+      EditionNote: "Bản Độ Thân Rộng KUHL Metallic Pink",
+      PreOrderDeadline: null,
+      Stock: 10, StockBox: 10, StockCard: 0,
+      ImageUrl: "/api/images/71",
+      CardImageUrl: null,
+      Images: ["/api/images/71","/api/images/72"],
+      Description: "Mô hình xe độ Toyota Vellfire 40 KUHL Metallic Pink màu hồng cánh sen chính hãng MINI GT 1:64",
+      Status: "pre_order", IsFeatured: 1, IsNew: 1,
+      soldCount: 0, soldBox: 0, soldCard: 0
+    },
+    {
+      id: 57, ProductId: 57, Sku: "MGT01392", CarNumber: "1392",
+      Name: "(PRE-ORDER) Mini GT 1:64 Scania 770S Hooklift Flatbed Orange",
+      Slug: "pre-order-mini-gt-1-64-scania-770s-hooklift-flatbed-orange",
+      CategoryId: 6, CategorySlug: "minigt", CategoryName: "MiniGT",
+      Brand: "MINI GT", Scale: "1:64", PackagingType: "box_only",
+      PriceBox: 2399999, PriceCard: 2399999, DiscountPercent: 0,
+      Price: 2399999, OldPrice: null,
+      DepositAmount: 720000, DepositPercent: 30,
+      ExpectedDelivery: "Tháng 04/2027 (Có thể trễ hơn dự kiến)",
+      EditionNote: "Xe Đầu Kéo Cẩu Sàn Trượt B8x4NA",
+      PreOrderDeadline: null,
+      Stock: 5, StockBox: 5, StockCard: 0,
+      ImageUrl: "/api/images/73",
+      CardImageUrl: null,
+      Images: ["/api/images/73","/api/images/74","/api/images/75","/api/images/76","/api/images/77"],
+      Description: "Mô hình xe tải chở hàng cẩu sàn trượt Scania 770S B8x4NA Hooklift Flatbed màu cam Orange chính hãng MINI GT 1:64",
+      Status: "pre_order", IsFeatured: 1, IsNew: 1,
+      soldCount: 0, soldBox: 0, soldCard: 0
+    },
+    {
+      id: 58, ProductId: 58, Sku: "MGT01393", CarNumber: "1393",
+      Name: "(Preorder) Mini GT 1:64 Lotus 78 #5 Mario Andretti 1977 US GP West Winner",
+      Slug: "preorder-mini-gt-1-64-lotus-78-5-mario-andretti-1977-us-gp-west-winner",
+      CategoryId: 2, CategorySlug: "f1-racing", CategoryName: "Formula 1 Racing",
+      Brand: "MINI GT", Scale: "1:64", PackagingType: "box_only",
+      PriceBox: 350000, PriceCard: 350000, DiscountPercent: 0,
+      Price: 350000, OldPrice: null,
+      DepositAmount: 105000, DepositPercent: 30,
+      ExpectedDelivery: "Tháng 04/2027 (Có thể trễ hơn dự kiến)",
+      EditionNote: "Huyền Thoại F1 US GP West Winner",
+      PreOrderDeadline: null,
+      Stock: 4, StockBox: 4, StockCard: 0,
+      ImageUrl: "/api/images/78",
+      CardImageUrl: null,
+      Images: ["/api/images/78","/api/images/79"],
+      Description: "Mô hình xe đua F1 Team Lotus 78 #5 Mario Andretti bản Winner vô địch 1977 US GP West chính hãng MINI GT 1:64",
+      Status: "pre_order", IsFeatured: 0, IsNew: 0,
+      soldCount: 7, soldBox: 7, soldCard: 0
+    },
+    {
+      id: 59, ProductId: 59, Sku: "MGT01394", CarNumber: "1394",
+      Name: "[Preorder] Mini GT 1:64 Lamborghini Temerario Viola Pasifae",
+      Slug: "preorder-mini-gt-1-64-lamborghini-temerario-viola-pasifae",
+      CategoryId: 6, CategorySlug: "minigt", CategoryName: "MiniGT",
+      Brand: "MINI GT", Scale: "1:64", PackagingType: "box_only",
+      PriceBox: 350000, PriceCard: 350000, DiscountPercent: 0,
+      Price: 350000, OldPrice: null,
+      DepositAmount: 105000, DepositPercent: 30,
+      ExpectedDelivery: "Tháng 05/2027 (Có thể trễ hơn dự kiến)",
+      EditionNote: "Siêu Xe Hybrid V8 Viola Pasifae",
+      PreOrderDeadline: null,
+      Stock: 3, StockBox: 3, StockCard: 0,
+      ImageUrl: "/api/images/80",
+      CardImageUrl: null,
+      Images: ["/api/images/80","/api/images/81"],
+      Description: "Mô hình siêu xe hybrid Lamborghini Temerario màu tím Viola Pasifae chính hãng MINI GT 1:64",
+      Status: "pre_order", IsFeatured: 1, IsNew: 0,
+      soldCount: 3, soldBox: 3, soldCard: 0
+    },
+    {
+      id: 60, ProductId: 60, Sku: "MGT01395", CarNumber: "1395",
+      Name: "[Preorder] Mini GT 1:64 Bugatti EB110 GT Azzurro Metallizzato Mondial de l’Automobile 1992",
+      Slug: "preorder-mini-gt-1-64-bugatti-eb110-gt-azzurro-metallizzato-mondial-de-l-automobile-1992",
+      CategoryId: 6, CategorySlug: "minigt", CategoryName: "MiniGT",
+      Brand: "MINI GT", Scale: "1:64", PackagingType: "box_only",
+      PriceBox: 320000, PriceCard: 320000, DiscountPercent: 0,
+      Price: 320000, OldPrice: null,
+      DepositAmount: 96000, DepositPercent: 30,
+      ExpectedDelivery: "Tháng 04/2027 (Có thể trễ hơn dự kiến)",
+      EditionNote: "Triển lãm Mondial de l'Automobile 1992",
+      PreOrderDeadline: null,
+      Stock: 6, StockBox: 6, StockCard: 0,
+      ImageUrl: "/api/images/82",
+      CardImageUrl: null,
+      Images: ["/api/images/82","/api/images/83"],
+      Description: "Mô hình siêu xe Bugatti EB110 GT màu xanh Azzurro Metallizzato triển lãm Mondial de l Automobile 1992 chính hãng MINI GT 1:64",
+      Status: "pre_order", IsFeatured: 0, IsNew: 0,
+      soldCount: 0, soldBox: 0, soldCard: 0
+    }
+  ];
 
 // =====================================================================
 // 2. BIẾN TRẠNG THÁI ỨNG DỤNG (STATE)
@@ -2491,6 +2641,53 @@ function syncStaticShowcaseProducts() {
       }).join('');
     }
   }
+
+  // 12. Đồng bộ thẻ xe trong Mega Menu Secret Chase (#navMegaSecretGrid)
+  const secretGrid = document.getElementById('navMegaSecretGrid');
+  if (secretGrid) {
+    const targetChaseIds = [12, 35];
+    const topChase = targetChaseIds.map(id => source.find(p => Number(p.ProductId || p.id) === id)).filter(Boolean);
+    if (topChase.length >= 2) {
+      secretGrid.innerHTML = topChase.slice(0, 2).map(p => {
+        const pid = Number(p.ProductId || p.id);
+        const pSku = p.Sku || p.sku || 'PR';
+        const pName = p.Name || p.name || '';
+        const pricing = getProductBoxCardPricing(p);
+        let img = getProductGalleryImages(p)[0] || p.ImageUrl || p.imageUrl || 'image/placeholder-car.svg';
+
+        let badgeText = 'SECRET CHASE';
+        let shortTitle = pName;
+        let shortSub = p.EditionNote || p.editionNote || 'Rarity 1/24';
+
+        if (pid === 12) {
+          badgeText = 'CHASE 1/24';
+          shortTitle = '#PR640325 Supra GT300';
+          shortSub = 'Top Secret Silver Chrome 1/24';
+          img = 'image/Poprace_Supra_Secret.webp';
+        } else if (pid === 35) {
+          badgeText = 'SECRET STO';
+          shortTitle = '#PR101 Huracán STO Secret';
+          shortSub = 'Thân Mở Capo Trước & Sau';
+          img = 'image/Poprace_Lambo_Secret.webp';
+        }
+
+        return `
+          <div class="nav-mega-card" onclick="openQuickView(${pid})">
+            <div class="nav-card-badge" style="background:#b45309; color:#fff;">${badgeText}</div>
+            <img src="${escapeHtml(img)}" alt="${escapeHtml(pName)}" loading="lazy" onerror="this.src='image/placeholder-car.svg'">
+            <div class="nav-card-info">
+              <strong title="${escapeHtml(pName)}">${escapeHtml(shortTitle)}</strong>
+              <span title="${escapeHtml(shortSub)}">${escapeHtml(shortSub)}</span>
+              <div class="nav-card-price">
+                <span class="${pricing.hasDiscount ? 'tag-discount' : ''}">${pricing.hasDiscount ? `Giảm -${pricing.discountPercent}%` : 'Sưu tầm'}</span>
+                <strong>${formatVND(pricing.finalPriceBox)}</strong>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+  }
 }
 window.syncStaticShowcaseProducts = syncStaticShowcaseProducts;
 
@@ -2541,7 +2738,7 @@ try {
     });
   }
   window.addEventListener('storage', (ev) => {
-    if (ev.key === 'minigt_products_catalog_v5_canonical' || ev.key === 'minigt_products_catalog_v4_canonical' || ev.key === 'minigt_realtime_event') {
+    if (ev.key === 'minigt_products_catalog_v6_canonical' || ev.key === 'minigt_products_catalog_v4_canonical' || ev.key === 'minigt_realtime_event') {
       loadProducts();
     }
   });
@@ -2913,11 +3110,18 @@ function selectCardPackaging(productId, packType, event) {
     if (f1Img && cardImgUrl) {
       f1Img.src = normalizedPack === 'card' ? resolveStorefrontImageUrl(cardImgUrl) : 'image/f1_redbull.jpg';
     }
+    const targetF1Prod = (Array.isArray(allProducts) && allProducts.length > 0)
+      ? allProducts.find(p => Number(p.ProductId || p.id) === 4)
+      : null;
+    const f1Pricing = targetF1Prod ? getProductBoxCardPricing(targetF1Prod) : { finalPriceBox: 738000, finalPriceCard: 972000 };
+    const curF1Price = normalizedPack === 'card' ? f1Pricing.finalPriceCard : f1Pricing.finalPriceBox;
+    const curF1Label = normalizedPack === 'card' ? `Bản Vỉ Blister Card (${formatVND(curF1Price)})` : `Bản Hộp Giấy Box Seal (${formatVND(curF1Price)})`;
+
     if (f1Badge) {
-      f1Badge.innerHTML = `<span class="play-icon">▶</span> <strong>#MGT00550</strong> <span style="font-size:11.5px; color:${normalizedPack === 'card' ? '#2563eb' : '#1d4ed8'}; font-weight:700; margin-left:6px;">${normalizedPack === 'card' ? 'Bản Vỉ Blister Card (432.000đ)' : 'Bản Hộp Giấy Box Seal (378.000đ)'}</span>`;
+      f1Badge.innerHTML = `<span class="play-icon">▶</span> <strong>#MGT00550</strong> <span style="font-size:11.5px; color:${normalizedPack === 'card' ? '#2563eb' : '#1d4ed8'}; font-weight:700; margin-left:6px;">${curF1Label}</span>`;
     }
     if (f1BuyBtn) {
-      f1BuyBtn.innerHTML = `<i class="fa-solid fa-flag-checkered"></i> <span>${normalizedPack === 'card' ? 'Mua ngay Bản Card (432.000đ)' : 'Mua ngay Bản Box (378.000đ)'}</span>`;
+      f1BuyBtn.innerHTML = `<i class="fa-solid fa-flag-checkered"></i> <span>${normalizedPack === 'card' ? `Mua ngay Bản Card (${formatVND(curF1Price)})` : `Mua ngay Bản Box (${formatVND(curF1Price)})`}</span>`;
     }
   }
 
@@ -12308,8 +12512,8 @@ const I18N_TRANSLATIONS = {
     s3_badge: '<i class="fa-solid fa-flag-checkered"></i> OFFICIAL FORMULA 1 COLLECTION',
     s3_title: 'ORACLE RED BULL RACING F1 — MAX VERSTAPPEN #1',
     s3_desc: 'Precision 1:64 scale World Champion Oracle Red Bull Racing RB18 / RB19: Multi-element front & rear wings, Pirelli P-Zero rubber tires and official MINI GT racing livery.',
-    s3_pack_box: '<i class="fa-solid fa-box"></i> Paper Box: <strong>378.000đ</strong> (-10%)',
-    s3_pack_card: '<i class="fa-solid fa-shield-halved"></i> Blister Card: <strong>432.000đ</strong> (-10%)',
+    s3_pack_box: '<i class="fa-solid fa-box"></i> Paper Box: <strong>738.000đ</strong> (-10%)',
+    s3_pack_card: '<i class="fa-solid fa-shield-halved"></i> Blister Card: <strong>972.000đ</strong> (-10%)',
     s3_btn1: 'View Red Bull RB18 #1 ➔',
     s3_btn2: 'F1 Series Collection',
     s3Tag: '🏆 FORMULA 1 ORACLE RED BULL RACING 1:64',
@@ -12563,8 +12767,8 @@ const I18N_TRANSLATIONS = {
     s3_badge: '<i class="fa-solid fa-flag-checkered"></i> OFFICIAL FORMULA 1 COLLECTION',
     s3_title: 'ORACLE RED BULL RACING F1 — MAX VERSTAPPEN #1',
     s3_desc: 'Tái hiện mẫu xe vô địch thế giới Oracle Red Bull Racing RB18 / RB19 tỷ lệ 1:64 chuẩn xác: Cánh gió trước sau nhiều tầng, lốp Pirelli P-Zero và tem đấu bản quyền chính hãng từ MINI GT.',
-    s3_pack_box: '<i class="fa-solid fa-box"></i> Bản Box: <strong>378.000đ</strong> (-10%)',
-    s3_pack_card: '<i class="fa-solid fa-shield-halved"></i> Bản Card: <strong>432.000đ</strong> (-10%)',
+    s3_pack_box: '<i class="fa-solid fa-box"></i> Bản Box: <strong>738.000đ</strong> (-10%)',
+    s3_pack_card: '<i class="fa-solid fa-shield-halved"></i> Bản Card: <strong>972.000đ</strong> (-10%)',
     s3_btn1: 'Xem Red Bull RB18 #1 ➔',
     s3_btn2: 'Bộ sưu tập F1 Series',
     s3Tag: '🏆 ĐỘI ĐUA VÔ ĐỊCH FORMULA 1 ORACLE RED BULL RACING',
