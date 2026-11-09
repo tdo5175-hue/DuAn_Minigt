@@ -2250,6 +2250,64 @@ function syncStaticShowcaseProducts() {
       waveListEl.innerHTML = waveRows.join('');
     }
   }
+
+  // 9. Đồng bộ thẻ xe trong Mega Menu Pre-Order (#navMegaPreOrderGrid) từ đúng danh sách xe Pre-Order
+  const preOrderGrid = document.getElementById('navMegaPreOrderGrid');
+  if (preOrderGrid) {
+    const preOrderList = source.filter(p => String(p.Status || p.status || '').toLowerCase() === 'pre_order');
+    if (preOrderList.length > 0) {
+      const topPre = preOrderList.slice(0, 3);
+      preOrderGrid.innerHTML = topPre.map(p => {
+        const pid = p.ProductId || p.id;
+        const pSku = p.Sku || p.sku || 'MGT';
+        const pName = p.Name || p.name || '';
+        const pricing = getProductBoxCardPricing(p);
+        const img = getProductGalleryImages(p)[0] || p.ImageUrl || p.imageUrl || 'image/placeholder-car.svg';
+        const edition = p.EditionNote || p.editionNote || (p.Brand || 'MINI GT 1:64');
+        const depPct = Number(p.DepositPercent || p.depositPercent || 30);
+        const depAmt = Number(p.DepositAmount || p.depositAmount || Math.round((pricing.finalPriceBox * (depPct / 100)) / 1000) * 1000);
+        let badgeText = 'PRE-ORDER';
+        let badgeBg = '#ea580c';
+        if (pName.toLowerCase().includes('scania') || pSku.includes('1392')) {
+          badgeText = 'XE TẢI HOOKLIFT';
+          badgeBg = '#ea580c';
+        } else if (pName.toLowerCase().includes('lotus') || pSku.includes('1393')) {
+          badgeText = 'F1 CLASSIC 1977';
+          badgeBg = '#0284c7';
+        } else if (pName.toLowerCase().includes('temerario') || pSku.includes('1394')) {
+          badgeText = 'HYBRID V8 2025';
+          badgeBg = '#7c3aed';
+        } else if (pName.toLowerCase().includes('kuhl') || pName.toLowerCase().includes('vellfire') || pSku.includes('1391')) {
+          badgeText = 'KUHL METALLIC';
+          badgeBg = '#db2777';
+        } else if (pName.toLowerCase().includes('bugatti') || pSku.includes('1395')) {
+          badgeText = 'PARIS 1992';
+          badgeBg = '#2563eb';
+        }
+
+        const cleanDisplayName = pName
+          .replace(/^\(?\s*(pre-?order|đặt cọc)\s*\)?\s*[:\-•]?\s*/i, '')
+          .replace(/^\[?\s*(pre-?order)\s*\]?\s*[:\-•]?\s*/i, '')
+          .replace(/^Mini GT\s*(1:64)?\s*[:\-•]?\s*/i, '')
+          .trim();
+
+        return `
+          <div class="nav-mega-card" onclick="openQuickView(${pid})">
+            <div class="nav-card-badge" style="background:${badgeBg}; color:#fff;">${badgeText}</div>
+            <img src="${escapeHtml(img)}" alt="${escapeHtml(pName)}" loading="lazy" onerror="this.src='image/placeholder-car.svg'">
+            <div class="nav-card-info">
+              <strong>#${escapeHtml(pSku)} ${escapeHtml(cleanDisplayName)}</strong>
+              <span>${escapeHtml(edition)}</span>
+              <div class="nav-card-price">
+                <span>Cọc ${depPct}%: ${formatCompactPrice(depAmt)}</span>
+                <strong>${formatVND(pricing.finalPriceBox)}</strong>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+  }
 }
 window.syncStaticShowcaseProducts = syncStaticShowcaseProducts;
 
