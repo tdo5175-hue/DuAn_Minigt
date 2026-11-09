@@ -559,7 +559,7 @@
       Name: 'Oracle Red Bull Racing RB18 #1 Max Verstappen 2022 Monaco GP',
       CategoryId: 2, CategorySlug: 'f1-racing', CategoryName: 'Formula 1 Racing',
       Brand: 'MINI GT', Scale: '1:64',
-      PriceBox: 420000, PriceCard: 480000, DiscountPercent: 10, PackagingType: 'both',
+      PriceBox: 820000, PriceCard: 1080000, DiscountPercent: 10, PackagingType: 'both',
       DepositAmount: 0, QuotaPercent: 100, EditionNote: 'World Champion Edition • Box & Card',
       PreOrderDeadline: null, Stock: 14,
       ImageUrl: 'image/f1_redbull.jpg',
@@ -571,7 +571,7 @@
       Name: 'LB★WORKS Lamborghini Huracán GT Gravity Racing #5',
       CategoryId: 1, CategorySlug: 'liberty-walk', CategoryName: 'Liberty Walk LBWK',
       Brand: 'MINI GT', Scale: '1:64',
-      PriceBox: 350000, PriceCard: 410000, DiscountPercent: 0, PackagingType: 'both',
+      PriceBox: 350000, PriceCard: 410000, DiscountPercent: 5, PackagingType: 'both',
       DepositAmount: 0, QuotaPercent: 82, EditionNote: 'Liberty Walk Widebody #5',
       PreOrderDeadline: null, Stock: 22,
       ImageUrl: 'image/mgt01055.webp',
@@ -603,12 +603,12 @@
       Status: 'in_stock', IsFeatured: 1, IsNew: 1, soldCount: 0
     },
     {
-      id: 8, ProductId: 8, Sku: 'MGT00782', CarNumber: '782',
+      id: 8, ProductId: 8, Sku: 'MGT00713', CarNumber: '713',
       Name: 'Porsche 911 GT3 R #80 AO Racing "Rexy" 2023 IMSA Sebring 12h',
       CategoryId: 3, CategorySlug: 'gt-racing', CategoryName: 'IMSA & GT3 Racing',
       Brand: 'MINI GT', Scale: '1:64',
-      PriceBox: 380000, PriceCard: 450000, DiscountPercent: 0, PackagingType: 'both',
-      DepositAmount: 0, QuotaPercent: 96, EditionNote: 'Khủng Long Xanh Rexy #80 Best-Seller',
+      PriceBox: 2000000, PriceCard: 2300000, DiscountPercent: 0, PackagingType: 'both',
+      DepositAmount: 0, QuotaPercent: 96, EditionNote: 'Khủng Long Xanh Rexy #80 • Sebring Winner',
       PreOrderDeadline: null, Stock: 8,
       ImageUrl: 'image/rexy.jpg',
       Description: 'Huyền thoại khủng long xanh Rexy #80 AO Racing được săn đón nhất trong giới sưu tầm MINI GT 1:64.',
@@ -631,8 +631,8 @@
       Name: 'LB-Super Silhouette Nissan S15 Silvia Presentation',
       CategoryId: 1, CategorySlug: 'liberty-walk', CategoryName: 'Liberty Walk LBWK',
       Brand: 'MINI GT', Scale: '1:64',
-      PriceBox: 320000, PriceCard: 370000, DiscountPercent: 0, PackagingType: 'both',
-      DepositAmount: 0, QuotaPercent: 90, EditionNote: 'Liberty Walk Group 5 Silhouette',
+      PriceBox: 999999, PriceCard: 1700000, DiscountPercent: 0, PackagingType: 'both',
+      DepositAmount: 0, QuotaPercent: 90, EditionNote: 'Liberty Walk Group 5 Silhouette • Box & Card',
       PreOrderDeadline: null, Stock: 16,
       ImageUrl: 'image/Minigt_s15chop_lbwk.jpg',
       Description: 'Biểu tượng JDM Nissan Silvia S15 độ bodykit Super Silhouette hầm hố từ nhà độ Liberty Walk Nhật Bản.',
@@ -643,10 +643,10 @@
       Name: 'LB-Super Silhouette Nissan S15 Silvia #23 2022 Goodwood Festival of Speed',
       CategoryId: 1, CategorySlug: 'liberty-walk', CategoryName: 'Liberty Walk LBWK',
       Brand: 'MINI GT', Scale: '1:64',
-      PriceBox: 340000, PriceCard: 400000, DiscountPercent: 0, PackagingType: 'both',
-      DepositAmount: 0, QuotaPercent: 95, EditionNote: 'Kỷ Niệm Lễ Hội Tốc Độ Goodwood #23',
+      PriceBox: 550000, PriceCard: 788888, DiscountPercent: 10, PackagingType: 'both',
+      DepositAmount: 0, QuotaPercent: 95, EditionNote: 'Festival of Speed Limited Edition',
       PreOrderDeadline: null, Stock: 9,
-      ImageUrl: 'image/Minigt_S15_LBWK.jpg',
+      ImageUrl: 'image/minigt_618.jpg',
       Description: 'Phiên bản kỷ niệm màn trình diễn drift của chiếc S15 #23 tại lễ hội tốc độ Goodwood Vương Quốc Anh.',
       Status: 'in_stock', IsFeatured: 1, IsNew: 0, soldCount: 0
     },
@@ -793,6 +793,32 @@
       ImageUrl: 'image/1395.webp',
       Description: 'Kiệt tác siêu xe thập niên 90 Bugatti EB110 GT màu xanh Azzurro Metallizzato tại triển lãm Paris 1992.',
       Status: 'pre_order', IsFeatured: 1, IsNew: 1, soldCount: 0
+    },
+    {
+      id: 52, ProductId: 52, Sku: 'MGT1185', CarNumber: '1185',
+      Name: 'Nissan LB-Super Silhouette S15 SILVIA #555 Team MINI GT Liberty Walk 2025 Formula Drift Halloween Special',
+      Slug: 'nissan-lb-super-silhouette-s15-silvia-555-drift-halloween',
+      CategoryId: 1, CategorySlug: 'liberty-walk', CategoryName: 'Liberty Walk LBWK',
+      Brand: 'MINI GT', Scale: '1:64',
+      PriceBox: 240000, PriceCard: 320000, DiscountPercent: 15, PackagingType: 'both',
+      DepositAmount: 0, QuotaPercent: 85, EditionNote: 'Formula Drift Team 2025 Halloween Special',
+      PreOrderDeadline: null, Stock: 14,
+      ImageUrl: 'image/s15_1185.jpg',
+      Description: 'Mẫu xe drift Nissan S15 SILVIA #555 Team MINI GT Liberty Walk độc quyền mùa Halloween 2025, màu sơn vàng đen nổi bật.',
+      Status: 'in_stock', IsFeatured: 1, IsNew: 1, soldCount: 3
+    },
+    {
+      id: 55, ProductId: 55, Sku: 'MGT0618', CarNumber: '618',
+      Name: 'Nissan S15 Silvia LB-Super Silhouette #23 2022 Goodwood Festival of Speed Limited Edition',
+      Slug: 'nissan-s15-silvia-lb-super-silhouette-23-goodwood-fos',
+      CategoryId: 1, CategorySlug: 'liberty-walk', CategoryName: 'Liberty Walk LBWK',
+      Brand: 'MINI GT', Scale: '1:64',
+      PriceBox: 550000, PriceCard: 788888, DiscountPercent: 10, PackagingType: 'both',
+      DepositAmount: 0, QuotaPercent: 95, EditionNote: 'Festival of Speed Limited Edition',
+      PreOrderDeadline: null, Stock: 9,
+      ImageUrl: 'image/minigt_618.jpg',
+      Description: 'Phiên bản kỷ niệm màn trình diễn drift của chiếc S15 #23 tại lễ hội tốc độ Goodwood Vương Quốc Anh.',
+      Status: 'in_stock', IsFeatured: 1, IsNew: 0, soldCount: 1
     }
   ];
 
@@ -804,10 +830,19 @@
     const apiMatch = url.match(/^(?:https?:\/\/[^\/]+(?::\d+)?)?\/?(?:api\/)?images\/(\d+)(?:\?.*)?$/i);
     if (apiMatch) {
       const imgId = apiMatch[1];
-      // Nếu chạy trên Vercel / Production web (hoặc trên chính cổng 5000):
-      // Luôn trả về đường dẫn tương đối /api/images/:id để trình duyệt tự động dùng đúng domain và https
-      if (!isLocalEnvironment() || (global.location && String(global.location.port) === '5000')) {
+      // Nếu chạy trên Vercel / Production web:
+      if (!isLocalEnvironment()) {
         return `/api/images/${imgId}`;
+      }
+      // Nếu đang mở trực tiếp trên chính cổng của Backend Node (5000):
+      if (global.location && String(global.location.port) === '5000') {
+        return `/api/images/${imgId}`;
+      }
+      // Khi mở qua Live Server (5500, 5501...), file:// hoặc LAN:
+      // Live Server là máy chủ file tĩnh, không có route /api/images/:id -> trỏ thẳng Backend Cloud Vercel để tránh lỗi 404
+      const isLiveServer = global.location && ['5500', '5501', '5502', '5503', '5504', '5505'].includes(String(global.location.port));
+      if (isLiveServer || localServerOffline) {
+        return `${CLOUD_BACKEND_URL.replace(/\/+$/, '')}/api/images/${imgId}`;
       }
       const host = (API_BASE && !localServerOffline)
         ? API_BASE.replace(/\/+$/, '')

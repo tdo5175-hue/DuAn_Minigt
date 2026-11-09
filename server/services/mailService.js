@@ -205,7 +205,7 @@ async function sendOrderConfirmationEmail(order) {
           <div class="footer">
             <p style="margin: 0 0 4px 0;"><strong>MINI GT STORE BIÊN HÒA — SĂN XE BIÊN HÒA</strong></p>
             <p style="margin: 0 0 4px 0;">Showroom: 38/2 Võ Thị Sáu, P. Quyết Thắng, TP. Biên Hòa, Đồng Nai</p>
-            <p style="margin: 0;">Hotline / Zalo hỗ trợ: <strong>0981 400 400</strong> (0988.164.164)</p>
+            <p style="margin: 0;">Hotline / Zalo hỗ trợ: <strong>0981.903.400</strong></p>
           </div>
         </div>
       </body>
@@ -301,14 +301,14 @@ async function sendOrderDeliveredEmail(order) {
             </div>
 
             <p style="font-size: 13px; color: #475569; text-align: center; margin: 20px 0 0;">
-              Nếu bạn có bất kỳ thắc mắc nào về sản phẩm hoặc cần hỗ trợ, đừng ngần ngại liên hệ với chúng tôi qua Hotline / Zalo: <strong style="color: #dc2626;">0981 400 400</strong>.
+              Nếu bạn có bất kỳ thắc mắc nào về sản phẩm hoặc cần hỗ trợ, đừng ngần ngại liên hệ với chúng tôi qua Hotline / Zalo: <strong style="color: #dc2626;">0981.903.400</strong>.
             </p>
           </div>
 
           <div class="footer">
             <p style="margin: 0 0 4px 0;"><strong>MINI GT STORE BIÊN HÒA — SĂN XE BIÊN HÒA</strong></p>
             <p style="margin: 0 0 4px 0;">Showroom: 38/2 Võ Thị Sáu, P. Quyết Thắng, TP. Biên Hòa, Đồng Nai</p>
-            <p style="margin: 0;">Hotline / Zalo hỗ trợ: <strong>0981 400 400</strong> (0988.164.164)</p>
+            <p style="margin: 0;">Hotline / Zalo hỗ trợ: <strong>0981.903.400</strong></p>
           </div>
         </div>
       </body>

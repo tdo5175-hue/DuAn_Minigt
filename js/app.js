@@ -58,7 +58,7 @@ const FALLBACK_PRODUCTS = (typeof window !== 'undefined' && window.api && typeof
     Slug: 'oracle-red-bull-racing-rb18-1-max-verstappen-monaco-gp',
     CategoryId: 2, CategorySlug: 'f1-racing', CategoryName: 'Formula 1 Racing',
     Brand: 'MINI GT', Scale: '1:64',
-    PriceBox: 420000, PriceCard: 480000, Price: 378000, OldPrice: 420000,
+    PriceBox: 820000, PriceCard: 1080000, Price: 738000, OldPrice: 820000,
     DiscountPercent: 10, PackagingType: 'both',
     DepositAmount: 0, QuotaPercent: 100, EditionNote: 'World Champion Edition • Box & Card',
     PreOrderDeadline: null, Stock: 14,
@@ -72,8 +72,8 @@ const FALLBACK_PRODUCTS = (typeof window !== 'undefined' && window.api && typeof
     Slug: 'lb-works-lamborghini-huracan-gt-gravity-racing-5',
     CategoryId: 1, CategorySlug: 'liberty-walk', CategoryName: 'Liberty Walk LBWK',
     Brand: 'MINI GT', Scale: '1:64',
-    PriceBox: 350000, PriceCard: 410000, Price: 350000, OldPrice: null,
-    DiscountPercent: 0, PackagingType: 'both',
+    PriceBox: 350000, PriceCard: 410000, Price: 333000, OldPrice: 350000,
+    DiscountPercent: 5, PackagingType: 'both',
     DepositAmount: 0, QuotaPercent: 82, EditionNote: 'Liberty Walk Widebody #5',
     PreOrderDeadline: null, Stock: 22,
     ImageUrl: 'image/mgt01055.webp',
@@ -109,14 +109,14 @@ const FALLBACK_PRODUCTS = (typeof window !== 'undefined' && window.api && typeof
     Status: 'in_stock', IsFeatured: 1, IsNew: 1, soldCount: 0
   },
   {
-    ProductId: 8, id: 8, Sku: 'MGT00782', CarNumber: '782',
+    ProductId: 8, id: 8, Sku: 'MGT00713', CarNumber: '713',
     Name: 'Porsche 911 GT3 R #80 AO Racing "Rexy" 2023 IMSA Sebring 12h',
     Slug: 'porsche-911-gt3-r-80-ao-racing-rexy-2024-imsa',
     CategoryId: 3, CategorySlug: 'gt-racing', CategoryName: 'IMSA & GT3 Racing',
     Brand: 'MINI GT', Scale: '1:64',
-    PriceBox: 380000, PriceCard: 450000, Price: 380000, OldPrice: 420000,
+    PriceBox: 2000000, PriceCard: 2300000, Price: 2000000, OldPrice: null,
     DiscountPercent: 0, PackagingType: 'both',
-    DepositAmount: 0, QuotaPercent: 96, EditionNote: 'Khủng Long Xanh Rexy #80 Best-Seller',
+    DepositAmount: 0, QuotaPercent: 96, EditionNote: 'Khủng Long Xanh Rexy #80 • Sebring Winner',
     PreOrderDeadline: null, Stock: 8,
     ImageUrl: 'image/rexy.jpg',
     Description: 'Huyền thoại khủng long xanh Rexy #80 AO Racing được săn đón nhất trong giới sưu tầm MINI GT 1:64.',
@@ -142,9 +142,9 @@ const FALLBACK_PRODUCTS = (typeof window !== 'undefined' && window.api && typeof
     Slug: 'lb-super-silhouette-nissan-s15-silvia-presentation',
     CategoryId: 1, CategorySlug: 'liberty-walk', CategoryName: 'Liberty Walk LBWK',
     Brand: 'MINI GT', Scale: '1:64',
-    PriceBox: 320000, PriceCard: 370000, Price: 320000, OldPrice: 350000,
+    PriceBox: 999999, PriceCard: 1700000, Price: 999999, OldPrice: null,
     DiscountPercent: 0, PackagingType: 'both',
-    DepositAmount: 0, QuotaPercent: 90, EditionNote: 'Liberty Walk Group 5 Silhouette',
+    DepositAmount: 0, QuotaPercent: 90, EditionNote: 'Liberty Walk Group 5 Silhouette • Box & Card',
     PreOrderDeadline: null, Stock: 16,
     ImageUrl: 'image/Minigt_s15chop_lbwk.jpg',
     Description: 'Biểu tượng JDM Nissan Silvia S15 độ bodykit Super Silhouette hầm hố từ nhà độ Liberty Walk Nhật Bản.',
@@ -156,11 +156,11 @@ const FALLBACK_PRODUCTS = (typeof window !== 'undefined' && window.api && typeof
     Slug: 'lb-super-silhouette-nissan-s15-silvia-23-goodwood-fos',
     CategoryId: 1, CategorySlug: 'liberty-walk', CategoryName: 'Liberty Walk LBWK',
     Brand: 'MINI GT', Scale: '1:64',
-    PriceBox: 340000, PriceCard: 400000, Price: 340000, OldPrice: 380000,
-    DiscountPercent: 0, PackagingType: 'both',
-    DepositAmount: 0, QuotaPercent: 95, EditionNote: 'Kỷ Niệm Lễ Hội Tốc Độ Goodwood #23',
+    PriceBox: 550000, PriceCard: 788888, Price: 495000, OldPrice: 550000,
+    DiscountPercent: 10, PackagingType: 'both',
+    DepositAmount: 0, QuotaPercent: 95, EditionNote: 'Festival of Speed Limited Edition',
     PreOrderDeadline: null, Stock: 9,
-    ImageUrl: 'image/Minigt_S15_LBWK.jpg',
+    ImageUrl: 'image/minigt_618.jpg',
     Description: 'Phiên bản kỷ niệm màn trình diễn drift của chiếc S15 #23 tại lễ hội tốc độ Goodwood Vương Quốc Anh.',
     Status: 'in_stock', IsFeatured: 1, IsNew: 0, soldCount: 0
   },
@@ -331,6 +331,34 @@ const FALLBACK_PRODUCTS = (typeof window !== 'undefined' && window.api && typeof
     ImageUrl: 'image/1395.webp',
     Description: 'Kiệt tác siêu xe thập niên 90 Bugatti EB110 GT màu xanh Azzurro Metallizzato tại triển lãm Paris 1992.',
     Status: 'pre_order', IsFeatured: 1, IsNew: 1, soldCount: 0
+  },
+  {
+    ProductId: 52, id: 52, Sku: 'MGT1185', CarNumber: '1185',
+    Name: 'Nissan LB-Super Silhouette S15 SILVIA #555 Team MINI GT Liberty Walk 2025 Formula Drift Halloween Special',
+    Slug: 'nissan-lb-super-silhouette-s15-silvia-555-drift-halloween',
+    CategoryId: 1, CategorySlug: 'liberty-walk', CategoryName: 'Liberty Walk LBWK',
+    Brand: 'MINI GT', Scale: '1:64',
+    PriceBox: 240000, PriceCard: 320000, Price: 204000, OldPrice: 240000,
+    DiscountPercent: 15, PackagingType: 'both',
+    DepositAmount: 0, QuotaPercent: 85, EditionNote: 'Formula Drift Team 2025 Halloween Special',
+    PreOrderDeadline: null, Stock: 14,
+    ImageUrl: 'image/s15_1185.jpg',
+    Description: 'Mẫu xe drift Nissan S15 SILVIA #555 Team MINI GT Liberty Walk độc quyền mùa Halloween 2025, màu sơn vàng đen nổi bật.',
+    Status: 'in_stock', IsFeatured: 1, IsNew: 1, soldCount: 3
+  },
+  {
+    ProductId: 55, id: 55, Sku: 'MGT0618', CarNumber: '618',
+    Name: 'Nissan S15 Silvia LB-Super Silhouette #23 2022 Goodwood Festival of Speed Limited Edition',
+    Slug: 'nissan-s15-silvia-lb-super-silhouette-23-goodwood-fos',
+    CategoryId: 1, CategorySlug: 'liberty-walk', CategoryName: 'Liberty Walk LBWK',
+    Brand: 'MINI GT', Scale: '1:64',
+    PriceBox: 550000, PriceCard: 788888, Price: 495000, OldPrice: 550000,
+    DiscountPercent: 10, PackagingType: 'both',
+    DepositAmount: 0, QuotaPercent: 95, EditionNote: 'Festival of Speed Limited Edition',
+    PreOrderDeadline: null, Stock: 9,
+    ImageUrl: 'image/minigt_618.jpg',
+    Description: 'Phiên bản kỷ niệm màn trình diễn drift của chiếc S15 #23 tại lễ hội tốc độ Goodwood Vương Quốc Anh.',
+    Status: 'in_stock', IsFeatured: 1, IsNew: 0, soldCount: 1
   }
 ];
 
@@ -1671,14 +1699,19 @@ function resolveStorefrontImageUrl(rawUrl) {
   const apiMatch = u.match(/^(?:https?:\/\/[^\/]+(?::\d+)?)?\/?(?:api\/)?images\/(\d+)(?:\?.*)?$/i);
   if (apiMatch) {
     const imgId = apiMatch[1];
-    // Nếu chạy trên Vercel / Production web (hoặc trên chính cổng 5000):
-    // TUYỆT ĐỐI dùng đường dẫn tương đối /api/images/:id để tránh lỗi Mixed Content (HTTP/HTTPS) & chặn CORS loopback
-    if (!isLocal || (typeof window !== 'undefined' && window.location && String(window.location.port) === '5000')) {
+    // Nếu chạy trên Vercel / Production web:
+    if (!isLocal) {
+      return `/api/images/${imgId}`;
+    }
+    // Nếu đang mở trực tiếp trên chính cổng của Backend Node (5000):
+    if (typeof window !== 'undefined' && window.location && String(window.location.port) === '5000') {
       return `/api/images/${imgId}`;
     }
 
-    // Khi chạy cục bộ trên máy dev (Live Server 5500, file:// hoặc IP LAN):
-    if (typeof api !== 'undefined' && typeof api.isLocalServerOffline === 'function' && api.isLocalServerOffline()) {
+    // Khi chạy cục bộ trên máy dev (Live Server 5500, 5501..., file:// hoặc IP LAN):
+    // Live Server chỉ phục vụ file tĩnh, không có endpoint CSDL /api/images/:id -> kết nối thẳng Backend Cloud Vercel để hiển thị ảnh ngay lập tức
+    const isLiveServer = typeof window !== 'undefined' && window.location && ['5500', '5501', '5502', '5503', '5504', '5505'].includes(String(window.location.port));
+    if (isLiveServer || (typeof api !== 'undefined' && typeof api.isLocalServerOffline === 'function' && api.isLocalServerOffline())) {
       return `https://projectnhom2.vercel.app/api/images/${imgId}`;
     }
 
@@ -2329,16 +2362,32 @@ function syncStaticShowcaseProducts() {
   if (lbwkGrid) {
     const lbwkList = source.filter(p => matchesProductFilter(p, 'liberty-walk'));
     if (lbwkList.length > 0) {
-      // 3 mẫu xe đặc trưng: S15 Presentation (#10), Huracán Gravity (#5), S15 Goodwood (#11)
-      const targetLbwkIds = [10, 5, 11];
-      const topLbwk = targetLbwkIds.map(id => lbwkList.find(p => Number(p.ProductId || p.id) === id)).filter(Boolean);
-      if (topLbwk.length === 3) {
+      // 3 mẫu xe đặc trưng: S15 Presentation (#10), Huracán Gravity (#5), S15 #555 Drift (#52 hoặc Goodwood #55/#11)
+      const targetLbwkIds = [10, 5, 52];
+      let topLbwk = targetLbwkIds.map(id => lbwkList.find(p => Number(p.ProductId || p.id) === id)).filter(Boolean);
+      if (topLbwk.length < 3) {
+        const altIds = [55, 11, 17];
+        for (const altId of altIds) {
+          if (topLbwk.length >= 3) break;
+          const altCar = lbwkList.find(p => Number(p.ProductId || p.id) === altId && !topLbwk.some(x => Number(x.ProductId || x.id) === altId));
+          if (altCar) topLbwk.push(altCar);
+        }
+      }
+      if (topLbwk.length < 3) {
+        for (const p of lbwkList) {
+          if (topLbwk.length >= 3) break;
+          const curId = Number(p.ProductId || p.id);
+          if (!topLbwk.some(x => Number(x.ProductId || x.id) === curId)) topLbwk.push(p);
+        }
+      }
+
+      if (topLbwk.length > 0) {
         lbwkGrid.innerHTML = topLbwk.map(p => {
-          const pid = p.ProductId || p.id;
+          const pid = Number(p.ProductId || p.id);
           const pSku = p.Sku || p.sku || 'MGT';
           const pName = p.Name || p.name || '';
           const pricing = getProductBoxCardPricing(p);
-          const img = getProductGalleryImages(p)[0] || p.ImageUrl || p.imageUrl || 'image/placeholder-car.svg';
+          let img = getProductGalleryImages(p)[0] || p.ImageUrl || p.imageUrl || 'image/placeholder-car.svg';
           let badgeText = 'LB★WORKS';
           let badgeBg = '#0f172a';
           let shortTitle = pName;
@@ -2348,25 +2397,33 @@ function syncStaticShowcaseProducts() {
             badgeText = 'SILVIA S15';
             shortTitle = 'S15 Presentation';
             shortSub = 'Bản Box & Vỉ Card Trưng Bày';
+            img = 'image/Minigt_s15chop_lbwk.jpg';
           } else if (pid === 5) {
             badgeText = 'HURACÁN GT';
             shortTitle = 'Huracán Gravity';
             shortSub = 'Bodykit tán đinh + Cánh Swan-Neck';
-          } else if (pid === 11) {
+            img = 'image/mgt01055.webp';
+          } else if (pid === 52) {
+            badgeText = 'DRIFT #555';
+            shortTitle = 'S15 #555 Drift';
+            shortSub = 'Formula Drift Halloween Special';
+            img = 'image/s15_1185.jpg';
+          } else if (pid === 55 || pid === 11) {
             badgeText = 'GOODWOOD #23';
             shortTitle = 'S15 Goodwood #23';
             shortSub = 'Festival of Speed Limited Edition';
+            img = 'image/minigt_618.jpg';
           }
 
           return `
             <div class="nav-mega-card" onclick="openQuickView(${pid})">
               <div class="nav-card-badge" style="background:${badgeBg}; color:#fff;">${badgeText}</div>
-              <img src="${escapeHtml(img)}" alt="${escapeHtml(pName)}" loading="lazy" onerror="this.src='image/placeholder-car.svg'">
+              <img src="${escapeHtml(img)}" alt="${escapeHtml(pName)}" loading="lazy" onerror="this.onerror=null; this.src='image/placeholder-car.svg'">
               <div class="nav-card-info">
                 <strong title="${escapeHtml(pName)}">#${escapeHtml(pSku)} ${escapeHtml(shortTitle)}</strong>
                 <span title="${escapeHtml(shortSub)}">${escapeHtml(shortSub)}</span>
                 <div class="nav-card-price">
-                  <span>${pricing.hasDiscount ? `Giảm -${pricing.discountPercent}%` : 'Sẵn hàng'}</span>
+                  <span class="${pricing.hasDiscount ? 'tag-discount' : ''}">${pricing.hasDiscount ? `Giảm -${pricing.discountPercent}%` : 'Sẵn hàng'}</span>
                   <strong>${formatVND(pricing.finalPriceBox)}</strong>
                 </div>
               </div>

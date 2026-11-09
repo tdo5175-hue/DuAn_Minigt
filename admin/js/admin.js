@@ -203,7 +203,7 @@
     "cancel_reason_no_contact": "Không liên lạc được số điện thoại khách",
     "cancel_reason_wrong_addr": "Thông tin địa chỉ nhận hàng không chính xác",
     "cancel_modal_placeholder": "Nhập hoặc chọn nhanh lý do hủy bên trên...",
-    "cancel_modal_hint": "Lý do này sẽ hiển thị trực tiếp và rõ ràng cho khách hàng kèm Hotline/Zalo hỗ trợ 0981 400 400.",
+    "cancel_modal_hint": "Lý do này sẽ hiển thị trực tiếp và rõ ràng cho khách hàng kèm Hotline/Zalo hỗ trợ 0981.903.400.",
     "cancel_modal_btn_confirm": "Xác Nhận Hủy Đơn",
     "ship_modal_title": "Quản Lý Vận Đơn SPX Express",
     "ship_modal_dispatch_title": "Thông tin gửi kiện cho Shipper SPX:",
@@ -606,7 +606,7 @@
     "cancel_reason_no_contact": "Customer phone unreachable",
     "cancel_reason_wrong_addr": "Incorrect shipping address",
     "cancel_modal_placeholder": "Enter or select cancellation reason above...",
-    "cancel_modal_hint": "This reason will be displayed directly to the customer along with Hotline/Zalo support 0981 400 400.",
+    "cancel_modal_hint": "This reason will be displayed directly to the customer along with Hotline/Zalo support 0981.903.400.",
     "cancel_modal_btn_confirm": "Confirm Cancel Order",
     "ship_modal_title": "SPX Express Waybill Management",
     "ship_modal_dispatch_title": "Parcel dispatch info for SPX Shipper:",
@@ -2803,11 +2803,19 @@
     const apiMatch = clean.match(/^(?:https?:\/\/[^\/]+(?::\d+)?)?\/?(?:api\/)?images\/(\d+)(?:\?.*)?$/i);
     if (apiMatch) {
       const imgId = apiMatch[1];
-      // Khi chạy trên Vercel hoặc chính cổng 5000:
-      if (!isLocal || (window.location && String(window.location.port) === '5000')) {
+      // Khi chạy trên Vercel:
+      if (!isLocal) {
         return `/api/images/${imgId}`;
       }
-      // Khi đang chạy Live Server (5500, 5501...), cổng backend phục vụ ảnh là 5000:
+      // Khi đang mở trực tiếp trên chính cổng backend 5000:
+      if (window.location && String(window.location.port) === '5000') {
+        return `/api/images/${imgId}`;
+      }
+      // Khi mở qua Live Server (5500, 5501...), file:// hoặc LAN:
+      const isLiveServer = window.location && ['5500', '5501', '5502', '5503', '5504', '5505'].includes(String(window.location.port));
+      if (isLiveServer) {
+        return `https://projectnhom2.vercel.app/api/images/${imgId}`;
+      }
       const host = (window.location && window.location.hostname && window.location.hostname !== '0.0.0.0' && window.location.protocol !== 'file:')
         ? window.location.hostname
         : '127.0.0.1';
@@ -3952,7 +3960,7 @@
           <div>
             <div class="logo">MINI GT BIÊN HÒA STORE</div>
             <div style="font-size:12px; color:#475569; margin-top:2px;">Mô hình tĩnh Diecast 1:64 chính hãng cao cấp</div>
-            <div style="font-size:11px; color:#64748b;">Hotline / Zalo: 0981 400 400 &bull; Biên Hòa, Đồng Nai</div>
+            <div style="font-size:11px; color:#64748b;">Hotline / Zalo: 0981.903.400 &bull; Biên Hòa, Đồng Nai</div>
           </div>
           <div class="order-meta">
             <div style="font-size:16px; font-weight:800; color:#e10600;">#${escapeHtml(o.code)}</div>
