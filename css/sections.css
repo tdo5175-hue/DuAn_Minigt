@@ -3881,18 +3881,128 @@ html[data-theme="dark"] .gt3-dino-img-wrap {
 
 /* Title & Description */
 .gt3-dino-card h3 {
-  font-size: 15.5px;
+  font-family: var(--font-main) !important;
+  font-size: 15px;
   font-weight: 800;
   color: #0f172a;
   margin: 0 0 6px;
-  line-height: 1.4;
+  line-height: 1.35;
 }
 
 .gt3-dino-card p {
-  font-size: 12.5px;
+  font-family: var(--font-main) !important;
+  font-size: 12px;
   color: #64748b;
-  line-height: 1.55;
-  margin: 0 0 14px;
+  line-height: 1.5;
+  margin: 0 0 10px;
+}
+
+/* Dedicated Balanced Box & Card Switcher */
+.gt3-dino-card .card-pack-switch {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin: 0 0 10px;
+  background: #f1f5f9;
+  padding: 3px;
+  border-radius: 9px;
+  border: 1px solid #e2e8f0;
+}
+
+.gt3-dino-card .card-pack-btn {
+  min-height: 38px;
+  padding: 6px 10px;
+  border-radius: 7px;
+  border: 1.5px solid transparent;
+  background: #ffffff;
+  color: #475569;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  font-family: var(--font-main) !important;
+  transition: all 0.18s ease;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+.gt3-dino-card .card-pack-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 3px 8px rgba(15, 23, 42, 0.08);
+  color: #0f172a;
+}
+
+.gt3-dino-card .card-pack-btn .pack-label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-family: var(--font-main) !important;
+  font-size: 11px;
+  font-weight: 750;
+  color: #475569;
+  white-space: nowrap;
+}
+
+.gt3-dino-card .card-pack-btn .pack-label i {
+  font-size: 11.5px;
+}
+
+.gt3-dino-card .card-pack-btn .pack-discount-tag {
+  font-size: 9.5px;
+  font-weight: 800;
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: #fee2e2;
+  color: #dc2626;
+  margin-left: 2px;
+}
+
+.gt3-dino-card .card-pack-btn .pack-price {
+  font-family: var(--font-main) !important;
+  font-size: 11.5px;
+  font-weight: 800;
+  color: #0f172a;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+}
+
+/* Active State: Box */
+.gt3-dino-card .card-pack-btn.is-box.active {
+  background: #ffffff !important;
+  border-color: #dc2626 !important;
+  color: #dc2626 !important;
+  box-shadow: 0 2px 8px rgba(220, 38, 38, 0.18) !important;
+}
+.gt3-dino-card .card-pack-btn.is-box.active .pack-label,
+.gt3-dino-card .card-pack-btn.is-box.active .pack-label i,
+.gt3-dino-card .card-pack-btn.is-box.active .pack-price {
+  color: #dc2626 !important;
+  font-weight: 850 !important;
+}
+
+/* Active State: Card */
+.gt3-dino-card .card-pack-btn.is-card.active {
+  background: #eff6ff !important;
+  border-color: #2563eb !important;
+  color: #1d4ed8 !important;
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.18) !important;
+}
+.gt3-dino-card .card-pack-btn.is-card.active .pack-label,
+.gt3-dino-card .card-pack-btn.is-card.active .pack-label i,
+.gt3-dino-card .card-pack-btn.is-card.active .pack-price {
+  color: #1d4ed8 !important;
+  font-weight: 850 !important;
+}
+
+/* Disabled / Unavailable */
+.gt3-dino-card .card-pack-btn:disabled,
+.gt3-dino-card .card-pack-btn.pack-unavailable {
+  opacity: 0.55 !important;
+  cursor: not-allowed !important;
+  background: #f8fafc !important;
+  border-color: #e2e8f0 !important;
+  box-shadow: none !important;
+  transform: none !important;
 }
 
 /* Bottom Price & Actions Row */
@@ -3902,22 +4012,26 @@ html[data-theme="dark"] .gt3-dino-img-wrap {
   justify-content: space-between;
   align-items: center;
   gap: 10px;
-  padding-top: 12px;
+  padding-top: 10px;
   border-top: 1px dashed #e2e8f0;
 }
 
 .gt3-price-group strong {
-  font-size: 17px;
-  font-weight: 900;
+  font-family: var(--font-main) !important;
+  font-size: 18px;
+  font-weight: 850;
   color: #0f172a;
   display: block;
   line-height: 1.2;
+  letter-spacing: -0.02em;
 }
 .gt3-price-group strong.price-sale {
   color: #dc2626;
 }
 .gt3-price-group span {
+  font-family: var(--font-main) !important;
   font-size: 10.5px;
+  font-weight: 600;
   color: #64748b;
   display: block;
   margin-top: 2px;
@@ -4365,6 +4479,52 @@ body.dark-mode .gt3-price-group strong.price-sale {
 [data-theme="dark"] .gt3-price-group span,
 body.dark-mode .gt3-price-group span {
   color: #94a3b8 !important;
+}
+
+[data-theme="dark"] .gt3-dino-card .card-pack-switch,
+body.dark-mode .gt3-dino-card .card-pack-switch {
+  background: #0b1120 !important;
+  border-color: #1e293b !important;
+}
+[data-theme="dark"] .gt3-dino-card .card-pack-btn,
+body.dark-mode .gt3-dino-card .card-pack-btn {
+  background: #1e293b !important;
+  color: #94a3b8 !important;
+  border-color: #334155 !important;
+  box-shadow: none !important;
+  font-family: var(--font-main) !important;
+}
+[data-theme="dark"] .gt3-dino-card .card-pack-btn .pack-label,
+body.dark-mode .gt3-dino-card .card-pack-btn .pack-label {
+  color: #cbd5e1 !important;
+  font-family: var(--font-main) !important;
+}
+[data-theme="dark"] .gt3-dino-card .card-pack-btn .pack-price,
+body.dark-mode .gt3-dino-card .card-pack-btn .pack-price {
+  color: #f8fafc !important;
+  font-family: var(--font-main) !important;
+}
+[data-theme="dark"] .gt3-dino-card .card-pack-btn.is-box.active,
+body.dark-mode .gt3-dino-card .card-pack-btn.is-box.active {
+  background: #1e293b !important;
+  border-color: #ef4444 !important;
+  box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3) !important;
+}
+[data-theme="dark"] .gt3-dino-card .card-pack-btn.is-box.active .pack-label,
+[data-theme="dark"] .gt3-dino-card .card-pack-btn.is-box.active .pack-label i,
+[data-theme="dark"] .gt3-dino-card .card-pack-btn.is-box.active .pack-price {
+  color: #f87171 !important;
+}
+[data-theme="dark"] .gt3-dino-card .card-pack-btn.is-card.active,
+body.dark-mode .gt3-dino-card .card-pack-btn.is-card.active {
+  background: #1e293b !important;
+  border-color: #3b82f6 !important;
+  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3) !important;
+}
+[data-theme="dark"] .gt3-dino-card .card-pack-btn.is-card.active .pack-label,
+[data-theme="dark"] .gt3-dino-card .card-pack-btn.is-card.active .pack-label i,
+[data-theme="dark"] .gt3-dino-card .card-pack-btn.is-card.active .pack-price {
+  color: #60a5fa !important;
 }
 
 /* 4. Secret Chase 1/24 Feature Section in Dark Mode */

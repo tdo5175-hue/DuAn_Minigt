@@ -2090,7 +2090,8 @@ function syncStaticShowcaseProducts() {
       } else if (isPreOrder) {
         statusPill.classList.add('preorder');
         const depPct = Number(prod.DepositPercent || prod.depositPercent || 30);
-        statusPill.textContent = isEn ? `Pre-Order (Dep ${depPct}%)` : `Pre-Order (Cọc ${depPct}%)`;
+        const depAmt = Math.round((pricing.finalPriceBox * (depPct / 100)) / 1000) * 1000;
+        statusPill.textContent = isEn ? `Pre-Order (Dep ${depPct}% • ${formatVND(depAmt)})` : `Pre-Order (Cọc ${depPct}% • ${formatVND(depAmt)})`;
       } else if (pricing.hasDiscount) {
         statusPill.classList.add('sale');
         statusPill.textContent = isEn ? `-${pricing.discountPercent}% OFF` : `Đang giảm -${pricing.discountPercent}%`;
@@ -2105,13 +2106,13 @@ function syncStaticShowcaseProducts() {
     const cardBtn = cardEl.querySelector('.card-pack-btn.is-card, .card-pack-btn:last-child');
     if (boxBtn) {
       const boxPriceSpan = boxBtn.querySelector('.pack-price');
-      if (boxPriceSpan) boxPriceSpan.textContent = formatCompactPrice(pricing.finalPriceBox);
+      if (boxPriceSpan) boxPriceSpan.textContent = formatVND(pricing.finalPriceBox);
       boxBtn.classList.toggle('pack-unavailable', !pricing.isBoxAvailable);
       boxBtn.disabled = !pricing.isBoxAvailable;
     }
     if (cardBtn) {
       const cardPriceSpan = cardBtn.querySelector('.pack-price');
-      if (cardPriceSpan) cardPriceSpan.textContent = formatCompactPrice(pricing.finalPriceCard);
+      if (cardPriceSpan) cardPriceSpan.textContent = formatVND(pricing.finalPriceCard);
       cardBtn.classList.toggle('pack-unavailable', !pricing.isCardAvailable);
       cardBtn.disabled = !pricing.isCardAvailable;
     }
@@ -2278,12 +2279,12 @@ function syncStaticShowcaseProducts() {
 
     const priceBoxEl = trioCard.querySelector('.trio-price');
     if (priceBoxEl) {
-      priceBoxEl.textContent = `Box ${formatCompactPrice(pricing.finalPriceBox)}${pricing.hasDiscount ? ` (-${pricing.discountPercent}%)` : ''}`;
+      priceBoxEl.textContent = `Box ${formatVND(pricing.finalPriceBox)}${pricing.hasDiscount ? ` (-${pricing.discountPercent}%)` : ''}`;
       priceBoxEl.classList.toggle('highlight', pricing.hasDiscount);
     }
     const priceCardEl = trioCard.querySelector('.trio-price-card');
     if (priceCardEl) {
-      priceCardEl.textContent = `Card ${formatCompactPrice(pricing.finalPriceCard)}`;
+      priceCardEl.textContent = `Card ${formatVND(pricing.finalPriceCard)}`;
     }
   });
 
@@ -2497,7 +2498,7 @@ function syncStaticShowcaseProducts() {
               <strong title="${escapeHtml(pName)}">#${escapeHtml(pSku)} ${escapeHtml(shortTitle)}</strong>
               <span title="${escapeHtml(shortSub)}">${escapeHtml(shortSub)}</span>
               <div class="nav-card-price">
-                <span>Cọc ${depPct}%: ${formatCompactPrice(depAmt)}</span>
+                <span>Cọc ${depPct}%: ${formatVND(depAmt)}</span>
                 <strong>${formatVND(pricing.finalPriceBox)}</strong>
               </div>
             </div>
@@ -12636,13 +12637,13 @@ const I18N_TRANSLATIONS = {
     ao_banner_desc: 'Authentic Porsche 911 GT3 R duo <strong>Rexy #80</strong> &amp; <strong>Roxy #77</strong> alongside the limited <strong>Skeleton #77</strong> Petit Le Mans edition.',
     ao_banner_btn: 'Filter All AO Racing Models',
     rexy_status: 'In Stock Bien Hoa',
-    rexy_desc: 'Green T-Rex livery from Sebring &amp; Daytona endurance races. Available in Paper Box or Blister Card.',
+    rexy_desc: 'Green T-Rex livery from Sebring &amp; Daytona endurance races. Diecast alloy body, rubber tires, soft flexible mirrors. Paper Box or Blister Card.',
     pack_box_save_label: 'Paper Box Edition (Value Saver)',
     roxy_status: 'On Sale -5%',
-    roxy_desc: 'Pink dinosaur Roxy livery at VIR &amp; Road America. Accurate Magenta finish with green dorsal spikes.',
+    roxy_desc: 'Pink dinosaur Roxy livery at VIR &amp; Road America. Accurate Magenta finish with green dorsal spikes and racing wheels.',
     roxy_pack_label: 'Paper Box Edition (-5% Off)',
-    ske_status: 'Pre-Order (150k Deposit)',
-    ske_desc: 'Petit Le Mans Halloween limited edition with glow-style Rexy skeleton graphics on matte black. Box or Card.',
+    ske_status: 'Pre-Order (Cọc 117.000đ)',
+    ske_desc: 'Petit Le Mans Halloween limited edition with sharp skeleton livery on matte black body. 30% deposit keeps original price.',
     // Secret Chase Section
     chase_badge: '<i class="fa-solid fa-crown"></i> PRO COLLECTOR PRIVILEGE',
     chase_title: 'WHAT IS A &ldquo;SECRET CHASE&rdquo; 1/24 DIECAST?',
@@ -12891,13 +12892,13 @@ const I18N_TRANSLATIONS = {
     ao_banner_desc: 'Hình ảnh thực tế bộ đôi Porsche 911 GT3 R <strong>Rexy #80</strong> &amp; <strong>Roxy #77</strong> cùng phiên bản giới hạn <strong>Skeleton #77</strong> Petit Le Mans.',
     ao_banner_btn: 'Lọc trọn bộ AO Racing',
     rexy_status: 'Sẵn kho Biên Hòa',
-    rexy_desc: 'Phiên bản khủng long xanh T-Rex tại giải đua Sebring &amp; Daytona. Tùy chọn Hộp Giấy (Box) hoặc Vỉ Nhựa (Card Blister).',
+    rexy_desc: 'Phiên bản khủng long xanh T-Rex vô địch Sebring 12h &amp; Daytona. Thân hợp kim kẽm, lốp cao su gai, gương mềm chống gãy. Tùy chọn Hộp Giấy (Box) hoặc Vỉ Nhựa (Card Blister).',
     pack_box_save_label: 'Bản Hộp Giấy (Box Tiết Kiệm)',
     roxy_status: 'Đang giảm -5%',
-    roxy_desc: 'Phiên bản khủng long hồng Roxy tại chặng Virginia &amp; Road America. Sơn hồng Magenta kết hợp gai lưng xanh chuẩn xác.',
+    roxy_desc: 'Phiên bản khủng long hồng Roxy tại chặng Virginia &amp; Road America. Sơn hồng Magenta kết hợp gai lưng xanh chuẩn xác, lốp cao su thể thao.',
     roxy_pack_label: 'Bản Hộp Giấy (-5% Chiết Khấu)',
-    ske_status: 'Pre-Order (Cọc 150k)',
-    ske_desc: 'Bản giới hạn Halloween Petit Le Mans với đồ họa bộ xương khủng long Rexy trên nền đen mờ. Tùy chọn Box hoặc Card.',
+    ske_status: 'Pre-Order (Cọc 117.000đ)',
+    ske_desc: 'Bản giới hạn Halloween Petit Le Mans với đồ họa bộ xương khủng long Rexy sắc nét trên nền đen mờ độc bản. Suất cọc chỉ 30% giữ trọn vẹn giá gốc.',
     // Secret Chase Section
     chase_badge: '<i class="fa-solid fa-crown"></i> ĐẶC QUYỀN NHÀ SƯU TẦM CHUYÊN NGHIỆP',
     chase_title: 'BÍ MẬT XE &ldquo;SECRET CHASE&rdquo; 1/24 LÀ GÌ?',

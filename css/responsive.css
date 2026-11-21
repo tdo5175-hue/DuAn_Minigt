@@ -1159,8 +1159,26 @@ header nav.desktop-only,
   }
 
   .gt3-dino-card p {
-    font-size: 12px !important;
-    line-height: 1.5 !important;
+    font-size: 11.5px !important;
+    line-height: 1.45 !important;
+  }
+
+  .gt3-dino-card .card-pack-switch {
+    gap: 4px !important;
+    padding: 3px !important;
+  }
+
+  .gt3-dino-card .card-pack-btn {
+    min-height: 36px !important;
+    padding: 5px 8px !important;
+  }
+
+  .gt3-dino-card .card-pack-btn .pack-label {
+    font-size: 10.5px !important;
+  }
+
+  .gt3-dino-card .card-pack-btn .pack-price {
+    font-size: 11px !important;
   }
 
   /* Secret Chase */
