@@ -10677,8 +10677,10 @@ function startCustomerOrderQrPolling(orderCode) {
   if (!orderCode) return;
   stopCustomerOrderQrPolling(orderCode);
   window._customerQrPollers[orderCode] = setInterval(async () => {
+    if (typeof document !== 'undefined' && document.hidden) return;
+    const modalOpen = document.getElementById('myOrdersModal')?.classList.contains('active');
     const el = document.getElementById(`qrPanel_${orderCode}`);
-    if (!el || el.style.display === 'none') {
+    if (!el || el.style.display === 'none' || !modalOpen) {
       stopCustomerOrderQrPolling(orderCode);
       return;
     }
