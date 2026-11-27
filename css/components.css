@@ -10644,15 +10644,29 @@ body.dark-mode .mobile-bottom-nav .mob-nav-item.active {
    STOREFRONT UNIFIED CONFIRMATION MODAL
    ===================================================================== */
 .store-confirm-card {
-  max-width: 450px !important;
+  max-width: 460px !important;
   width: 92% !important;
   padding: 24px !important;
   border-radius: 18px !important;
+  background: #ffffff !important;
+  color: #0f172a;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 25px 50px -12px rgba(15, 23, 42, 0.35);
+  font-family: var(--font-sans, 'Inter', system-ui, -apple-system, sans-serif);
 }
 .store-confirm-header {
   display: flex;
   align-items: flex-start;
   gap: 14px;
+  padding-right: 36px;
+}
+#storeConfirmTitle {
+  font-size: 17px;
+  font-weight: 800;
+  line-height: 1.35;
+  color: #0f172a;
+  margin: 0 0 6px;
+  word-break: break-word;
 }
 .store-confirm-icon {
   width: 44px;
@@ -10763,6 +10777,12 @@ body.dark-mode .mobile-bottom-nav .mob-nav-item.active {
   cursor: wait;
 }
 
+[data-theme="dark"] .store-confirm-card,
+body.dark-mode .store-confirm-card {
+  background: #111827 !important;
+  color: #f8fafc !important;
+  border-color: #334155 !important;
+}
 [data-theme="dark"] #storeConfirmTitle,
 body.dark-mode #storeConfirmTitle {
   color: #f8fafc !important;
