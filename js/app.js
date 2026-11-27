@@ -7536,6 +7536,15 @@ function acknowledgeExistingOrderStateSilently(o) {
   }
 }
 
+function parseOrderCancelMeta(rawReason) {
+  const fullReason = String(rawReason || '').trim() || 'Admin đã xử lý hủy đơn';
+  const low = fullReason.toLowerCase();
+  const isAutoTimeout = low.includes('5 phút') || low.includes('tự động') || low.includes('quá hạn');
+  const isCustCancel = !isAutoTimeout && (low.includes('khách') || low.includes('chủ động') || low.includes('yêu cầu hủy'));
+  const cleanReason = fullReason.replace(/^khách(\s+hàng)?(\s+hủy|\s+yêu\s+cầu)?\s*[:\-–]\s*/i, '').trim() || fullReason;
+  return { fullReason, cleanReason, isCustCancel, isAutoTimeout };
+}
+
 function updateLiveStep4OrderStatus(rawOrd) {
   if (!rawOrd) return;
   const ord = api.normalizeOrderObject ? api.normalizeOrderObject(rawOrd) : rawOrd;
@@ -7578,15 +7587,6 @@ function updateLiveStep4OrderStatus(rawOrd) {
       showToast(`🎉 Đơn hàng #${code} đã được xác nhận thanh toán tự động thành công!`, 'success', 5000);
     }
   }
-
-function parseOrderCancelMeta(rawReason) {
-  const fullReason = String(rawReason || '').trim() || 'Admin đã xử lý hủy đơn';
-  const low = fullReason.toLowerCase();
-  const isAutoTimeout = low.includes('5 phút') || low.includes('tự động') || low.includes('quá hạn');
-  const isCustCancel = !isAutoTimeout && (low.includes('khách') || low.includes('chủ động') || low.includes('yêu cầu hủy'));
-  const cleanReason = fullReason.replace(/^khách(\s+hàng)?(\s+hủy|\s+yêu\s+cầu)?\s*[:\-–]\s*/i, '').trim() || fullReason;
-  return { fullReason, cleanReason, isCustCancel, isAutoTimeout };
-}
 
   if (status === 'CANCELLED') {
     const cancelMeta = parseOrderCancelMeta(ord.cancelReason || ord.CancelReason);
