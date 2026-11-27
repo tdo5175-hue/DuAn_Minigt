@@ -3328,8 +3328,21 @@
       const target = allOrders.find(o => o.code && o.code.toUpperCase() === code);
       if (target) {
         if (act === 'cancel') {
+          const rawReason = String(body.cancelReason || body.reason || 'Khách hàng chủ động hủy đơn').trim();
+          const reasonText = /^khách(\s+hàng)?/i.test(rawReason) ? rawReason : `Khách hàng hủy: ${rawReason}`;
           target.status = 'CANCELLED';
-          target.cancelReason = body.reason || 'Khách hàng yêu cầu hủy đơn';
+          target.cancelReason = reasonText;
+          target.CancelReason = reasonText;
+          if (!Array.isArray(target.history)) target.history = [];
+          target.history.unshift({
+            to: 'CANCELLED',
+            status: 'CANCELLED',
+            newStatus: 'CANCELLED',
+            note: reasonText,
+            by: 'Khách hàng',
+            changedByName: 'Khách hàng',
+            createdAt: new Date().toISOString()
+          });
         } else if (act === 'confirm-received') {
           target.status = 'DELIVERED';
           target.paymentStatus = 'PAID';

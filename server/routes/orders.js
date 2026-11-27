@@ -418,7 +418,11 @@ router.put('/:code/cancel', optionalAuth, async (req, res, next) => {
     if (!o) throw notFound('Không tìm thấy đơn hàng');
     await assertCanModifyOrder(o, req);
 
-    const reason = v.cleanStr(req.body.cancelReason || req.body.reason || 'Khách yêu cầu hủy đơn', 255);
+    const rawReason = v.cleanStr(req.body.cancelReason || req.body.reason || 'Khách hàng chủ động hủy đơn', 400);
+    const hasCustPrefix = /^khách(\s+hàng)?(\s+chủ\s+động)?(\s+hủy|\s+yêu\s+cầu)?/i.test(rawReason);
+    const reason = hasCustPrefix
+      ? rawReason
+      : v.cleanStr(`Khách hàng hủy: ${rawReason}`, 500);
     const updated = await orderService.transitionOrderStatus(o.orderId || o.id, 'CANCELLED', {
       cancelReason: reason,
       actorId: req.user ? req.user.userId : null,

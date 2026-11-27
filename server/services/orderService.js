@@ -845,15 +845,19 @@ function computeOrderFinancials(o = {}) {
 }
 
 function mapOrder(o, items = [], history = [], extra = {}) {
-  const mappedHistory = (history || []).map(h => ({
-    historyId: h.HistoryId || h.historyid,
-    from: h.FromStatus || h.from || h.fromstatus || null,
-    to: h.ToStatus || h.to || h.tostatus || h.newStatus || 'PENDING',
-    newStatus: h.ToStatus || h.to || h.tostatus || h.newStatus || 'PENDING',
-    note: h.Note || h.note || '',
-    createdAt: h.CreatedAt || h.createdat,
-    by: h.ChangedByName || h.by || null
-  }));
+  const mappedHistory = (history || []).map(h => {
+    const toSt = h.ToStatus || h.to || h.tostatus || h.newStatus || 'PENDING';
+    return {
+      historyId: h.HistoryId || h.historyid,
+      from: h.FromStatus || h.from || h.fromstatus || null,
+      to: toSt,
+      status: toSt,
+      newStatus: toSt,
+      note: h.Note || h.note || '',
+      createdAt: h.CreatedAt || h.createdat,
+      by: h.ChangedByName || h.by || null
+    };
+  });
 
   const userTotalSpent = Number(o.UserTotalSpent ?? o.usertotalspent ?? 0);
   const vipInfo = getCustomerVipInfo(userTotalSpent);

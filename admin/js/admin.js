@@ -1556,6 +1556,50 @@
     }, 450);
   }
 
+  function getOrderCancelReason(o) {
+    if (!o) return '';
+    return String(o.cancelReason || o.CancelReason || o.cancelreason || '').trim();
+  }
+
+  function parseAdminCancelMeta(order) {
+    const cancelHist = (order?.history || []).find(h =>
+      String(h.to || h.newStatus || h.status || '').toUpperCase() === 'CANCELLED'
+    );
+    const rawReason = getOrderCancelReason(order) || String(cancelHist?.note || '').trim();
+    const low = rawReason.toLowerCase();
+    const histActor = String(cancelHist?.by || cancelHist?.changedByName || '').trim();
+
+    const isAutoTimeout = low.includes('5 phút') || low.includes('tự động') || low.includes('quá hạn');
+    const isCustCancel = !isAutoTimeout && (
+      low.includes('khách') ||
+      low.includes('chủ động') ||
+      low.includes('yêu cầu hủy') ||
+      histActor.toLowerCase().includes('khách')
+    );
+
+    const actorClass = isAutoTimeout ? 'is-system' : (isCustCancel ? 'is-customer' : 'is-admin');
+    const actorTag = isAutoTimeout ? 'Quá hạn 5p' : (isCustCancel ? 'Khách hủy' : 'Shop hủy');
+    const actorIcon = isAutoTimeout ? 'fa-clock-rotate-left' : (isCustCancel ? 'fa-user-xmark' : 'fa-ban');
+    const actorTitle = isAutoTimeout
+      ? 'Hệ thống tự động hủy (quá hạn 5 phút chưa thanh toán)'
+      : (isCustCancel
+          ? `Khách hàng chủ động hủy đơn${histActor && !histActor.toLowerCase().includes('khách') ? ` (${histActor})` : ''}`
+          : `Quản trị viên đã hủy đơn${histActor ? ` (${histActor})` : ''}`);
+
+    const cleanReason = rawReason
+      .replace(/^khách(\s+hàng)?(\s+hủy|\s+yêu\s+cầu)?\s*[:\-–]\s*/i, '')
+      .trim() || rawReason || 'Không ghi rõ lý do';
+
+    const cancelAtRaw = cancelHist?.createdAt || cancelHist?.at || order?.updatedAt || order?.UpdatedAt || null;
+    const cancelTimeStr = cancelAtRaw ? new Date(cancelAtRaw).toLocaleString('vi-VN') : '';
+
+    return { rawReason, cleanReason, actorClass, actorTag, actorIcon, actorTitle, cancelTimeStr, isCustCancel, isAutoTimeout };
+  }
+
+  function buildAdminOrderSnapshot(orders) {
+    return (orders || []).map(o => `${o.id || o.OrderId}_${o.status || o.Status}_${o.paymentStatus || o.PaymentStatus}_${o.trackingCode || ''}_${getOrderCancelReason(o)}`).join('|');
+  }
+
   function applyLocalOrderUpdate(updatedOrder) {
     if (!updatedOrder || typeof updatedOrder !== 'object') return;
     const targetId = Number(updatedOrder.id || updatedOrder.OrderId || 0);
@@ -1578,7 +1622,7 @@
     }
 
     if (touchedOrders) {
-      window._lastAdminOrderSnapshot = (cachedOrders || []).map(o => `${o.id || o.OrderId}_${o.status || o.Status}_${o.paymentStatus || o.PaymentStatus}_${o.trackingCode || ''}`).join('|');
+      window._lastAdminOrderSnapshot = buildAdminOrderSnapshot(cachedOrders);
     }
 
     if (activeTab === 'orders') {
@@ -1953,7 +1997,13 @@
         </td>
         <td><strong style="color:#0f172a;">${formatVND(o.total)}</strong></td>
         <td>${renderPaymentBadge(o.paymentStatus, o.paymentMethod)}</td>
-        <td>${renderOrderBadge(o.status)}</td>
+        <td>
+          ${renderOrderBadge(o.status)}
+          ${o.status === 'CANCELLED' ? (() => {
+            const cm = parseAdminCancelMeta(o);
+            return `<div class="admin-cancel-reason-pill ${cm.actorClass}" title="${escapeHtml(cm.actorTitle + ': ' + cm.cleanReason)}"><i class="fa-solid ${cm.actorIcon}"></i> <strong>${cm.actorTag}:</strong> ${escapeHtml(cm.cleanReason)}</div>`;
+          })() : ''}
+        </td>
         <td style="font-size:11.5px; color:#64748b;">${new Date(o.createdAt).toLocaleString(locale)}</td>
         <td>
           <button class="btn-admin btn-admin-outline" style="padding:3px 8px; font-size:11.5px;" onclick="viewOrderDetail(${o.id})">
@@ -3844,7 +3894,7 @@
         (res.data || []).forEach(o => { if (o && o.code) adminKnownOrderCodes.add(o.code); });
 
         // Đồng bộ snapshot ngay để poller ngầm không re-render lại gây chớp nháy
-        const orderSnapshot = (res.data || []).map(o => `${o.id || o.OrderId}_${o.status || o.Status}_${o.paymentStatus || o.paymentStatus}_${o.trackingCode || ''}`).join('|');
+        const orderSnapshot = buildAdminOrderSnapshot(res.data);
         const countsSnapshot = JSON.stringify(res.counts || {});
         window._lastAdminOrderSnapshot = orderSnapshot;
         window._lastAdminCountsSnapshot = countsSnapshot;
@@ -4571,7 +4621,15 @@
             <div style="margin-bottom:5px;">
               ${renderOrderBadge(o.status, isPreOrder, isGoodsArrived)}
             </div>
-            ${o.trackingCode ? `
+            ${o.status === 'CANCELLED' ? (() => {
+              const cm = parseAdminCancelMeta(o);
+              return `
+                <div class="admin-cancel-reason-pill ${cm.actorClass}" title="${escapeHtml(cm.actorTitle + ': ' + cm.cleanReason)}">
+                  <i class="fa-solid ${cm.actorIcon}"></i>
+                  <strong>${cm.actorTag}:</strong> ${escapeHtml(cm.cleanReason)}
+                </div>
+              `;
+            })() : (o.trackingCode ? `
               <div class="badge-spx-assigned" title="Mã vận đơn SPX Express">
                 <i class="fa-solid fa-truck-fast"></i>
                 <span class="spx-code-text">${escapeHtml(o.trackingCode)}</span>
@@ -4587,7 +4645,7 @@
               <div class="badge-spx-unassigned" onclick="openShipSpxModal(${o.id})" title="Nhấn để gán mã vận đơn SPX Express cho đơn này">
                 <i class="fa-solid fa-box-archive"></i> Chưa gán SPX
               </div>
-            `)}
+            `))}
           </td>
 
           <!-- 6. Thao tác xử lý (Sticky bên phải không bị che mất hay phải kéo ngang) -->
@@ -5109,17 +5167,39 @@
         </div>
 
         <!-- Thao tác khôi phục khi đơn bị hủy nhưng khách đã chuyển khoản thực tế -->
-        ${order.status === 'CANCELLED' ? `
-          <div style="background:#fef2f2; border:1.5px solid #fecaca; border-radius:8px; padding:12px 14px; margin-bottom:14px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
-            <div style="font-size:12px; color:#991b1b;">
-              <strong style="color:#b91c1c;"><i class="fa-solid fa-triangle-exclamation"></i> Đơn hàng này đang ở trạng thái ĐÃ HỦY:</strong>
-              <div style="font-size:11px; color:#7f1d1d; margin-top:2px;">Nếu khách thực tế đã chuyển khoản vào MB Bank (hoặc chuyển khoản sau 5 phút), bấm nút bên cạnh để khôi phục đơn, trừ lại kho và xác nhận thanh toán.</div>
+        ${order.status === 'CANCELLED' ? (() => {
+          const cm = parseAdminCancelMeta(order);
+          const paySt = String(order.paymentStatus || '').toUpperCase();
+          const refundNote = paySt === 'REFUND_PENDING'
+            ? '💸 Đang chờ hoàn tiền'
+            : (paySt === 'REFUNDED' ? '✅ Đã hoàn tiền' : '📦 Đã hoàn trả tồn kho');
+          const isTransferType = ['VIETQR_PAYOS', 'PAYOS', 'BANK_TRANSFER', 'DEPOSIT'].includes(String(order.paymentMethod || '').toUpperCase()) || Number(order.depositAmount || 0) > 0;
+          return `
+            <div class="admin-cancel-detail-card ${cm.actorClass}">
+              <div class="admin-cancel-detail-top">
+                <div style="flex:1; min-width:240px;">
+                  <div class="admin-cancel-actor-badge">
+                    <i class="fa-solid ${cm.actorIcon}"></i>
+                    <span>${escapeHtml(cm.actorTitle)}</span>
+                  </div>
+                  <div class="admin-cancel-meta-chips">
+                    <span class="admin-cancel-meta-chip">${refundNote}</span>
+                    ${cm.cancelTimeStr ? `<span class="admin-cancel-meta-chip"><i class="fa-regular fa-clock"></i> ${escapeHtml(cm.cancelTimeStr)}</span>` : ''}
+                  </div>
+                </div>
+                ${isTransferType ? `
+                  <button type="button" class="btn-admin btn-admin-primary" style="background:#059669; border-color:#059669; font-size:12px; padding:6px 14px; font-weight:800;" onclick="confirmPaymentAction(${order.id}, '${(order.paymentMethod === 'DEPOSIT' || Number(order.depositAmount || 0) > 0) ? 'deposit' : 'full'}')" title="Đơn đã nhận tiền thực tế trong MB Bank - Bấm để khôi phục và xác nhận thanh toán">
+                    <i class="fa-solid fa-rotate-left"></i> Khôi Phục & Xác Nhận Đã Nhận Tiền
+                  </button>
+                ` : ''}
+              </div>
+              <div class="admin-cancel-reason-detail">
+                <strong><i class="fa-solid fa-comment-dots"></i> Lý do hủy đơn:</strong>
+                <span style="font-weight:700; margin-left:4px;">${escapeHtml(cm.cleanReason)}</span>
+              </div>
             </div>
-            <button type="button" class="btn-admin btn-admin-primary" style="background:#059669; border-color:#059669; font-size:12px; padding:6px 14px; font-weight:800;" onclick="confirmPaymentAction(${order.id}, '${(order.paymentMethod === 'DEPOSIT' || Number(order.depositAmount || 0) > 0) ? 'deposit' : 'full'}')" title="Đơn đã nhận tiền thực tế trong MB Bank - Bấm để khôi phục và xác nhận thanh toán">
-              <i class="fa-solid fa-rotate-left"></i> Khôi Phục & Xác Nhận Đã Nhận Tiền
-            </button>
-          </div>
-        ` : ''}
+          `;
+        })() : ''}
 
         <!-- Thanh thao tác tiến trình & Xác nhận giao nhận hàng 1-Click -->
         ${!isDeliveredOrCompleted && order.status !== 'CANCELLED' ? `
@@ -6731,7 +6811,23 @@ Anh/chị phản hồi giúp shop để kiện xe được đóng gói gửi đi
         }, 'CUSTOMER_REPORTED_TRANSFER');
         if (!isSelfOrigin) scheduleRealtimeOrdersReload();
       } else if (detail.type === 'ORDER_UPDATED' || detail.type === 'ORDERS_UPDATED') {
-        if (!isSelfOrigin) scheduleRealtimeOrdersReload();
+        if (!isSelfOrigin) {
+          const p = detail.payload || {};
+          const ordObj = p.order && typeof p.order === 'object' ? p.order : p;
+          const st = String(p.status || ordObj.status || ordObj.Status || '').toUpperCase();
+          const oCode = p.orderCode || ordObj.orderCode || ordObj.OrderCode || ordObj.code || '';
+          const cReason = getOrderCancelReason(p) || getOrderCancelReason(ordObj);
+          if (st === 'CANCELLED' && (p.cancelledByCustomer || cReason) && oCode) {
+            adminToast(`🚫 Khách đã hủy đơn #${oCode}${cReason ? ` — Lý do: ${cReason}` : ''}`, 'warning', 'Khách Hàng Hủy Đơn');
+          }
+          if (document.getElementById('orderDetailModal')?.classList.contains('active') && currentDetailOrderId) {
+            const targetId = Number(ordObj.id || ordObj.OrderId || 0);
+            if (!targetId || targetId === Number(currentDetailOrderId)) {
+              viewOrderDetail(currentDetailOrderId);
+            }
+          }
+          scheduleRealtimeOrdersReload();
+        }
       } else if (detail.type === 'USER_REGISTERED' || detail.type === 'USER_UPDATED' || detail.type === 'users_updated') {
         if (!isSelfOrigin) {
           loadDashboard();
@@ -6791,7 +6887,7 @@ Anh/chị phản hồi giúp shop để kiện xe được đóng gói gửi đi
             res.data.forEach(o => { if (o && o.code) adminKnownOrderCodes.add(o.code); });
           }
 
-          const orderSnapshot = (res.data || []).map(o => `${o.id || o.OrderId}_${o.status || o.Status}_${o.paymentStatus || o.PaymentStatus}_${o.trackingCode || ''}`).join('|');
+          const orderSnapshot = buildAdminOrderSnapshot(res.data);
           const countsSnapshot = JSON.stringify(res.counts || {});
           const hasOrderDataChanged = (orderSnapshot !== window._lastAdminOrderSnapshot) || (countsSnapshot !== window._lastAdminCountsSnapshot);
 

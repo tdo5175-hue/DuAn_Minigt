@@ -7579,12 +7579,27 @@ function updateLiveStep4OrderStatus(rawOrd) {
     }
   }
 
+function parseOrderCancelMeta(rawReason) {
+  const fullReason = String(rawReason || '').trim() || 'Admin đã xử lý hủy đơn';
+  const low = fullReason.toLowerCase();
+  const isAutoTimeout = low.includes('5 phút') || low.includes('tự động') || low.includes('quá hạn');
+  const isCustCancel = !isAutoTimeout && (low.includes('khách') || low.includes('chủ động') || low.includes('yêu cầu hủy'));
+  const cleanReason = fullReason.replace(/^khách(\s+hàng)?(\s+hủy|\s+yêu\s+cầu)?\s*[:\-–]\s*/i, '').trim() || fullReason;
+  return { fullReason, cleanReason, isCustCancel, isAutoTimeout };
+}
+
   if (status === 'CANCELLED') {
-    const cancelReason = ord.cancelReason || ord.CancelReason || 'Admin đã xử lý hủy đơn';
-    const isCustCancel = cancelReason.toLowerCase().includes('khách') || cancelReason.toLowerCase().includes('chủ động') || cancelReason.toLowerCase().includes('yêu cầu');
-    const cancelTitle = isCustCancel
-      ? `⚠️ ĐƠN HÀNG #${escapeHtml(code)} ĐÃ ĐƯỢC BẠN HỦY THÀNH CÔNG`
-      : `❌ ĐƠN HÀNG #${escapeHtml(code)} ĐÃ BỊ HỦY BỞI QUẢN TRỊ VIÊN`;
+    const cancelMeta = parseOrderCancelMeta(ord.cancelReason || ord.CancelReason);
+    const { isCustCancel, isAutoTimeout, cleanReason } = cancelMeta;
+    const cancelTitle = isAutoTimeout
+      ? `⏱️ ĐƠN HÀNG #${escapeHtml(code)} ĐÃ TỰ ĐỘNG HỦY DO QUÁ HẠN 5 PHÚT CHƯA THANH TOÁN`
+      : (isCustCancel
+          ? `⚠️ ĐƠN HÀNG #${escapeHtml(code)} ĐÃ ĐƯỢC BẠN HỦY THÀNH CÔNG`
+          : `❌ ĐƠN HÀNG #${escapeHtml(code)} ĐÃ BỊ HỦY BỞI QUẢN TRỊ VIÊN`);
+    const iconColor = isAutoTimeout ? '#dc2626' : (isCustCancel ? '#d97706' : '#dc2626');
+    const titleColor = isAutoTimeout ? '#dc2626' : (isCustCancel ? '#b45309' : '#dc2626');
+    const bgReason = isCustCancel ? '#fffbeb' : '#fef2f2';
+    const borderReason = isCustCancel ? '#fde68a' : '#fee2e2';
 
     box.className = '';
     box.style.background = '#ffffff';
@@ -7596,15 +7611,15 @@ function updateLiveStep4OrderStatus(rawOrd) {
 
     box.innerHTML = `
       <div style="display:flex; align-items:flex-start; gap:12px; text-align:left;">
-        <div style="font-size:24px; color:${isCustCancel ? '#d97706' : '#dc2626'}; line-height:1; flex-shrink:0;">
-          <i class="fa-solid ${isCustCancel ? 'fa-triangle-exclamation' : 'fa-circle-xmark'}"></i>
+        <div style="font-size:24px; color:${iconColor}; line-height:1; flex-shrink:0;">
+          <i class="fa-solid ${isAutoTimeout ? 'fa-clock-rotate-left' : (isCustCancel ? 'fa-triangle-exclamation' : 'fa-circle-xmark')}"></i>
         </div>
         <div style="flex:1;">
-          <div style="font-size:14px; font-weight:800; color:${isCustCancel ? '#b45309' : '#dc2626'};">
+          <div style="font-size:14px; font-weight:800; color:${titleColor};">
             ${cancelTitle}
           </div>
-          <div style="margin-top:8px; background:${isCustCancel ? '#fffbeb' : '#fef2f2'}; border:1px solid ${isCustCancel ? '#fde68a' : '#fee2e2'}; border-radius:6px; padding:8px 12px; font-size:13px; color:#374151;">
-            <strong>Lý do hủy đơn:</strong> <span style="color:${isCustCancel ? '#b45309' : '#dc2626'}; font-weight:700;">${escapeHtml(cancelReason)}</span>
+          <div style="margin-top:8px; background:${bgReason}; border:1px solid ${borderReason}; border-radius:6px; padding:8px 12px; font-size:13px; color:#374151;">
+            <strong>Lý do hủy đơn:</strong> <span style="color:${titleColor}; font-weight:700;">${escapeHtml(cleanReason)}</span>
           </div>
           <div style="margin-top:10px; font-size:12.5px; color:#4b5563; line-height:1.5;">
             Quý khách có nhu cầu đặt lại mẫu xe hoặc cần hỗ trợ, vui lòng liên hệ Hotline / Zalo: <strong style="color:#dc2626; font-size:13px;">0981.903.400</strong>.
@@ -10372,9 +10387,7 @@ function buildUnifiedCustomerOrderCardHTML(ord) {
 
       <!-- KHỐI THÔNG BÁO ĐƠN HỦY KÈM LÝ DO (PHÂN BIỆT RÕ KHÁCH TỰ HỦY VS ADMIN HỦY) -->
       ${ordStatus === 'CANCELLED' ? (() => {
-        const cancelReason = ord.CancelReason || ord.cancelReason || 'Admin đã xử lý hủy đơn';
-        const isCustCancel = cancelReason.toLowerCase().includes('khách') || cancelReason.toLowerCase().includes('chủ động') || cancelReason.toLowerCase().includes('yêu cầu');
-        const isAutoTimeout = cancelReason.toLowerCase().includes('5 phút') || cancelReason.toLowerCase().includes('tự động') || cancelReason.toLowerCase().includes('quá hạn');
+        const { cleanReason, isCustCancel, isAutoTimeout } = parseOrderCancelMeta(ord.CancelReason || ord.cancelReason);
         const cancelTitle = isAutoTimeout
           ? `⏱️ ĐƠN HÀNG #${escapeHtml(orderCode)} ĐÃ TỰ ĐỘNG HỦY DO QUÁ HẠN 5 PHÚT CHƯA THANH TOÁN`
           : (isCustCancel
@@ -10390,14 +10403,14 @@ function buildUnifiedCustomerOrderCardHTML(ord) {
         <div style="background:#ffffff; border:${cancelBorder}; border-radius:8px; padding:14px 16px; margin-bottom:14px; text-align:left; box-shadow:0 1px 4px rgba(0,0,0,0.06);">
           <div style="display:flex; align-items:flex-start; gap:12px;">
             <div style="font-size:24px; color:${iconColor}; line-height:1; flex-shrink:0;">
-              <i class="fa-solid ${isCustCancel ? 'fa-triangle-exclamation' : 'fa-circle-xmark'}"></i>
+              <i class="fa-solid ${isAutoTimeout ? 'fa-clock-rotate-left' : (isCustCancel ? 'fa-triangle-exclamation' : 'fa-circle-xmark')}"></i>
             </div>
             <div style="flex:1;">
               <div style="font-size:14px; font-weight:800; color:${titleColor};">
                 ${cancelTitle}
               </div>
               <div style="margin-top:8px; background:${bgReason}; border:1px solid ${borderReason}; border-radius:6px; padding:8px 12px; font-size:13px; color:#374151;">
-                <strong>Lý do:</strong> <span style="color:${titleColor}; font-weight:700;">${escapeHtml(cancelReason)}</span>
+                <strong>Lý do:</strong> <span style="color:${titleColor}; font-weight:700;">${escapeHtml(cleanReason)}</span>
               </div>
               <div style="margin-top:10px; font-size:12.5px; color:#4b5563; line-height:1.5;">
                 Quý khách có nhu cầu đặt lại mẫu xe hoặc cần hỗ trợ, vui lòng liên hệ Hotline / Zalo: <strong style="color:#dc2626; font-size:13px;">0981.903.400</strong>.
@@ -11147,7 +11160,8 @@ async function cancelMyOrder(orderCode) {
       'Muốn đổi hình thức thanh toán'
     ],
     onConfirm: async (reasonVal) => {
-      const finalReason = reasonVal || 'Khách hàng chủ động hủy đơn trên giao diện';
+      const rawInput = String(reasonVal || '').trim() || 'Khách hàng chủ động hủy đơn';
+      const finalReason = /^khách(\s+hàng)?/i.test(rawInput) ? rawInput : `Khách hàng hủy: ${rawInput}`;
       try {
         const verifyPhone = getOrderVerificationPhone(orderCode);
         const headers = { 'Content-Type': 'application/json' };
