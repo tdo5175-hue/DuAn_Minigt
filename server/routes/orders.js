@@ -193,17 +193,17 @@ router.get('/', optionalAuth, async (req, res, next) => {
       if (!v.isVNPhone(phone)) throw badRequest('Số điện thoại tra cứu không hợp lệ');
       const r = await orderService.listOrders({ phone, page, pageSize });
       const safeItems = await Promise.all((r.items || []).map(item => sanitizeOrderForCaller(item, req, phone)));
-      return ok(res, safeItems, { meta: { total: r.total, page: r.page, pageSize: r.pageSize, totalPages: r.totalPages } });
+      return ok(res, safeItems, 'OK', { meta: { total: r.total, page: r.page, pageSize: r.pageSize, totalPages: r.totalPages } });
     }
     if (req.user) {
       if (req.user.role === 'admin') {
         const r = await orderService.listOrders({ page, pageSize: pageSize || 20 });
-        return ok(res, r.items, { meta: { total: r.total, page: r.page, pageSize: r.pageSize, totalPages: r.totalPages } });
+        return ok(res, r.items, 'OK', { meta: { total: r.total, page: r.page, pageSize: r.pageSize, totalPages: r.totalPages } });
       }
       const r = await orderService.listOrders({ userId: req.user.userId, page, pageSize });
-      return ok(res, r.items, { meta: { total: r.total, page: r.page, pageSize: r.pageSize, totalPages: r.totalPages } });
+      return ok(res, r.items, 'OK', { meta: { total: r.total, page: r.page, pageSize: r.pageSize, totalPages: r.totalPages } });
     }
-    return ok(res, [], { meta: { total: 0, page: 1, pageSize: 20, totalPages: 1 } });
+    return ok(res, [], 'OK', { meta: { total: 0, page: 1, pageSize: 20, totalPages: 1 } });
   } catch (err) { next(err); }
 });
 
@@ -275,7 +275,7 @@ router.get('/my', authenticate, async (req, res, next) => {
       page: req.query.page,
       pageSize: req.query.pageSize
     });
-    return ok(res, r.items, { meta: { total: r.total, page: r.page, pageSize: r.pageSize, totalPages: r.totalPages } });
+    return ok(res, r.items, 'OK', { meta: { total: r.total, page: r.page, pageSize: r.pageSize, totalPages: r.totalPages } });
   } catch (err) { next(err); }
 });
 
@@ -425,7 +425,7 @@ router.put('/:code/cancel', optionalAuth, async (req, res, next) => {
       isAdmin: req.user?.role === 'admin'
     });
     aiChatService.invalidateStoreCache();
-    return ok(res, updated, { message: 'Đã hủy đơn hàng và hoàn tồn kho' });
+    return ok(res, updated, 'Đã hủy đơn hàng và hoàn tồn kho');
   } catch (err) { next(err); }
 });
 
@@ -439,7 +439,7 @@ router.put('/:code/confirm-received', optionalAuth, async (req, res, next) => {
 
     const curStatus = String(o.status || '').toUpperCase();
     if (curStatus === 'DELIVERED') {
-      return ok(res, o, { message: 'Đơn hàng đã được xác nhận giao thành công trước đó!' });
+      return ok(res, o, 'Đơn hàng đã được xác nhận giao thành công trước đó!');
     }
     if (curStatus !== 'SHIPPING') {
       throw badRequest('Chỉ có thể xác nhận đã nhận hàng khi kiện hàng đang được bưu tá vận chuyển (SHIPPING)!');
@@ -452,7 +452,7 @@ router.put('/:code/confirm-received', optionalAuth, async (req, res, next) => {
       isAdmin: req.user?.role === 'admin'
     });
     aiChatService.invalidateStoreCache();
-    return ok(res, updated, { message: 'Cảm ơn bạn đã xác nhận nhận hàng thành công!' });
+    return ok(res, updated, 'Cảm ơn bạn đã xác nhận nhận hàng thành công!');
   } catch (err) { next(err); }
 });
 
@@ -484,7 +484,7 @@ router.put('/:code/shipping-info', optionalAuth, async (req, res, next) => {
     `, { oid, fullName, phone, address, note });
 
     const updated = await orderService.getOrderByCodeOrId(oid);
-    return ok(res, updated, { message: 'Đã cập nhật thông tin nhận hàng thành công!' });
+    return ok(res, updated, 'Đã cập nhật thông tin nhận hàng thành công!');
   } catch (err) { next(err); }
 });
 
@@ -506,7 +506,7 @@ async function handleUploadReceipt(req, res, next) {
       { img: receiptImage, id: oid }
     );
     const updated = await orderService.getOrderByCodeOrId(oid);
-    return ok(res, updated, { message: 'Đã gửi biên lai chuyển khoản, cửa hàng sẽ xác nhận sớm' });
+    return ok(res, updated, 'Đã gửi biên lai chuyển khoản, cửa hàng sẽ xác nhận sớm');
   } catch (err) { next(err); }
 }
 

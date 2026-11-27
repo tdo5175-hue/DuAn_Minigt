@@ -1923,6 +1923,7 @@
     }
   };
 
+  const TAB_INSTANCE_ID = `tab_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
   const seenRealtimeEventIds = new Set();
   const maxSeenEventIds = 250;
 
@@ -1947,6 +1948,7 @@
       id: `evt_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
       type,
       payload,
+      sourceTabId: TAB_INSTANCE_ID,
       timestamp: Date.now()
     };
     seenRealtimeEventIds.add(eventData.id);
@@ -2004,7 +2006,8 @@
     }
 
     if ((method === 'PUT' || method === 'PATCH') && endpoint.includes('/orders/') && d) {
-      const saved = upsertSharedOrder(d);
+      const orderPayload = d.order ? d.order : d;
+      const saved = upsertSharedOrder(orderPayload);
       emitRealtimeSync('ORDER_UPDATED', saved);
       return;
     }
@@ -3572,6 +3575,7 @@
     getMyOrderCodes,
     addMyOrderCode,
     emitRealtimeSync,
+    TAB_INSTANCE_ID,
     normalizeOrderObject,
     isLocalEnvironment,
     isLocalServerOffline: () => localServerOffline,

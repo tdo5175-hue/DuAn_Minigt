@@ -1374,6 +1374,247 @@
   }
 
   // =====================================================================
+  // UNIFIED ADMIN CONFIRMATION MODAL & OPTIMISTIC CACHE HELPERS
+  // =====================================================================
+  let _adminConfirmBusy = false;
+
+  function adminConfirm({
+    title = 'Xác nhận thao tác',
+    message = 'Bạn có chắc chắn muốn thực hiện thao tác này?',
+    type = 'warning', // 'danger' | 'warning' | 'primary' | 'success'
+    confirmText = 'Xác nhận',
+    cancelText = 'Hủy bỏ',
+    showInput = false,
+    inputLabel = 'Ghi chú',
+    inputPlaceholder = 'Nhập thông tin...',
+    inputDefaultValue = '',
+    inputRequired = false,
+    onConfirm = null
+  } = {}) {
+    const modal = document.getElementById('adminConfirmModal');
+    if (!modal) {
+      if (showInput) {
+        const val = window.prompt(`${title}\n${message}`, inputDefaultValue);
+        if (val === null) return Promise.resolve({ confirmed: false, value: null });
+        if (onConfirm) return Promise.resolve(onConfirm(val)).then(() => ({ confirmed: true, value: val }));
+        return Promise.resolve({ confirmed: true, value: val });
+      }
+      const ok = window.confirm(`${title}\n\n${String(message).replace(/<[^>]+>/g, '')}`);
+      if (!ok) return Promise.resolve({ confirmed: false, value: null });
+      if (onConfirm) return Promise.resolve(onConfirm(null)).then(() => ({ confirmed: true, value: null }));
+      return Promise.resolve({ confirmed: true, value: null });
+    }
+
+    return new Promise((resolve) => {
+      const iconWrap = document.getElementById('adminConfirmIconWrap');
+      const iconEl = document.getElementById('adminConfirmIcon');
+      const titleEl = document.getElementById('adminConfirmTitle');
+      const msgEl = document.getElementById('adminConfirmMessage');
+      const inputWrap = document.getElementById('adminConfirmInputWrap');
+      const inputLbl = document.getElementById('adminConfirmInputLabel');
+      const inputField = document.getElementById('adminConfirmInputField');
+      const okBtn = document.getElementById('adminConfirmOkBtn');
+      const cancelBtn = document.getElementById('adminConfirmCancelBtn');
+      const closeBtn = document.getElementById('adminConfirmCloseBtn');
+
+      const iconMap = {
+        danger: 'fa-triangle-exclamation',
+        warning: 'fa-circle-exclamation',
+        primary: 'fa-circle-question',
+        success: 'fa-circle-check'
+      };
+      const btnStyleMap = {
+        danger: 'background:#dc2626; border-color:#dc2626; color:#fff;',
+        warning: 'background:#d97706; border-color:#d97706; color:#fff;',
+        primary: 'background:#2563eb; border-color:#2563eb; color:#fff;',
+        success: 'background:#059669; border-color:#059669; color:#fff;'
+      };
+
+      if (iconWrap) iconWrap.className = `confirm-icon-wrap is-${type || 'warning'}`;
+      if (iconEl) iconEl.className = `fa-solid ${iconMap[type] || iconMap.warning}`;
+      if (titleEl) titleEl.textContent = title;
+      if (msgEl) msgEl.innerHTML = message;
+
+      if (inputWrap && inputField) {
+        if (showInput) {
+          inputWrap.style.display = 'block';
+          if (inputLbl) inputLbl.textContent = inputLabel || 'Ghi chú';
+          inputField.placeholder = inputPlaceholder || '';
+          inputField.value = inputDefaultValue || '';
+          setTimeout(() => inputField.focus(), 60);
+        } else {
+          inputWrap.style.display = 'none';
+          inputField.value = '';
+        }
+      }
+
+      if (cancelBtn) {
+        cancelBtn.textContent = cancelText;
+        cancelBtn.disabled = false;
+      }
+      if (okBtn) {
+        okBtn.textContent = confirmText;
+        okBtn.setAttribute('style', `padding:0.55rem 1.2rem; font-size:13px; ${btnStyleMap[type] || btnStyleMap.primary}`);
+        okBtn.disabled = false;
+      }
+
+      _adminConfirmBusy = false;
+
+      const cleanup = () => {
+        if (okBtn) okBtn.onclick = null;
+        if (cancelBtn) cancelBtn.onclick = null;
+        if (closeBtn) closeBtn.onclick = null;
+        modal.onclick = null;
+        document.removeEventListener('keydown', keyHandler);
+      };
+
+      const finish = (confirmed, value = null) => {
+        if (_adminConfirmBusy) return;
+        cleanup();
+        modal.classList.remove('active');
+        resolve({ confirmed, value });
+      };
+
+      const keyHandler = (e) => {
+        if (e.key === 'Escape' && !_adminConfirmBusy) {
+          finish(false, null);
+        } else if (e.key === 'Enter' && showInput && document.activeElement === inputField && !_adminConfirmBusy) {
+          e.preventDefault();
+          okBtn?.click();
+        }
+      };
+      document.addEventListener('keydown', keyHandler);
+
+      if (cancelBtn) cancelBtn.onclick = () => finish(false, null);
+      if (closeBtn) closeBtn.onclick = () => finish(false, null);
+      modal.onclick = (e) => {
+        if (e.target === modal && !_adminConfirmBusy) finish(false, null);
+      };
+
+      if (okBtn) {
+        okBtn.onclick = async () => {
+          if (_adminConfirmBusy) return;
+          const val = showInput && inputField ? inputField.value.trim() : null;
+          if (showInput && inputRequired && !val) {
+            adminToast('Vui lòng nhập đầy đủ thông tin yêu cầu!', 'error');
+            inputField?.focus();
+            return;
+          }
+
+          if (typeof onConfirm === 'function') {
+            _adminConfirmBusy = true;
+            const prevHtml = okBtn.innerHTML;
+            okBtn.disabled = true;
+            if (cancelBtn) cancelBtn.disabled = true;
+            okBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Đang xử lý...';
+            try {
+              await onConfirm(val);
+              _adminConfirmBusy = false;
+              cleanup();
+              modal.classList.remove('active');
+              resolve({ confirmed: true, value: val });
+            } catch (err) {
+              _adminConfirmBusy = false;
+              okBtn.disabled = false;
+              if (cancelBtn) cancelBtn.disabled = false;
+              okBtn.innerHTML = prevHtml;
+            }
+          } else {
+            finish(true, val);
+          }
+        };
+      }
+
+      modal.classList.add('active');
+      if (!showInput && okBtn) {
+        setTimeout(() => okBtn.focus(), 60);
+      }
+    });
+  }
+
+  function findCachedOrderById(orderId) {
+    const oid = Number(orderId);
+    if (!oid) return null;
+    return (cachedOrders || []).find(o => Number(o.id || o.OrderId) === oid)
+      || (cachedRecentOrders || []).find(o => Number(o.id || o.OrderId) === oid)
+      || (currentActionOrderData && Number(currentActionOrderData.id || currentActionOrderData.OrderId) === oid ? currentActionOrderData : null);
+  }
+
+  async function getOrderFromCacheOrApi(orderId) {
+    const cached = findCachedOrderById(orderId);
+    if (cached && cached.customer) return cached;
+    const res = await api.get(`/api/admin/orders/${orderId}`);
+    return (res && res.success && res.data) ? res.data : null;
+  }
+
+  let _quietSyncTimer = null;
+  function scheduleQuietAdminRefresh({ includeDashboard = false } = {}) {
+    if (_quietSyncTimer) clearTimeout(_quietSyncTimer);
+    _quietSyncTimer = setTimeout(() => {
+      if (activeTab === 'orders') loadOrders(true);
+      if (includeDashboard || activeTab === 'dashboard') loadDashboard();
+    }, 450);
+  }
+
+  function applyLocalOrderUpdate(updatedOrder) {
+    if (!updatedOrder || typeof updatedOrder !== 'object') return;
+    const targetId = Number(updatedOrder.id || updatedOrder.OrderId || 0);
+    const targetCode = String(updatedOrder.code || updatedOrder.OrderCode || '');
+    const matchOrder = (o) => (targetId && Number(o.id || o.OrderId) === targetId) || (targetCode && String(o.code || o.OrderCode) === targetCode);
+
+    let touchedOrders = false;
+    if (Array.isArray(cachedOrders)) {
+      cachedOrders = cachedOrders.map(o => {
+        if (!matchOrder(o)) return o;
+        touchedOrders = true;
+        return Object.assign({}, o, updatedOrder);
+      });
+    }
+    if (Array.isArray(cachedRecentOrders)) {
+      cachedRecentOrders = cachedRecentOrders.map(o => matchOrder(o) ? Object.assign({}, o, updatedOrder) : o);
+    }
+    if (currentActionOrderData && matchOrder(currentActionOrderData)) {
+      currentActionOrderData = Object.assign({}, currentActionOrderData, updatedOrder);
+    }
+
+    if (touchedOrders) {
+      window._lastAdminOrderSnapshot = (cachedOrders || []).map(o => `${o.id || o.OrderId}_${o.status || o.Status}_${o.paymentStatus || o.PaymentStatus}_${o.trackingCode || ''}`).join('|');
+    }
+
+    if (activeTab === 'orders') {
+      renderOrdersTable(cachedOrders);
+    } else if (activeTab === 'dashboard') {
+      renderRecentOrdersTable(cachedRecentOrders);
+    }
+
+    if (document.getElementById('orderDetailModal')?.classList.contains('active') && Number(currentDetailOrderId) === targetId) {
+      viewOrderDetail(targetId);
+    }
+
+    scheduleQuietAdminRefresh({ includeDashboard: activeTab === 'dashboard' });
+  }
+
+  async function openCustomEditionNotePrompt() {
+    const prodEdition = document.getElementById('prodEdition');
+    const res = await adminConfirm({
+      title: 'Thêm nhãn phiên bản mới',
+      message: 'Nhập tên nhãn hoặc ghi chú phiên bản hiển thị nổi bật trên thẻ mô hình xe.',
+      type: 'primary',
+      confirmText: 'Áp dụng nhãn',
+      showInput: true,
+      inputLabel: 'Nhãn phiên bản',
+      inputPlaceholder: 'VD: Chase Limited, Resin Edition...',
+      inputDefaultValue: prodEdition ? prodEdition.value : '',
+      inputRequired: true
+    });
+    if (res.confirmed && res.value && prodEdition) {
+      prodEdition.value = res.value;
+    }
+  }
+  window.openCustomEditionNotePrompt = openCustomEditionNotePrompt;
+  window.adminConfirm = adminConfirm;
+
+  // =====================================================================
   // 2. AUTHENTICATION & KHỞI CHẠY HỆ THỐNG
   // =====================================================================
   async function checkAdminAuth() {
@@ -1491,8 +1732,15 @@
     }
   }
 
-  function adminLogout() {
-    if (!confirm('Bạn có chắc chắn muốn đăng xuất khỏi Cổng Quản Trị?')) return;
+  async function adminLogout() {
+    const { confirmed } = await adminConfirm({
+      title: 'Đăng xuất Cổng Quản Trị?',
+      message: 'Bạn có chắc chắn muốn kết thúc phiên làm việc và đăng xuất khỏi hệ thống quản trị không?',
+      type: 'warning',
+      confirmText: 'Đăng xuất',
+      cancelText: 'Ở lại'
+    });
+    if (!confirmed) return;
     api.clearAuthSession();
     currentAdminUser = null;
     adminToast('Đã đăng xuất', 'info');
@@ -3518,42 +3766,59 @@
   }
 
   async function cloneProduct(productId) {
-    if (!confirm('Bạn có muốn tạo một bản sao nhân bản cho mô hình này?')) return;
-    try {
-      const res = await api.post(`/api/admin/products/${productId}/clone`);
-      adminToast(res.message || 'Nhân bản sản phẩm thành công!', 'success');
-      loadProducts();
-    } catch (err) {
-      adminToast('Lỗi nhân bản: ' + err.message, 'error');
-    }
+    const p = (cachedProducts || []).find(item => Number(item.id || item.ProductId) === Number(productId));
+    const name = p?.name || p?.Name || `#${productId}`;
+    await adminConfirm({
+      title: 'Nhân bản mô hình xe?',
+      message: `Bạn có muốn tạo một bản sao mới từ mô hình <strong>"${escapeHtml(name)}"</strong> không?`,
+      type: 'primary',
+      confirmText: 'Tạo bản sao',
+      onConfirm: async () => {
+        try {
+          const res = await api.post(`/api/admin/products/${productId}/clone`);
+          adminToast(res.message || 'Nhân bản sản phẩm thành công!', 'success');
+          loadProducts();
+        } catch (err) {
+          adminToast('Lỗi nhân bản: ' + err.message, 'error');
+          throw err;
+        }
+      }
+    });
   }
 
   async function deleteProduct(productId) {
     const pid = parseInt(productId, 10);
-    if (!confirm('Bạn có chắc chắn muốn xóa mô hình này khỏi cửa hàng?')) return;
-    try {
-      const res = await api.delete(`/api/admin/products/${pid}`);
+    const p = (cachedProducts || []).find(item => Number(item.id || item.ProductId) === pid);
+    const name = p?.name || p?.Name || `#${pid}`;
+    await adminConfirm({
+      title: 'Xác nhận xóa mô hình?',
+      message: `Bạn có chắc chắn muốn xóa mô hình <strong>"${escapeHtml(name)}"</strong> khỏi cửa hàng? Nếu xe đã có trong đơn hàng, hệ thống sẽ ẩn sản phẩm để bảo toàn lịch sử đơn.`,
+      type: 'danger',
+      confirmText: 'Xóa mô hình',
+      onConfirm: async () => {
+        try {
+          const res = await api.delete(`/api/admin/products/${pid}`);
+          cachedProducts = (cachedProducts || []).filter(item => {
+            const id = item.id ?? item.ProductId ?? item.productid;
+            return Number(id) !== pid;
+          });
+          renderProductsTable(cachedProducts);
 
-      // Xóa ngay khỏi danh sách đang hiển thị mà không cần reload toàn bộ
-      cachedProducts = (cachedProducts || []).filter(p => {
-        const id = p.id ?? p.ProductId ?? p.productid;
-        return Number(id) !== pid;
-      });
-      renderProductsTable(cachedProducts);
-
-      if (res.data && res.data.softDeleted) {
-        adminToast('Sản phẩm đã có trong đơn hàng — đã ẩn khỏi cửa hàng thành công!', 'info');
-      } else {
-        adminToast('Đã xóa hoàn toàn sản phẩm khỏi hệ thống!', 'success');
+          if (res.data && res.data.softDeleted) {
+            adminToast('Sản phẩm đã có trong đơn hàng — đã ẩn khỏi cửa hàng thành công!', 'info');
+          } else {
+            adminToast('Đã xóa hoàn toàn sản phẩm khỏi hệ thống!', 'success');
+          }
+          if (api && typeof api.emitRealtimeSync === 'function') {
+            api.emitRealtimeSync('PRODUCTS_UPDATED', { deletedId: pid });
+          }
+          scheduleQuietAdminRefresh({ includeDashboard: activeTab === 'dashboard' });
+        } catch (err) {
+          adminToast('Lỗi xóa sản phẩm: ' + err.message, 'error');
+          throw err;
+        }
       }
-      if (api && typeof api.emitRealtimeSync === 'function') {
-        api.emitRealtimeSync('PRODUCTS_UPDATED', { deletedId: pid });
-      }
-      await loadProducts();
-      loadDashboard();
-    } catch (err) {
-      adminToast('Lỗi xóa sản phẩm: ' + err.message, 'error');
-    }
+    });
   }
 
   // =====================================================================
@@ -4052,12 +4317,24 @@
       return;
     }
 
-    // Đếm số lượng đơn của từng nhóm ngày trên trang hiện tại
+    // Đếm số lượng đơn của từng nhóm ngày trên trang hiện tại & lập Map tra cứu VIP O(1)
     const groupCounts = {};
     orders.forEach(o => {
       const k = getDateGroupKey(o.createdAt || o.created_at);
       groupCounts[k] = (groupCounts[k] || 0) + 1;
     });
+
+    const userByIdMap = new Map();
+    const userByPhoneMap = new Map();
+    if (Array.isArray(cachedUsers)) {
+      cachedUsers.forEach(u => {
+        if (u.userId) userByIdMap.set(Number(u.userId), u);
+        if (u.phone) {
+          const clean = String(u.phone).replace(/\D/g, '');
+          if (clean) userByPhoneMap.set(clean, u);
+        }
+      });
+    }
 
     let lastGroup = null;
     const rowsHtml = [];
@@ -4215,9 +4492,8 @@
             <div style="font-weight:700; color:#0f172a; font-size:12.5px; display:flex; align-items:center; gap:5px; flex-wrap:wrap;">
               <span>${escapeHtml(custName)}</span>
               ${(() => {
-                const custMatch = (cachedUsers && cachedUsers.length)
-                  ? cachedUsers.find(u => (o.userId && u.userId == o.userId) || (u.phone && custPhone && u.phone.replace(/\D/g, '') === custPhone.replace(/\D/g, '')))
-                  : null;
+                const cleanCustPhone = custPhone ? String(custPhone).replace(/\D/g, '') : '';
+                const custMatch = (o.userId && userByIdMap.get(Number(o.userId))) || (cleanCustPhone && userByPhoneMap.get(cleanCustPhone)) || null;
                 const custTotalSpent = Number((custMatch ? custMatch.totalSpent : 0) || o.userTotalSpent || (o.customer && o.customer.userTotalSpent) || 0);
                 const custVip = (o.vip && o.vip.level) ? o.vip : getCustomerVipInfo(custTotalSpent);
                 return `<span class="vip-badge vip-${custVip.level}" style="background:${custVip.bg}; color:${custVip.color}; border:1px solid ${custVip.border}; padding:1px 6px; border-radius:10px; font-weight:800; font-size:10px; display:inline-flex; align-items:center; gap:3px;" title="Cấp độ ${custVip.label} (${custVip.tierName}) — Tích lũy mua hàng: ${formatVND(custTotalSpent)}"><i class="fa-solid ${custVip.icon}"></i> ${custVip.label}</span>`;
@@ -4905,64 +5181,115 @@
     }
   }
 
-  // Chuyển trạng thái đơn hàng (1-Click mượt mà, đồng bộ ngay sang khách hàng)
+  // Chuyển trạng thái đơn hàng (Có xác nhận an toàn + cập nhật tức thì không lag)
   async function changeOrderStatus(orderId, nextStatus) {
-    try {
-      const res = await api.put(`/api/admin/orders/${orderId}/status`, { status: nextStatus });
-      const toastMsg = nextStatus === 'DELIVERED'
-        ? '🎉 Đã xác nhận giao hàng thành công! Thư cảm ơn & cẩm nang bảo quản xe 1:64 đã được tự động gửi qua email cho khách hàng.'
-        : (res.message || 'Đã duyệt & cập nhật trạng thái đơn hàng! Khách hàng đã nhận được thông báo.');
-      adminToast(toastMsg, 'success');
-      if (api && typeof api.emitRealtimeSync === 'function') {
-        const orderData = (res && res.data) ? res.data : { id: orderId, status: nextStatus };
-        api.emitRealtimeSync('ORDER_UPDATED', {
-          orderId,
-          orderCode: orderData.code || orderData.OrderCode,
-          status: nextStatus,
-          order: orderData
-        });
+    const order = findCachedOrderById(orderId);
+    const codeLabel = order?.code ? `#${order.code}` : `#${orderId}`;
+    const custName = order?.customer?.fullName || order?.fullName || 'khách hàng';
+    const targetUpper = String(nextStatus || '').toUpperCase();
+
+    const confirmMap = {
+      CONFIRMED: {
+        title: `Duyệt đơn hàng ${codeLabel}?`,
+        message: `Xác nhận duyệt đơn hàng <strong>${escapeHtml(codeLabel)}</strong> của khách <strong>${escapeHtml(custName)}</strong> để chuẩn bị đóng gói?`,
+        type: 'primary',
+        confirmText: 'Duyệt đơn ngay'
+      },
+      PREPARING: {
+        title: `Chuyển sang Đóng Gói ${codeLabel}?`,
+        message: `Xác nhận chuyển đơn hàng <strong>${escapeHtml(codeLabel)}</strong> sang trạng thái <strong>Đang đóng gói</strong>?`,
+        type: 'primary',
+        confirmText: 'Xác nhận đóng gói'
+      },
+      DELIVERED: {
+        title: `Hoàn tất giao hàng ${codeLabel}?`,
+        message: `Xác nhận đơn hàng <strong>${escapeHtml(codeLabel)}</strong> của <strong>${escapeHtml(custName)}</strong> đã giao thành công?<br><span style="font-size:12px; color:#059669; display:inline-block; margin-top:6px;"><i class="fa-solid fa-circle-info"></i> Hệ thống sẽ khóa chỉnh sửa hóa đơn, cộng điểm VIP và tự động gửi email cảm ơn cho khách.</span>`,
+        type: 'success',
+        confirmText: 'Xác nhận đã giao'
       }
-      loadOrders(true);
-      if (activeTab === 'dashboard') loadDashboard();
-      if (document.getElementById('orderDetailModal')?.classList.contains('active')) {
-        viewOrderDetail(orderId);
+    };
+    const cfg = confirmMap[targetUpper] || {
+      title: `Cập nhật trạng thái ${codeLabel}?`,
+      message: `Xác nhận chuyển trạng thái đơn hàng <strong>${escapeHtml(codeLabel)}</strong> sang <strong>${escapeHtml(targetUpper)}</strong>?`,
+      type: 'primary',
+      confirmText: 'Xác nhận'
+    };
+
+    await adminConfirm({
+      ...cfg,
+      onConfirm: async () => {
+        try {
+          const res = await api.put(`/api/admin/orders/${orderId}/status`, { status: nextStatus });
+          const toastMsg = targetUpper === 'DELIVERED'
+            ? '🎉 Đã xác nhận giao hàng thành công! Thư cảm ơn & cẩm nang bảo quản xe 1:64 đã được gửi cho khách hàng.'
+            : (res.message || 'Đã cập nhật trạng thái đơn hàng thành công!');
+          adminToast(toastMsg, 'success');
+          if (res && res.data) {
+            applyLocalOrderUpdate(res.data);
+          } else {
+            scheduleQuietAdminRefresh({ includeDashboard: true });
+          }
+          if (targetUpper === 'DELIVERED' && api && typeof api.emitRealtimeSync === 'function') {
+            api.emitRealtimeSync('PRODUCTS_UPDATED', { orderId, status: 'DELIVERED' });
+          }
+        } catch (err) {
+          adminToast('Không thể chuyển trạng thái: ' + err.message, 'error');
+          throw err;
+        }
       }
-    } catch (err) {
-      adminToast('Không thể chuyển trạng thái: ' + err.message, 'error');
-    }
+    });
   }
 
-  // Xác nhận thanh toán
+  // Xác nhận thanh toán / Khôi phục đơn (Có hộp thoại xác nhận rõ ràng)
   async function confirmPaymentAction(orderId, kind) {
-    try {
-      const res = await api.put(`/api/admin/orders/${orderId}/confirm-payment`, { kind });
-      adminToast(res.message || 'Xác nhận thanh toán thành công!', 'success');
-      if (api && typeof api.emitRealtimeSync === 'function') {
-        const orderData = (res && res.data) ? res.data : { id: orderId };
-        api.emitRealtimeSync('ORDER_UPDATED', {
-          orderId,
-          orderCode: orderData.code || orderData.OrderCode,
-          paymentStatus: kind === 'deposit' ? 'PARTIALLY_PAID' : 'PAID',
-          order: orderData
-        });
+    const order = findCachedOrderById(orderId);
+    const codeLabel = order?.code ? `#${order.code}` : `#${orderId}`;
+    const custName = order?.customer?.fullName || order?.fullName || 'khách hàng';
+    const isCancelled = String(order?.status || '').toUpperCase() === 'CANCELLED';
+    const amount = kind === 'deposit'
+      ? Number(order?.depositAmount || 0)
+      : Number(order?.productPayable ?? order?.qrTransferAmount ?? order?.total ?? 0);
+
+    const title = isCancelled
+      ? `Khôi phục & Xác nhận tiền đơn ${codeLabel}?`
+      : (kind === 'deposit' ? `Xác nhận nhận cọc đơn ${codeLabel}?` : `Xác nhận thanh toán đủ ${codeLabel}?`);
+
+    const message = isCancelled
+      ? `Bạn có chắc chắn muốn <strong>khôi phục đơn đã hủy ${escapeHtml(codeLabel)}</strong> của <strong>${escapeHtml(custName)}</strong> vì đã nhận tiền qua MB Bank?<br><span style="font-size:12px; color:#b45309; display:inline-block; margin-top:6px;"><i class="fa-solid fa-boxes-stacked"></i> Hệ thống sẽ tự động trừ lại tồn kho mô hình và chuyển đơn sang ĐÃ DUYỆT.</span>`
+      : `Xác nhận bạn đã kiểm tra tài khoản ngân hàng và nhận đủ <strong>${amount > 0 ? formatVND(amount) : (kind === 'deposit' ? 'tiền cọc' : '100% tiền xe')}</strong> từ <strong>${escapeHtml(custName)}</strong> cho đơn <strong>${escapeHtml(codeLabel)}</strong>?`;
+
+    await adminConfirm({
+      title,
+      message,
+      type: 'success',
+      confirmText: isCancelled ? 'Khôi phục & Duyệt' : 'Xác nhận đã nhận tiền',
+      onConfirm: async () => {
+        try {
+          const res = await api.put(`/api/admin/orders/${orderId}/confirm-payment`, { kind });
+          adminToast(res.message || 'Xác nhận thanh toán thành công!', 'success');
+          if (res && res.data) {
+            applyLocalOrderUpdate(res.data);
+          } else {
+            scheduleQuietAdminRefresh({ includeDashboard: true });
+          }
+          if (isCancelled && api && typeof api.emitRealtimeSync === 'function') {
+            api.emitRealtimeSync('PRODUCTS_UPDATED', { orderId, restored: true });
+          }
+        } catch (err) {
+          adminToast('Lỗi xác nhận thanh toán: ' + err.message, 'error');
+          throw err;
+        }
       }
-      loadOrders(true);
-      if (activeTab === 'dashboard') loadDashboard();
-      if (document.getElementById('orderDetailModal')?.classList.contains('active')) {
-        viewOrderDetail(orderId);
-      }
-    } catch (err) {
-      adminToast('Lỗi xác nhận thanh toán: ' + err.message, 'error');
-    }
+    });
   }
 
-  // Mở modal SPX Express
+  // Mở modal SPX Express (Tức thì từ Cache, không lag chờ API)
   async function openShipSpxModal(orderId) {
     currentActionOrderId = orderId;
     try {
-      const res = await api.get(`/api/admin/orders/${orderId}`);
-      if (!res.success || !res.data) return;
-      currentActionOrderData = res.data;
+      const order = await getOrderFromCacheOrApi(orderId);
+      if (!order) return;
+      currentActionOrderData = order;
 
       // KHÓA CHẶN ĐƠN PRE-ORDER KHI CHƯA VỀ KHO BIÊN HÒA:
       const isPreOrder = Boolean(currentActionOrderData.hasPreOrder || currentActionOrderData.HasPreOrder);
@@ -4976,7 +5303,7 @@
       const dispatchInfo = document.getElementById('shipSpxCustomerDispatchInfo');
       const trackingInput = document.getElementById('shipSpxTrackingCodeInput');
 
-      if (codeText) codeText.textContent = `Đơn hàng #${currentActionOrderData.code} - ${currentActionOrderData.customer.fullName}`;
+      if (codeText) codeText.textContent = `Đơn hàng #${currentActionOrderData.code} - ${currentActionOrderData.customer?.fullName || currentActionOrderData.fullName || ''}`;
       if (trackingInput) {
         trackingInput.value = currentActionOrderData.trackingCode || '';
         setTimeout(() => trackingInput.focus(), 100);
@@ -4989,12 +5316,15 @@
               ? currentActionOrderData.codAmount 
               : (currentActionOrderData.paymentStatus === 'PAID' ? 0 : (currentActionOrderData.depositAmount > 0 ? Math.max(0, currentActionOrderData.total - currentActionOrderData.depositAmount) : currentActionOrderData.total)));
         const isOld = currentActionOrderData.addressType === 'OLD' || currentActionOrderData.isOldAddress;
+        const cName = currentActionOrderData.customer?.fullName || currentActionOrderData.fullName || '';
+        const cPhone = currentActionOrderData.customer?.phone || currentActionOrderData.phone || '';
+        const cAddr = currentActionOrderData.customer?.address || currentActionOrderData.address || '';
 
         dispatchInfo.innerHTML = `
-          <div><strong>Người nhận:</strong> ${escapeHtml(currentActionOrderData.customer.fullName)}</div>
-          <div><strong>Số điện thoại:</strong> ${escapeHtml(currentActionOrderData.customer.phone)}</div>
+          <div><strong>Người nhận:</strong> ${escapeHtml(cName)}</div>
+          <div><strong>Số điện thoại:</strong> ${escapeHtml(cPhone)}</div>
           <div>
-            <strong>Địa chỉ:</strong> ${escapeHtml(currentActionOrderData.customer.address)}
+            <strong>Địa chỉ:</strong> ${escapeHtml(cAddr)}
             <span class="${isOld ? 'badge-addr-old' : 'badge-addr-new'}" style="margin-left:6px;">
               <i class="fa-solid ${isOld ? 'fa-triangle-exclamation' : 'fa-circle-check'}"></i>
               ${isOld ? 'ĐC CŨ TRƯỚC SÁP NHẬP' : 'ĐC MỚI CHUẨN'}
@@ -5023,10 +5353,13 @@
 
     const isOld = currentActionOrderData.addressType === 'OLD' || currentActionOrderData.isOldAddress;
     const itemsSummary = (currentActionOrderData.items || []).map(i => `${i.name} (x${i.quantity})`).join(', ');
+    const cName = currentActionOrderData.customer?.fullName || currentActionOrderData.fullName || '';
+    const cPhone = currentActionOrderData.customer?.phone || currentActionOrderData.phone || '';
+    const cAddr = currentActionOrderData.customer?.address || currentActionOrderData.address || '';
 
-    const text = `NGƯỜI NHẬN: ${currentActionOrderData.customer.fullName}
-SĐT: ${currentActionOrderData.customer.phone}
-ĐỊA CHỈ: ${currentActionOrderData.customer.address} [${isOld ? 'ĐỊA CHỈ CŨ TRƯỚC SÁP NHẬP' : 'ĐỊA CHỈ MỚI'}]
+    const text = `NGƯỜI NHẬN: ${cName}
+SĐT: ${cPhone}
+ĐỊA CHỈ: ${cAddr} [${isOld ? 'ĐỊA CHỈ CŨ TRƯỚC SÁP NHẬP' : 'ĐỊA CHỈ MỚI'}]
 THU HỘ COD: ${formatVND(codAmount)}
 HÀNG HÓA: Mô hình 1:64 Mini GT [${itemsSummary || 'Mô hình xe'}]
 MÃ ĐƠN SHOP: #${currentActionOrderData.code}`;
@@ -5037,9 +5370,8 @@ MÃ ĐƠN SHOP: #${currentActionOrderData.code}`;
   // Tiện ích 1: Sao chép địa chỉ chuẩn đối soát để paste trực tiếp vào SPX Express / GHTK
   async function copySpxFormattedAddress(orderId) {
     try {
-      const res = await api.get(`/api/admin/orders/${orderId}`);
-      if (!res.success || !res.data) return;
-      const order = res.data;
+      const order = await getOrderFromCacheOrApi(orderId);
+      if (!order) return;
       const isOld = order.addressType === 'OLD' || order.isOldAddress;
       const codVal = order.payableOnDelivery !== undefined 
         ? order.payableOnDelivery 
@@ -5047,7 +5379,7 @@ MÃ ĐƠN SHOP: #${currentActionOrderData.code}`;
             ? order.codAmount 
             : (order.paymentStatus === 'PAID' ? 0 : (order.depositAmount > 0 ? Math.max(0, order.total - order.depositAmount) : order.total)));
 
-      let addrText = order.customer.address;
+      let addrText = order.customer?.address || order.address || '';
       if (isOld) {
         if (order.newAddressEquivalent) {
           addrText += ` (Chuẩn mới tương đương: ${order.newAddressEquivalent})`;
@@ -5056,8 +5388,8 @@ MÃ ĐƠN SHOP: #${currentActionOrderData.code}`;
         }
       }
 
-      const text = `Người nhận: ${order.customer.fullName}
-Số điện thoại: ${order.customer.phone}
+      const text = `Người nhận: ${order.customer?.fullName || order.fullName || ''}
+Số điện thoại: ${order.customer?.phone || order.phone || ''}
 Địa chỉ giao hàng: ${addrText}
 Tiền thu COD: ${formatVND(codVal)}
 Ghi chú gửi: Mô hình xe 1:64 Mini GT Store Biên Hòa #${order.code} - Cho kiểm tra hàng`;
@@ -5071,14 +5403,15 @@ Ghi chú gửi: Mô hình xe 1:64 Mini GT Store Biên Hòa #${order.code} - Cho 
   // Tiện ích 2: Sao chép mẫu tin nhắn soạn sẵn gửi khách qua Zalo/SMS để hỏi lại địa chỉ
   async function copyCustomerAddressConfirmMsg(orderId) {
     try {
-      const res = await api.get(`/api/admin/orders/${orderId}`);
-      if (!res.success || !res.data) return;
-      const order = res.data;
+      const order = await getOrderFromCacheOrApi(orderId);
+      if (!order) return;
       const isOld = order.addressType === 'OLD' || order.isOldAddress;
+      const cName = order.customer?.fullName || order.fullName || 'anh/chị';
+      const cAddr = order.customer?.address || order.address || '';
 
-      const msg = `Dạ chào anh/chị ${order.customer.fullName}, Shop Mô Hình Mini GT Biên Hòa đã tiếp nhận đơn #${order.code} của mình ạ!
+      const msg = `Dạ chào anh/chị ${cName}, Shop Mô Hình Mini GT Biên Hòa đã tiếp nhận đơn #${order.code} của mình ạ!
 
-Dạ em thấy địa chỉ nhận hàng của mình: "${order.customer.address}"${isOld ? ' (đang dùng tên phường/quận cũ trước đợt sáp nhập ĐVHC)' : ''}.
+Dạ em thấy địa chỉ nhận hàng của mình: "${cAddr}"${isOld ? ' (đang dùng tên phường/quận cũ trước đợt sáp nhập ĐVHC)' : ''}.
 Để bên em tạo mã vận đơn qua SPX Express phát nhanh nhất và tránh shipper giao nhầm bưu cục khác, anh/chị cho shop xác nhận lại địa chỉ hành chính mới của mình${order.newAddressEquivalent ? ` có phải là: "${order.newAddressEquivalent}" không ạ?` : ' nhé ạ!'}
 
 Anh/chị phản hồi giúp shop để kiện xe được đóng gói gửi đi sớm nhất nhé ạ. Em cảm ơn anh/chị nhiều!`;
@@ -5089,25 +5422,37 @@ Anh/chị phản hồi giúp shop để kiện xe được đóng gói gửi đi
     }
   }
 
-  // Tiện ích 3: Chuyển đổi qua lại giữa Địa chỉ Mới và Địa chỉ Cũ chỉ với 1-Click
+  // Tiện ích 3: Chuyển đổi qua lại giữa Địa chỉ Mới và Địa chỉ Cũ
   async function toggleOrderAddressType(orderId) {
     try {
-      const resOrder = await api.get(`/api/admin/orders/${orderId}`);
-      if (!resOrder.success || !resOrder.data) return;
-      const currentType = resOrder.data.addressType || (resOrder.data.isOldAddress ? 'OLD' : 'NEW');
+      const ord = await getOrderFromCacheOrApi(orderId);
+      if (!ord) return;
+      const currentType = ord.addressType || (ord.isOldAddress ? 'OLD' : 'NEW');
       const targetType = currentType === 'OLD' ? 'NEW' : 'OLD';
+      const labelTarget = targetType === 'OLD' ? 'Địa chỉ CŨ (trước sáp nhập)' : 'Địa chỉ MỚI (sau sáp nhập)';
 
-      const res = await api.put(`/api/admin/orders/${orderId}/address-type`, {
-        addressType: targetType
+      await adminConfirm({
+        title: `Đổi phân loại địa chỉ #${ord.code}?`,
+        message: `Xác nhận chuyển phân loại địa chỉ của đơn <strong>#${escapeHtml(ord.code)}</strong> sang <strong>${labelTarget}</strong>?`,
+        type: 'primary',
+        confirmText: 'Đổi phân loại',
+        onConfirm: async () => {
+          try {
+            const res = await api.put(`/api/admin/orders/${orderId}/address-type`, { addressType: targetType });
+            adminToast(res.message || `Đã chuyển sang ${labelTarget} thành công!`, 'success');
+            if (res && res.data) {
+              applyLocalOrderUpdate(res.data);
+            } else {
+              scheduleQuietAdminRefresh();
+            }
+          } catch (e) {
+            adminToast('Lỗi cập nhật loại địa chỉ: ' + e.message, 'error');
+            throw e;
+          }
+        }
       });
-
-      adminToast(res.message || `Đã chuyển sang ${targetType === 'OLD' ? 'Địa chỉ CŨ' : 'Địa chỉ MỚI'} thành công!`, 'success');
-      loadOrders();
-      if (document.getElementById('orderDetailModal')?.classList.contains('active')) {
-        viewOrderDetail(orderId);
-      }
     } catch (e) {
-      adminToast('Lỗi cập nhật loại địa chỉ: ' + e.message, 'error');
+      adminToast('Lỗi tải thông tin đơn: ' + e.message, 'error');
     }
   }
 
@@ -5131,10 +5476,14 @@ Anh/chị phản hồi giúp shop để kiện xe được đóng gói gửi đi
   async function saveSpxTrackingOnly() {
     if (!currentActionOrderId) return;
     const code = document.getElementById('shipSpxTrackingCodeInput')?.value.trim().toUpperCase();
-    if (!code) {
-      adminToast('Vui lòng nhập hoặc dán mã vận đơn SPX', 'error');
+    if (!code || code.length < 4) {
+      adminToast('Vui lòng nhập hoặc dán mã vận đơn SPX hợp lệ (tối thiểu 4 ký tự)', 'error');
       return;
     }
+
+    const btn = document.getElementById('btnSaveSpxTrackingOnly');
+    const prevHtml = btn ? btn.innerHTML : '';
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Đang lưu...'; }
 
     try {
       const res = await api.put(`/api/admin/orders/${currentActionOrderId}/tracking`, {
@@ -5143,76 +5492,79 @@ Anh/chị phản hồi giúp shop để kiện xe được đóng gói gửi đi
         autoShip: false
       });
       adminToast(`Đã duyệt đơn & lưu mã SPX (${code})! Khách hàng đã nhận được thông báo kèm mã vận đơn.`, 'success');
-      if (api && typeof api.emitRealtimeSync === 'function') {
-        const orderData = (res && res.data) ? res.data : { id: currentActionOrderId, trackingCode: code };
-        api.emitRealtimeSync('ORDER_UPDATED', {
-          orderId: currentActionOrderId,
-          orderCode: orderData.code || orderData.OrderCode,
-          trackingCode: code,
-          order: orderData
-        });
-      }
       closeAdminModal('shipSpxModal');
-      loadOrders(true);
-      if (activeTab === 'dashboard') loadDashboard();
-      if (document.getElementById('orderDetailModal')?.classList.contains('active')) {
-        viewOrderDetail(currentActionOrderId);
+      if (res && res.data) {
+        applyLocalOrderUpdate(res.data);
+      } else {
+        scheduleQuietAdminRefresh({ includeDashboard: true });
       }
     } catch (err) {
       adminToast('Lỗi lưu mã vận đơn: ' + err.message, 'error');
+    } finally {
+      if (btn) { btn.disabled = false; btn.innerHTML = prevHtml; }
     }
   }
 
   async function confirmShipSpxSubmit() {
     if (!currentActionOrderId) return;
     const code = document.getElementById('shipSpxTrackingCodeInput')?.value.trim().toUpperCase();
-    if (!code) {
-      adminToast('Vui lòng nhập mã vận đơn SPX trước khi chuyển sang Đang giao hàng', 'error');
+    if (!code || code.length < 4) {
+      adminToast('Vui lòng nhập mã vận đơn SPX hợp lệ (tối thiểu 4 ký tự) trước khi giao hàng', 'error');
       return;
     }
 
-    try {
-      const res = await api.put(`/api/admin/orders/${currentActionOrderId}/tracking`, {
-        trackingCode: code,
-        carrier: 'SPX Express',
-        autoShip: true
-      });
-      adminToast(`Đã duyệt & chuyển giao SPX Express (Mã: ${code})! Đã gửi thông báo đến khách hàng.`, 'success');
-      if (api && typeof api.emitRealtimeSync === 'function') {
-        const orderData = (res && res.data) ? res.data : { id: currentActionOrderId, trackingCode: code, status: 'SHIPPING' };
-        api.emitRealtimeSync('ORDER_UPDATED', {
-          orderId: currentActionOrderId,
-          orderCode: orderData.code || orderData.OrderCode,
-          status: 'SHIPPING',
-          trackingCode: code,
-          order: orderData
-        });
+    const ord = currentActionOrderData || findCachedOrderById(currentActionOrderId);
+    const codeLabel = ord?.code ? `#${ord.code}` : `#${currentActionOrderId}`;
+
+    await adminConfirm({
+      title: `Bắt đầu giao hàng đơn ${codeLabel}?`,
+      message: `Xác nhận gắn mã vận đơn SPX <strong>${escapeHtml(code)}</strong> và chuyển đơn <strong>${escapeHtml(codeLabel)}</strong> sang trạng thái <strong>Đang giao hàng</strong>?`,
+      type: 'warning',
+      confirmText: 'Xác nhận giao SPX',
+      onConfirm: async () => {
+        const btn = document.getElementById('btnConfirmShipSpxSubmit');
+        const prevHtml = btn ? btn.innerHTML : '';
+        if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Đang cập nhật...'; }
+        try {
+          const res = await api.put(`/api/admin/orders/${currentActionOrderId}/tracking`, {
+            trackingCode: code,
+            carrier: 'SPX Express',
+            autoShip: true
+          });
+          adminToast(`Đã duyệt & chuyển giao SPX Express (Mã: ${code})! Đã gửi thông báo đến khách hàng.`, 'success');
+          closeAdminModal('shipSpxModal');
+          if (res && res.data) {
+            applyLocalOrderUpdate(res.data);
+          } else {
+            scheduleQuietAdminRefresh({ includeDashboard: true });
+          }
+        } catch (err) {
+          adminToast('Không thể chuyển trạng thái giao hàng: ' + err.message, 'error');
+          throw err;
+        } finally {
+          if (btn) { btn.disabled = false; btn.innerHTML = prevHtml; }
+        }
       }
-      closeAdminModal('shipSpxModal');
-      loadOrders(true);
-      if (activeTab === 'dashboard') loadDashboard();
-      if (document.getElementById('orderDetailModal')?.classList.contains('active')) {
-        viewOrderDetail(currentActionOrderId);
-      }
-    } catch (err) {
-      adminToast('Không thể chuyển trạng thái giao hàng: ' + err.message, 'error');
-    }
+    });
   }
 
-  // Mở modal hủy đơn
+  // Mở modal hủy đơn (Tức thì từ Cache, không lag chờ API)
   async function openCancelOrderModal(orderId) {
     currentActionOrderId = orderId;
     try {
-      const res = await api.get(`/api/admin/orders/${orderId}`);
-      if (!res.success || !res.data) return;
-      const order = res.data;
+      const order = await getOrderFromCacheOrApi(orderId);
+      if (!order) return;
+      currentActionOrderData = order;
 
       const codeEl = document.getElementById('cancelOrderCodeText');
       const notice = document.getElementById('cancelOrderNotice');
       const reasonInput = document.getElementById('cancelOrderReasonInput');
 
-      if (codeEl) codeEl.textContent = `Mã đơn: #${order.code} - Khách hàng: ${order.customer.fullName}`;
-      if (reasonInput) reasonInput.value = '';
+      if (codeEl) codeEl.textContent = `Mã đơn: #${order.code} - Khách hàng: ${order.customer?.fullName || order.fullName || 'Khách hàng'}`;
+      if (reasonInput) {
+        reasonInput.value = '';
+        setTimeout(() => reasonInput.focus(), 80);
+      }
 
       // Cảnh báo nếu đã thu tiền
       if (notice) {
@@ -5238,42 +5590,81 @@ Anh/chị phản hồi giúp shop để kiện xe được đóng gói gửi đi
     const reason = document.getElementById('cancelOrderReasonInput')?.value.trim();
     if (!reason || reason.length < 3) {
       adminToast('Vui lòng nhập hoặc chọn lý do hủy đơn (tối thiểu 3 ký tự)', 'error');
+      document.getElementById('cancelOrderReasonInput')?.focus();
       return;
     }
 
-    try {
-      const res = await api.put(`/api/admin/orders/${currentActionOrderId}/cancel`, { cancelReason: reason });
-      adminToast(res.message || 'Đã hủy đơn hàng thành công!', 'info');
-      closeAdminModal('cancelOrderModal');
-      loadOrders(true);
-      if (activeTab === 'dashboard') loadDashboard();
-      if (document.getElementById('orderDetailModal')?.classList.contains('active')) {
-        viewOrderDetail(currentActionOrderId);
+    const order = currentActionOrderData || findCachedOrderById(currentActionOrderId);
+    const codeLabel = order?.code ? `#${order.code}` : `#${currentActionOrderId}`;
+    const custName = order?.customer?.fullName || order?.fullName || 'khách hàng';
+    const isPaid = order && (order.paymentStatus === 'PAID' || order.paymentStatus === 'PARTIALLY_PAID');
+
+    await adminConfirm({
+      title: `Bạn có chắc chắn muốn hủy đơn ${codeLabel}?`,
+      message: `Xác nhận hủy đơn hàng <strong>${escapeHtml(codeLabel)}</strong> của khách <strong>${escapeHtml(custName)}</strong>?<br><div style="margin-top:6px; font-size:12px; color:#64748b;">• Lý do: <strong>${escapeHtml(reason)}</strong><br>• Tồn kho mô hình sẽ được tự động hoàn lại.${isPaid ? '<br>• <span style="color:#dc2626; font-weight:700;">Đơn đã thu tiền sẽ chuyển sang CHỜ HOÀN TIỀN (REFUND_PENDING).</span>' : ''}</div>`,
+      type: 'danger',
+      confirmText: 'Đồng ý hủy đơn',
+      cancelText: 'Quay lại',
+      onConfirm: async () => {
+        const submitBtn = document.getElementById('btnConfirmCancelOrderSubmit');
+        const prevBtnHtml = submitBtn ? submitBtn.innerHTML : '';
+        if (submitBtn) {
+          submitBtn.disabled = true;
+          submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Đang hủy đơn...';
+        }
+        try {
+          const res = await api.put(`/api/admin/orders/${currentActionOrderId}/cancel`, { cancelReason: reason });
+          adminToast(res.message || 'Đã hủy đơn hàng thành công!', 'info');
+          closeAdminModal('cancelOrderModal');
+          if (res && res.data) {
+            applyLocalOrderUpdate(res.data);
+          } else {
+            scheduleQuietAdminRefresh({ includeDashboard: true });
+          }
+          if (api && typeof api.emitRealtimeSync === 'function') {
+            api.emitRealtimeSync('PRODUCTS_UPDATED', { orderId: currentActionOrderId, cancelled: true });
+          }
+        } catch (err) {
+          adminToast('Lỗi hủy đơn: ' + err.message, 'error');
+          throw err;
+        } finally {
+          if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = prevBtnHtml;
+          }
+        }
       }
-      if (api && typeof api.emitRealtimeSync === 'function') {
-        api.emitRealtimeSync('ORDER_UPDATED', {
-          orderCode: res.data?.code,
-          status: 'CANCELLED',
-          cancelReason: reason,
-          order: res.data
-        });
-      }
-    } catch (err) {
-      adminToast('Lỗi hủy đơn: ' + err.message, 'error');
-    }
+    });
   }
 
   async function markRefundedAction(orderId) {
-    const note = prompt('Ghi chú hoàn tiền (Ví dụ: Đã chuyển khoản lại số tiền cọc qua MB Bank):', 'Đã chuyển khoản hoàn tiền');
-    if (note === null) return;
-    try {
-      const res = await api.put(`/api/admin/orders/${orderId}/mark-refunded`, { note });
-      adminToast(res.message || 'Đã xác nhận hoàn tiền thành công', 'success');
-      loadOrders();
-      loadDashboard();
-    } catch (err) {
-      adminToast('Lỗi: ' + err.message, 'error');
-    }
+    const order = findCachedOrderById(orderId);
+    const codeLabel = order?.code ? `#${order.code}` : `#${orderId}`;
+    await adminConfirm({
+      title: `Xác nhận đã hoàn tiền đơn ${codeLabel}?`,
+      message: `Xác nhận shop đã chuyển khoản hoàn lại tiền cọc/tiền hàng cho đơn <strong>${escapeHtml(codeLabel)}</strong>?`,
+      type: 'success',
+      confirmText: 'Xác nhận đã hoàn tiền',
+      showInput: true,
+      inputLabel: 'Ghi chú hoàn tiền cho kế toán & khách hàng',
+      inputPlaceholder: 'Ví dụ: Đã chuyển khoản hoàn tiền cọc qua MB Bank...',
+      inputDefaultValue: 'Đã chuyển khoản hoàn tiền qua MB Bank',
+      inputRequired: true,
+      onConfirm: async (note) => {
+        try {
+          const res = await api.put(`/api/admin/orders/${orderId}/mark-refunded`, { note });
+          adminToast(res.message || 'Đã xác nhận hoàn tiền thành công', 'success');
+          if (res && res.data) {
+            applyLocalOrderUpdate(res.data);
+          } else {
+            scheduleQuietAdminRefresh({ includeDashboard: true });
+          }
+        } catch (err) {
+          adminToast('Lỗi xác nhận hoàn tiền: ' + err.message, 'error');
+          throw err;
+        }
+      }
+    });
   }
 
   function exportOrdersToCSV() {
@@ -5549,39 +5940,63 @@ Anh/chị phản hồi giúp shop để kiện xe được đóng gói gửi đi
 
   async function toggleUserStatus(userId, willBeActive) {
     const action = willBeActive ? 'mở khóa' : 'khóa';
-    if (!confirm(`Bạn có chắc muốn ${action} tài khoản #${userId}?`)) return;
-    try {
-      const res = await api.put(`/api/admin/users/${userId}/status`, { isActive: willBeActive });
-      adminToast(res.message || 'Cập nhật thành công', 'success');
-      loadUsers();
-      loadDashboard();
-    } catch (err) {
-      adminToast('Lỗi: ' + err.message, 'error');
-    }
+    await adminConfirm({
+      title: `Xác nhận ${action} tài khoản #${userId}?`,
+      message: `Bạn có chắc chắn muốn <strong>${action}</strong> tài khoản khách hàng <strong>#${escapeHtml(String(userId))}</strong> không?`,
+      type: willBeActive ? 'success' : 'warning',
+      confirmText: willBeActive ? 'Mở khóa tài khoản' : 'Khóa tài khoản',
+      onConfirm: async () => {
+        try {
+          const res = await api.put(`/api/admin/users/${userId}/status`, { isActive: willBeActive });
+          adminToast(res.message || 'Cập nhật thành công', 'success');
+          loadUsers();
+          loadDashboard();
+        } catch (err) {
+          adminToast('Lỗi: ' + err.message, 'error');
+          throw err;
+        }
+      }
+    });
   }
 
   async function changeUserRole(userId, newRole) {
-    if (!confirm(`Bạn có chắc muốn đổi quyền của người dùng #${userId} sang "${newRole.toUpperCase()}"?`)) return;
-    try {
-      const res = await api.put(`/api/admin/users/${userId}/role`, { role: newRole });
-      adminToast(res.message || 'Cập nhật vai trò thành công', 'success');
-      loadUsers();
-      loadDashboard();
-    } catch (err) {
-      adminToast('Lỗi: ' + err.message, 'error');
-    }
+    await adminConfirm({
+      title: `Đổi quyền tài khoản #${userId}?`,
+      message: `Bạn có chắc chắn muốn thay đổi quyền của người dùng <strong>#${escapeHtml(String(userId))}</strong> sang <strong>${escapeHtml(newRole.toUpperCase())}</strong> không?`,
+      type: 'warning',
+      confirmText: 'Đổi quyền',
+      onConfirm: async () => {
+        try {
+          const res = await api.put(`/api/admin/users/${userId}/role`, { role: newRole });
+          adminToast(res.message || 'Cập nhật vai trò thành công', 'success');
+          loadUsers();
+          loadDashboard();
+        } catch (err) {
+          adminToast('Lỗi: ' + err.message, 'error');
+          throw err;
+        }
+      }
+    });
   }
 
   async function deleteUserAction(userId) {
-    if (!confirm(`Bạn có chắc muốn xóa vĩnh viễn tài khoản #${userId}? Thao tác này không thể hoàn tác.`)) return;
-    try {
-      const res = await api.delete(`/api/admin/users/${userId}`);
-      adminToast(res.message || 'Đã xóa tài khoản thành công', 'success');
-      loadUsers();
-      loadDashboard();
-    } catch (err) {
-      adminToast('Lỗi khi xóa tài khoản: ' + err.message, 'error');
-    }
+    await adminConfirm({
+      title: `Xóa vĩnh viễn tài khoản #${userId}?`,
+      message: `Bạn có chắc chắn muốn xóa vĩnh viễn tài khoản <strong>#${escapeHtml(String(userId))}</strong>? Thao tác này không thể hoàn tác (các đơn hàng cũ vẫn được lưu giữ để đối soát).`,
+      type: 'danger',
+      confirmText: 'Xóa vĩnh viễn',
+      onConfirm: async () => {
+        try {
+          const res = await api.delete(`/api/admin/users/${userId}`);
+          adminToast(res.message || 'Đã xóa tài khoản thành công', 'success');
+          loadUsers();
+          loadDashboard();
+        } catch (err) {
+          adminToast('Lỗi khi xóa tài khoản: ' + err.message, 'error');
+          throw err;
+        }
+      }
+    });
   }
 
   // =====================================================================
@@ -5832,28 +6247,47 @@ Anh/chị phản hồi giúp shop để kiện xe được đóng gói gửi đi
   }
 
   async function handleToggleCouponStatus(id, newStatus) {
-    try {
-      const res = await api.put(`/api/admin/coupons/${id}`, { isActive: newStatus });
-      if (res && res.success) {
-        adminToast(`Đã ${newStatus ? 'kích hoạt' : 'tạm ngừng'} mã giảm giá`, 'info');
-        loadCoupons();
+    const c = (cachedCoupons || []).find(item => (item.couponId || item.id) === Number(id));
+    const codeLabel = c?.code ? `"${escapeHtml(c.code)}"` : `#${id}`;
+    await adminConfirm({
+      title: `${newStatus ? 'Kích hoạt' : 'Tạm ngừng'} mã giảm giá ${codeLabel}?`,
+      message: `Xác nhận ${newStatus ? 'bật lại' : 'tạm ngừng áp dụng'} mã giảm giá <strong>${codeLabel}</strong>?`,
+      type: newStatus ? 'success' : 'warning',
+      confirmText: newStatus ? 'Kích hoạt' : 'Tạm ngừng',
+      onConfirm: async () => {
+        try {
+          const res = await api.put(`/api/admin/coupons/${id}`, { isActive: newStatus });
+          if (res && res.success) {
+            adminToast(`Đã ${newStatus ? 'kích hoạt' : 'tạm ngừng'} mã giảm giá`, 'info');
+            loadCoupons();
+          }
+        } catch (err) {
+          adminToast('Lỗi cập nhật trạng thái mã: ' + err.message, 'error');
+          throw err;
+        }
       }
-    } catch (err) {
-      adminToast('Lỗi cập nhật trạng thái mã: ' + err.message, 'error');
-    }
+    });
   }
 
   async function handleDeleteCoupon(id, code) {
-    if (!confirm(`Bạn có chắc chắn muốn xóa mã giảm giá "${code}" khỏi hệ thống?`)) return;
-    try {
-      const res = await api.delete(`/api/admin/coupons/${id}`);
-      if (res && res.success) {
-        adminToast(`Đã xóa mã "${code}" thành công!`, 'success');
-        loadCoupons();
+    await adminConfirm({
+      title: `Xóa mã giảm giá "${code}"?`,
+      message: `Bạn có chắc chắn muốn xóa vĩnh viễn mã giảm giá <strong>"${escapeHtml(code)}"</strong> khỏi hệ thống không?`,
+      type: 'danger',
+      confirmText: 'Xóa mã này',
+      onConfirm: async () => {
+        try {
+          const res = await api.delete(`/api/admin/coupons/${id}`);
+          if (res && res.success) {
+            adminToast(`Đã xóa mã "${code}" thành công!`, 'success');
+            loadCoupons();
+          }
+        } catch (err) {
+          adminToast('Lỗi khi xóa mã: ' + err.message, 'error');
+          throw err;
+        }
       }
-    } catch (err) {
-      adminToast('Lỗi khi xóa mã: ' + err.message, 'error');
-    }
+    });
   }
 
   // =====================================================================
@@ -5907,15 +6341,23 @@ Anh/chị phản hồi giúp shop để kiện xe được đóng gói gửi đi
   }
 
   async function deleteSubscriber(id) {
-    if (!confirm('Xóa email này khỏi danh sách nhận bản tin?')) return;
-    try {
-      await api.delete(`/api/admin/subscribers/${id}`);
-      adminToast('Đã xóa người đăng ký', 'info');
-      loadSubscribers();
-      loadDashboard();
-    } catch (err) {
-      adminToast('Lỗi: ' + err.message, 'error');
-    }
+    await adminConfirm({
+      title: 'Xóa email đăng ký bản tin?',
+      message: `Bạn có chắc chắn muốn xóa người đăng ký <strong>#${escapeHtml(String(id))}</strong> khỏi danh sách nhận bản tin không?`,
+      type: 'danger',
+      confirmText: 'Xóa email',
+      onConfirm: async () => {
+        try {
+          await api.delete(`/api/admin/subscribers/${id}`);
+          adminToast('Đã xóa người đăng ký', 'info');
+          loadSubscribers();
+          loadDashboard();
+        } catch (err) {
+          adminToast('Lỗi: ' + err.message, 'error');
+          throw err;
+        }
+      }
+    });
   }
 
   // =====================================================================
@@ -6203,7 +6645,10 @@ Anh/chị phản hồi giúp shop để kiện xe được đóng gói gửi đi
   function initDashboard() {
     loadCategories();
     loadDashboard();
-    loadOrders();
+    // Khởi tải đơn hàng nhẹ sau khi Dashboard xong để tránh nghẽn đồng thời 2 truy vấn nặng lúc mở trang
+    setTimeout(() => {
+      if (activeTab === 'orders' || !cachedOrders.length) loadOrders(true);
+    }, 350);
     refreshAdminChatBadgeQuietly();
 
     // Tự động tải trước danh sách người dùng để đồng bộ xếp hạng VIP chính xác
@@ -6257,6 +6702,8 @@ Anh/chị phản hồi giúp shop để kiện xe được đóng gói gửi đi
     window.addEventListener('minigt:realtime', (ev) => {
       const detail = ev && ev.detail;
       if (!detail) return;
+      const isSelfOrigin = Boolean(detail.sourceTabId && api.TAB_INSTANCE_ID && detail.sourceTabId === api.TAB_INSTANCE_ID);
+
       if (detail.type === 'ORDER_CREATED' && detail.payload) {
         const ord = detail.payload;
         if (ord && ord.code && !adminKnownOrderCodes.has(ord.code)) {
@@ -6264,14 +6711,14 @@ Anh/chị phản hồi giúp shop để kiện xe được đóng gói gửi đi
           adminToast(`🔔 ĐƠN HÀNG MỚI #${ord.code} từ ${ord.fullName || (ord.customer && ord.customer.fullName) || 'Khách hàng'} (${formatVND(ord.totalAmount || ord.total || 0)})!`, 'success', 'Có Đơn Hàng Mới!');
           addAdminNotification(ord, 'ORDER_CREATED');
         }
-        scheduleRealtimeOrdersReload();
+        if (!isSelfOrigin) scheduleRealtimeOrdersReload();
       } else if (detail.type === 'PAYOS_PAID' || detail.type === 'ORDER_PAID') {
         const p = detail.payload;
         if (p && p.code) {
           adminToast(`⚡ Đơn hàng #${p.code} đã thanh toán tự động qua VietQR PayOS (${formatVND(p.amount || p.total || 0)})!`, 'success', 'PayOS Khớp Lệnh Tự Động');
           addAdminNotification(p, 'PAYOS_PAID');
         }
-        scheduleRealtimeOrdersReload();
+        if (!isSelfOrigin) scheduleRealtimeOrdersReload();
       } else if (detail.type === 'CUSTOMER_REPORTED_TRANSFER' && detail.payload) {
         const p = detail.payload;
         adminToast(`💳 Khách vừa báo đã chuyển khoản cho đơn #${p.code || p.orderCode || ''} (${formatVND(p.amount || p.transferAmount || 0)})!`, 'info', 'Khách Đã Chuyển Khoản');
@@ -6282,12 +6729,14 @@ Anh/chị phản hồi giúp shop để kiện xe được đóng gói gửi đi
           totalAmount: p.amount || p.transferAmount || 0,
           paymentMethod: 'BANK_TRANSFER'
         }, 'CUSTOMER_REPORTED_TRANSFER');
-        scheduleRealtimeOrdersReload();
+        if (!isSelfOrigin) scheduleRealtimeOrdersReload();
       } else if (detail.type === 'ORDER_UPDATED' || detail.type === 'ORDERS_UPDATED') {
-        scheduleRealtimeOrdersReload();
+        if (!isSelfOrigin) scheduleRealtimeOrdersReload();
       } else if (detail.type === 'USER_REGISTERED' || detail.type === 'USER_UPDATED' || detail.type === 'users_updated') {
-        loadDashboard();
-        if (activeTab === 'users') loadUsers();
+        if (!isSelfOrigin) {
+          loadDashboard();
+          if (activeTab === 'users') loadUsers();
+        }
       } else if (detail.type === 'CHAT_ESCALATED') {
         const p = detail.payload || {};
         playOrderChimeSound();
@@ -6314,11 +6763,12 @@ Anh/chị phản hồi giúp shop để kiện xe được đóng gói gửi đi
       }
     });
 
-    // Tự động đồng bộ ngầm mỗi 6 giây để không bỏ sót bất kỳ đơn hàng nào (chống lặp thông báo)
+    // Tự động đồng bộ ngầm mỗi 8 giây (bỏ qua khi đang mở modal thao tác hoặc đang tìm kiếm để mượt mà)
     if (adminSyncInterval) clearInterval(adminSyncInterval);
     adminSyncInterval = setInterval(async () => {
       if (!currentAdminUser || (typeof document !== 'undefined' && document.hidden)) return;
       if (document.activeElement?.id === 'orderSearchInput') return;
+      if (_isLoadingOrders || document.querySelector('.modal-overlay.active')) return;
       refreshAdminChatBadgeQuietly();
       try {
         const res = await api.get('/api/admin/orders', orderFilter);
@@ -6333,7 +6783,7 @@ Anh/chị phản hồi giúp shop để kiện xe được đóng gói gửi đi
                 if (isFresh) {
                   adminToast(`🔔 Đơn hàng mới #${newest.code} - ${newest.fullName || (newest.customer && newest.customer.fullName) || 'Khách hàng'} (${formatVND(newest.totalAmount || newest.total || 0)})!`, 'success', 'Có Đơn Hàng Mới!');
                   addAdminNotification(newest, 'ORDER_CREATED');
-                  loadDashboard();
+                  if (activeTab === 'dashboard') loadDashboard();
                 }
               }
             });
@@ -6366,7 +6816,7 @@ Anh/chị phản hồi giúp shop để kiện xe được đóng gói gửi đi
           }
         }
       } catch (e) {}
-    }, 5000);
+    }, 8000);
   }
 
   window.addEventListener('DOMContentLoaded', () => {
@@ -6442,60 +6892,65 @@ Anh/chị phản hồi giúp shop để kiện xe được đóng gói gửi đi
   window.syncDepositAmountToPercent = syncDepositAmountToPercent;
 
   async function markPreOrderArrivedAction(orderId) {
-    if (!confirm('Xác nhận: Lô hàng mô hình Pre-Order của đơn hàng này đã về tới kho cửa hàng Biên Hòa?\n\n- Đơn hàng sẽ được chuyển từ "Đang chờ hàng Pre-Order" sang "Hàng đã về kho / Sẵn sàng giao".\n- Các mô hình liên quan sẽ được tự động đổi từ Pre-Order sang "Có sẵn tại kho" (hàng thường).\n- Khách hàng sẽ thấy ngay thông báo hàng đã về kho và tiến độ đóng gói vận đơn SPX Express.')) return;
-    try {
-      const res = await api.put(`/api/admin/orders/${orderId}/preorder-arrived`, {});
-      if (res.success) {
-        adminToast(res.message || 'Đã báo hàng về kho và chuyển sản phẩm sang hàng thường thành công!', 'success');
-        if (api && typeof api.emitRealtimeSync === 'function') {
-          const ordObj = res.data?.order || res.data || {};
-          const ordCode = ordObj.code || ordObj.OrderCode || ordObj.orderCode;
-          api.emitRealtimeSync('ORDER_UPDATED', {
-            orderId,
-            orderCode: ordCode,
-            status: 'PREPARING',
-            isStockArrived: true,
-            action: 'preorder-arrived',
-            order: ordObj
-          });
-          api.emitRealtimeSync('ORDERS_UPDATED', {});
-          api.emitRealtimeSync('PRODUCTS_UPDATED', {});
+    const order = findCachedOrderById(orderId);
+    const codeLabel = order?.code ? `#${order.code}` : `#${orderId}`;
+    await adminConfirm({
+      title: `Báo hàng Pre-Order đơn ${codeLabel} đã về kho?`,
+      message: `Xác nhận lô xe Pre-Order của đơn <strong>${escapeHtml(codeLabel)}</strong> đã cập bến kho Biên Hòa?<br><div style="margin-top:6px; font-size:12px; color:#64748b;">• Đơn hàng sẽ chuyển sang <strong>Hàng đã về kho / Đóng gói</strong>.<br>• Các mô hình liên quan tự động chuyển thành <strong>Có sẵn tại kho</strong>.<br>• Khách hàng nhận ngay thông báo mở khóa vận đơn SPX.</div>`,
+      type: 'warning',
+      confirmText: 'Xác nhận hàng đã về',
+      onConfirm: async () => {
+        try {
+          const res = await api.put(`/api/admin/orders/${orderId}/preorder-arrived`, {});
+          if (res.success) {
+            adminToast(res.message || 'Đã báo hàng về kho và chuyển sản phẩm sang hàng thường thành công!', 'success');
+            const ordObj = res.data?.order || res.data || {};
+            if (ordObj && (ordObj.id || ordObj.code)) applyLocalOrderUpdate(ordObj);
+            if (api && typeof api.emitRealtimeSync === 'function') {
+              api.emitRealtimeSync('PRODUCTS_UPDATED', {});
+            }
+            if (activeTab === 'products') loadProducts();
+          } else {
+            adminToast(res.message || 'Không thể cập nhật trạng thái đơn Pre-Order', 'error');
+            throw new Error(res.message || 'Failed');
+          }
+        } catch (err) {
+          adminToast('Lỗi cập nhật hàng về: ' + err.message, 'error');
+          throw err;
         }
-        loadOrders(true);
-        if (activeTab === 'products') loadProducts();
-        if (activeTab === 'dashboard') loadDashboard();
-        if (document.getElementById('orderDetailModal')?.classList.contains('active')) {
-          viewOrderDetail(orderId);
-        }
-      } else {
-        adminToast(res.message || 'Không thể cập nhật trạng thái đơn Pre-Order', 'error');
       }
-    } catch (err) {
-      adminToast('Lỗi cập nhật hàng về: ' + err.message, 'error');
-    }
+    });
   }
 
   async function convertPreOrderProductToInStock(productId, productName) {
     const p = (cachedProducts || []).find(item => Number(item.id || item.ProductId) === Number(productId));
     const name = productName || p?.name || p?.Name || 'mô hình này';
-    if (!confirm(`Xác nhận: Lô mô hình "${name}" đã cập bến kho Biên Hòa?\n\n- Trạng thái sản phẩm sẽ đổi từ "Pre-Order" sang "Có sẵn tại kho" (hàng thường).\n- Khách hàng trên trang chủ có thể mua hàng ngay.\n- Tất cả đơn hàng đặt cọc trước chứa mẫu xe này sẽ được tự động cập nhật là "Hàng đã về kho" để chuẩn bị đóng gói.`)) return;
-    try {
-      const res = await api.put(`/api/admin/products/${productId}/convert-to-instock`, {});
-      if (res && res.success) {
-        adminToast(res.message || 'Đã chuyển mô hình sang trạng thái có sẵn tại kho thành công!', 'success');
-        if (api && typeof api.emitRealtimeSync === 'function') {
-          api.emitRealtimeSync('PRODUCTS_UPDATED', {});
-          api.emitRealtimeSync('ORDERS_UPDATED', {});
+    await adminConfirm({
+      title: 'Chuyển mô hình Pre-Order sang Hàng Có Sẵn?',
+      message: `Xác nhận lô mô hình <strong>"${escapeHtml(name)}"</strong> đã cập bến kho Biên Hòa?<br><div style="margin-top:6px; font-size:12px; color:#64748b;">• Sản phẩm sẽ mở bán ngay như hàng có sẵn.<br>• Tất cả đơn đặt cọc trước chứa mẫu xe này sẽ tự động cập nhật trạng thái <strong>Hàng đã về kho</strong>.</div>`,
+      type: 'warning',
+      confirmText: 'Chuyển sang Có Sẵn',
+      onConfirm: async () => {
+        try {
+          const res = await api.put(`/api/admin/products/${productId}/convert-to-instock`, {});
+          if (res && res.success) {
+            adminToast(res.message || 'Đã chuyển mô hình sang trạng thái có sẵn tại kho thành công!', 'success');
+            if (api && typeof api.emitRealtimeSync === 'function') {
+              api.emitRealtimeSync('PRODUCTS_UPDATED', {});
+              api.emitRealtimeSync('ORDERS_UPDATED', {});
+            }
+            if (activeTab === 'products') loadProducts();
+            scheduleQuietAdminRefresh({ includeDashboard: activeTab === 'dashboard' });
+          } else {
+            adminToast(res?.message || 'Không thể chuyển đổi trạng thái mô hình', 'error');
+            throw new Error(res?.message || 'Failed');
+          }
+        } catch (err) {
+          adminToast('Lỗi: ' + err.message, 'error');
+          throw err;
         }
-        if (activeTab === 'products') loadProducts();
-        loadOrders(true);
-        if (activeTab === 'dashboard') loadDashboard();
-      } else {
-        adminToast(res?.message || 'Không thể chuyển đổi trạng thái mô hình', 'error');
       }
-    } catch (err) {
-      adminToast('Lỗi: ' + err.message, 'error');
-    }
+    });
   }
 
   window.convertPreOrderProductToInStock = convertPreOrderProductToInStock;
@@ -7242,7 +7697,13 @@ Anh/chị phản hồi giúp shop để kiện xe được đóng gói gửi đi
 
   async function deleteAdminConversationAction() {
     if (!activeAdminChatId) return;
-    if (!confirm('Bạn có chắc chắn muốn xóa cuộc hội thoại này khỏi hộp thư hỗ trợ?')) return;
+    const { confirmed } = await adminConfirm({
+      title: 'Xóa cuộc hội thoại?',
+      message: 'Bạn có chắc chắn muốn xóa vĩnh viễn cuộc hội thoại này khỏi hộp thư hỗ trợ không?',
+      type: 'danger',
+      confirmText: 'Xóa hội thoại'
+    });
+    if (!confirmed) return;
     const deletingId = activeAdminChatId;
     try {
       await api.delete(`/api/chat/admin/conversations/${deletingId}`);

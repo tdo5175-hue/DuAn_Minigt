@@ -2717,11 +2717,38 @@
     </span>
   </a>
 
+  <!-- STOREFRONT UNIFIED CONFIRMATION MODAL (XÁC NHẬN MƯỢT MÀ CHO KHÁCH HÀNG) -->
+  <div class="modal-overlay" id="storeConfirmModal" style="z-index: 12500;" role="dialog" aria-modal="true" aria-labelledby="storeConfirmTitle">
+    <div class="modal-card store-confirm-card">
+      <button type="button" class="modal-close" id="storeConfirmCloseBtn" aria-label="Đóng">✕</button>
+      <div class="store-confirm-header">
+        <div id="storeConfirmIconWrap" class="store-confirm-icon is-warning">
+          <i id="storeConfirmIcon" class="fa-solid fa-circle-question"></i>
+        </div>
+        <div style="flex:1; min-width:0;">
+          <h3 id="storeConfirmTitle">Xác nhận thao tác</h3>
+          <div id="storeConfirmMessage" class="store-confirm-message">Bạn có chắc chắn muốn thực hiện thao tác này không?</div>
+        </div>
+      </div>
+
+      <div id="storeConfirmInputWrap" class="store-confirm-input-wrap" style="display:none;">
+        <label id="storeConfirmInputLabel" class="store-confirm-label" for="storeConfirmInputField">Lý do</label>
+        <div id="storeConfirmReasonChips" class="store-confirm-chips" style="display:none;"></div>
+        <textarea id="storeConfirmInputField" class="store-confirm-textarea" rows="2" placeholder="Nhập lý do..."></textarea>
+      </div>
+
+      <div class="store-confirm-actions">
+        <button type="button" id="storeConfirmCancelBtn" class="btn btn-outline btn-sm">Quay lại</button>
+        <button type="button" id="storeConfirmOkBtn" class="btn btn-primary btn-sm">Xác nhận</button>
+      </div>
+    </div>
+  </div>
+
   <!-- TOAST NOTIFICATIONS CONTAINER -->
   <div class="toast-container" id="toastContainer" aria-live="polite"></div>
 
   <!-- Unified API Client & Application Script -->
-  <script src="js/api.js?v=20261109_03"></script>
-  <script src="js/app.js?v=20261109_03"></script>
+  <script src="js/api.js?v=20261127_01"></script>
+  <script src="js/app.js?v=20261127_01"></script>
 </body>
 </html>

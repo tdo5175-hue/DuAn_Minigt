@@ -29,52 +29,53 @@ router.get(['/stats', '/dashboard'], async (req, res, next) => {
       lowStockThreshold = Number(settings.low_stock_threshold) || 5;
     } catch (_) {}
 
-    // 1. Đếm sản phẩm
-    const productsRes = await db.query(`
-      SELECT 
-        COUNT(*) AS "totalProducts",
-        COALESCE(SUM(CASE WHEN Stock <= @lowStock AND Stock > 0 THEN 1 ELSE 0 END), 0) AS "lowStockCount",
-        COALESCE(SUM(CASE WHEN Stock = 0 OR Status = 'sold_out' THEN 1 ELSE 0 END), 0) AS "outOfStockCount"
-      FROM Products WHERE IsActive = TRUE`,
-      { lowStock: lowStockThreshold }
-    );
-
-    // 2. Thống kê đơn hàng và doanh thu thực
-    const ordersRes = await db.query(`
-      SELECT 
-        COUNT(*) AS "totalOrders",
-        COALESCE(SUM(CASE WHEN PaymentStatus = 'PAID' THEN Total 
-                          WHEN PaymentStatus = 'PARTIALLY_PAID' THEN DepositAmount 
-                          ELSE 0 END), 0) AS "totalRevenue",
-        COALESCE(SUM(CASE WHEN PaymentStatus = 'PARTIALLY_PAID' THEN DepositAmount ELSE 0 END), 0) AS "totalDeposits",
-        COALESCE(SUM(CASE WHEN Status = 'PENDING' THEN 1 ELSE 0 END), 0) AS "pendingOrders",
-        COALESCE(SUM(CASE WHEN Status = 'CONFIRMED' THEN 1 ELSE 0 END), 0) AS "confirmedOrders",
-        COALESCE(SUM(CASE WHEN Status = 'PREPARING' THEN 1 ELSE 0 END), 0) AS "preparingOrders",
-        COALESCE(SUM(CASE WHEN Status = 'SHIPPING' THEN 1 ELSE 0 END), 0) AS "shippingOrders",
-        COALESCE(SUM(CASE WHEN Status = 'DELIVERED' THEN 1 ELSE 0 END), 0) AS "deliveredOrders",
-        COALESCE(SUM(CASE WHEN Status = 'CANCELLED' THEN 1 ELSE 0 END), 0) AS "cancelledOrders"
-      FROM Orders
-    `);
-
-    // 3. Khách hàng & Bản tin
-    const usersCountRes = await db.query(`SELECT COUNT(*) AS "total" FROM Users WHERE Role != 'admin'`);
-    const subscribersCountRes = await db.query(`SELECT COUNT(*) AS "total" FROM Newsletter`);
-
-    // 4. Đơn hàng gần đây nhất (TOP 10)
-    const recentOrdersList = await orderService.listOrders({ pageSize: 10 });
-
-    // 5. Mô hình bán chạy nhất (TOP 5)
-    const bestSellersRes = await db.query(`
-      SELECT p.ProductId, p.Sku, p.Name, p.ImageUrl, p.Price, p.Stock, COALESCE(SUM(oi.Quantity), 0) AS "UnitsSold"
-      FROM OrderItems oi
-      JOIN Orders o ON o.OrderId = oi.OrderId
-        AND UPPER(COALESCE(o.Status, '')) <> 'CANCELLED'
-        AND UPPER(COALESCE(o.PaymentStatus, '')) <> 'REFUNDED'
-      JOIN Products p ON p.ProductId = oi.ProductId
-      GROUP BY p.ProductId, p.Sku, p.Name, p.ImageUrl, p.Price, p.Stock
-      ORDER BY "UnitsSold" DESC
-      LIMIT 5
-    `);
+    // 1-5. Thực thi song song toàn bộ truy vấn thống kê Dashboard để tối ưu tốc độ phản hồi
+    const [
+      productsRes,
+      ordersRes,
+      usersCountRes,
+      subscribersCountRes,
+      recentOrdersList,
+      bestSellersRes
+    ] = await Promise.all([
+      db.query(`
+        SELECT 
+          COUNT(*) AS "totalProducts",
+          COALESCE(SUM(CASE WHEN Stock <= @lowStock AND Stock > 0 THEN 1 ELSE 0 END), 0) AS "lowStockCount",
+          COALESCE(SUM(CASE WHEN Stock = 0 OR Status = 'sold_out' THEN 1 ELSE 0 END), 0) AS "outOfStockCount"
+        FROM Products WHERE IsActive = TRUE`,
+        { lowStock: lowStockThreshold }
+      ),
+      db.query(`
+        SELECT 
+          COUNT(*) AS "totalOrders",
+          COALESCE(SUM(CASE WHEN PaymentStatus = 'PAID' THEN Total 
+                            WHEN PaymentStatus = 'PARTIALLY_PAID' THEN DepositAmount 
+                            ELSE 0 END), 0) AS "totalRevenue",
+          COALESCE(SUM(CASE WHEN PaymentStatus = 'PARTIALLY_PAID' THEN DepositAmount ELSE 0 END), 0) AS "totalDeposits",
+          COALESCE(SUM(CASE WHEN Status = 'PENDING' THEN 1 ELSE 0 END), 0) AS "pendingOrders",
+          COALESCE(SUM(CASE WHEN Status = 'CONFIRMED' THEN 1 ELSE 0 END), 0) AS "confirmedOrders",
+          COALESCE(SUM(CASE WHEN Status = 'PREPARING' THEN 1 ELSE 0 END), 0) AS "preparingOrders",
+          COALESCE(SUM(CASE WHEN Status = 'SHIPPING' THEN 1 ELSE 0 END), 0) AS "shippingOrders",
+          COALESCE(SUM(CASE WHEN Status = 'DELIVERED' THEN 1 ELSE 0 END), 0) AS "deliveredOrders",
+          COALESCE(SUM(CASE WHEN Status = 'CANCELLED' THEN 1 ELSE 0 END), 0) AS "cancelledOrders"
+        FROM Orders
+      `),
+      db.query(`SELECT COUNT(*) AS "total" FROM Users WHERE Role != 'admin'`),
+      db.query(`SELECT COUNT(*) AS "total" FROM Newsletter`),
+      orderService.listOrders({ pageSize: 10, skipAutoCancel: true }),
+      db.query(`
+        SELECT p.ProductId, p.Sku, p.Name, p.ImageUrl, p.Price, p.Stock, COALESCE(SUM(oi.Quantity), 0) AS "UnitsSold"
+        FROM OrderItems oi
+        JOIN Orders o ON o.OrderId = oi.OrderId
+          AND UPPER(COALESCE(o.Status, '')) <> 'CANCELLED'
+          AND UPPER(COALESCE(o.PaymentStatus, '')) <> 'REFUNDED'
+        JOIN Products p ON p.ProductId = oi.ProductId
+        GROUP BY p.ProductId, p.Sku, p.Name, p.ImageUrl, p.Price, p.Stock
+        ORDER BY "UnitsSold" DESC
+        LIMIT 5
+      `)
+    ]);
 
     const p = productsRes.recordset[0] || {};
     const o = ordersRes.recordset[0] || {};
@@ -940,36 +941,40 @@ router.get('/orders', async (req, res, next) => {
   try {
     const { status, paymentStatus, paymentMethod, search, spxStatus, userId, preStage, sortBy, dateRange, page = 1, limit = 50 } = req.query;
 
-    const result = await orderService.listOrders({
-      status,
-      paymentStatus,
-      paymentMethod,
-      spxStatus,
-      preStage,
-      sortBy,
-      dateRange,
-      userId: userId ? parseInt(userId, 10) : undefined,
-      q: search,
-      page: parseInt(page, 10) || 1,
-      pageSize: parseInt(limit, 10) || 50
-    });
+    await orderService.autoCancelExpiredUnpaidOrders().catch(() => {});
 
-    const countsRes = await db.query(`
-      SELECT 
-        COUNT(*) AS "totalAll",
-        COALESCE(SUM(CASE WHEN Status = 'PENDING' THEN 1 ELSE 0 END), 0) AS "countPending",
-        COALESCE(SUM(CASE WHEN Status = 'CONFIRMED' THEN 1 ELSE 0 END), 0) AS "countConfirmed",
-        COALESCE(SUM(CASE WHEN Status = 'PREPARING' THEN 1 ELSE 0 END), 0) AS "countPreparing",
-        COALESCE(SUM(CASE WHEN Status = 'SHIPPING' THEN 1 ELSE 0 END), 0) AS "countShipping",
-        COALESCE(SUM(CASE WHEN Status = 'DELIVERED' THEN 1 ELSE 0 END), 0) AS "countDelivered",
-        COALESCE(SUM(CASE WHEN Status = 'CANCELLED' THEN 1 ELSE 0 END), 0) AS "countCancelled",
-        COALESCE(SUM(CASE WHEN HasPreOrder = TRUE THEN 1 ELSE 0 END), 0) AS "countPreOrder",
-        COALESCE(SUM(CASE WHEN HasPreOrder = TRUE AND (PaymentStatus = 'UNPAID' OR PaymentStatus IS NULL) AND Status <> 'CANCELLED' THEN 1 ELSE 0 END), 0) AS "preNeedDeposit",
-        COALESCE(SUM(CASE WHEN HasPreOrder = TRUE AND PaymentStatus IN ('PARTIALLY_PAID', 'PAID') AND Status IN ('PENDING', 'CONFIRMED') AND (PreOrderNotified = FALSE OR PreOrderNotified IS NULL) THEN 1 ELSE 0 END), 0) AS "preWaitingGoods",
-        COALESCE(SUM(CASE WHEN HasPreOrder = TRUE AND ((PreOrderNotified = TRUE) OR (Status = 'PREPARING')) AND Status NOT IN ('SHIPPING', 'DELIVERED', 'CANCELLED') THEN 1 ELSE 0 END), 0) AS "preGoodsArrived",
-        COALESCE(SUM(CASE WHEN HasPreOrder = TRUE AND Status IN ('SHIPPING', 'DELIVERED', 'COMPLETED') THEN 1 ELSE 0 END), 0) AS "preShipped"
-      FROM Orders
-    `);
+    const [result, countsRes] = await Promise.all([
+      orderService.listOrders({
+        status,
+        paymentStatus,
+        paymentMethod,
+        spxStatus,
+        preStage,
+        sortBy,
+        dateRange,
+        userId: userId ? parseInt(userId, 10) : undefined,
+        q: search,
+        page: parseInt(page, 10) || 1,
+        pageSize: parseInt(limit, 10) || 50,
+        skipAutoCancel: true
+      }),
+      db.query(`
+        SELECT 
+          COUNT(*) AS "totalAll",
+          COALESCE(SUM(CASE WHEN Status = 'PENDING' THEN 1 ELSE 0 END), 0) AS "countPending",
+          COALESCE(SUM(CASE WHEN Status = 'CONFIRMED' THEN 1 ELSE 0 END), 0) AS "countConfirmed",
+          COALESCE(SUM(CASE WHEN Status = 'PREPARING' THEN 1 ELSE 0 END), 0) AS "countPreparing",
+          COALESCE(SUM(CASE WHEN Status = 'SHIPPING' THEN 1 ELSE 0 END), 0) AS "countShipping",
+          COALESCE(SUM(CASE WHEN Status = 'DELIVERED' THEN 1 ELSE 0 END), 0) AS "countDelivered",
+          COALESCE(SUM(CASE WHEN Status = 'CANCELLED' THEN 1 ELSE 0 END), 0) AS "countCancelled",
+          COALESCE(SUM(CASE WHEN HasPreOrder = TRUE THEN 1 ELSE 0 END), 0) AS "countPreOrder",
+          COALESCE(SUM(CASE WHEN HasPreOrder = TRUE AND (PaymentStatus = 'UNPAID' OR PaymentStatus IS NULL) AND Status <> 'CANCELLED' THEN 1 ELSE 0 END), 0) AS "preNeedDeposit",
+          COALESCE(SUM(CASE WHEN HasPreOrder = TRUE AND PaymentStatus IN ('PARTIALLY_PAID', 'PAID') AND Status IN ('PENDING', 'CONFIRMED') AND (PreOrderNotified = FALSE OR PreOrderNotified IS NULL) THEN 1 ELSE 0 END), 0) AS "preWaitingGoods",
+          COALESCE(SUM(CASE WHEN HasPreOrder = TRUE AND ((PreOrderNotified = TRUE) OR (Status = 'PREPARING')) AND Status NOT IN ('SHIPPING', 'DELIVERED', 'CANCELLED') THEN 1 ELSE 0 END), 0) AS "preGoodsArrived",
+          COALESCE(SUM(CASE WHEN HasPreOrder = TRUE AND Status IN ('SHIPPING', 'DELIVERED', 'COMPLETED') THEN 1 ELSE 0 END), 0) AS "preShipped"
+        FROM Orders
+      `)
+    ]);
     const c = countsRes.recordset[0] || {};
 
     return ok(res, result.items, 'Lấy danh sách đơn hàng thành công', {
@@ -1396,9 +1401,15 @@ router.delete('/users/:id', async (req, res, next) => {
       throw badRequest('Không thể xóa tài khoản Quản trị viên (Admin). Vui lòng hạ quyền về Khách hàng trước khi xóa.');
     }
 
-    // 1. Kiểm tra đơn hàng liên quan: Unlink UserId để bảo toàn hồ sơ kế toán / lịch sử đơn
+    // 1. Kiểm tra đơn hàng & lịch sử liên quan: Unlink UserId để bảo toàn hồ sơ kế toán / lịch sử đơn
     try {
       await db.query('UPDATE Orders SET UserId = NULL WHERE UserId = @userId', { userId });
+    } catch (_) {}
+    try {
+      await db.query('UPDATE OrderStatusHistory SET ChangedBy = NULL WHERE ChangedBy = @userId', { userId });
+    } catch (_) {}
+    try {
+      await db.query('UPDATE ChatConversations SET UserId = NULL WHERE UserId = @userId', { userId });
     } catch (_) {}
 
     // 2. Xóa các đánh giá hoặc dữ liệu phụ nếu có

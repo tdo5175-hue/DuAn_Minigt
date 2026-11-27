@@ -687,50 +687,66 @@ async function updatePaymentStatus(orderId, paymentStatus, { actorId = null, not
 
 // TỰ ĐỘNG HỦY ĐƠN HÀNG CHƯA THANH TOÁN SAU 5 PHÚT
 // Hoàn lại tồn kho mô hình xe (Box/Card) và mã giảm giá để bảo toàn dữ liệu
-async function autoCancelExpiredUnpaidOrders() {
-  try {
-    const expiredRes = await db.query(`
-      SELECT o.OrderId AS "OrderId", o.OrderCode AS "OrderCode", o.CreatedAt AS "CreatedAt"
-      FROM Orders o
-      WHERE UPPER(COALESCE(o.Status, 'PENDING')) = 'PENDING'
-        AND (UPPER(COALESCE(o.PaymentStatus, 'UNPAID')) = 'UNPAID' OR o.PaymentStatus IS NULL)
-        AND UPPER(COALESCE(o.PaymentMethod, '')) IN ('VIETQR_PAYOS', 'PAYOS', 'BANK_TRANSFER', 'DEPOSIT')
-        AND o.CreatedAt <= (NOW() - INTERVAL '5 minutes')
-        AND NOT EXISTS (
-          SELECT 1 FROM OrderStatusHistory osh
-          WHERE osh.OrderId = o.OrderId
-            AND (osh.Note ILIKE '%chuyển khoản%' OR osh.Note ILIKE '%báo đã chuyển%')
-        )
-      ORDER BY o.OrderId ASC
-      LIMIT 50
-    `);
+let _lastAutoCancelAt = 0;
+let _autoCancelInFlight = null;
+const AUTO_CANCEL_COOLDOWN_MS = 30 * 1000;
 
-    if (!expiredRes.recordset || expiredRes.recordset.length === 0) {
-      return 0;
-    }
-
-    let count = 0;
-    for (const ord of expiredRes.recordset) {
-      const oid = ord.OrderId || ord.orderid;
-      const code = ord.OrderCode || ord.ordercode;
-      try {
-        await transitionOrderStatus(oid, 'CANCELLED', {
-          actorId: null,
-          isAdmin: true,
-          cancelReason: 'Hệ thống tự động hủy sau 5 phút do khách chưa thanh toán / chuyển cọc',
-          note: 'Hệ thống tự động hủy đơn sau 5 phút do quá thời hạn thanh toán VietQR / MB Bank'
-        });
-        count++;
-        console.log(`[AUTO-CANCEL] Đã tự động hủy đơn quá hạn 5p #${code}`);
-      } catch (cancelErr) {
-        console.warn(`[AUTO-CANCEL] Lỗi khi hủy đơn #${code}:`, cancelErr.message);
-      }
-    }
-    return count;
-  } catch (err) {
-    console.warn('[AUTO-CANCEL] Lỗi quét đơn hết hạn 5 phút:', err.message);
+async function autoCancelExpiredUnpaidOrders({ force = false } = {}) {
+  if (_autoCancelInFlight) return _autoCancelInFlight;
+  if (!force && Date.now() - _lastAutoCancelAt < AUTO_CANCEL_COOLDOWN_MS) {
     return 0;
   }
+
+  _autoCancelInFlight = (async () => {
+    try {
+      _lastAutoCancelAt = Date.now();
+      const expiredRes = await db.query(`
+        SELECT o.OrderId AS "OrderId", o.OrderCode AS "OrderCode", o.CreatedAt AS "CreatedAt"
+        FROM Orders o
+        WHERE UPPER(COALESCE(o.Status, 'PENDING')) = 'PENDING'
+          AND (UPPER(COALESCE(o.PaymentStatus, 'UNPAID')) = 'UNPAID' OR o.PaymentStatus IS NULL)
+          AND UPPER(COALESCE(o.PaymentMethod, '')) IN ('VIETQR_PAYOS', 'PAYOS', 'BANK_TRANSFER', 'DEPOSIT')
+          AND o.CreatedAt <= (NOW() - INTERVAL '5 minutes')
+          AND NOT EXISTS (
+            SELECT 1 FROM OrderStatusHistory osh
+            WHERE osh.OrderId = o.OrderId
+              AND (osh.Note ILIKE '%chuyển khoản%' OR osh.Note ILIKE '%báo đã chuyển%')
+          )
+        ORDER BY o.OrderId ASC
+        LIMIT 50
+      `);
+
+      if (!expiredRes.recordset || expiredRes.recordset.length === 0) {
+        return 0;
+      }
+
+      let count = 0;
+      for (const ord of expiredRes.recordset) {
+        const oid = ord.OrderId || ord.orderid;
+        const code = ord.OrderCode || ord.ordercode;
+        try {
+          await transitionOrderStatus(oid, 'CANCELLED', {
+            actorId: null,
+            isAdmin: true,
+            cancelReason: 'Hệ thống tự động hủy sau 5 phút do khách chưa thanh toán / chuyển cọc',
+            note: 'Hệ thống tự động hủy đơn sau 5 phút do quá thời hạn thanh toán VietQR / MB Bank'
+          });
+          count++;
+          console.log(`[AUTO-CANCEL] Đã tự động hủy đơn quá hạn 5p #${code}`);
+        } catch (cancelErr) {
+          console.warn(`[AUTO-CANCEL] Lỗi khi hủy đơn #${code}:`, cancelErr.message);
+        }
+      }
+      return count;
+    } catch (err) {
+      console.warn('[AUTO-CANCEL] Lỗi quét đơn hết hạn 5 phút:', err.message);
+      return 0;
+    } finally {
+      _autoCancelInFlight = null;
+    }
+  })();
+
+  return _autoCancelInFlight;
 }
 
 function getCustomerVipInfo(totalSpent = 0) {
@@ -918,21 +934,8 @@ function mapOrder(o, items = [], history = [], extra = {}) {
 async function getOrderByCodeOrId(idOrCode, { skipAutoCancel = false } = {}) {
   const isNum = /^\d+$/.test(String(idOrCode));
   const oRes = await db.query(`
-    SELECT o.*,
-           COALESCE(u_spent.TotalSpent, phone_spent.TotalSpent, 0) AS "UserTotalSpent"
+    SELECT o.*
     FROM Orders o
-    LEFT JOIN (
-      SELECT UserId, COALESCE(SUM(CASE WHEN UPPER(Status) = 'DELIVERED' THEN Total ELSE 0 END), 0) AS TotalSpent
-      FROM Orders
-      WHERE UserId IS NOT NULL
-      GROUP BY UserId
-    ) u_spent ON o.UserId = u_spent.UserId
-    LEFT JOIN (
-      SELECT Phone, COALESCE(SUM(CASE WHEN UPPER(Status) = 'DELIVERED' THEN Total ELSE 0 END), 0) AS TotalSpent
-      FROM Orders
-      WHERE Phone IS NOT NULL AND Phone <> ''
-      GROUP BY Phone
-    ) phone_spent ON o.Phone = phone_spent.Phone
     WHERE ${isNum ? 'o.OrderId = @v' : '(o.OrderCode = @v OR REPLACE(o.OrderCode, \'-\', \'\') = REPLACE(@v, \'-\', \'\'))'}
   `, { v: isNum ? parseInt(idOrCode, 10) : String(idOrCode).trim().toUpperCase() });
   if (!oRes.recordset.length) return null;
@@ -973,7 +976,15 @@ async function getOrderByCodeOrId(idOrCode, { skipAutoCancel = false } = {}) {
     }
   }
 
-  const [iRes, hRes] = await Promise.all([
+  const ordUserId = Number(o.UserId || o.userid || 0);
+  const ordPhone = String(o.Phone || o.phone || '').trim();
+  const spentQuery = ordUserId > 0
+    ? db.query(`SELECT COALESCE(SUM(Total), 0) AS "TotalSpent" FROM Orders WHERE UserId = @uid AND UPPER(Status) = 'DELIVERED'`, { uid: ordUserId })
+    : (ordPhone
+        ? db.query(`SELECT COALESCE(SUM(Total), 0) AS "TotalSpent" FROM Orders WHERE Phone = @phone AND UPPER(Status) = 'DELIVERED'`, { phone: ordPhone })
+        : Promise.resolve({ recordset: [{ TotalSpent: 0 }] }));
+
+  const [iRes, hRes, sRes] = await Promise.all([
     db.query(`
       SELECT oi.OrderItemId, oi.ProductId, oi.ProductName, oi.PackagingOption, oi.UnitPrice, oi.Quantity, oi.LineTotal,
              p.Sku, p.ImageUrl, p.Status AS ProductStatus
@@ -987,8 +998,11 @@ async function getOrderByCodeOrId(idOrCode, { skipAutoCancel = false } = {}) {
       LEFT JOIN Users u ON h.ChangedBy = u.UserId
       WHERE h.OrderId = @oid
       ORDER BY h.CreatedAt ASC
-    `, { oid })
+    `, { oid }),
+    spentQuery
   ]);
+
+  o.UserTotalSpent = Number(sRes.recordset[0]?.TotalSpent ?? sRes.recordset[0]?.totalspent ?? 0);
 
   const items = iRes.recordset.map(i => {
     const packOpt = i.PackagingOption || i.packagingoption || 'box';
@@ -1013,12 +1027,14 @@ async function getOrderByCodeOrId(idOrCode, { skipAutoCancel = false } = {}) {
   return mapOrder(o, items, hRes.recordset);
 }
 
-async function listOrders({ status, paymentStatus, paymentMethod, q, userId, userEmail, phone, codes, preStage, spxStatus, sortBy = 'newest', dateRange = 'ALL', page = 1, pageSize = 50 } = {}) {
-  // Tự động quét và hủy các đơn chờ thanh toán / chuyển cọc quá 5 phút
-  try {
-    await autoCancelExpiredUnpaidOrders();
-  } catch (scanErr) {
-    console.warn('[AUTO-CANCEL-SWEEP] Lỗi quét đơn quá hạn:', scanErr.message);
+async function listOrders({ status, paymentStatus, paymentMethod, q, userId, userEmail, phone, codes, preStage, spxStatus, sortBy = 'newest', dateRange = 'ALL', page = 1, pageSize = 50, skipAutoCancel = false } = {}) {
+  // Tự động quét và hủy các đơn chờ thanh toán / chuyển cọc quá 5 phút (đã có cooldown 30s)
+  if (!skipAutoCancel) {
+    try {
+      await autoCancelExpiredUnpaidOrders();
+    } catch (scanErr) {
+      console.warn('[AUTO-CANCEL-SWEEP] Lỗi quét đơn quá hạn:', scanErr.message);
+    }
   }
 
   const where = [];
@@ -1140,21 +1156,8 @@ async function listOrders({ status, paymentStatus, paymentMethod, q, userId, use
   const [cRes, dRes] = await Promise.all([
     db.query(`SELECT COUNT(*) AS Total FROM Orders o ${whereClause}`, params),
     db.query(`
-      SELECT o.*,
-             COALESCE(u_spent.TotalSpent, phone_spent.TotalSpent, 0) AS "UserTotalSpent"
+      SELECT o.*
       FROM Orders o
-      LEFT JOIN (
-        SELECT UserId, COALESCE(SUM(CASE WHEN UPPER(Status) = 'DELIVERED' THEN Total ELSE 0 END), 0) AS TotalSpent
-        FROM Orders
-        WHERE UserId IS NOT NULL
-        GROUP BY UserId
-      ) u_spent ON o.UserId = u_spent.UserId
-      LEFT JOIN (
-        SELECT Phone, COALESCE(SUM(CASE WHEN UPPER(Status) = 'DELIVERED' THEN Total ELSE 0 END), 0) AS TotalSpent
-        FROM Orders
-        WHERE Phone IS NOT NULL AND Phone <> ''
-        GROUP BY Phone
-      ) phone_spent ON o.Phone = phone_spent.Phone
       ${whereClause}
       ORDER BY ${orderByClause}
       LIMIT @ps OFFSET @offset
@@ -1175,7 +1178,17 @@ async function listOrders({ status, paymentStatus, paymentMethod, q, userId, use
   }
 
   const ids = orders.map(o => o.OrderId || o.orderid).join(',');
-  const [itemsRes, transferSignalRes] = await Promise.all([
+  const pageUserIds = [...new Set(orders.map(o => Number(o.UserId || o.userid || 0)).filter(id => Number.isInteger(id) && id > 0))];
+  const pagePhones = [...new Set(orders.map(o => String(o.Phone || o.phone || '').trim()).filter(Boolean))];
+
+  const phoneParams = {};
+  const phonePlaceholders = pagePhones.map((ph, idx) => {
+    const key = `ph_${idx}`;
+    phoneParams[key] = ph;
+    return `@${key}`;
+  });
+
+  const [itemsRes, transferSignalRes, uSpentRes, pSpentRes] = await Promise.all([
     db.query(`
       SELECT oi.OrderId, oi.OrderItemId, oi.ProductId, oi.ProductName, oi.PackagingOption, oi.UnitPrice, oi.Quantity, oi.LineTotal,
              p.Sku, p.ImageUrl, p.Status AS ProductStatus
@@ -1186,8 +1199,30 @@ async function listOrders({ status, paymentStatus, paymentMethod, q, userId, use
     db.query(`
       SELECT DISTINCT OrderId FROM OrderStatusHistory
       WHERE OrderId IN (${ids}) AND (Note ILIKE '%chuyển khoản%' OR Note ILIKE '%báo đã chuyển%')
-    `)
+    `),
+    pageUserIds.length > 0
+      ? db.query(`SELECT UserId, COALESCE(SUM(Total), 0) AS "TotalSpent" FROM Orders WHERE UserId IN (${pageUserIds.join(',')}) AND UPPER(Status) = 'DELIVERED' GROUP BY UserId`)
+      : Promise.resolve({ recordset: [] }),
+    pagePhones.length > 0
+      ? db.query(`SELECT Phone, COALESCE(SUM(Total), 0) AS "TotalSpent" FROM Orders WHERE Phone IN (${phonePlaceholders.join(',')}) AND UPPER(Status) = 'DELIVERED' GROUP BY Phone`, phoneParams)
+      : Promise.resolve({ recordset: [] })
   ]);
+
+  const userSpentMap = new Map();
+  for (const r of (uSpentRes.recordset || [])) {
+    userSpentMap.set(Number(r.UserId || r.userid), Number(r.TotalSpent ?? r.totalspent ?? 0));
+  }
+  const phoneSpentMap = new Map();
+  for (const r of (pSpentRes.recordset || [])) {
+    phoneSpentMap.set(String(r.Phone || r.phone || '').trim(), Number(r.TotalSpent ?? r.totalspent ?? 0));
+  }
+  for (const o of orders) {
+    const uid = Number(o.UserId || o.userid || 0);
+    const ph = String(o.Phone || o.phone || '').trim();
+    o.UserTotalSpent = (uid > 0 && userSpentMap.has(uid))
+      ? userSpentMap.get(uid)
+      : (ph && phoneSpentMap.has(ph) ? phoneSpentMap.get(ph) : 0);
+  }
 
   const reportedOids = new Set((transferSignalRes.recordset || []).map(r => Number(r.OrderId || r.orderid)));
 

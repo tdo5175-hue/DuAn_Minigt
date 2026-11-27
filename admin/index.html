@@ -1233,7 +1233,7 @@
                 <button type="button" class="mini-preset-chip" onclick="document.getElementById('prodEdition').value='Special Edition'" title="Bản đặc biệt">Special</button>
                 <button type="button" class="mini-preset-chip" onclick="document.getElementById('prodEdition').value='Die-Cast Metal'" title="Thân kim loại nguyên khối">Diecast</button>
                 <button type="button" class="mini-preset-chip" onclick="document.getElementById('prodEdition').value='Nguyên Seal Nhà Máy'" title="Chưa bóc tem">Nguyên Seal</button>
-                <button type="button" class="mini-preset-chip" onclick="const customNote = prompt('Nhập nhãn ghi chú phiên bản mới:'); if(customNote && customNote.trim()){ document.getElementById('prodEdition').value = customNote.trim(); }" style="background:#eff6ff; color:#2563eb; font-weight:700; border-color:#bfdbfe;" title="Thêm ghi chú tùy chỉnh mới">+ Thêm nhãn...</button>
+                <button type="button" class="mini-preset-chip" onclick="openCustomEditionNotePrompt()" style="background:#eff6ff; color:#2563eb; font-weight:700; border-color:#bfdbfe;" title="Thêm ghi chú tùy chỉnh mới">+ Thêm nhãn...</button>
               </div>
             </div>
 
@@ -1482,7 +1482,7 @@
 
       <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:1rem;">
         <button type="button" class="btn-admin btn-admin-outline" onclick="closeAdminModal('cancelOrderModal')" data-i18n="btn_close">Đóng</button>
-        <button type="button" class="btn-admin btn-admin-primary" style="background:#dc2626; border-color:#dc2626;" onclick="confirmCancelOrderSubmit()" data-i18n="cancel_modal_btn_confirm">Xác Nhận Hủy Đơn</button>
+        <button type="button" id="btnConfirmCancelOrderSubmit" class="btn-admin btn-admin-primary" style="background:#dc2626; border-color:#dc2626;" onclick="confirmCancelOrderSubmit()" data-i18n="cancel_modal_btn_confirm">Xác Nhận Hủy Đơn</button>
       </div>
     </div>
   </div>
@@ -1545,10 +1545,10 @@
 
       <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:1.25rem; flex-wrap:wrap;">
         <button type="button" class="btn-admin btn-admin-outline" onclick="closeAdminModal('shipSpxModal')" data-i18n="btn_close">Đóng</button>
-        <button type="button" class="btn-admin btn-admin-outline" style="color:#ea580c; border-color:#fdba74;" onclick="saveSpxTrackingOnly()" data-i18n="ship_modal_btn_save_only">
+        <button type="button" id="btnSaveSpxTrackingOnly" class="btn-admin btn-admin-outline" style="color:#ea580c; border-color:#fdba74;" onclick="saveSpxTrackingOnly()" data-i18n="ship_modal_btn_save_only">
           Lưu Mã Vận Đơn
         </button>
-        <button type="button" class="btn-admin btn-admin-primary" style="background:#ea580c; border-color:#ea580c;" onclick="confirmShipSpxSubmit()" data-i18n="ship_modal_btn_start">
+        <button type="button" id="btnConfirmShipSpxSubmit" class="btn-admin btn-admin-primary" style="background:#ea580c; border-color:#ea580c;" onclick="confirmShipSpxSubmit()" data-i18n="ship_modal_btn_start">
           Bắt Đầu Giao Hàng (SPX) ➔
         </button>
       </div>
@@ -1728,6 +1728,32 @@
     </div>
   </div>
 
+  <!-- ADMIN UNIFIED CONFIRMATION & INPUT MODAL (MƯỢT MÀ, THAY THẾ CONFIRM/PROMPT MẶC ĐỊNH) -->
+  <div class="modal-overlay" id="adminConfirmModal" style="z-index: 1250;">
+    <div class="modal-card admin-confirm-card" style="max-width: 460px; padding: 1.5rem 1.75rem;">
+      <button type="button" class="modal-close" id="adminConfirmCloseBtn" title="Đóng">✕</button>
+      <div style="display:flex; align-items:flex-start; gap:14px; margin-bottom:12px;">
+        <div id="adminConfirmIconWrap" class="confirm-icon-wrap is-warning">
+          <i id="adminConfirmIcon" class="fa-solid fa-triangle-exclamation"></i>
+        </div>
+        <div style="flex:1; min-width:0;">
+          <h3 id="adminConfirmTitle" style="font-size:16.5px; font-weight:800; color:#0f172a; margin:0 0 6px; line-height:1.35;">Xác nhận thao tác</h3>
+          <div id="adminConfirmMessage" style="font-size:13px; color:#475569; line-height:1.55;">Bạn có chắc chắn muốn thực hiện thao tác này không?</div>
+        </div>
+      </div>
+
+      <div id="adminConfirmInputWrap" class="form-group" style="display:none; margin-top:12px; margin-bottom:0;">
+        <label id="adminConfirmInputLabel" class="form-label" style="font-size:12px; font-weight:700; color:#334155;">Ghi chú</label>
+        <input type="text" id="adminConfirmInputField" class="form-control" placeholder="Nhập thông tin...">
+      </div>
+
+      <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:1.35rem;">
+        <button type="button" id="adminConfirmCancelBtn" class="btn-admin btn-admin-outline" style="padding:0.55rem 1rem; font-size:13px;">Hủy bỏ</button>
+        <button type="button" id="adminConfirmOkBtn" class="btn-admin btn-admin-primary" style="padding:0.55rem 1.2rem; font-size:13px;">Xác nhận</button>
+      </div>
+    </div>
+  </div>
+
   <!-- ADMIN GALLERY LIGHTBOX VIEWER (XEM ẢNH 5+ & TOÀN BỘ GALLERY) -->
   <div id="adminGalleryLightbox" class="admin-lightbox-overlay" onclick="if(event.target===this) closeAdminGalleryLightbox()">
     <div class="admin-lightbox-box">
@@ -1745,7 +1771,7 @@
   </div>
 
   <!-- Shared API Client & Admin Application Script -->
-  <script src="../js/api.js?v=20261107_16"></script>
-  <script src="js/admin.js?v=20261107_18"></script>
+  <script src="../js/api.js?v=20261127_01"></script>
+  <script src="js/admin.js?v=20261127_01"></script>
 </body>
 </html>
