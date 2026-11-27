@@ -7365,6 +7365,7 @@ async function initPayosStep4Checkout(orderCode, expectedAmount) {
     });
 
     if (json && json.success && json.data) {
+      if (typeof setCachedPayosQr === 'function') setCachedPayosQr(orderCode, json.data);
       const { checkoutUrl, qrCode, amount, accountNumber, accountName, bin } = json.data;
       const transferAmount = Number(amount || expectedAmount || 0);
       const memoCode = String(orderCode || '').startsWith('MGT') ? String(orderCode) : `MGT ${orderCode}`;
@@ -7376,7 +7377,7 @@ async function initPayosStep4Checkout(orderCode, expectedAmount) {
       container.innerHTML = `
         <div style="display:grid; grid-template-columns: minmax(210px, 240px) 1fr; gap:18px; align-items:center; width:100%;">
           <div style="text-align:center;">
-            <img src="${qrImageSrc}" alt="VietQR PayOS" style="width:100%; max-width:240px; border-radius:12px; border:2px solid #0284c7; box-shadow:0 6px 18px rgba(2,132,199,0.2); padding:6px; background:#fff; margin:0 auto; display:block;">
+            <img src="${qrImageSrc}" onerror="this.onerror=null; this.src='image/qr-mb-doquocthinh.png';" alt="VietQR PayOS" style="width:100%; max-width:240px; border-radius:12px; border:2px solid #0284c7; box-shadow:0 6px 18px rgba(2,132,199,0.2); padding:6px; background:#fff; margin:0 auto; display:block;">
             <div style="font-size:11.5px; color:#475569; margin-top:6px; font-weight:700;"><i class="fa-solid fa-qrcode" style="color:#0284c7;"></i> Quét bằng app ngân hàng</div>
           </div>
 
@@ -9959,7 +9960,11 @@ async function loadMyOrdersList(silent = false) {
   const container = document.getElementById('myOrdersModalContent');
   if (!container) return;
 
-  if (!silent) {
+  const hasInstantCache = Array.isArray(myOrdersCache) && myOrdersCache.length > 0;
+  if (hasInstantCache && !container.querySelector('#myOrdersCardsList')) {
+    window._lastMyOrdersRenderSnapshot = myOrdersCache.map(o => `${o.OrderCode || o.orderCode || o.code}:${o.Status || o.status}:${o.PaymentStatus || o.paymentStatus}:${o.TrackingCode || o.trackingCode || ''}`).join('|');
+    renderMyOrdersCenterUI(container);
+  } else if (!silent && !hasInstantCache) {
     container.innerHTML = `
       <div style="text-align:center; padding:2rem; color:#64748b;">
         <i class="fa-solid fa-circle-notch fa-spin" style="font-size:24px; color:var(--color-primary); margin-bottom:8px;"></i>
@@ -9971,14 +9976,22 @@ async function loadMyOrdersList(silent = false) {
   try {
     const orders = await fetchCustomerOrdersUnified();
     myOrdersCache = orders;
-    renderMyOrdersCenterUI(container);
+    const newSnapshot = (orders || []).map(o => `${o.OrderCode || o.orderCode || o.code}:${o.Status || o.status}:${o.PaymentStatus || o.paymentStatus}:${o.TrackingCode || o.trackingCode || ''}`).join('|');
+    if (!hasInstantCache || !container.querySelector('#myOrdersCardsList') || newSnapshot !== window._lastMyOrdersRenderSnapshot) {
+      window._lastMyOrdersRenderSnapshot = newSnapshot;
+      renderMyOrdersCenterUI(container);
+    } else if (typeof restoreOpenCustomerQrPanels === 'function') {
+      restoreOpenCustomerQrPanels();
+    }
   } catch (err) {
-    container.innerHTML = `
-      <div style="text-align:center; padding:1.5rem; color:#dc2626;">
-        <p>Lỗi tải đơn hàng: ${escapeHtml(err.message)}</p>
-        <button class="btn btn-sm btn-outline" style="margin-top:8px;" onclick="loadMyOrdersList()">Thử lại</button>
-      </div>
-    `;
+    if (!hasInstantCache) {
+      container.innerHTML = `
+        <div style="text-align:center; padding:1.5rem; color:#dc2626;">
+          <p>Lỗi tải đơn hàng: ${escapeHtml(err.message)}</p>
+          <button class="btn btn-sm btn-outline" style="margin-top:8px;" onclick="loadMyOrdersList()">Thử lại</button>
+        </div>
+      `;
+    }
   }
 }
 
@@ -9996,6 +10009,7 @@ function handleMyOrdersSearchInput(val) {
     listEl.innerHTML = filtered.length > 0
       ? filtered.map(ord => buildUnifiedCustomerOrderCardHTML(ord)).join('')
       : `<div style="text-align:center; padding:2rem; background:#f8fafc; border-radius:12px; border:1px dashed #cbd5e1; color:#64748b;">Không tìm thấy đơn hàng nào khớp với bộ lọc hiện tại.</div>`;
+    if (typeof restoreOpenCustomerQrPanels === 'function') restoreOpenCustomerQrPanels();
   }
 }
 
@@ -10148,6 +10162,9 @@ function renderMyOrdersCenterUI(container) {
     </div>
   `;
   startUnpaidOrderCountdownTicker();
+  if (typeof restoreOpenCustomerQrPanels === 'function') {
+    restoreOpenCustomerQrPanels();
+  }
 }
 
 async function syncCustomerOrderByQuery() {
@@ -10733,6 +10750,119 @@ window.customerReportTransfer = customerReportTransfer;
 window.startCustomerOrderQrPolling = startCustomerOrderQrPolling;
 window.stopCustomerOrderQrPolling = stopCustomerOrderQrPolling;
 
+window._customerPayosQrCache = window._customerPayosQrCache || {};
+window._customerPayosInFlight = window._customerPayosInFlight || {};
+const PAYOS_CLIENT_CACHE_KEY = 'minigt_payos_qr_cache_v1';
+const PAYOS_CLIENT_CACHE_TTL_MS = 15 * 60 * 1000;
+
+function getCachedPayosQr(orderCode, expectedAmount = 0) {
+  if (!orderCode) return null;
+  const now = Date.now();
+  let entry = window._customerPayosQrCache[orderCode] || null;
+  if (!entry) {
+    try {
+      const stored = JSON.parse(sessionStorage.getItem(PAYOS_CLIENT_CACHE_KEY) || '{}');
+      if (stored && stored[orderCode]) {
+        entry = stored[orderCode];
+        window._customerPayosQrCache[orderCode] = entry;
+      }
+    } catch (_) {}
+  }
+  if (!entry || !entry.data) return null;
+  if ((now - Number(entry.cachedAt || 0)) > PAYOS_CLIENT_CACHE_TTL_MS) return null;
+  const cachedAmt = Math.round(Number(entry.data.amount || 0));
+  const expAmt = Math.round(Number(expectedAmount || 0));
+  if (expAmt > 0 && cachedAmt > 0 && cachedAmt !== expAmt) return null;
+  return entry.data;
+}
+
+function setCachedPayosQr(orderCode, data) {
+  if (!orderCode || !data) return;
+  const record = { data, cachedAt: Date.now() };
+  window._customerPayosQrCache[orderCode] = record;
+  try {
+    const stored = JSON.parse(sessionStorage.getItem(PAYOS_CLIENT_CACHE_KEY) || '{}');
+    const clean = (stored && typeof stored === 'object') ? stored : {};
+    clean[orderCode] = record;
+    const keys = Object.keys(clean);
+    if (keys.length > 15) {
+      keys.sort((a, b) => Number(clean[a]?.cachedAt || 0) - Number(clean[b]?.cachedAt || 0));
+      keys.slice(0, keys.length - 15).forEach(k => delete clean[k]);
+    }
+    sessionStorage.setItem(PAYOS_CLIENT_CACHE_KEY, JSON.stringify(clean));
+  } catch (_) {}
+}
+
+function renderPayosQrSuccessHTML(box, orderCode, d) {
+  if (!box || !d) return;
+  box.dataset.loaded = 'true';
+  box.dataset.loading = 'false';
+
+  const transferAmount = Number(d.amount || 0);
+  const memoCode = String(orderCode).startsWith('MGT') ? String(orderCode) : `MGT ${orderCode}`;
+  const bankAcc = d.accountNumber || storeSettings?.bank_account_no || '87654321082007';
+  const accName = d.accountName || storeSettings?.bank_account_name || 'DO QUOC THINH';
+  const qrImageSrc = (d.qrCode && (d.qrCode.startsWith('http') || d.qrCode.startsWith('data:image')))
+    ? d.qrCode
+    : `https://img.vietqr.io/image/${d.bin || '970422'}-${bankAcc}-compact2.png?amount=${Math.round(transferAmount)}&addInfo=${encodeURIComponent(memoCode)}&accountName=${encodeURIComponent(accName)}`;
+
+  box.innerHTML = `
+    <div style="display:grid; grid-template-columns:minmax(180px, 210px) 1fr; gap:16px; align-items:center; width:100%;">
+      <div style="text-align:center;">
+        <img src="${qrImageSrc}" onerror="this.onerror=null; this.src='image/qr-mb-doquocthinh.png';" alt="VietQR PayOS" style="width:100%; max-width:210px; border-radius:10px; border:2px solid #0284c7; background:#fff; padding:5px; box-shadow:0 4px 14px rgba(2,132,199,0.15); display:block; margin:0 auto;">
+        <div style="font-size:11px; color:#0369a1; margin-top:5px; font-weight:700;"><i class="fa-solid fa-qrcode"></i> ${d.isFallbackBankQr ? 'Quét mã VietQR MB Bank' : 'Quét mã PayOS VietQR tự động'}</div>
+      </div>
+      <div style="font-size:12.5px; color:#0f172a; line-height:1.65;">
+        <div>Ngân hàng: <strong>Ngân hàng Quân Đội (MB Bank)</strong> • Chủ TK: <strong>${escapeHtml(accName)}</strong></div>
+        <div style="margin-top:2px;">
+          ${d.isFallbackBankQr ? 'STK MB Bank' : 'STK PayOS'}: <strong style="color:#0284c7; font-family:var(--font-mono, monospace); font-size:14px; font-weight:800;">${escapeHtml(bankAcc)}</strong>
+          <button type="button" class="btn-copy-mini" onclick="copyToClipboard('${escapeHtml(bankAcc)}', 'Đã sao chép số tài khoản!')"><i class="fa-regular fa-copy"></i> Copy</button>
+        </div>
+        <div style="margin-top:2px;">
+          Số tiền cần chuyển: <strong style="color:#dc2626; font-size:14.5px; font-weight:900;">${formatVND(transferAmount)}</strong>
+          <button type="button" class="btn-copy-mini" onclick="copyToClipboard('${transferAmount}', 'Đã sao chép số tiền!')"><i class="fa-regular fa-copy"></i></button>
+        </div>
+        <div style="margin-top:2px;">
+          Nội dung CK: <strong style="color:#0284c7; font-family:var(--font-mono, monospace); font-size:13.5px; background:#e0f2fe; padding:2px 8px; border-radius:4px;">${escapeHtml(memoCode)}</strong>
+          <button type="button" class="btn-copy-mini" style="background:#0284c7; color:#fff;" onclick="copyToClipboard('${escapeHtml(memoCode)}', 'Đã sao chép nội dung CK!')"><i class="fa-regular fa-copy"></i> Copy</button>
+        </div>
+        <div style="margin-top:10px; display:flex; gap:8px; flex-wrap:wrap;">
+          ${d.checkoutUrl ? `
+            <a href="${d.checkoutUrl}" target="_blank" class="btn btn-sm" style="background:#0284c7; color:#fff; border:none; padding:7px 13px; border-radius:6px; font-size:11.5px; font-weight:700; text-decoration:none; display:inline-flex; align-items:center; gap:5px;">
+              <i class="fa-solid fa-arrow-up-right-from-square"></i> Cổng PayOS ↗
+            </a>
+          ` : `
+            <button type="button" class="btn btn-sm" style="background:#fff; color:#0284c7; border:1px solid #0284c7; padding:7px 12px; border-radius:6px; font-size:11.5px; font-weight:700; display:inline-flex; align-items:center; gap:5px; cursor:pointer;" onclick="loadPayosQrForOrderPanel('${escapeHtml(orderCode)}', { forceRefresh: true })">
+              <i class="fa-solid fa-rotate"></i> Thử lấy link PayOS
+            </button>
+          `}
+          <button type="button" class="btn btn-sm" style="background:#16a34a; color:#fff; border:none; padding:7px 13px; border-radius:6px; font-size:11.5px; font-weight:700; display:inline-flex; align-items:center; gap:5px; cursor:pointer;" onclick="triggerInstantPayOSCheck('${escapeHtml(orderCode)}')">
+            <i class="fa-solid fa-arrows-rotate"></i> Kiểm tra nhận tiền
+          </button>
+          <button type="button" class="btn btn-sm" style="background:#0284c7; color:#fff; border:none; padding:7px 13px; border-radius:6px; font-size:11.5px; font-weight:700; display:inline-flex; align-items:center; gap:5px; cursor:pointer;" onclick="customerReportTransfer('${escapeHtml(orderCode)}', this)">
+            <i class="fa-solid fa-building-columns"></i> Tôi đã chuyển khoản MB Bank
+          </button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function restoreOpenCustomerQrPanels() {
+  if (!window._openCustomerQrPanels || window._openCustomerQrPanels.size === 0) return;
+  Array.from(window._openCustomerQrPanels).forEach(code => {
+    const p = document.getElementById(`qrPanel_${code}`);
+    if (p) {
+      p.style.display = 'block';
+      loadPayosQrForOrderPanel(code);
+      startCustomerOrderQrPolling(code);
+    } else {
+      window._openCustomerQrPanels.delete(code);
+      stopCustomerOrderQrPolling(code);
+    }
+  });
+}
+
 function toggleOrderQrPanel(orderCode) {
   const el = document.getElementById(`qrPanel_${orderCode}`);
   if (!el) return;
@@ -10749,89 +10879,108 @@ function toggleOrderQrPanel(orderCode) {
   }
 }
 
-async function loadPayosQrForOrderPanel(orderCode) {
+async function loadPayosQrForOrderPanel(orderCode, options = {}) {
   const box = document.getElementById(`payosQrBox_${orderCode}`);
   if (!box) return;
-  if (box.dataset.loaded === 'true') return;
+  const forceRefresh = Boolean(options.forceRefresh);
+  if (!forceRefresh && box.dataset.loaded === 'true') return;
+  if (!forceRefresh && box.dataset.loading === 'true') return;
+
+  const ord = findOrderInCustomerMemory(orderCode);
+  const fin = computeCustomerOrderFinancials(ord || {});
+  const expectedAmt = fin.qrTransferAmount > 0 ? fin.qrTransferAmount : fin.productPayable;
+
+  // 1. Hiện TỨC THÌ (0ms) nếu đã có link/mã QR PayOS trong cache còn hiệu lực
+  if (!forceRefresh) {
+    const cachedQr = getCachedPayosQr(orderCode, expectedAmt);
+    if (cachedQr) {
+      renderPayosQrSuccessHTML(box, orderCode, cachedQr);
+      return;
+    }
+  }
+
+  box.dataset.loading = 'true';
+  if (forceRefresh) {
+    box.innerHTML = `
+      <div class="pulse-spinner" style="border-color:#0284c7; border-top-color:transparent; margin-bottom:10px;"></div>
+      <div style="font-size:12.5px; font-weight:700; color:#0369a1;">Đang kết nối lại cổng VietQR PayOS...</div>
+    `;
+  }
 
   try {
-    const res = await safeFetch(`/api/orders/${encodeURIComponent(orderCode)}/payos-link`, {
-      method: 'POST'
-    });
+    let reqPromise = window._customerPayosInFlight[orderCode];
+    if (!reqPromise || forceRefresh) {
+      reqPromise = safeFetch(`/api/orders/${encodeURIComponent(orderCode)}/payos-link`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(forceRefresh ? { forceNew: true } : {})
+      });
+      window._customerPayosInFlight[orderCode] = reqPromise;
+    }
+
+    const timeoutPromise = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error('PayOS timeout')), 8500)
+    );
+    const res = await Promise.race([reqPromise, timeoutPromise]);
 
     if (res && res.success && res.data) {
-      box.dataset.loaded = 'true';
-      const d = res.data;
-      const transferAmount = Number(d.amount || 0);
-      const memoCode = String(orderCode).startsWith('MGT') ? String(orderCode) : `MGT ${orderCode}`;
-      const qrImageSrc = (d.qrCode && (d.qrCode.startsWith('http') || d.qrCode.startsWith('data:image')))
-        ? d.qrCode
-        : `https://img.vietqr.io/image/${d.bin || '970422'}-${d.accountNumber}-compact2.png?amount=${Math.round(transferAmount)}&addInfo=${encodeURIComponent(memoCode)}&accountName=${encodeURIComponent(d.accountName || 'DO QUOC THINH')}`;
-
-      box.innerHTML = `
-        <div style="display:grid; grid-template-columns:minmax(180px, 210px) 1fr; gap:16px; align-items:center; width:100%;">
-          <div style="text-align:center;">
-            <img src="${qrImageSrc}" alt="VietQR PayOS" style="width:100%; max-width:210px; border-radius:10px; border:2px solid #0284c7; background:#fff; padding:5px; box-shadow:0 4px 14px rgba(2,132,199,0.15); display:block; margin:0 auto;">
-            <div style="font-size:11px; color:#0369a1; margin-top:5px; font-weight:700;"><i class="fa-solid fa-qrcode"></i> Quét mã PayOS VietQR tự động</div>
-          </div>
-          <div style="font-size:12.5px; color:#0f172a; line-height:1.65;">
-            <div>Ngân hàng: <strong>Ngân hàng Quân Đội (MB Bank)</strong> • Chủ TK: <strong>${escapeHtml(d.accountName || 'DO QUOC THINH')}</strong></div>
-            <div style="margin-top:2px;">
-              STK PayOS: <strong style="color:#0284c7; font-family:var(--font-mono, monospace); font-size:14px; font-weight:800;">${escapeHtml(d.accountNumber)}</strong>
-              <button type="button" class="btn-copy-mini" onclick="copyToClipboard('${escapeHtml(d.accountNumber)}', 'Đã sao chép STK PayOS!')"><i class="fa-regular fa-copy"></i> Copy</button>
-            </div>
-            <div style="margin-top:2px;">
-              Số tiền cần chuyển: <strong style="color:#dc2626; font-size:14.5px; font-weight:900;">${formatVND(transferAmount)}</strong>
-              <button type="button" class="btn-copy-mini" onclick="copyToClipboard('${transferAmount}', 'Đã sao chép số tiền!')"><i class="fa-regular fa-copy"></i></button>
-            </div>
-            <div style="margin-top:2px;">
-              Nội dung CK: <strong style="color:#0284c7; font-family:var(--font-mono, monospace); font-size:13.5px; background:#e0f2fe; padding:2px 8px; border-radius:4px;">${escapeHtml(memoCode)}</strong>
-              <button type="button" class="btn-copy-mini" style="background:#0284c7; color:#fff;" onclick="copyToClipboard('${escapeHtml(memoCode)}', 'Đã sao chép nội dung CK!')"><i class="fa-regular fa-copy"></i> Copy</button>
-            </div>
-            <div style="margin-top:10px; display:flex; gap:8px; flex-wrap:wrap;">
-              ${d.checkoutUrl ? `
-                <a href="${d.checkoutUrl}" target="_blank" class="btn btn-sm" style="background:#0284c7; color:#fff; border:none; padding:7px 13px; border-radius:6px; font-size:11.5px; font-weight:700; text-decoration:none; display:inline-flex; align-items:center; gap:5px;">
-                  <i class="fa-solid fa-arrow-up-right-from-square"></i> Cổng PayOS ↗
-                </a>
-              ` : ''}
-              <button type="button" class="btn btn-sm" style="background:#16a34a; color:#fff; border:none; padding:7px 13px; border-radius:6px; font-size:11.5px; font-weight:700; display:inline-flex; align-items:center; gap:5px; cursor:pointer;" onclick="triggerInstantPayOSCheck('${escapeHtml(orderCode)}')">
-                <i class="fa-solid fa-arrows-rotate"></i> Kiểm tra nhận tiền
-              </button>
-              <button type="button" class="btn btn-sm" style="background:#0284c7; color:#fff; border:none; padding:7px 13px; border-radius:6px; font-size:11.5px; font-weight:700; display:inline-flex; align-items:center; gap:5px; cursor:pointer;" onclick="customerReportTransfer('${escapeHtml(orderCode)}', this)">
-                <i class="fa-solid fa-building-columns"></i> Tôi đã chuyển khoản MB Bank
-              </button>
-            </div>
-          </div>
-        </div>
-      `;
+      setCachedPayosQr(orderCode, res.data);
+      const liveBox = document.getElementById(`payosQrBox_${orderCode}`);
+      if (liveBox) renderPayosQrSuccessHTML(liveBox, orderCode, res.data);
+    } else if (res && res.status === 409) {
+      // Đơn đã thanh toán xong trong lúc mở lại -> ẩn khung QR & cập nhật danh sách
+      window._openCustomerQrPanels.delete(orderCode);
+      stopCustomerOrderQrPolling(orderCode);
+      if (typeof loadMyOrdersList === 'function') loadMyOrdersList(true);
     } else {
-      renderManualBankQrInBox(box, orderCode);
+      const liveBox = document.getElementById(`payosQrBox_${orderCode}`);
+      if (liveBox) renderManualBankQrInBox(liveBox, orderCode);
     }
   } catch (err) {
-    console.error('[loadPayosQrForOrderPanel error]', err);
-    renderManualBankQrInBox(box, orderCode);
+    console.warn('[loadPayosQrForOrderPanel fallback]', err?.message || err);
+    const liveBox = document.getElementById(`payosQrBox_${orderCode}`);
+    if (liveBox) renderManualBankQrInBox(liveBox, orderCode);
+  } finally {
+    delete window._customerPayosInFlight[orderCode];
+    const liveBox = document.getElementById(`payosQrBox_${orderCode}`);
+    if (liveBox) liveBox.dataset.loading = 'false';
   }
 }
 
 function renderManualBankQrInBox(box, orderCode) {
+  if (!box) return;
+  box.dataset.loaded = 'true';
+  box.dataset.loading = 'false';
   const ord = findOrderInCustomerMemory(orderCode);
   const fin = computeCustomerOrderFinancials(ord || {});
-  const amt = fin.qrTransferAmount > 0 ? fin.qrTransferAmount : fin.productPayable;
+  const amt = Math.round(fin.qrTransferAmount > 0 ? fin.qrTransferAmount : fin.productPayable);
   const memo = String(orderCode).startsWith('MGT') ? String(orderCode) : `MGT ${orderCode}`;
+  const bankAcc = storeSettings?.bank_account_no || '87654321082007';
+  const bankOwner = storeSettings?.bank_account_name || 'DO QUOC THINH';
+  const dynamicQrUrl = amt > 0
+    ? `https://img.vietqr.io/image/970422-${bankAcc}-compact2.png?amount=${amt}&addInfo=${encodeURIComponent(memo)}&accountName=${encodeURIComponent(bankOwner)}`
+    : 'image/qr-mb-doquocthinh.png';
 
   box.innerHTML = `
     <div style="display:grid; grid-template-columns:minmax(180px, 210px) 1fr; gap:16px; align-items:center; width:100%;">
       <div style="text-align:center;">
-        <img src="image/qr-mb-doquocthinh.png" alt="MB Bank QR" style="width:100%; max-width:210px; border-radius:10px; border:2px solid #dc2626; background:#fff; padding:5px; box-shadow:0 4px 14px rgba(220,38,38,0.12); display:block; margin:0 auto;">
-        <div style="font-size:11px; color:#b91c1c; margin-top:5px; font-weight:700;"><i class="fa-solid fa-qrcode"></i> Mã QR MB Bank Đỗ Quốc Thịnh</div>
+        <img src="${dynamicQrUrl}" onerror="this.onerror=null; this.src='image/qr-mb-doquocthinh.png';" alt="MB Bank QR" style="width:100%; max-width:210px; border-radius:10px; border:2px solid #dc2626; background:#fff; padding:5px; box-shadow:0 4px 14px rgba(220,38,38,0.12); display:block; margin:0 auto;">
+        <div style="font-size:11px; color:#b91c1c; margin-top:5px; font-weight:700;"><i class="fa-solid fa-qrcode"></i> Mã QR MB Bank ${escapeHtml(bankOwner)}</div>
       </div>
       <div style="font-size:12.5px; color:#0f172a; line-height:1.65;">
-        <div>Ngân hàng: <strong>Ngân hàng Quân Đội (MB Bank)</strong> • Chủ TK: <strong>DO QUOC THINH</strong></div>
+        <div>Ngân hàng: <strong>Ngân hàng Quân Đội (MB Bank)</strong> • Chủ TK: <strong>${escapeHtml(bankOwner)}</strong></div>
+        <div style="margin-top:2px;">
+          STK MB Bank: <strong style="color:#dc2626; font-family:var(--font-mono, monospace); font-size:14px; font-weight:800;">${escapeHtml(bankAcc)}</strong>
+          <button type="button" class="btn-copy-mini" onclick="copyToClipboard('${escapeHtml(bankAcc)}', 'Đã sao chép STK!')"><i class="fa-regular fa-copy"></i> Copy</button>
+        </div>
         <div style="margin-top:2px;">Số tiền cần chuyển cho Shop: <strong style="color:#dc2626; font-size:14.5px; font-weight:900;">${formatVND(amt)}</strong> ${fin.isPartialDeposit ? '<em style="font-size:11px; color:#64748b;">(Cọc 30% tiền hàng)</em>' : '<em style="font-size:11px; color:#64748b;">(100% tiền hàng, chưa gồm ship SPX)</em>'}</div>
         <div style="margin-top:2px;">Nội dung CK: <strong style="color:#1d4ed8; font-family:monospace; font-size:13.5px; background:#eff6ff; padding:2px 8px; border-radius:4px;">${escapeHtml(memo)}</strong> <button type="button" class="btn-copy-mini" style="background:#2563eb; color:#fff;" onclick="copyToClipboard('${escapeHtml(memo)}', 'Đã chép nội dung!')"><i class="fa-regular fa-copy"></i> Copy</button></div>
         <div style="margin-top:4px; font-size:11px; color:#0369a1;">Phí ship SPX Express <strong>${formatVND(fin.shippingFee)}</strong>: Bạn thanh toán riêng cho bưu tá khi nhận xe.</div>
         <div style="margin-top:8px; font-size:11.5px; color:#64748b; font-style:italic;">Sau khi chuyển khoản, Admin sẽ kiểm tra và duyệt đơn ngay cho bạn.</div>
         <div style="margin-top:10px; display:flex; gap:8px; flex-wrap:wrap;">
+          <button type="button" class="btn btn-sm" style="background:#fff; color:#0284c7; border:1px solid #0284c7; padding:7px 12px; border-radius:6px; font-size:11.5px; font-weight:700; display:inline-flex; align-items:center; gap:5px; cursor:pointer;" onclick="loadPayosQrForOrderPanel('${escapeHtml(orderCode)}', { forceRefresh: true })">
+            <i class="fa-solid fa-rotate"></i> Thử tải lại PayOS QR
+          </button>
           <button type="button" class="btn btn-sm" style="background:#16a34a; color:#fff; border:none; padding:7px 13px; border-radius:6px; font-size:11.5px; font-weight:700; display:inline-flex; align-items:center; gap:5px; cursor:pointer;" onclick="triggerInstantPayOSCheck('${escapeHtml(orderCode)}')">
             <i class="fa-solid fa-arrows-rotate"></i> Kiểm tra nhận tiền
           </button>
@@ -11661,13 +11810,8 @@ function initCustomerRealtimeOrderWatcher() {
           if (newSnapshot !== window._lastMyOrdersRenderSnapshot) {
             window._lastMyOrdersRenderSnapshot = newSnapshot;
             renderMyOrdersCenterUI(container);
-            // Khôi phục lại các khung QR khách hàng đang mở xem
-            if (window._openCustomerQrPanels && window._openCustomerQrPanels.size > 0) {
-              window._openCustomerQrPanels.forEach(code => {
-                const p = document.getElementById(`qrPanel_${code}`);
-                if (p) p.style.display = 'block';
-              });
-            }
+          } else if (typeof restoreOpenCustomerQrPanels === 'function') {
+            restoreOpenCustomerQrPanels();
           }
         }
       }

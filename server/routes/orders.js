@@ -21,6 +21,22 @@ const payos = new PayOS(
   process.env.PAYOS_CHECKSUM_KEY || ''
 );
 
+const PAYOS_LINK_CACHE_TTL_MS = 15 * 60 * 1000;
+const payosLinkMemoryCache = new Map();
+const payosLinkInFlight = new Map();
+
+function payosWithTimeout(promise, ms = 7500) {
+  let timer = null;
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => {
+      timer = setTimeout(() => reject(new Error(`PayOS timeout after ${ms}ms`)), ms);
+    })
+  ]).finally(() => {
+    if (timer) clearTimeout(timer);
+  });
+}
+
 // =====================================================================
 // BẢO MẬT QUYỀN TRUY CẬP ĐƠN HÀNG & CHỐNG LỘ THÔNG TIN CÁ NHÂN (PII)
 // =====================================================================
@@ -302,7 +318,7 @@ router.get('/check-status/:code', optionalAuth, async (req, res, next) => {
           const match = note.match(/PayOS\s*#?(\d+)/i);
           if (match && match[1]) {
             const payosCode = Number(match[1]);
-            const pInfo = await payos.getPaymentLinkInformation(payosCode);
+            const pInfo = await payosWithTimeout(payos.getPaymentLinkInformation(payosCode), 5000);
             const fin = orderService.computeOrderFinancials(o);
             const expectedQrAmount = Math.max(1, Number(fin.qrTransferAmount || fin.productPayable || 0));
             const actualPaid = Number(pInfo?.amountPaid || (pInfo?.status === 'PAID' ? pInfo?.amount : 0) || 0);
@@ -366,7 +382,7 @@ router.post('/notify-transfer', async (req, res, next) => {
         const match = note.match(/PayOS\s*#?(\d+)/i);
         if (match && match[1]) {
           const payosCode = Number(match[1]);
-          const pInfo = await payos.getPaymentLinkInformation(payosCode);
+          const pInfo = await payosWithTimeout(payos.getPaymentLinkInformation(payosCode), 5000);
           if (pInfo && pInfo.status === 'PAID') {
             const fin = orderService.computeOrderFinancials(order);
             const actualPaid = Number(pInfo.amountPaid || pInfo.amount || 0);
@@ -556,62 +572,118 @@ router.post('/:code/payos-link', optionalAuth, async (req, res, next) => {
       throw badRequest('Số tiền thanh toán không hợp lệ');
     }
 
-    // PayOS yêu cầu orderCode là số nguyên dương an toàn (<= 9007199254740991)
-    const baseId = Number(order.orderId || order.id || order.OrderId || 1);
-    const payosOrderCode = Number(`${baseId}${Math.floor(1000 + Math.random() * 9000)}`.slice(0, 15));
+    const roundedAmount = Math.round(amountToPay);
+    const cacheKey = `${order.orderCode}_${roundedAmount}`;
+    const forceNew = Boolean(req.body?.forceNew === true || req.query?.forceNew === '1');
+    const cachedEntry = !forceNew ? payosLinkMemoryCache.get(cacheKey) : null;
+    if (cachedEntry && (Date.now() - cachedEntry.cachedAt) < PAYOS_LINK_CACHE_TTL_MS) {
+      return ok(res, cachedEntry.payload, 'Lấy thông tin thanh toán PayOS VietQR từ cache thành công');
+    }
 
     // Nội dung chuyển khoản chuẩn dạng MGT [MãĐơn], tối đa 25 ký tự không dấu (tránh lặp MGT MGT)
     const cleanDesc = (code.startsWith('MGT') ? code : `MGT ${code}`).replace(/[^a-zA-Z0-9\s-]/g, '').slice(0, 25);
 
-    let clientOrigin = 'https://projectnhom2.vercel.app';
-    try {
-      if (req.headers.origin) {
-        clientOrigin = req.headers.origin;
-      } else if (req.headers.referer) {
-        clientOrigin = new URL(req.headers.referer).origin;
+    if (payosLinkInFlight.has(cacheKey)) {
+      const sharedPayload = await payosLinkInFlight.get(cacheKey);
+      return ok(res, sharedPayload, 'Khởi tạo cổng thanh toán PayOS VietQR thành công');
+    }
+
+    const buildTask = (async () => {
+      // PayOS yêu cầu orderCode là số nguyên dương an toàn (<= 9007199254740991)
+      const baseId = Number(order.orderId || order.id || order.OrderId || 1);
+      const payosOrderCode = Number(`${baseId}${Math.floor(1000 + Math.random() * 9000)}`.slice(0, 15));
+
+      let clientOrigin = 'https://projectnhom2.vercel.app';
+      try {
+        if (req.headers.origin) {
+          clientOrigin = req.headers.origin;
+        } else if (req.headers.referer) {
+          clientOrigin = new URL(req.headers.referer).origin;
+        }
+      } catch (_) {}
+
+      const paymentData = {
+        orderCode: payosOrderCode,
+        amount: roundedAmount,
+        description: cleanDesc,
+        returnUrl: `${clientOrigin}/?payment=success&code=${order.orderCode}`,
+        cancelUrl: `${clientOrigin}/?payment=cancel&code=${order.orderCode}`
+      };
+
+      const hasPayosCreds = Boolean(process.env.PAYOS_CLIENT_ID && process.env.PAYOS_API_KEY && process.env.PAYOS_CHECKSUM_KEY);
+      if (hasPayosCreds) {
+        try {
+          const paymentLink = await payosWithTimeout(payos.createPaymentLink(paymentData), 7500);
+          const oid = order.orderId || order.id || order.OrderId;
+          db.query(`
+            UPDATE Orders
+            SET PaymentMethod = CASE WHEN PaymentMethod = 'DEPOSIT' THEN 'DEPOSIT' ELSE 'VIETQR_PAYOS' END
+            WHERE OrderId = @oid AND (PaymentMethod IS NULL OR PaymentMethod = 'BANK_TRANSFER' OR PaymentMethod = 'COD')
+          `, { oid }).catch(() => {});
+
+          db.query(`
+            INSERT INTO OrderStatusHistory (OrderId, FromStatus, ToStatus, Note)
+            VALUES (@oid, @st, @st, 'Khởi tạo link thanh toán VietQR PayOS #' || @pCode || ' (' || @amt || 'đ)')
+          `, { oid, st: order.status || 'PENDING', pCode: payosOrderCode, amt: roundedAmount }).catch(() => {});
+
+          const payload = {
+            checkoutUrl: paymentLink.checkoutUrl,
+            qrCode: paymentLink.qrCode,
+            accountNumber: paymentLink.accountNumber,
+            accountName: paymentLink.accountName,
+            bin: paymentLink.bin,
+            paymentLinkId: paymentLink.paymentLinkId,
+            orderCode: order.orderCode,
+            payosOrderCode,
+            amount: roundedAmount,
+            productPayable: fin.productPayable,
+            depositAmount: fin.depositAmount,
+            remainingProductAmount: fin.remainingProductAmount,
+            shippingFee: fin.shippingFee,
+            payableOnDelivery: fin.payableOnDelivery,
+            isPartialDeposit: fin.isPartialDeposit
+          };
+          payosLinkMemoryCache.set(cacheKey, { payload, cachedAt: Date.now() });
+          return payload;
+        } catch (payosErr) {
+          console.warn('[PayOS createPaymentLink Fallback]:', payosErr.message);
+        }
       }
-    } catch (_) {}
 
-    const paymentData = {
-      orderCode: payosOrderCode,
-      amount: Math.round(amountToPay),
-      description: cleanDesc,
-      returnUrl: `${clientOrigin}/?payment=success&code=${order.orderCode}`,
-      cancelUrl: `${clientOrigin}/?payment=cancel&code=${order.orderCode}`
-    };
+      // Fallback VietQR động MB Bank chính thức nếu PayOS chậm/lỗi tạm thời
+      const fallbackAcc = '87654321082007';
+      const fallbackName = 'DO QUOC THINH';
+      const fallbackBin = '970422';
+      const fallbackPayload = {
+        checkoutUrl: null,
+        qrCode: `https://img.vietqr.io/image/${fallbackBin}-${fallbackAcc}-compact2.png?amount=${roundedAmount}&addInfo=${encodeURIComponent(cleanDesc)}&accountName=${encodeURIComponent(fallbackName)}`,
+        accountNumber: fallbackAcc,
+        accountName: fallbackName,
+        bin: fallbackBin,
+        paymentLinkId: null,
+        orderCode: order.orderCode,
+        payosOrderCode: null,
+        amount: roundedAmount,
+        productPayable: fin.productPayable,
+        depositAmount: fin.depositAmount,
+        remainingProductAmount: fin.remainingProductAmount,
+        shippingFee: fin.shippingFee,
+        payableOnDelivery: fin.payableOnDelivery,
+        isPartialDeposit: fin.isPartialDeposit,
+        isFallbackBankQr: true
+      };
+      return fallbackPayload;
+    })();
 
-    const paymentLink = await payos.createPaymentLink(paymentData);
-
-    // Ghi log vào OrderStatusHistory để mapping payosOrderCode với OrderId (giữ nguyên DEPOSIT nếu là đơn đặt cọc)
-    const oid = order.orderId || order.id || order.OrderId;
-    await db.query(`
-      UPDATE Orders
-      SET PaymentMethod = CASE WHEN PaymentMethod = 'DEPOSIT' THEN 'DEPOSIT' ELSE 'VIETQR_PAYOS' END
-      WHERE OrderId = @oid AND (PaymentMethod IS NULL OR PaymentMethod = 'BANK_TRANSFER' OR PaymentMethod = 'COD')
-    `, { oid }).catch(() => {});
-
-    await db.query(`
-      INSERT INTO OrderStatusHistory (OrderId, FromStatus, ToStatus, Note)
-      VALUES (@oid, @st, @st, 'Khởi tạo link thanh toán VietQR PayOS #' || @pCode || ' (' || @amt || 'đ)')
-    `, { oid, st: order.status || 'PENDING', pCode: payosOrderCode, amt: Math.round(amountToPay) }).catch(() => {});
-
-    return ok(res, {
-      checkoutUrl: paymentLink.checkoutUrl,
-      qrCode: paymentLink.qrCode,
-      accountNumber: paymentLink.accountNumber,
-      accountName: paymentLink.accountName,
-      bin: paymentLink.bin,
-      paymentLinkId: paymentLink.paymentLinkId,
-      orderCode: order.orderCode,
-      payosOrderCode,
-      amount: Math.round(amountToPay),
-      productPayable: fin.productPayable,
-      depositAmount: fin.depositAmount,
-      remainingProductAmount: fin.remainingProductAmount,
-      shippingFee: fin.shippingFee,
-      payableOnDelivery: fin.payableOnDelivery,
-      isPartialDeposit: fin.isPartialDeposit
-    }, 'Khởi tạo cổng thanh toán PayOS VietQR thành công');
+    payosLinkInFlight.set(cacheKey, buildTask);
+    try {
+      const payload = await buildTask;
+      return ok(res, payload, payload.isFallbackBankQr
+        ? 'Đã tạo mã VietQR MB Bank thanh toán tức thì'
+        : 'Khởi tạo cổng thanh toán PayOS VietQR thành công');
+    } finally {
+      payosLinkInFlight.delete(cacheKey);
+    }
   } catch (err) {
     console.error('[PayOS createPaymentLink Error]:', err.message);
     next(err);
